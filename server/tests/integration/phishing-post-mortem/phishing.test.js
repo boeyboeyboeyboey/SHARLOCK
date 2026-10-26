@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { Types } from 'mongoose'
 import { connectDatabase } from '../../../src/config/database.js'
 import { assertSafeTestDatabaseUri } from '../../../src/config/database-uri.js'
 import { loadEnvironment } from '../../../src/config/env.js'
@@ -16,6 +17,27 @@ import {
   initializeTestAuth,
   registerTestStudent,
 } from '../auth/helpers.js'
+
+const owned = {
+  users: new Set(),
+  institutions: new Set(),
+  cohorts: new Set(),
+  memberships: new Set(),
+}
+
+function remember(collection, id) {
+  owned[collection].add(id.toString())
+}
+
+function idValues(collection) {
+  return [...owned[collection]].map((id) => new Types.ObjectId(id))
+}
+
+async function registerStudent(app) {
+  const student = await registerTestStudent(app)
+  remember('users', student.user.id)
+  return student
+}
 
 let database
 let app
@@ -37,8 +59,33 @@ beforeAll(async () => {
   await initializeAttemptStorage(database, createProductionAttemptRegistry())
 })
 beforeEach(() => {
+  for (const ids of Object.values(owned)) ids.clear()
   app = createTestApp(database, auth, { news: newsStub })
 })
+afterEach(async () => {
+  if (database) {
+    assertSafeTestDatabaseUri(process.env.TEST_MONGODB_URI, process.env.MONGO_URI)
+    const users = idValues('users')
+    const cohorts = idValues('cohorts')
+    const institutions = idValues('institutions')
+    const memberships = idValues('memberships')
+    if (users.length) {
+      await database.db.collection('game_attempts').deleteMany({ playerId: { $in: users } })
+      await database.db
+        .collection('auth_sessions')
+        .deleteMany({ 'session.userId': { $in: users.map(String) } })
+    }
+    if (memberships.length)
+      await database.db.collection('memberships').deleteMany({ _id: { $in: memberships } })
+    if (users.length) await database.db.collection('users').deleteMany({ _id: { $in: users } })
+    if (cohorts.length)
+      await database.db.collection('cohorts').deleteMany({ _id: { $in: cohorts } })
+    if (institutions.length)
+      await database.db.collection('institutions').deleteMany({ _id: { $in: institutions } })
+  }
+  await disposeTestAuthApps()
+})
+
 afterAll(async () => {
   await disposeTestAuthApps()
   await database?.close()
@@ -58,17 +105,20 @@ async function cohortFor(student) {
     slug: `phish-${randomUUID()}`,
     status: 'active',
   })
+  remember('institutions', institution._id)
   const cohort = await cohortModel(database).create({
     name: 'Phish Test Class',
     institutionId: institution._id,
     term: '2026',
     status: 'active',
   })
-  await membershipModel(database).create({
+  const membership = await membershipModel(database).create({
     userId: student.user.id,
     cohortId: cohort._id,
     status: 'active',
   })
+  remember('cohorts', cohort._id)
+  remember('memberships', membership._id)
   return cohort
 }
 
@@ -85,7 +135,7 @@ const perfect = (caseId) => {
 
 describe('saved phishing post-mortem journey', () => {
   it('starts a personal attempt without the answer key and saves a perfect verdict', async () => {
-    const student = await registerTestStudent(app)
+    const student = await registerStudent(app)
     const start = await post(student, attemptsPath, { context: { kind: 'personal' } }).expect(201)
     expect(start.body).toMatchObject({
       gameId: 'phishing-post-mortem',
@@ -129,7 +179,7 @@ describe('saved phishing post-mortem journey', () => {
   })
 
   it('rejects client supplied scoring fields and unknown selections', async () => {
-    const student = await registerTestStudent(app)
+    const student = await registerStudent(app)
     const start = await post(student, attemptsPath, { context: { kind: 'personal' } }).expect(201)
     const path = `/api/attempts/${start.body.attemptId}/actions`
     const good = perfect(start.body.publicState.case.caseId)
@@ -145,10 +195,10 @@ describe('saved phishing post-mortem journey', () => {
   })
 
   it('hides another player attempt', async () => {
-    const student = await registerTestStudent(app)
+    const student = await registerStudent(app)
     const start = await post(student, attemptsPath, { context: { kind: 'personal' } }).expect(201)
     const path = `/api/attempts/${start.body.attemptId}`
-    const other = await registerTestStudent(app)
+    const other = await registerStudent(app)
     await other.agent.get(path).expect(404)
     await post(
       other,
@@ -158,7 +208,7 @@ describe('saved phishing post-mortem journey', () => {
   })
 
   it('saves a class attempt onto the cohort leaderboard', async () => {
-    const student = await registerTestStudent(app)
+    const student = await registerStudent(app)
     const cohort = await cohortFor(student)
     const cohortId = String(cohort._id)
     const start = await post(student, attemptsPath, {
@@ -186,12 +236,10 @@ describe('saved phishing post-mortem journey', () => {
   })
 
   it('no longer serves the interim stateless routes', async () => {
-    await post(
-      await registerTestStudent(app),
-      '/api/games/phishing-post-mortem/verdict',
-      {},
-    ).expect(404)
-    const student = await registerTestStudent(app)
+    await post(await registerStudent(app), '/api/games/phishing-post-mortem/verdict', {}).expect(
+      404,
+    )
+    const student = await registerStudent(app)
     await student.agent.get('/api/games/phishing-post-mortem/case').expect(404)
   })
 })

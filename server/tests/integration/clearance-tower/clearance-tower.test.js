@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { Types } from 'mongoose'
 import request from 'supertest'
 import { connectDatabase } from '../../../src/config/database.js'
 import { assertSafeTestDatabaseUri } from '../../../src/config/database-uri.js'
@@ -19,6 +20,27 @@ import {
   initializeTestAuth,
   registerTestStudent,
 } from '../auth/helpers.js'
+
+const owned = {
+  users: new Set(),
+  institutions: new Set(),
+  cohorts: new Set(),
+  memberships: new Set(),
+}
+
+function remember(collection, id) {
+  owned[collection].add(id.toString())
+}
+
+function idValues(collection) {
+  return [...owned[collection]].map((id) => new Types.ObjectId(id))
+}
+
+async function registerStudent(app) {
+  const student = await registerTestStudent(app)
+  remember('users', student.user.id)
+  return student
+}
 
 let database
 let app
@@ -41,8 +63,33 @@ beforeAll(async () => {
   await initializeAttemptStorage(database, createProductionAttemptRegistry())
 })
 beforeEach(() => {
+  for (const ids of Object.values(owned)) ids.clear()
   app = createTestApp(database, auth, { news: newsStub })
 })
+afterEach(async () => {
+  if (database) {
+    assertSafeTestDatabaseUri(process.env.TEST_MONGODB_URI, process.env.MONGO_URI)
+    const users = idValues('users')
+    const cohorts = idValues('cohorts')
+    const institutions = idValues('institutions')
+    const memberships = idValues('memberships')
+    if (users.length) {
+      await database.db.collection('game_attempts').deleteMany({ playerId: { $in: users } })
+      await database.db
+        .collection('auth_sessions')
+        .deleteMany({ 'session.userId': { $in: users.map(String) } })
+    }
+    if (memberships.length)
+      await database.db.collection('memberships').deleteMany({ _id: { $in: memberships } })
+    if (users.length) await database.db.collection('users').deleteMany({ _id: { $in: users } })
+    if (cohorts.length)
+      await database.db.collection('cohorts').deleteMany({ _id: { $in: cohorts } })
+    if (institutions.length)
+      await database.db.collection('institutions').deleteMany({ _id: { $in: institutions } })
+  }
+  await disposeTestAuthApps()
+})
+
 afterAll(async () => {
   await disposeTestAuthApps()
   await database?.close()
@@ -72,17 +119,20 @@ async function cohortFor(student) {
     slug: `tower-${randomUUID()}`,
     status: 'active',
   })
+  remember('institutions', institution._id)
   const cohort = await cohortModel(database).create({
     name: 'Tower Test Class',
     institutionId: institution._id,
     term: '2026',
     status: 'active',
   })
-  await membershipModel(database).create({
+  const membership = await membershipModel(database).create({
     userId: student.user.id,
     cohortId: cohort._id,
     status: 'active',
   })
+  remember('cohorts', cohort._id)
+  remember('memberships', membership._id)
   return cohort
 }
 
@@ -108,7 +158,7 @@ describe('clearance tower levels route', () => {
 
 describe('saved clearance tower journey', () => {
   it('climbs all six levels and saves the summed score', async () => {
-    const student = await registerTestStudent(app)
+    const student = await registerStudent(app)
     const start = await post(student, attemptsPath, { context: { kind: 'personal' } }).expect(201)
     expect(start.body.gameId).toBe('clearance-tower')
     expect(start.body.maxScore).toBe(600)
@@ -140,13 +190,13 @@ describe('saved clearance tower journey', () => {
     expect(done.body.mode).toBe('practice')
     expect((await student.agent.get(path).expect(200)).body).toEqual(done.body)
 
-    const other = await registerTestStudent(app)
+    const other = await registerStudent(app)
     await other.agent.get(path).expect(404)
     await post(other, `${path}/actions`, submitLevel(done.body, 'the-gift')).expect(404)
   })
 
   it('shows the day only after a level is submitted and refuses unfinished or bad input', async () => {
-    const student = await registerTestStudent(app)
+    const student = await registerStudent(app)
     const start = await post(student, attemptsPath, { context: { kind: 'personal' } }).expect(201)
     const path = `/api/attempts/${start.body.attemptId}`
     await post(student, `${path}/complete`, {
@@ -177,7 +227,7 @@ describe('saved clearance tower journey', () => {
   })
 
   it('saves a class attempt onto the cohort leaderboard', async () => {
-    const student = await registerTestStudent(app)
+    const student = await registerStudent(app)
     const cohort = await cohortFor(student)
     const cohortId = String(cohort._id)
     const start = await post(student, attemptsPath, {
