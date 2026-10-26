@@ -221,6 +221,7 @@ function createBaseSchema(registry) {
   schema[knownRulesetStorageKeys] = allowedKeys
   schema.index({ playerId: 1, gameId: 1, startedAt: -1 })
   schema.index({ 'context.cohortId': 1, gameId: 1, rulesetVersion: 1, status: 1 })
+  schema.index({ 'context.cohortId': 1, status: 1, completedAt: -1 })
   return schema
 }
 

@@ -12,6 +12,12 @@ const mocks = vi.hoisted(() => ({
   updateMembership: vi.fn(),
 }))
 vi.mock('../api.js', () => mocks)
+vi.mock('../../class-results/api.js', () => ({
+  getClassResults: vi.fn(() => new Promise(() => {})),
+  getStudentAttempts: vi.fn(),
+  isNotAvailable: () => false,
+  resultsErrorMessage: () => 'failed',
+}))
 
 const authMocks = vi.hoisted(() => ({
   auth: { user: { globalRoles: ['instructor'] } },
@@ -65,13 +71,37 @@ describe('instructor class management', () => {
   it('clears a one-time code on class change and locks switching during a code mutation', async () => {
     const wrapper = mount(ClassManagementPage)
     await flushPromises()
-    await wrapper.get('button').trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('Generate code'))
+      .trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('ABCD-EFGH-JKLM-PQRS')
     await wrapper.get('#managed-class').setValue('class-b')
     await flushPromises()
     expect(wrapper.text()).not.toContain('ABCD-EFGH-JKLM-PQRS')
     expect(mocks.getEnrollmentCode).toHaveBeenLastCalledWith('class-b', expect.any(AbortSignal))
+    wrapper.unmount()
+  })
+
+  it('switches to results, keeps the class in the address and defaults to the roster', async () => {
+    window.history.replaceState(null, '', '/instructor?class=class-b')
+    const wrapper = mount(ClassManagementPage)
+    await flushPromises()
+    expect(wrapper.find('.class-results').exists()).toBe(false)
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Results')
+      .trigger('click')
+    const params = new URLSearchParams(window.location.search)
+    expect(params.get('view')).toBe('results')
+    expect(params.get('class')).toBe('class-b')
+    expect(wrapper.find('.class-results').exists()).toBe(true)
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Roster')
+      .trigger('click')
+    expect(window.location.search).toBe('?class=class-b')
     wrapper.unmount()
   })
 

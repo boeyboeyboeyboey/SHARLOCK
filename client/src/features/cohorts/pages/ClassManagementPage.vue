@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import EnrollmentCodePanel from '../components/EnrollmentCodePanel.vue'
 import EnrollmentQueue from '../components/EnrollmentQueue.vue'
+import ClassResults from '../../class-results/ClassResults.vue'
 import RecoveryIssueForm from '../../recovery/components/RecoveryIssueForm.vue'
 import RecoveryLinkDialog from '../../recovery/components/RecoveryLinkDialog.vue'
 import { useAuthStore } from '../../auth/store.js'
@@ -21,6 +22,9 @@ import '../../recovery/recovery.css'
 const auth = useAuthStore()
 const cohorts = ref([])
 const selectedId = ref(new URLSearchParams(window.location.search).get('class') || '')
+const view = ref(
+  new URLSearchParams(window.location.search).get('view') === 'results' ? 'results' : 'roster',
+)
 const memberships = ref([])
 const codeInfo = ref(null)
 const invitationUrl = ref('')
@@ -225,6 +229,14 @@ function syncClassQuery(id) {
   window.history.replaceState(window.history.state, '', url)
 }
 
+function selectView(next) {
+  view.value = next
+  const url = new URL(window.location.href)
+  if (next === 'results') url.searchParams.set('view', 'results')
+  else url.searchParams.delete('view')
+  window.history.replaceState(window.history.state, '', url)
+}
+
 function selectCohort(id) {
   clearRecovery()
   selectedId.value = id
@@ -369,7 +381,25 @@ onBeforeUnmount(() => {
           Next classes
         </button>
       </div>
+      <div class="cohort-tabs" role="group" aria-label="Class view">
+        <button
+          v-for="option in [
+            { id: 'roster', label: 'Roster' },
+            { id: 'results', label: 'Results' },
+          ]"
+          :key="option.id"
+          class="btn"
+          :class="view === option.id ? 'btn-primary' : 'btn-secondary'"
+          type="button"
+          :aria-pressed="view === option.id"
+          @click="selectView(option.id)"
+        >
+          {{ option.label }}
+        </button>
+      </div>
+      <ClassResults v-if="view === 'results'" :cohort-id="selectedId" />
       <EnrollmentCodePanel
+        v-show="view === 'roster'"
         ref="codePanel"
         :code="codeInfo"
         :invitation-url="invitationUrl"
@@ -380,7 +410,7 @@ onBeforeUnmount(() => {
         @revoke="revokeCode"
         @clear="invitationUrl = ''"
       />
-      <section class="cohort-panel" aria-labelledby="member-queue-title">
+      <section v-show="view === 'roster'" class="cohort-panel" aria-labelledby="member-queue-title">
         <h2 id="member-queue-title">Class access</h2>
         <div class="cohort-tabs" role="group" aria-label="Membership status">
           <button

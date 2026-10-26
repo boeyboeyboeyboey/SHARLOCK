@@ -29,7 +29,7 @@ The browser cannot supply a player, ruleset, score, award, eligibility flag or t
 - Creation resolves the requested context through the existing service. Personal context remains available to active accounts. Class context needs active parents and the actor's current membership, instructor assignment or administrator capability.
 - The saved player/context/game/ruleset/start/deadline/mode/eligibility fields do not change later. A new membership never transfers an attempt to another class.
 - An active or abandoned class attempt needs current class access when read; further actions or completion also need it. Class removal, inactive parents or a removed teaching assignment deny the next request. A player can start a separate personal attempt once an actual game adapter exists.
-- **An active account retains its own completed result after losing class access.** Completed-result reads do not require continued class membership. Disabled/version-stale/expired accounts still fail authentication. There is no staff override on the owner endpoint: instructors/admins cannot use it to read someone else's attempt. Future teaching/admin reads need their own scoped endpoints.
+- **An active account retains its own completed result after losing class access.** Completed-result reads do not require continued class membership. Disabled/version-stale/expired accounts still fail authentication. There is no staff override on the owner endpoint: instructors/admins cannot use it to read someone else's attempt. Instructor/admin teaching reads exist only in `server/src/modules/class-results/` (scoped by `cohort:teach`, completed class-context attempts only); this owner endpoint is unchanged.
 - Server eligibility is fixed at start: only standard play in a class, through a competitive ruleset, by a student without instructor/admin roles can be eligible. Future rankings must additionally check current membership/roles and compare the same game/ruleset. This marker does not create a leaderboard.
 
 ## Lifecycle, retries and deadlines
@@ -56,7 +56,7 @@ The router owns and disposes its process-local limiter stores: creation 30/user 
 
 - `policy.js`: exact inputs, IDs/revisions, canonical JSON/hashes and budgets
 - `registry.js`: server ruleset registration and callback/schema contracts
-- `model.js` / `storage.js`: shared strict document, per-ruleset state, indexes and additive initialization
+- `model.js` / `storage.js`: shared strict document, per-ruleset state, indexes and additive initialization; INST-01 adds `{ 'context.cohortId': 1, status: 1, completedAt: -1 }` for class results
 - `service.js`: ownership/context, server time/scoring, atomic lifecycle and saved responses; also `listCompletedAttempts(playerId, { gameId, skip, limit })`, a read-only helper for the progress module that returns `{ attempts, total }` for the player's completed attempts (newest `completedAt` first, explicit projection, no membership check so retained class results stay listed)
 - `router.js`: the four handlers, shared protection, owned limits and safe errors
 - `server/tests/unit/attempts/`: input, registry and model contracts

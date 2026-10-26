@@ -1,0 +1,132 @@
+.class-results {
+  display: grid;
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+.class-results .class-results__section {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+  padding: clamp(1rem, 3vw, 1.5rem);
+  border: 2px solid var(--border-strong);
+  background: var(--surface);
+  box-shadow: var(--shadow-pixel);
+}
+
+.class-results .class-results__section h2,
+.class-results .class-results__section p {
+  margin: 0;
+}
+
+.class-results .class-results__games,
+.class-results .class-results__topics {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.class-results .class-results__games {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+}
+
+.class-results .class-results__game {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 0;
+  padding: 0.75rem;
+  border: 2px solid var(--border-strong);
+}
+
+.class-results .class-results__game h3 {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.class-results .class-results__topics li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+}
+
+.class-results .class-results__scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.class-results table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+}
+
+.class-results th,
+.class-results td {
+  padding: 0.5rem 0.75rem;
+  border: 2px solid var(--border-strong);
+  text-align: left;
+}
+
+.class-results .class-results__student,
+.class-results .class-results__drill-head h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.class-results .class-results__avatar {
+  flex: none;
+  image-rendering: pixelated;
+}
+
+.class-results .class-results__student-button {
+  padding: 0.25rem 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.class-results .class-results__student-button:focus-visible,
+.class-results .class-results__drill-head h2:focus-visible,
+.class-results .class-results__filter select:focus-visible {
+  outline: 3px solid var(--text-main);
+  outline-offset: 3px;
+}
+
+.class-results .class-results__drill-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.class-results .class-results__filter {
+  display: grid;
+  gap: 0.4rem;
+  width: min(100%, 320px);
+}
+
+.class-results .class-results__filter select {
+  min-height: 48px;
+  padding: 0.5rem 0.75rem;
+  border: 2px solid var(--border-strong);
+  border-radius: 0;
+  background: var(--surface);
+  color: var(--text-main);
+}
+
+.class-results .class-results__pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+}
