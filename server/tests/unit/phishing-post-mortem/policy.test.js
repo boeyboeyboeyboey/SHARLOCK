@@ -1,14 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
-  parseCaseQuery,
   parseVerdict,
   PhishingError,
 } from '../../../src/modules/games/phishing-post-mortem/policy.js'
 
 const valid = {
-  caseId: 'case-01',
-  datasetVersion: '2026-09-21',
-  actionId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
   selectedEmailId: 'a11',
   evidenceIds: ['ev-lookalike-domain', 'ev-click-then-credentials'],
 }
@@ -28,13 +24,14 @@ describe('phishing verdict validation', () => {
 
   it.each([
     ['unknown field', { ...valid, score: 100 }],
-    ['missing action id', { ...valid, actionId: undefined }],
+    ['a client supplied case id', { ...valid, caseId: 'case-01' }],
+    ['a client supplied dataset version', { ...valid, datasetVersion: '2026-09-21' }],
+    ['a client supplied action id', { ...valid, actionId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' }],
     ['one evidence id', { ...valid, evidenceIds: ['ev-lookalike-domain'] }],
     ['three evidence ids', { ...valid, evidenceIds: [...valid.evidenceIds, 'ev-urgent-language'] }],
     ['duplicate evidence ids', { ...valid, evidenceIds: ['ev-x', 'ev-x'] }],
     ['evidence that is not an array', { ...valid, evidenceIds: 'ev-lookalike-domain' }],
-    ['a traversal style case id', { ...valid, caseId: '../answers/case-01' }],
-    ['a malformed dataset version', { ...valid, datasetVersion: 'latest' }],
+    ['a traversal style email id', { ...valid, selectedEmailId: '../answers/case-01' }],
     ['a non-object body', null],
     ['an array body', []],
   ])('rejects %s', (_label, body) => {
@@ -53,7 +50,7 @@ describe('phishing verdict validation', () => {
 
   it('rejects an own __proto__ field from parsed JSON', () => {
     const body = JSON.parse(
-      '{"caseId":"case-01","datasetVersion":"2026-09-21","actionId":"f47ac10b-58cc-4372-a567-0e02b2c3d479","selectedEmailId":"a11","evidenceIds":["ev-lookalike-domain","ev-click-then-credentials"],"__proto__":"unsupported"}',
+      '{"selectedEmailId":"a11","evidenceIds":["ev-lookalike-domain","ev-click-then-credentials"],"__proto__":"unsupported"}',
     )
     let error
     try {
@@ -65,18 +62,5 @@ describe('phishing verdict validation', () => {
     expect(error.code).toBe('PHISH_INVALID_REQUEST')
     expect(Object.hasOwn(error.fieldErrors, '__proto__')).toBe(true)
     expect(error.fieldErrors['__proto__']).toBe('unsupported field')
-  })
-})
-
-describe('phishing case query', () => {
-  it('defaults to no previous case and accepts a valid one', () => {
-    expect(parseCaseQuery({})).toEqual({ after: null })
-    expect(parseCaseQuery({ after: 'case-02' })).toEqual({ after: 'case-02' })
-  })
-
-  it('rejects unsupported and repeated parameters', () => {
-    expect(() => parseCaseQuery({ caseId: 'case-01' })).toThrow(PhishingError)
-    expect(() => parseCaseQuery({ after: ['case-01', 'case-02'] })).toThrow(PhishingError)
-    expect(() => parseCaseQuery({ after: 'case-99x' })).toThrow(PhishingError)
   })
 })

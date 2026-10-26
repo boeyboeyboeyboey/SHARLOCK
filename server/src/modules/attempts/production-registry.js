@@ -1,7 +1,8 @@
 import { createAttemptRegistry } from './registry.js'
 import { clearanceRuleset } from '../games/clearance-tower/ruleset.js'
+import { phishingRuleset } from '../games/phishing-post-mortem/ruleset.js'
 import { sqlRuleset } from '../games/sql-injection-arcade/ruleset.js'
 
 export function createProductionAttemptRegistry() {
-  return createAttemptRegistry([sqlRuleset, clearanceRuleset])
+  return createAttemptRegistry([sqlRuleset, clearanceRuleset, phishingRuleset])
 }

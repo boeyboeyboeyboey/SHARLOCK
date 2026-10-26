@@ -1,145 +1,197 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import request from 'supertest'
+import { randomUUID } from 'node:crypto'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { connectDatabase } from '../../../src/config/database.js'
+import { assertSafeTestDatabaseUri } from '../../../src/config/database-uri.js'
 import { loadEnvironment } from '../../../src/config/env.js'
+import { initializeCohortStorage } from '../../../src/modules/cohorts/storage.js'
+import { initializeAttemptStorage } from '../../../src/modules/attempts/storage.js'
+import { createProductionAttemptRegistry } from '../../../src/modules/attempts/production-registry.js'
+import { institutionModel } from '../../../src/models/Institution.js'
+import { cohortModel } from '../../../src/models/Cohort.js'
+import { membershipModel } from '../../../src/models/Membership.js'
 import { readAnswers, readCase } from '../../unit/phishing-post-mortem/fixtures.js'
-import { createTestApp, disposeTestAuthApps, initializeTestAuth } from '../auth/helpers.js'
+import {
+  createTestApp,
+  disposeTestAuthApps,
+  initializeTestAuth,
+  registerTestStudent,
+} from '../auth/helpers.js'
 
 let database
 let app
-let authOptions
-const FIXED_NOW = Date.parse('2026-09-21T12:00:00Z')
-// the news feature is stubbed so this suite exercises only the phishing routes
+let auth
+let origin
+const attemptsPath = '/api/games/phishing-post-mortem/attempts'
+// the news feature is stubbed so this suite exercises only the phishing attempts
 const newsStub = { store: {}, provider: { configured: false } }
 
 beforeAll(async () => {
   const config = loadEnvironment()
   if (config.nodeEnv !== 'test')
     throw new Error('Phishing integration tests require an isolated test database')
+  assertSafeTestDatabaseUri(config.databaseUri, process.env.MONGO_URI)
   database = await connectDatabase(config.databaseUri)
-  authOptions = await initializeTestAuth(database, config)
-  app = createTestApp(database, authOptions, {
-    news: newsStub,
-    phishing: { now: () => FIXED_NOW },
-  })
+  auth = await initializeTestAuth(database, config)
+  origin = auth.clientOrigin
+  await initializeCohortStorage(database)
+  await initializeAttemptStorage(database, createProductionAttemptRegistry())
+})
+beforeEach(() => {
+  app = createTestApp(database, auth, { news: newsStub })
 })
 afterAll(async () => {
   await disposeTestAuthApps()
   await database?.close()
 })
 
-describe('GET /api/games/phishing-post-mortem/case', () => {
-  it('serves a full case without caching and without the answer key', async () => {
-    const response = await request(app).get('/api/games/phishing-post-mortem/case').expect(200)
-    expect(response.headers['cache-control']).toBe('no-store')
-    expect(response.body.emails).toHaveLength(20)
-    expect(response.body.gameId).toBe('phishing-post-mortem')
-    expect(response.body.rulesetVersion).toBe('phish-1')
-    expect(response.body.maxScore).toBe(100)
-    const answers = readAnswers(response.body.caseId)
-    const payload = JSON.stringify(response.body)
-    expect(payload).not.toContain('patientZeroId')
-    expect(payload).not.toContain(answers.summary)
-  })
+function post(student, path, body) {
+  return student.agent
+    .post(path)
+    .set('Origin', origin)
+    .set('X-CSRF-Token', student.csrfToken)
+    .send(body)
+}
 
-  it('serves the other case on replay', async () => {
-    const first = await request(app)
-      .get('/api/games/phishing-post-mortem/case')
-      .query({ after: 'case-01' })
-      .expect(200)
-    expect(first.body.caseId).toBe('case-02')
+async function cohortFor(student) {
+  const institution = await institutionModel(database).create({
+    name: 'Phish Test School',
+    slug: `phish-${randomUUID()}`,
+    status: 'active',
   })
+  const cohort = await cohortModel(database).create({
+    name: 'Phish Test Class',
+    institutionId: institution._id,
+    term: '2026',
+    status: 'active',
+  })
+  await membershipModel(database).create({
+    userId: student.user.id,
+    cohortId: cohort._id,
+    status: 'active',
+  })
+  return cohort
+}
 
-  it('rejects an unsupported query parameter with a safe error', async () => {
-    const response = await request(app)
-      .get('/api/games/phishing-post-mortem/case')
-      .query({ caseId: 'case-01' })
-      .expect(400)
-    expect(response.body.error.code).toBe('PHISH_INVALID_REQUEST')
-    expect(response.body.requestId).toBeTruthy()
-    expect(JSON.stringify(response.body)).not.toMatch(/\/src\/|node_modules|patientZero/)
-  })
+const verdictAction = (snapshot, payload) => ({
+  actionId: randomUUID(),
+  expectedRevision: snapshot.revision,
+  type: 'submit-verdict',
+  payload,
 })
+const perfect = (caseId) => {
+  const answers = readAnswers(caseId)
+  return { selectedEmailId: answers.patientZeroId, evidenceIds: answers.evidenceIds }
+}
 
-describe('POST /api/games/phishing-post-mortem/verdict', () => {
-  const content = readCase('case-01')
-  const answers = readAnswers('case-01')
-  const base = {
-    caseId: 'case-01',
-    datasetVersion: content.datasetVersion,
-    actionId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
-  }
-  const post = (body) => request(app).post('/api/games/phishing-post-mortem/verdict').send(body)
+describe('saved phishing post-mortem journey', () => {
+  it('starts a personal attempt without the answer key and saves a perfect verdict', async () => {
+    const student = await registerTestStudent(app)
+    const start = await post(student, attemptsPath, { context: { kind: 'personal' } }).expect(201)
+    expect(start.body).toMatchObject({
+      gameId: 'phishing-post-mortem',
+      rulesetVersion: 'phish-2',
+      maxScore: 100,
+      mode: 'practice',
+    })
+    const { caseId } = start.body.publicState.case
+    const answers = readAnswers(caseId)
+    const content = readCase(caseId)
+    expect(start.body.publicState.verdict).toBeNull()
+    expect(start.body.publicState.case.emails).toHaveLength(content.emails.length)
+    const hidden = JSON.stringify(start.body)
+    expect(hidden).not.toContain('patientZeroId')
+    expect(hidden).not.toContain(answers.summary)
+    for (const step of answers.chain) expect(hidden).not.toContain(step)
 
-  it('scores a complete verdict and returns the debrief', async () => {
-    const response = await post({
-      ...base,
-      selectedEmailId: answers.patientZeroId,
-      evidenceIds: answers.evidenceIds,
+    const path = `/api/attempts/${start.body.attemptId}`
+    await post(student, `${path}/complete`, {
+      actionId: randomUUID(),
+      expectedRevision: start.body.revision,
+    }).expect(409)
+
+    const sent = verdictAction(start.body, perfect(caseId))
+    const played = await post(student, `${path}/actions`, sent).expect(200)
+    expect(played.body.publicState.verdict).toMatchObject({ score: 100 })
+    expect(played.body.publicState.verdict.debrief.chain.length).toBeGreaterThanOrEqual(5)
+    // replaying the same action returns the recorded outcome
+    expect((await post(student, `${path}/actions`, sent).expect(200)).body).toEqual(played.body)
+
+    const again = verdictAction(played.body, perfect(caseId))
+    const rejected = await post(student, `${path}/actions`, again).expect(409)
+    expect(rejected.body.error.code).toBe('PHISH_VERDICT_SUBMITTED')
+
+    const done = await post(student, `${path}/complete`, {
+      actionId: randomUUID(),
+      expectedRevision: played.body.revision,
     }).expect(200)
-    expect(response.body.score).toBe(100)
-    expect(response.body.persisted).toBe(false)
-    expect(response.body.debrief.patientZero.id).toBe(answers.patientZeroId)
+    expect(done.body).toMatchObject({ score: 100, status: 'completed', persisted: true })
+    expect((await student.agent.get(path).expect(200)).body).toEqual(done.body)
   })
 
-  it('scores nothing for the wrong message but still teaches the chain', async () => {
-    const wrong = content.emails.find((email) => email.id !== answers.patientZeroId).id
-    const response = await post({
-      ...base,
-      selectedEmailId: wrong,
-      evidenceIds: answers.evidenceIds,
+  it('rejects client supplied scoring fields and unknown selections', async () => {
+    const student = await registerTestStudent(app)
+    const start = await post(student, attemptsPath, { context: { kind: 'personal' } }).expect(201)
+    const path = `/api/attempts/${start.body.attemptId}/actions`
+    const good = perfect(start.body.publicState.case.caseId)
+    await post(student, path, verdictAction(start.body, { ...good, score: 100 })).expect(400)
+    await post(student, path, verdictAction(start.body, { ...good, caseId: 'case-02' })).expect(400)
+    await post(
+      student,
+      path,
+      verdictAction(start.body, { ...good, selectedEmailId: 'zz99' }),
+    ).expect(400)
+    const wrongType = { ...verdictAction(start.body, good), type: 'reveal' }
+    await post(student, path, wrongType).expect(400)
+  })
+
+  it('hides another player attempt', async () => {
+    const student = await registerTestStudent(app)
+    const start = await post(student, attemptsPath, { context: { kind: 'personal' } }).expect(201)
+    const path = `/api/attempts/${start.body.attemptId}`
+    const other = await registerTestStudent(app)
+    await other.agent.get(path).expect(404)
+    await post(
+      other,
+      `${path}/actions`,
+      verdictAction(start.body, perfect(start.body.publicState.case.caseId)),
+    ).expect(404)
+  })
+
+  it('saves a class attempt onto the cohort leaderboard', async () => {
+    const student = await registerTestStudent(app)
+    const cohort = await cohortFor(student)
+    const cohortId = String(cohort._id)
+    const start = await post(student, attemptsPath, {
+      context: { kind: 'cohort', cohortId },
+    }).expect(201)
+    const path = `/api/attempts/${start.body.attemptId}`
+    const played = await post(
+      student,
+      `${path}/actions`,
+      verdictAction(start.body, perfect(start.body.publicState.case.caseId)),
+    ).expect(200)
+    await post(student, `${path}/complete`, {
+      actionId: randomUUID(),
+      expectedRevision: played.body.revision,
     }).expect(200)
-    expect(response.body.score).toBe(0)
-    expect(response.body.debrief.chain.length).toBeGreaterThanOrEqual(5)
+
+    const board = await student.agent
+      .get(`/api/cohorts/${cohortId}/leaderboard?gameId=phishing-post-mortem`)
+      .set('Origin', origin)
+      .expect(200)
+    expect(board.body).toMatchObject({ gameId: 'phishing-post-mortem', competitive: false })
+    expect(board.body.rows.map((row) => [row.username, row.score, row.maxScore])).toEqual([
+      [student.user.username, 100, 100],
+    ])
   })
 
-  it.each([
-    ['an unknown field', { extra: true }, 400, 'PHISH_INVALID_REQUEST'],
-    ['a foreign email id', { selectedEmailId: 'b09' }, 400, 'PHISH_UNKNOWN_SELECTION'],
-    [
-      'a forged evidence id',
-      { evidenceIds: ['ev-lookalike-domain', 'ev-made-up'] },
-      400,
-      'PHISH_UNKNOWN_SELECTION',
-    ],
-    ['a stale dataset version', { datasetVersion: '1999-01-01' }, 409, 'PHISH_DATASET_CHANGED'],
-    ['an unknown case', { caseId: 'case-99' }, 404, 'PHISH_CASE_NOT_FOUND'],
-  ])('rejects %s', async (_label, changes, status, code) => {
-    const response = await post({
-      ...base,
-      selectedEmailId: answers.patientZeroId,
-      evidenceIds: answers.evidenceIds,
-      ...changes,
-    }).expect(status)
-    expect(response.body.error.code).toBe(code)
-    expect(response.body.requestId).toBeTruthy()
-  })
-
-  it('serializes an own __proto__ field error from a parsed JSON body', async () => {
-    const rawBody =
-      '{"caseId":"case-01","datasetVersion":"2026-09-21","actionId":"f47ac10b-58cc-4372-a567-0e02b2c3d479","selectedEmailId":"a11","evidenceIds":["ev-lookalike-domain","ev-click-then-credentials"],"__proto__":"unsupported"}'
-    const response = await request(app)
-      .post('/api/games/phishing-post-mortem/verdict')
-      .set('Content-Type', 'application/json')
-      .send(rawBody)
-      .expect(400)
-    expect(response.body.error.code).toBe('PHISH_INVALID_REQUEST')
-    expect(Object.hasOwn(response.body.error.fieldErrors, '__proto__')).toBe(true)
-    expect(response.body.error.fieldErrors['__proto__']).toBe('unsupported field')
-  })
-
-  it('paces repeated verdicts from the same caller', async () => {
-    const body = {
-      ...base,
-      selectedEmailId: answers.patientZeroId,
-      evidenceIds: answers.evidenceIds,
-    }
-    let limited = null
-    for (let attempt = 0; attempt < 25 && !limited; attempt += 1) {
-      const response = await post(body)
-      if (response.status === 429) limited = response
-    }
-    expect(limited).not.toBeNull()
-    expect(limited.body.error.code).toBe('PHISH_RATE_LIMITED')
+  it('no longer serves the interim stateless routes', async () => {
+    await post(
+      await registerTestStudent(app),
+      '/api/games/phishing-post-mortem/verdict',
+      {},
+    ).expect(404)
+    const student = await registerTestStudent(app)
+    await student.agent.get('/api/games/phishing-post-mortem/case').expect(404)
   })
 })
