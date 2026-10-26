@@ -71,10 +71,17 @@ test('a new student sees the empty state and every activity', async ({
     await expect(page.getByText('No results yet.')).toBeVisible()
     for (const name of gameNames)
       await expect(page.getByRole('heading', { name, level: 3 })).toBeVisible()
+    for (const id of [
+      'cli-cyber-defender',
+      'phishing-post-mortem',
+      'sql-injection-arcade',
+      'social-engineering-simulator',
+      'clearance-tower',
+    ])
+      await expect(page.getByTestId(`game-${id}`).getByText('None yet')).toBeVisible()
     await expect(
-      page.getByTestId('game-clearance-tower').getByText('Results not saved yet'),
+      page.getByTestId('game-threat-briefing').getByText('Results not saved yet'),
     ).toBeVisible()
-    await expect(page.getByTestId('game-sql-injection-arcade').getByText('None yet')).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Attempt history' })).toHaveCount(0)
     expect(await page.evaluate(() => document.scrollingElement.scrollWidth <= innerWidth)).toBe(
       true,

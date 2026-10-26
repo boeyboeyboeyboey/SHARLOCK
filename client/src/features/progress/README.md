@@ -9,4 +9,4 @@
 - API (`api.js`): `GET /me/progress` and `GET /me/attempts?gameId=&page=`. See the [server module README](../../../../server/src/modules/progress/README.md).
 - Points: per game `round(100 * best score / max score)`; the total is out of `100 * saving games`. Achievements are derived on every read, so there is no award record to duplicate.
 - Status: see the LEARN-01 record in [TASKS.md](../../../../TASKS.md).
-- Limits: only the SQL Injection Arcade saves results today, so other activities show "Results not saved yet". Progress covers the newest 1000 completed attempts. Results are performance evidence, not validated mastery.
+- Limits: all five scored games save results; the daily briefing is not scored and shows "Results not saved yet". Progress covers the newest 1000 completed attempts. Results are performance evidence, not validated mastery.

@@ -3,7 +3,10 @@ import { readVerificationCode } from './fixtures/mail.js'
 
 const PASSWORD = 'Correct-Horse-🔒-2026'
 
-test.skip(!process.env.SHARLOCK_TEST_REPLICA_SET, 'The account journey includes transactional onboarding; run with --replica-set.')
+test.skip(
+  !process.env.SHARLOCK_TEST_REPLICA_SET,
+  'The account journey includes transactional onboarding; run with --replica-set.',
+)
 
 test.beforeEach(async ({ page }) => {
   await page.route(/fonts\.(googleapis|gstatic)\.com/, (route) =>
@@ -152,6 +155,7 @@ test('registers, restores, signs out, signs in, and stops a protected action aft
       }),
     }),
   )
+  await page.getByRole('button', { name: 'Open the case' }).click()
   await page.getByRole('button', { name: /Practice \(no timer\)/ }).click()
   await expect(page).toHaveURL(/\/login/)
   await expect(page.getByRole('heading', { name: 'Sign in to Sharlock' })).toBeVisible()
