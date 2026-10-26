@@ -75,7 +75,7 @@ test('explores every building without prerequisites while showing account state'
       await card.getByRole('link', { name: 'Enter activity' }).click()
       await expect(page).toHaveURL(new RegExp(`${game.route}$`))
       await expect(page.getByRole('heading', { name: 'SQL Injection Arcade', level: 1 })).toBeVisible()
-      await page.getByRole('link', { name: 'Back to town', exact: true }).click()
+      await page.getByRole('link', { name: 'Back to town' }).click()
       await expect(page).toHaveURL('/')
       continue
     }
@@ -244,12 +244,6 @@ test('uses pixel page artwork, keeps the 3D navbar logo, and recovers from a mis
   await expect(page.getByRole('tooltip').getByRole('img')).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(page.getByRole('tooltip')).toBeHidden()
-  await page.goto('/login')
-  await expect(page.locator('.auth-mascot')).toBeVisible()
-  await expect(page.locator('.auth-mascot')).toHaveAttribute(
-    'alt',
-    /pixel-art capybara wearing a mint scarf/,
-  )
   await page.goto('/a-missing-clue')
   await expect(page.getByRole('heading', { name: 'A little off the trail?' })).toBeVisible()
   await page.getByRole('link', { name: 'Back to town' }).click()

@@ -1,4 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { once } from 'node:events'
 import request from 'supertest'
 import { Types } from 'mongoose'
 import { createApp } from '../../../src/app.js'
@@ -8,7 +9,7 @@ import { userModel } from '../../../src/models/User.js'
 import { hashPassword } from '../../../src/modules/auth/password.js'
 import { initializeAuthStorage } from '../../../src/modules/auth/storage.js'
 import { AuthMongoStore } from '../../../src/modules/auth/session.js'
-import { CSRF_BOOTSTRAP_LIMIT } from '../../../src/modules/auth/rate-limits.js'
+import { CSRF_BOOTSTRAP_LIMIT, REGISTRATION_LIMIT } from '../../../src/modules/auth/rate-limits.js'
 import { initializeAuditStorage } from '../../../src/modules/audit/storage.js'
 import { initializeRecoveryStorage } from '../../../src/modules/recovery/storage.js'
 import { createRecoveryService } from '../../../src/modules/recovery/service.js'
@@ -26,6 +27,7 @@ let authOptions
 let app
 let currentTime
 const recoveryUserIds = new Set()
+const listeners = new Set()
 
 const validRegistration = {
   email: 'student@example.test',
@@ -55,11 +57,20 @@ async function confirmEmail(agent, csrfToken, email) {
     .expect(201)
 }
 
+// high-volume limiter tests share one listening server instead of one ephemeral server per request
+async function listen() {
+  const server = app.listen(0, '127.0.0.1')
+  await once(server, 'listening')
+  listeners.add(server)
+  return server
+}
+
 async function prepareLoginAgent(
   identifier = validRegistration.email,
   password = validRegistration.password,
+  target = app,
 ) {
-  const agent = request.agent(app)
+  const agent = request.agent(target)
   const csrf = await agent
     .get('/api/auth/csrf')
     .set('Origin', baseAuthOptions.clientOrigin)
@@ -101,6 +112,8 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
+  await Promise.all([...listeners].map((server) => new Promise((done) => server.close(done))))
+  listeners.clear()
   if (!database || recoveryUserIds.size === 0) return
   const ids = [...recoveryUserIds]
   const objectIds = ids.map((id) => new Types.ObjectId(id))
@@ -442,15 +455,16 @@ describe('account and Mongo session HTTP contract', () => {
   })
 
   it('limits CSRF bootstraps that create sessions but not token reuse on a live session', async () => {
-    const agent = request.agent(app)
+    const server = await listen()
+    const agent = request.agent(server)
     for (let index = 0; index <= CSRF_BOOTSTRAP_LIMIT; index += 1) {
       await agent.get('/api/auth/csrf').set('Origin', baseAuthOptions.clientOrigin).expect(200)
     }
 
     for (let index = 0; index < CSRF_BOOTSTRAP_LIMIT; index += 1) {
-      await request(app).get('/api/auth/csrf').set('Origin', baseAuthOptions.clientOrigin)
+      await request(server).get('/api/auth/csrf').set('Origin', baseAuthOptions.clientOrigin)
     }
-    const blocked = await request(app)
+    const blocked = await request(server)
       .get('/api/auth/csrf')
       .set('Origin', baseAuthOptions.clientOrigin)
       .expect(429)
@@ -458,20 +472,56 @@ describe('account and Mongo session HTTP contract', () => {
     await agent.get('/api/auth/csrf').set('Origin', baseAuthOptions.clientOrigin).expect(200)
   }, 30_000)
 
+  it('allows a class-sized group of registrations per IP before limiting', async () => {
+    const server = await listen()
+    const register = async (index) => {
+      const agent = request.agent(server)
+      const csrf = await agent
+        .get('/api/auth/csrf')
+        .set('Origin', baseAuthOptions.clientOrigin)
+        .expect(200)
+      return agent
+        .post('/api/auth/register')
+        .set('Origin', baseAuthOptions.clientOrigin)
+        .set('X-CSRF-Token', csrf.body.csrfToken)
+        .send({
+          ...validRegistration,
+          email: `class-${index}@example.test`,
+          username: `Class_${index}`,
+        })
+    }
+    for (let index = 0; index < REGISTRATION_LIMIT; index += 1) {
+      expect((await register(index)).status).toBe(202)
+    }
+    const blocked = await register(REGISTRATION_LIMIT)
+    expect(blocked.status).toBe(429)
+    expect(blocked.body.error.message).toBe('Too many account requests. Please try again later.')
+  }, 30_000)
+
   it('does not spend the per-IP sign-in budget on successful sign-ins', async () => {
+    const server = await listen()
     const student = await registerTestStudent(app)
     for (let index = 0; index < 31; index += 1) {
-      const signedIn = await prepareLoginAgent(student.email, student.password)
+      const signedIn = await prepareLoginAgent(student.email, student.password, server)
       expect(signedIn.response.status).toBe(200)
     }
   }, 30_000)
 
   it('limits failed sign-ins per IP across different accounts', async () => {
+    const server = await listen()
     for (let index = 0; index < 30; index += 1) {
-      const failed = await prepareLoginAgent(`nobody-${index}@example.test`, 'Wrong-Password-2026!')
+      const failed = await prepareLoginAgent(
+        `nobody-${index}@example.test`,
+        'Wrong-Password-2026!',
+        server,
+      )
       expect(failed.response.status).toBe(401)
     }
-    const blocked = await prepareLoginAgent('nobody-30@example.test', 'Wrong-Password-2026!')
+    const blocked = await prepareLoginAgent(
+      'nobody-30@example.test',
+      'Wrong-Password-2026!',
+      server,
+    )
     expect(blocked.response.status).toBe(429)
     expect(blocked.response.body.error.message).toBe(
       'Too many sign-in attempts. Please try again later.',

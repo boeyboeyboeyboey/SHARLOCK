@@ -313,7 +313,9 @@ test('plays the supplied newspaper loop, keeps one player across tabs and restor
   await page.getByRole('button', { name: 'Play newspaper sound' }).click()
   await expect.poll(() => handle.evaluate((el) => !el.paused && !el.muted)).toBe(true)
   await page.getByRole('button', { name: 'Close newspaper' }).click()
-  expect(await handle.evaluate((el) => el.paused && el.muted && !el.isConnected)).toBe(true)
+  await expect
+    .poll(() => handle.evaluate((el) => el.paused && el.muted && !el.isConnected))
+    .toBe(true)
   await expect.poll(() => townAudio.evaluate((el) => !el.paused && !el.muted)).toBe(true)
   await page.getByRole('link', { name: 'View your detective profile' }).click()
   await expect(page.locator('audio')).toHaveCount(0)

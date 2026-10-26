@@ -5,6 +5,7 @@ import { AuthError } from './policy.js'
 const FIFTEEN_MINUTES = 15 * 60 * 1000
 const ONE_HOUR = 60 * 60 * 1000
 export const CSRF_BOOTSTRAP_LIMIT = 300
+export const REGISTRATION_LIMIT = 30
 
 function sendRateLimitError(request, response, message, retryAfter = 1) {
   response.set('Cache-Control', 'no-store')
@@ -47,7 +48,7 @@ export function createRateLimits({ secret, now = Date.now } = {}) {
   })
   const registration = requestLimiter({
     windowMs: ONE_HOUR,
-    limit: 5,
+    limit: REGISTRATION_LIMIT,
     message: 'Too many account requests. Please try again later.',
   })
   const loginIp = requestLimiter({
