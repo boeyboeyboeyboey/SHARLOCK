@@ -1,15 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { findLevel } from '../../../src/modules/games/clearance-tower/levels.js'
-import { parseStart, parseSubmission } from '../../../src/modules/games/clearance-tower/policy.js'
+import { LEVELS, findLevel } from '../../../src/modules/games/clearance-tower/levels.js'
+import { parseSubmission } from '../../../src/modules/games/clearance-tower/policy.js'
+import { clearanceRuleset } from '../../../src/modules/games/clearance-tower/ruleset.js'
 import { createClearanceService } from '../../../src/modules/games/clearance-tower/service.js'
 import { predictionList, SOLUTIONS } from './solutions.js'
-
-const RUN_ID = '00000000-0000-4000-8000-000000000001'
 
 function submission(levelId, overrides = {}) {
   const { policy, predictions } = SOLUTIONS[levelId]
   return {
-    actionId: 'unit-action-01',
+    levelId,
     policy,
     predictions: predictionList(predictions),
     ...overrides,
@@ -27,19 +26,16 @@ function fieldErrorsOf(action) {
 }
 
 describe('clearance tower validation', () => {
-  it('accepts only a known level id', () => {
-    expect(parseStart({ levelId: 'compartments' })).toEqual({ levelId: 'compartments' })
-    expect(fieldErrorsOf(() => parseStart({ levelId: 'regex' }))).toMatchObject({
-      levelId: expect.any(String),
-    })
-    expect(fieldErrorsOf(() => parseStart({ levelId: 'the-gift', score: 600 }))).toMatchObject({
+  it('rejects an unsupported field such as a browser score', () => {
+    const body = submission('the-gift', { score: 600 })
+    expect(fieldErrorsOf(() => parseSubmission(findLevel('the-gift'), body))).toMatchObject({
       score: 'unsupported field',
     })
   })
 
   it('rejects an own __proto__ field instead of ignoring it', () => {
     const body = JSON.parse(
-      `{"actionId":"unit-action-01","policy":{"grants":[]},"predictions":[],"__proto__":{"admin":true}}`,
+      `{"levelId":"the-matrix","policy":{"grants":[]},"predictions":[],"__proto__":{"admin":true}}`,
     )
     const errors = fieldErrorsOf(() => parseSubmission(findLevel('the-matrix'), body))
     expect(Object.keys(errors)).toContain('__proto__')
@@ -123,55 +119,72 @@ describe('clearance tower validation', () => {
   })
 })
 
-describe('clearance tower service', () => {
-  function createService(clock = { now: 0 }) {
-    let counter = 0
-    const service = createClearanceService({
-      now: () => clock.now,
-      createId: () => `00000000-0000-4000-8000-${String((counter += 1)).padStart(12, '0')}`,
+describe('clearance tower ruleset', () => {
+  const play = (state, levelId) =>
+    clearanceRuleset.applyAction(state, {
+      type: 'submit-level',
+      payload: clearanceRuleset.validateAction('submit-level', submission(levelId)),
     })
-    return { service, clock }
-  }
 
-  it('lists six levels and starts an run with only public data', () => {
-    const { service } = createService()
-    expect(service.listLevels().levels).toHaveLength(6)
-    const run = service.startRun({ levelId: 'the-gift' })
-    expect(run).toMatchObject({ runId: RUN_ID, saved: false })
-    expect(run.level.tasks.length).toBeGreaterThan(0)
-    expect(JSON.stringify(run)).not.toContain('budget macro')
+  it('lists six levels without saving anything', () => {
+    const listing = createClearanceService().listLevels()
+    expect(listing.levels).toHaveLength(6)
+    expect(listing.rulesetVersion).toBe('clear-2')
+    expect(listing).not.toHaveProperty('saved')
   })
 
-  it('submits once, replays the same action and refuses a second policy', () => {
-    const { service } = createService()
-    const { runId } = service.startRun({ levelId: 'the-matrix' })
-    const first = service.submitRun(runId, submission('the-matrix'))
-    expect(first).toMatchObject({ score: 100, stars: 3, status: 'completed', saved: false })
-    expect(service.submitRun(runId, submission('the-matrix'))).toBe(first)
+  it('scores each level to its known score through the ruleset', () => {
+    for (const levelId of Object.keys(SOLUTIONS)) {
+      const state = play(clearanceRuleset.createState().state, levelId)
+      expect(clearanceRuleset.summarize(state).score).toBe(SOLUTIONS[levelId].score)
+    }
+  })
 
-    const changed = submission('the-matrix', { policy: { grants: [] } })
-    expect(() => service.submitRun(runId, changed)).toThrow(/different choices/)
+  it('rejects a second submission for the same level and bad actions', () => {
+    const state = play(clearanceRuleset.createState().state, 'the-matrix')
+    expect(() => play(state, 'the-matrix')).toThrow(/already ran its day/)
+    expect(() => clearanceRuleset.validateAction('run-day', {})).toThrow(/supported/)
+    expect(() => clearanceRuleset.validateAction('submit-level', { levelId: 'nope' })).toThrow(
+      /level/,
+    )
     expect(() =>
-      service.submitRun(runId, submission('the-matrix', { actionId: 'unit-action-02' })),
-    ).toThrow(/already ran its day/)
+      clearanceRuleset.validateAction('submit-level', { ...submission('the-matrix'), score: 600 }),
+    ).toThrow(/could not be read/)
   })
 
-  it('forgets idle runs', () => {
-    const { service, clock } = createService()
-    const { runId } = service.startRun({ levelId: 'the-matrix' })
-    clock.now += 31 * 60 * 1000
-    expect(() => service.submitRun(runId, submission('the-matrix'))).toThrow(/expired/)
+  it('hides every day script and answer until its level is submitted', () => {
+    const empty = clearanceRuleset.createState().state
+    const before = clearanceRuleset.serializePublicState(empty)
+    expect(before.levels).toHaveLength(6)
+    expect(before.readyToComplete).toBe(false)
+    const text = JSON.stringify(before)
+    for (const level of LEVELS) {
+      for (const prompt of level.predictions) expect(text).not.toContain(prompt.explanation)
+      for (const event of level.day.filter((item) => item.kind !== 'work'))
+        expect(text).not.toContain(event.story)
+    }
+    const after = clearanceRuleset.serializePublicState(play(empty, 'the-matrix'))
+    const [played, ...rest] = after.levels
+    expect(played).toMatchObject({ submitted: true, result: { score: 100, stars: 3 } })
+    expect(played.result.events).toHaveLength(findLevel('the-matrix').day.length)
+    expect(rest.every((level) => !level.submitted && !('result' in level))).toBe(true)
+    expect(after).toMatchObject({ submittedCount: 1, readyToComplete: true })
   })
 
-  it('keeps a bounded number of runs', () => {
-    let counter = 0
-    const service = createClearanceService({
-      maxRuns: 2,
-      createId: () => `00000000-0000-4000-8000-${String((counter += 1)).padStart(12, '0')}`,
-    })
-    const first = service.startRun({ levelId: 'the-matrix' })
-    service.startRun({ levelId: 'the-matrix' })
-    service.startRun({ levelId: 'the-matrix' })
-    expect(() => service.submitRun(first.runId, submission('the-matrix'))).toThrow(/expired/)
+  it('completes after one level and sums scores up to 600', () => {
+    const empty = clearanceRuleset.createState().state
+    expect(clearanceRuleset.canComplete(empty)).toBe(false)
+    let state = empty
+    for (const levelId of Object.keys(SOLUTIONS)) state = play(state, levelId)
+    expect(clearanceRuleset.canComplete(state)).toBe(true)
+    const summary = clearanceRuleset.summarize(state)
+    const expected = Object.values(SOLUTIONS).reduce((total, item) => total + item.score, 0)
+    expect(summary.score).toBe(expected)
+    expect(summary.score).toBeLessThanOrEqual(clearanceRuleset.maxScore)
+    expect(clearanceRuleset.maxScore).toBe(600)
+    expect(summary.topicOutcomes.map((item) => item.topic)).toEqual(clearanceRuleset.topicTags)
+    const partial = clearanceRuleset.summarize(play(empty, 'the-matrix'))
+    expect(partial.score).toBe(100)
+    expect(partial.topicOutcomes.every((item) => !item.achieved)).toBe(true)
   })
 })

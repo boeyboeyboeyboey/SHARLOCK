@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { ClearanceError, parseRunId, parseStart, rateLimited } from './policy.js'
+import { ClearanceError, rateLimited } from './policy.js'
 import { createClearanceService } from './service.js'
 
 const WINDOW_MS = 60000
@@ -64,14 +64,6 @@ export function createClearanceRouter({
   router.get(
     `${base}/levels`,
     handle(() => game.listLevels()),
-  )
-  router.post(
-    `${base}/runs`,
-    handle((request) => game.startRun(parseStart(request.body))),
-  )
-  router.post(
-    `${base}/runs/:runId/submit`,
-    handle((request) => game.submitRun(parseRunId(request.params.runId), request.body)),
   )
 
   return router

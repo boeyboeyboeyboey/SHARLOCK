@@ -1,15 +1,12 @@
 import { CLEARANCE_IDS } from './models.js'
-import { findLevel } from './levels.js'
 
 export const GAME_ID = 'clearance-tower'
-export const RULESET_VERSION = 'clear-1'
+export const RULESET_VERSION = 'clear-2'
 export const VERDICTS = ['allow', 'deny']
 export const MAX_GRANTS = 64
 export const MAX_ROLES = 8
 export const MAX_ROLE_NAME_LENGTH = 24
 
-const RUN_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
-const ACTION_ID = /^[A-Za-z0-9-]{8,64}$/
 const ROLE_ID = /^[a-z0-9-]{1,24}$/
 
 export class ClearanceError extends Error {
@@ -28,30 +25,6 @@ function invalid(fieldErrors) {
     'That request could not be read. Reload the level and try again.',
     400,
     fieldErrors,
-  )
-}
-
-export function runNotFound() {
-  return new ClearanceError(
-    'CLEAR_RUN_NOT_FOUND',
-    'That case has expired. Open it again to start fresh.',
-    404,
-  )
-}
-
-export function alreadySubmitted() {
-  return new ClearanceError(
-    'CLEAR_RUN_SUBMITTED',
-    'This case already ran its day. Retry it to try another policy.',
-    409,
-  )
-}
-
-export function actionConflict() {
-  return new ClearanceError(
-    'CLEAR_ACTION_CONFLICT',
-    'That submission was already sent with different choices.',
-    409,
   )
 }
 
@@ -95,21 +68,6 @@ function flagUnknownKeys(value, allowed, fieldErrors, prefix = '') {
 
 function throwIfInvalid(fieldErrors) {
   if (Object.keys(fieldErrors).length) throw invalid(fieldErrors)
-}
-
-export function parseRunId(value) {
-  if (typeof value !== 'string' || !RUN_ID.test(value)) throw runNotFound()
-  return value
-}
-
-export function parseStart(body) {
-  const fieldErrors = newFieldErrors()
-  if (!isPlainObject(body)) throw invalid({ body: 'expected an object' })
-  flagUnknownKeys(body, ['levelId'], fieldErrors)
-  if (typeof body.levelId !== 'string' || !findLevel(body.levelId))
-    fieldErrors.levelId = 'expected a known level'
-  throwIfInvalid(fieldErrors)
-  return { levelId: body.levelId }
 }
 
 function parseGrants(level, policy, fieldErrors) {
@@ -249,12 +207,11 @@ function parsePredictions(level, predictions, fieldErrors) {
   return Object.fromEntries(predictions.map((item) => [item.id, item.verdict]))
 }
 
+// a saved-attempt action carries the level it answers; the attempt service owns idempotency
 export function parseSubmission(level, body) {
   const fieldErrors = newFieldErrors()
   if (!isPlainObject(body)) throw invalid({ body: 'expected an object' })
-  flagUnknownKeys(body, ['actionId', 'policy', 'predictions'], fieldErrors)
-  if (typeof body.actionId !== 'string' || !ACTION_ID.test(body.actionId))
-    fieldErrors.actionId = 'expected a valid identifier'
+  flagUnknownKeys(body, ['levelId', 'policy', 'predictions'], fieldErrors)
 
   let policy = null
   if (isPlainObject(body.policy))
@@ -263,5 +220,5 @@ export function parseSubmission(level, body) {
 
   const predictions = parsePredictions(level, body.predictions, fieldErrors)
   throwIfInvalid(fieldErrors)
-  return { actionId: body.actionId, policy, predictions }
+  return { levelId: level.id, policy, predictions }
 }

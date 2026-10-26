@@ -1,6 +1,6 @@
 # Clearance Tower — server module
 
-Server half of the `clearance-tower` game (G-CLEAR). The player designs an access-control policy for a fictional intelligence agency, predicts how a few requests will be decided, then watches a scripted day play out against that policy. The server owns the day's script, the prediction answers, the simulation and every score; the browser only sends a policy and its predictions.
+Server half of the `clearance-tower` game (G-CLEAR). The player designs an access-control policy for a fictional intelligence agency, predicts how a few requests will be decided, then watches a scripted day play out against that policy. One saved attempt is one climb over all six levels. The server owns the day's script, the prediction answers, the simulation and every score; the browser only sends a policy and its predictions per level.
 
 Learning content follows CS440 `07-access-control.pptx`: discretionary control and ACLs/capabilities (slides 13–25), Bell–LaPadula labels (26–32) and role-based control (34–38).
 
@@ -12,20 +12,23 @@ Learning content follows CS440 `07-access-control.pptx`: discretionary control a
 | `models.js`   | Pure rule checks: `checkStep()` for discretionary grants, Bell–LaPadula labels (`dominates()`) and roles, plus `findDutyConflicts()` for separation of duties.            |
 | `simulate.js` | `simulateDay()` replays the scripted day against a policy. Same input, same day.                                                                                          |
 | `scoring.js`  | Four score rows, stars, prediction review and the role-versus-matrix edit comparison.                                                                                     |
-| `policy.js`   | Constants, strict request validation (unknown fields rejected) and `ClearanceError`.                                                                                      |
-| `service.js`  | In-memory run store (max 500 runs, 30-minute idle expiry) with one submission per run.                                                                                    |
-| `router.js`   | Three routes, courtesy request pacing, `Cache-Control: no-store` and the shared error shape.                                                                              |
+| `policy.js`   | Constants, strict submission validation (unknown fields rejected) and `ClearanceError`.                                                                                   |
+| `ruleset.js`  | Registry entry for the shared attempt service: state schema, `submit-level` action, public state and summary. Registered in `attempts/production-registry.js`.            |
+| `service.js`  | Level summaries for `GET /levels` only.                                                                                                                                   |
+| `router.js`   | The levels route, courtesy request pacing, `Cache-Control: no-store` and the shared error shape.                                                                          |
 
-## Flow
+## Saved attempts (`rulesetVersion: 'clear-2'`)
 
-```
-browser                         router.js            service.js              levels / simulate / scoring
-GET  /levels         ───────▶  listLevels()  ──▶  six level summaries
-POST /runs           ───────▶  parseStart()  ──▶  startRun()      ──▶  publicLevel(level)
-POST /runs/:id/submit ─────▶  parseRunId()  ──▶  submitRun()     ──▶  parseSubmission → simulateDay → scoreLevel
-```
+Play uses the shared attempt API (see `server/src/modules/attempts/README.md`): `POST /api/games/clearance-tower/attempts` with a personal or cohort context, `POST /api/attempts/:id/actions`, `POST /api/attempts/:id/complete`.
 
-## Rules (`rulesetVersion: 'clear-1'`)
+- Mode `practice`, not competitive, `maxScore` 600 (six levels at 100 each), `maxActions` 8.
+- Action `submit-level`, payload `{ levelId, policy, predictions }`. Policy shapes are listed below; predictions are `[{ id, verdict: 'allow' | 'deny' }]`, one per prompt. Unknown fields are rejected, so a browser score is never accepted.
+- Each level can be submitted once (`CLEAR_LEVEL_SUBMITTED`, 409). Completion needs at least one submitted level ("Finish climb"); unplayed levels score 0.
+- Score is the sum of the per-level scores, recomputed on the server from the stored policy and predictions. Topic outcomes (`discretionary-access-control`, `bell-lapadula`, `role-based-access-control`) are achieved when both levels of that model score 75 or more.
+- Stored state: per submitted level, `{ levelId, policyJson, predictions }` only. Day events, scores and answers are derived when the public state is built.
+- Public state: `{ totalLevels, submittedCount, readyToComplete, levels }`. Each of the six `levels` holds `publicLevel()` data plus `submitted`. Only submitted levels add `result` (`score`, `maxScore`, `stars`, `breakdown`, `meters`, `predictionReview`, `edits?`, `policy`, `events`, `takeaways`). The day script and answers of an unsubmitted level never leave the server.
+
+## Rules
 
 - Each event in a day is `work` (should succeed), `attack` (should be stopped) or `integrity` (Bell–LaPadula allows it on purpose, to show it ignores integrity). An event passes only if every step is allowed.
 - Score out of 100 per level:
@@ -36,31 +39,16 @@ POST /runs/:id/submit ─────▶  parseRunId()  ──▶  submitRun()  
 - Stars: 95+ is three, 75+ two, 50+ one. "The Gift" is capped at 91 on purpose: under discretionary control every fix for the Trojan horse also blocks real work.
 - The "Reshuffle" result adds `edits: { badgeEdits, matrixEdits }` to compare role edits with the matrix cells that changed underneath.
 
-## Endpoints
+## Endpoint
 
-All responses send `Cache-Control: no-store` and `saved: false`; nothing is written to MongoDB.
+| Method and path                         | Response                                                                           |
+| --------------------------------------- | ---------------------------------------------------------------------------------- |
+| `GET /api/games/clearance-tower/levels` | `{ gameId, rulesetVersion, levels: [{ id, act, actTitle, model, title }] }` (open) |
 
-| Method and path                                   | Body                                | Response                                                                                                       |
-| ------------------------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `GET /api/games/clearance-tower/levels`           | —                                   | `{ gameId, rulesetVersion, levels: [{ id, act, actTitle, model, title }], saved }`                             |
-| `POST /api/games/clearance-tower/runs`            | `{ levelId }`                       | `{ gameId, rulesetVersion, runId, level, expiresAt, saved }`, where `level` is the public level                |
-| `POST /api/games/clearance-tower/runs/:id/submit` | `{ actionId, policy, predictions }` | `{ score, maxScore, stars, breakdown, meters, predictionReview, events, takeaways, slides, edits?, saved, … }` |
+Policy shapes: discretionary `{ grants: [{ subject, object, rights: ['r','w'] }] }` (up to 64); Bell–LaPadula `{ objectLabels: { [fileId]: { level, categories } } }` (one per file); role-based `{ roles: [{ id, name, permissions }], assignments: [{ agent, roleIds }] }` (up to 8 roles).
 
-Policy shapes: discretionary `{ grants: [{ subject, object, rights: ['r','w'] }] }` (up to 64); Bell–LaPadula `{ objectLabels: { [fileId]: { level, categories } } }` (one per file); role-based `{ roles: [{ id, name, permissions }], assignments: [{ agent, roleIds }] }` (up to 8 roles). Predictions are `[{ id, verdict: 'allow' | 'deny' }]`, one per prompt.
+Error codes: `CLEAR_INVALID_ACTION` (400), `CLEAR_LEVEL_SUBMITTED` (409), `CLEAR_RATE_LIMITED` (429) on the levels route, plus the shared `ATTEMPT_*` codes.
 
-Error codes: `CLEAR_INVALID_BODY` (400), `CLEAR_RUN_NOT_FOUND` (404), `CLEAR_RUN_SUBMITTED`, `CLEAR_ACTION_CONFLICT` (409), `CLEAR_RATE_LIMITED` (429), `CLEAR_UNAVAILABLE` (503).
+## Tests
 
-Repeating a submission with the same `actionId` and choices returns the recorded result. A different `actionId` on a finished run is refused; retrying a level starts a new run.
-
-## Known limits
-
-- Runs live in process memory and vanish after 30 idle minutes or a restart.
-- Until results are saved against an account, a player could open a throwaway run to see a day's script before submitting a "real" one. That is acceptable for unsaved practice.
-
-## Moving to saved attempts (GAME-01)
-
-1. Replace the interim run routes with an owner-approved adapter for `POST /api/games/:gameId/attempts` (state `{ levelId, policy, predictions, submittedAt }`) and a `submit-policy` action.
-2. Reuse `parseSubmission()` for action validation and `simulateDay()` plus `scoreLevel()` unchanged for scoring.
-3. Keep `levels.js` server-side; only `publicLevel()` output belongs in a public snapshot.
-
-The interim routes are deliberately named `runs`: the shared saved-attempt router already owns `POST /api/games/:gameId/attempts`, so an interim `/attempts` path would be shadowed by it.
+Unit: `server/tests/unit/clearance-tower/` (rules, scoring, validation, `ruleset.js`). Integration: `server/tests/integration/clearance-tower/` (saved journey, access control, leaderboard row).
