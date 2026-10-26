@@ -136,7 +136,11 @@ Move the task's active record rather than duplicating it across board states. Re
 
 ## In Progress
 
-**BOARD-01 — Class leaderboards** · Status: **In Progress** · Contributor: **Boey** · Branch: `board-01-class-leaderboards` (cut from `origin/main` at `9e6c3a1`, 27 October 2026, upstream unset). Plan approved by Boey on 27 October 2026. Spec: [BOARD-01](#board-01--cohort-leaderboards).
+No active implementation task.
+
+## Review
+
+**BOARD-01 — Class leaderboards** · Status: **Review** · Contributor: **Boey** · Branch: `board-01-class-leaderboards` (cut from `origin/main` at `9e6c3a1`, 27 October 2026, upstream unset). Plan approved by Boey on 27 October 2026. Spec: [BOARD-01](#board-01--cohort-leaderboards).
 
 - **Collision check (27 October 2026):** no leaderboard code on `main`, in local or remote branch names, or in the `admin-01-b-admin-controls` (Codex admin-controls) worktree. Existing references are only the `/leaderboard` ComingSoon placeholder (`client/src/router/index.js`), nav links (`Navbar.vue:34`, `PortalLayout.vue:30`), the pixel-wipe label, docs mentions, and an empty `server/src/modules/leaderboards/.gitkeep`. Remote branch contents, PRs and teammates' machines were not inspected.
 - **Dependencies:** COH-01 and GAME-01-A (attempt foundation, in Review) on `main`; the ranking-rule change on `main` (`9e6c3a1`).
@@ -144,9 +148,8 @@ Move the task's active record rather than duplicating it across board states. Re
 - **Scope:** new `server/src/modules/leaderboards/` (`rank.js`, `policy.js`, `service.js`, `router.js`, README); additive mount in `server/src/app.js`; new `client/src/features/leaderboard/` (`LeaderboardPage.vue`, `LeaderboardFilters.vue`, `LeaderboardTable.vue`, `api.js`, `leaderboard.css`, README); additive `/leaderboard` route in `client/src/router/index.js`. Tests in `server/tests/unit/leaderboards`, `server/tests/integration/leaderboards`, the client feature `__tests__`, and `tests/e2e/leaderboard.spec.js`. Docs: `agents.md` §5, TASKS.md, README "Using the app", module READMEs, attempts README.
 - **API:** `GET /api/cohorts/:cohortId/leaderboard/games`; `GET /api/cohorts/:cohortId/leaderboard?gameId=&rulesetVersion=&view=best|all-time&page=`.
 - **Verification (27 October 2026):** leaderboard server unit 28/28; leaderboard integration 12/12 (foreign/malformed/pending/removed access, removed-after-play, staff/dual-role/personal excluded, rulesets not mixed, competitive filtering, instructor/admin access, exact row keys); client mount tests 10/10; `tests/e2e/leaderboard.spec.js` 4/4 twice (desktop and mobile). `pnpm test:unit` 1200/1200 with the known 2 phishing `scrollTo` rejections (exit 1); `pnpm lint` errors only under `.local-handover/`; `pnpm build` passes. Full `pnpm test:e2e`: 198 passed, 9 failed, 21 skipped (10.9 min); the failures (activation, hub, sql-injection-arcade: trace-artifact ENOENT, load timeouts, a screenshot protocol error) passed alone: 35 passed, 1 skipped. Not checked: manual dev-browser and 375 px visual pass.
-- **Next action:** Boey review; commit, push and merge only with Boey's OK.
-
-## Review
+- **Merge (27 October 2026):** commit `07eda90` fast-forwarded into `main` with Boey's approval, together with this record update; no PR. The branch is pushed to `origin`.
+- **Next action:** Boey's manual dev-browser check at desktop and 375 px, then acceptance.
 
 - **Task ID / title / status / priority:** DOC-13 · Course alignment and testing policy · Review · P1
 - **Real active contributor / reviewer:** Boey / Boey
@@ -837,7 +840,7 @@ Unfetched remote changes, live PRs, separately managed work and teammates' worki
 | G-SQL                                                      | **Implemented by Keane; Review:** approved preview handover and saved implementation on `g-sql-saved-arcade`; see GAME-01-B / G-SQL. Do not duplicate or take over.                                                         | Same scored-game foundation; bounded parser and synthetic cases.                              |
 | G-CLEAR (replaced G-REGEX)                                 | **Implemented:** claimed and built by Russell on 15 October 2026; in Review. Reuses the former regex shed. Do not duplicate or take over.                                                                                   | None outstanding; stateless scoring until an owner-approved saved-attempt adapter exists.     |
 | G-NEWS / API-01                                            | **Existing feature:** Daily briefing, `threat-briefing`; completed and accepted by Boey on 19 September 2026. Do not duplicate or take over.                                                                                | Existing implementation and claim; further changes require scoped authorization.              |
-| AUTH-01, PRO-01, LEARN-01, BOARD-01, INST-01, ADMIN-01     | Account/session/browser and admin staff/class slices are in Review; PRO-01 profile editing is in Review, acceptance pending; learning work remains pending; BOARD-01 is In Progress (27 October 2026, see its record).      | Detailed prerequisites below.                                                                 |
+| AUTH-01, PRO-01, LEARN-01, BOARD-01, INST-01, ADMIN-01     | Account/session/browser and admin staff/class slices are in Review; PRO-01 profile editing is in Review, acceptance pending; learning work remains pending; BOARD-01 is in Review (27 October 2026, see its record).        | Detailed prerequisites below.                                                                 |
 | DATA-01, AUTH-02, SEED-01, COH-01, GAME-01, REC-01, LOG-01 | Class/access, audit/bootstrap and instructor activation slices are implemented in Review; enrollment, saved attempts, general recovery and broader audit integrations remain pending. Inspect consumers before a new scope. | Detailed prerequisites below.                                                                 |
 
 ### Ordered readability review roadmap
