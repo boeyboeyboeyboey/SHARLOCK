@@ -41,6 +41,11 @@ export default defineConfig({
         PORT: '3001',
         CLIENT_ORIGIN: 'http://localhost:5174',
         TEST_MAIL_OUTBOX: mailOutbox,
+        // dummy values mark the social simulator configured; specs stub every chat reply
+        LLM_API_KEY: 'e2e-placeholder-not-a-real-key',
+        LLM_MODEL: 'e2e-placeholder-model',
+        LLM_COLLEAGUE_BASE_URL: '',
+        LLM_COLLEAGUE_MODEL: '',
       },
     },
     {
