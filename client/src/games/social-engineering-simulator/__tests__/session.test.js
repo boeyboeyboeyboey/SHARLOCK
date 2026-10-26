@@ -48,9 +48,10 @@ describe('social-engineering session composable', () => {
   it('starts a session and seeds the opening message', async () => {
     startSession.mockResolvedValue(session)
     const { game } = harness()
-    await game.start()
+    await game.start({ kind: 'personal' })
     await flushPromises()
     expect(startSession).toHaveBeenCalledTimes(1)
+    expect(startSession).toHaveBeenCalledWith({ kind: 'personal' }, expect.anything())
     expect(game.status.value).toBe('briefing')
     expect(game.persona.value.displayName).toBe('Jordan Vale (IT Service Desk)')
     expect(game.turnBudget.value).toBe(8)
@@ -62,10 +63,11 @@ describe('social-engineering session composable', () => {
       .mockResolvedValueOnce({ ...session, resetCode: 'SYNTH-RESET-4821' })
       .mockResolvedValueOnce({ ...session, resetCode: 'SYNTH-RESET-7731' })
     const { game } = harness()
-    await game.start()
+    await game.start({ kind: 'personal' })
     await flushPromises()
     expect(game.resetCode.value).toBe('SYNTH-RESET-4821')
-    await game.reset()
+    game.reset()
+    await game.start()
     await flushPromises()
     expect(game.resetCode.value).toBe('SYNTH-RESET-7731')
   })
@@ -74,7 +76,7 @@ describe('social-engineering session composable', () => {
     startSession.mockResolvedValue(session)
     completeSession.mockRejectedValue(gone)
     const { game } = harness()
-    await game.start()
+    await game.start({ kind: 'personal' })
     await flushPromises()
     game.begin()
     await game.complete('refuse')
@@ -87,7 +89,7 @@ describe('social-engineering session composable', () => {
     startSession.mockResolvedValue(session)
     sendMessage.mockRejectedValue(gone)
     const { game } = harness()
-    await game.start()
+    await game.start({ kind: 'personal' })
     await flushPromises()
     game.begin()
     await game.send('hello')
@@ -99,7 +101,7 @@ describe('social-engineering session composable', () => {
     startSession.mockResolvedValue(session)
     completeSession.mockRejectedValue(new Error('network'))
     const { game } = harness()
-    await game.start()
+    await game.start({ kind: 'personal' })
     await flushPromises()
     game.begin()
     await game.complete('refuse')
@@ -116,7 +118,7 @@ describe('social-engineering session composable', () => {
       ended: false,
     })
     const { game } = harness()
-    await game.start()
+    await game.start({ kind: 'personal' })
     await flushPromises()
     game.begin()
     await game.send('Who is this exactly?')
@@ -137,7 +139,7 @@ describe('social-engineering session composable', () => {
       ended: true,
     })
     const { game } = harness()
-    await game.start()
+    await game.start({ kind: 'personal' })
     await flushPromises()
     game.begin()
     await game.send('the code is SYNTH-RESET-4821')
@@ -158,7 +160,7 @@ describe('social-engineering session composable', () => {
       saved: false,
     })
     const { game } = harness()
-    await game.start()
+    await game.start({ kind: 'personal' })
     await flushPromises()
     game.begin()
     await game.complete('verify-independently')
@@ -173,7 +175,7 @@ describe('social-engineering session composable', () => {
       response: { data: { error: { message: 'The simulation needs a provider.' } } },
     })
     const { game } = harness()
-    await game.start()
+    await game.start({ kind: 'personal' })
     await flushPromises()
     expect(game.status.value).toBe('error')
     expect(game.error.value).toBe('The simulation needs a provider.')
@@ -183,11 +185,64 @@ describe('social-engineering session composable', () => {
     const abort = vi.spyOn(AbortController.prototype, 'abort')
     startSession.mockResolvedValue(session)
     const { game, wrapper } = harness()
-    const pending = game.start()
+    const pending = game.start({ kind: 'personal' })
     wrapper.unmount()
     await pending
     await flushPromises()
     expect(abort).toHaveBeenCalled()
+  })
+})
+
+describe('social-engineering saving', () => {
+  const unsaved = {
+    score: 85,
+    maxScore: 100,
+    outcome: 'resisted',
+    breakdown: [],
+    debrief: { summary: 's', tactic: 't', saferesponse: 'r' },
+    saved: false,
+    saveError: { code: 'ATTEMPT_SAVE_FAILED', message: 'Could not save.' },
+  }
+
+  it('starts in the chooser and sends the class context to the server', async () => {
+    startSession.mockResolvedValue(session)
+    const { game } = harness()
+    expect(game.status.value).toBe('choosing')
+    await game.start({ kind: 'cohort', cohortId: 'c1' })
+    expect(startSession).toHaveBeenCalledWith({ kind: 'cohort', cohortId: 'c1' }, expect.anything())
+  })
+
+  it('retries the save with the same decision and keeps the score', async () => {
+    startSession.mockResolvedValue(session)
+    completeSession
+      .mockResolvedValueOnce(unsaved)
+      .mockResolvedValueOnce({ ...unsaved, saved: true, saveError: undefined })
+    const { game } = harness()
+    await game.start({ kind: 'personal' })
+    await flushPromises()
+    game.begin()
+    await game.complete('refuse')
+    await flushPromises()
+    expect(game.result.value.saved).toBe(false)
+    await game.retrySave()
+    expect(completeSession).toHaveBeenNthCalledWith(2, SESSION, 'refuse', expect.anything())
+    expect(game.result.value.saved).toBe(true)
+    expect(game.result.value.score).toBe(85)
+  })
+
+  it('keeps the unsaved result and shows an error when the retry fails', async () => {
+    startSession.mockResolvedValue(session)
+    completeSession.mockResolvedValueOnce(unsaved).mockRejectedValueOnce(new Error('network'))
+    const { game } = harness()
+    await game.start({ kind: 'personal' })
+    await flushPromises()
+    game.begin()
+    await game.complete('refuse')
+    await flushPromises()
+    await game.retrySave()
+    expect(game.result.value.saved).toBe(false)
+    expect(game.saveRetryError.value).not.toBe('')
+    expect(game.status.value).toBe('ended')
   })
 })
 
@@ -196,7 +251,7 @@ describe('social-engineering session without a colleague', () => {
     vi.useFakeTimers()
     startSession.mockResolvedValue(session)
     const { game } = harness()
-    await game.start()
+    await game.start({ kind: 'personal' })
     await flushPromises()
     game.begin()
     expect(game.verifier.value).toBeNull()

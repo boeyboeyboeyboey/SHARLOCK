@@ -1,4 +1,5 @@
 import { api } from '../../services/api.js'
+import { requestCsrfToken } from '../../features/auth/api.js'
 
 const BASE = '/games/social-engineering-simulator'
 
@@ -25,36 +26,34 @@ export const DECISIONS = [
   },
 ]
 
-export function startSession(signal) {
-  return api.post(`${BASE}/session`, {}, { signal, timeout: 15000 }).then(({ data }) => data)
+// every post is state-changing, so each carries a fresh csrf token
+async function post(path, body, options) {
+  const token = await requestCsrfToken()
+  const { data } = await api.post(`${BASE}/${path}`, body, {
+    ...options,
+    headers: { 'X-CSRF-Token': token },
+  })
+  return data
+}
+
+export function startSession(context, signal) {
+  return post('session', { context }, { signal, timeout: 15000 })
 }
 
 export function sendMessage(sessionId, content, signal) {
-  return api
-    .post(`${BASE}/message`, { sessionId, content }, { signal, timeout: 45000 })
-    .then(({ data }) => data)
+  return post('message', { sessionId, content }, { signal, timeout: 45000 })
 }
 
 export function sendVerifierMessage(sessionId, content, signal) {
-  return api
-    .post(
-      `${BASE}/verifier-message`,
-      { sessionId, content },
-      { signal, timeout: VERIFIER_TIMEOUT_MS },
-    )
-    .then(({ data }) => data)
+  return post('verifier-message', { sessionId, content }, { signal, timeout: VERIFIER_TIMEOUT_MS })
 }
 
 export function requestNudge(sessionId, signal) {
-  return api
-    .post(`${BASE}/nudge`, { sessionId }, { signal, timeout: 15000 })
-    .then(({ data }) => data)
+  return post('nudge', { sessionId }, { signal, timeout: 15000 })
 }
 
 export function completeSession(sessionId, decision, signal) {
-  return api
-    .post(`${BASE}/complete`, { sessionId, decision }, { signal, timeout: 15000 })
-    .then(({ data }) => data)
+  return post('complete', { sessionId, decision }, { signal, timeout: 15000 })
 }
 
 // true when the server no longer holds this session (restart, idle expiry or already completed)
@@ -63,6 +62,7 @@ export function isSessionGone(error) {
 }
 
 export function simulatorErrorMessage(error, fallback) {
+  if (error?.response?.status === 401) return 'Your session ended. Sign in again, then retry.'
   const message = error?.response?.data?.error?.message
   return typeof message === 'string' && message ? message : fallback
 }

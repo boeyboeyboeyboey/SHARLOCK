@@ -10,6 +10,11 @@ import DecisionBar from '../components/DecisionBar.vue'
 import MessageComposer from '../components/MessageComposer.vue'
 import ScenarioBrief from '../components/ScenarioBrief.vue'
 
+vi.mock('../../../features/attempts/api.js', async (original) => ({
+  ...(await original()),
+  listAttemptContexts: vi.fn().mockResolvedValue({ cohorts: [], total: 0 }),
+}))
+
 vi.mock('../simulator.js', async (original) => ({
   ...(await original()),
   startSession: vi.fn(),
@@ -138,14 +143,28 @@ describe('debrief panel', () => {
     saved: false,
   }
 
-  it('shows the score, breakdown and the unsaved label and emits restart', async () => {
-    const wrapper = mount(DebriefPanel, { props: { result } })
+  it('shows the score, breakdown and saved confirmation and emits restart', async () => {
+    const wrapper = mount(DebriefPanel, { props: { result: { ...result, saved: true } } })
     expect(wrapper.text()).toContain('75 / 100')
     expect(wrapper.text()).toContain('Protected the reset code')
-    expect(wrapper.text()).toContain('practice')
-    expect(wrapper.text()).toContain('not saved')
+    expect(wrapper.text()).toContain('Result saved to your account.')
+    expect(wrapper.text()).not.toContain('Try saving again')
     await wrapper.get('button').trigger('click')
     expect(wrapper.emitted('restart')).toHaveLength(1)
+  })
+
+  it('shows the save error and emits retry-save when the result was not saved', async () => {
+    const unsaved = { ...result, saveError: { code: 'X', message: 'Could not save.' } }
+    const wrapper = mount(DebriefPanel, { props: { result: unsaved } })
+    expect(wrapper.text()).toContain('Could not save.')
+    expect(wrapper.text()).not.toContain('Result saved to your account.')
+    await wrapper.get('[role="alert"] button').trigger('click')
+    expect(wrapper.emitted('retry-save')).toHaveLength(1)
+  })
+
+  it('disables the retry button while retrying', () => {
+    const wrapper = mount(DebriefPanel, { props: { result, retrying: true } })
+    expect(wrapper.get('[role="alert"] button').attributes('disabled')).toBeDefined()
   })
 
   it.each([
@@ -368,6 +387,8 @@ describe('simulator screen with a colleague', () => {
     app.component('RouterLink', { render: () => h('a') })
     app.mount(el)
     await flushPromises()
+    el.querySelector('form button').click()
+    await flushPromises()
     el.querySelector('.soc-brief button, button').click()
     await flushPromises()
     return { app, el }
@@ -379,6 +400,25 @@ describe('simulator screen with a colleague', () => {
       b.textContent.includes('Verify through a known channel'),
     )
   const decisionCount = (el) => el.querySelectorAll('.soc-decisions button').length
+
+  it('shows the chooser first and starts the run with the chosen context', async () => {
+    startSession.mockResolvedValue({ ...base, verifier: null })
+    const el = document.createElement('div')
+    document.body.append(el)
+    const app = createApp(Screen)
+    // eslint-disable-next-line vue/one-component-per-file
+    app.component('RouterLink', { render: () => h('a') })
+    app.mount(el)
+    await flushPromises()
+    expect(startSession).not.toHaveBeenCalled()
+    expect(el.textContent).toContain('Save this case to')
+    el.querySelector('form button').click()
+    await flushPromises()
+    expect(startSession).toHaveBeenCalledWith({ kind: 'personal' }, expect.anything())
+    expect(el.textContent).toContain('Begin the conversation')
+    app.unmount()
+    el.remove()
+  })
 
   it('restores the draft after each of two identical failed colleague sends', async () => {
     sendVerifierMessage.mockRejectedValue({

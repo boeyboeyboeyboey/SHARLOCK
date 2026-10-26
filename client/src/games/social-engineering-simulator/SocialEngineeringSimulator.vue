@@ -1,5 +1,6 @@
 <script setup>
-import { computed, onMounted } from 'vue'
+import { computed } from 'vue'
+import AttemptContextChooser from '../../features/attempts/components/AttemptContextChooser.vue'
 import ChatThread from './components/ChatThread.vue'
 import ConversationTabs from './components/ConversationTabs.vue'
 import DecisionBar from './components/DecisionBar.vue'
@@ -23,6 +24,8 @@ const {
   result,
   error,
   resetCode,
+  saveRetryError,
+  retrying,
   verifier,
   verifierMessages,
   verifierPending,
@@ -41,6 +44,7 @@ const {
   begin,
   send,
   complete,
+  retrySave,
   reset,
 } = useSocialEngineeringSession()
 
@@ -69,8 +73,6 @@ function sendActive(text) {
 
 const inConversation = computed(() => ['chatting', 'awaiting', 'ended'].includes(status.value))
 const fitsViewport = computed(() => inConversation.value || status.value === 'briefing')
-
-onMounted(start)
 </script>
 
 <template>
@@ -86,13 +88,19 @@ onMounted(start)
       </p>
     </div>
 
-    <p v-if="status === 'idle' && pending" class="soc-state" role="status">
+    <div v-if="status === 'choosing'" class="soc-state soc-start">
+      <AttemptContextChooser :disabled="pending" @start="start" />
+    </div>
+
+    <p v-else-if="status === 'idle' && pending" class="soc-state" role="status">
       Setting up the simulation&hellip;
     </p>
 
     <div v-else-if="status === 'error'" class="soc-state soc-error" role="alert">
       <p>{{ error }}</p>
-      <button type="button" class="soc-button soc-button-primary" @click="start">Try again</button>
+      <button type="button" class="soc-button soc-button-primary" @click="start()">
+        Try again
+      </button>
     </div>
 
     <ScenarioBrief
@@ -109,6 +117,9 @@ onMounted(start)
         :result="result"
         :verifier-messages="verifierMessages"
         :verifier-name="verifierName"
+        :retrying="retrying"
+        :retry-error="saveRetryError"
+        @retry-save="retrySave"
         @restart="reset"
       />
 

@@ -12,10 +12,10 @@ import {
 
 const SESSION_GONE_MESSAGE = 'This simulation has ended or expired. Start a new one.'
 
-// status: idle (loading) | briefing (brief shown) | chatting | awaiting (reply in flight)
+// status: choosing (pick where to save) | idle (loading) | briefing (brief shown) | chatting | awaiting (reply in flight)
 //         | ended (debrief shown) | error (fatal load failure)
 export function useSocialEngineeringSession() {
-  const status = ref('idle')
+  const status = ref('choosing')
   const pending = ref(false)
   const persona = ref(null)
   const brief = ref(null)
@@ -28,6 +28,10 @@ export function useSocialEngineeringSession() {
   const error = ref('')
   const sessionId = ref('')
   const resetCode = ref('')
+  const saveRetryError = ref('')
+  const retrying = ref(false)
+  let runContext = null
+  let lastDecision = ''
 
   const activeChat = ref('attacker')
   const unread = reactive({ attacker: 0, verifier: 0 })
@@ -125,6 +129,8 @@ export function useSocialEngineeringSession() {
     error.value = ''
     sessionId.value = ''
     resetCode.value = ''
+    saveRetryError.value = ''
+    retrying.value = false
     completing.value = false
     clearNudgeTimer()
     nudgesLeft = 3
@@ -148,7 +154,9 @@ export function useSocialEngineeringSession() {
     if (replyText && activeChat.value !== 'verifier') unread.verifier += 1
   }
 
-  async function start() {
+  async function start(context) {
+    if (context) runContext = context
+    if (!runContext) return
     controller?.abort()
     controller = new AbortController()
     const request = (generation += 1)
@@ -156,7 +164,7 @@ export function useSocialEngineeringSession() {
     status.value = 'idle'
     pending.value = true
     try {
-      const data = await startSession(controller.signal)
+      const data = await startSession(runContext, controller.signal)
       if (disposed || request !== generation) return
       sessionId.value = data.sessionId
       resetCode.value = data.resetCode ?? ''
@@ -233,6 +241,7 @@ export function useSocialEngineeringSession() {
     pending.value = true
     error.value = ''
     try {
+      lastDecision = decision
       const data = await completeSession(sessionId.value, decision, controller?.signal)
       if (disposed || request !== generation) return
       result.value = data
@@ -258,8 +267,34 @@ export function useSocialEngineeringSession() {
     }
   }
 
+  // the server keeps a finished run for a few minutes, so asking again retries the save
+  async function retrySave() {
+    if (!result.value || result.value.saved || retrying.value) return
+    const request = generation
+    retrying.value = true
+    saveRetryError.value = ''
+    try {
+      const data = await completeSession(sessionId.value, lastDecision, controller?.signal)
+      if (disposed || request !== generation) return
+      result.value = data
+    } catch (requestError) {
+      if (disposed || request !== generation) return
+      saveRetryError.value = simulatorErrorMessage(
+        requestError,
+        'The result could not be saved. Try again in a moment.',
+      )
+    } finally {
+      if (!disposed && request === generation) retrying.value = false
+    }
+  }
+
+  // back to the save-location chooser for a fresh run
   function reset() {
-    return start()
+    controller?.abort()
+    generation += 1
+    clearState()
+    pending.value = false
+    status.value = 'choosing'
   }
 
   onBeforeUnmount(() => {
@@ -282,6 +317,8 @@ export function useSocialEngineeringSession() {
     result,
     error,
     resetCode,
+    saveRetryError,
+    retrying,
     verifier,
     verifierMessages,
     verifierPending,
@@ -302,6 +339,7 @@ export function useSocialEngineeringSession() {
     begin,
     send,
     complete,
+    retrySave,
     reset,
   }
 }

@@ -5,8 +5,10 @@ const props = defineProps({
   result: { type: Object, required: true },
   verifierMessages: { type: Array, default: () => [] },
   verifierName: { type: String, default: '' },
+  retrying: Boolean,
+  retryError: { type: String, default: '' },
 })
-defineEmits(['restart'])
+defineEmits(['restart', 'retry-save'])
 
 const ATTACK_LABELS = { resisted: 'Resisted', partial: 'Partly safe', compromised: 'Compromised' }
 const LEGITIMATE_LABELS = {
@@ -27,7 +29,18 @@ const outcomeLabel = computed(() => {
       <div class="soc-debrief-head" :class="`is-${result.outcome}`">
         <p class="soc-debrief-eyebrow">Debrief &middot; {{ outcomeLabel }}</p>
         <h2 id="soc-debrief-heading">{{ result.score }} / {{ result.maxScore }}</h2>
-        <p class="soc-debrief-unsaved">practice &mdash; not saved</p>
+        <p v-if="result.saved" class="soc-debrief-unsaved">Result saved to your account.</p>
+        <div v-else class="soc-debrief-unsaved" role="alert">
+          <p>{{ retryError || result.saveError?.message || 'The result was not saved.' }}</p>
+          <button
+            type="button"
+            class="soc-button soc-button-primary"
+            :disabled="retrying"
+            @click="$emit('retry-save')"
+          >
+            Try saving again
+          </button>
+        </div>
       </div>
 
       <p class="soc-debrief-summary">{{ result.debrief.summary }}</p>

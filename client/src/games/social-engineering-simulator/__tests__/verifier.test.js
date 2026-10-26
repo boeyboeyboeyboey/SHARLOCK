@@ -64,7 +64,7 @@ function harness() {
 async function started(extra = {}) {
   startSession.mockResolvedValue({ ...session, ...extra })
   const h = harness()
-  await h.game.start()
+  await h.game.start({ kind: 'personal' })
   await flushPromises()
   h.game.begin()
   return h
@@ -236,7 +236,7 @@ describe('session composable with a colleague', () => {
     void verifier
     startSession.mockResolvedValue(legacy)
     const { game } = harness()
-    await game.start()
+    await game.start({ kind: 'personal' })
     await flushPromises()
     game.begin()
     expect(game.verifier.value).toBeNull()
@@ -351,7 +351,8 @@ describe('session composable with a colleague', () => {
     const { game } = await started()
     await game.sendVerifier('hi')
     startSession.mockResolvedValue({ ...session, verifier: null })
-    await game.reset()
+    game.reset()
+    await game.start()
     await flushPromises()
     expect(game.verifier.value).toBeNull()
     expect(game.verifierMessages.value).toEqual([])
@@ -547,7 +548,8 @@ describe('stale responses after reset and unmount', () => {
     await vi.advanceTimersByTimeAsync(NUDGE_IDLE_MS)
     const sending = game.sendVerifier('hi')
     startSession.mockResolvedValue({ ...session, verifier: VERIFIER })
-    await game.reset()
+    game.reset()
+    await game.start()
     await flushPromises()
     const timers = vi.getTimerCount()
     lateReply.resolve(reply({ leaked: true, ended: true }))

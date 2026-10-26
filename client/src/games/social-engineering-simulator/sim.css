@@ -591,6 +591,10 @@
   color: var(--game-muted);
 }
 
+.soc-debrief-unsaved p {
+  margin: 0 0 0.5rem;
+}
+
 .soc-debrief-summary,
 .soc-debrief p {
   max-width: 66ch;
