@@ -8,6 +8,7 @@ import { userModel } from '../../../src/models/User.js'
 import { hashPassword } from '../../../src/modules/auth/password.js'
 import { initializeAuthStorage } from '../../../src/modules/auth/storage.js'
 import { AuthMongoStore } from '../../../src/modules/auth/session.js'
+import { CSRF_BOOTSTRAP_LIMIT } from '../../../src/modules/auth/rate-limits.js'
 import { initializeAuditStorage } from '../../../src/modules/audit/storage.js'
 import { initializeRecoveryStorage } from '../../../src/modules/recovery/storage.js'
 import { createRecoveryService } from '../../../src/modules/recovery/service.js'
@@ -442,11 +443,11 @@ describe('account and Mongo session HTTP contract', () => {
 
   it('limits CSRF bootstraps that create sessions but not token reuse on a live session', async () => {
     const agent = request.agent(app)
-    for (let index = 0; index < 61; index += 1) {
+    for (let index = 0; index <= CSRF_BOOTSTRAP_LIMIT; index += 1) {
       await agent.get('/api/auth/csrf').set('Origin', baseAuthOptions.clientOrigin).expect(200)
     }
 
-    for (let index = 0; index < 60; index += 1) {
+    for (let index = 0; index < CSRF_BOOTSTRAP_LIMIT; index += 1) {
       await request(app).get('/api/auth/csrf').set('Origin', baseAuthOptions.clientOrigin)
     }
     const blocked = await request(app)
@@ -455,7 +456,27 @@ describe('account and Mongo session HTTP contract', () => {
       .expect(429)
     expect(blocked.body.error.message).toBe('Too many security checks. Please try again later.')
     await agent.get('/api/auth/csrf').set('Origin', baseAuthOptions.clientOrigin).expect(200)
-  })
+  }, 30_000)
+
+  it('does not spend the per-IP sign-in budget on successful sign-ins', async () => {
+    const student = await registerTestStudent(app)
+    for (let index = 0; index < 31; index += 1) {
+      const signedIn = await prepareLoginAgent(student.email, student.password)
+      expect(signedIn.response.status).toBe(200)
+    }
+  }, 30_000)
+
+  it('limits failed sign-ins per IP across different accounts', async () => {
+    for (let index = 0; index < 30; index += 1) {
+      const failed = await prepareLoginAgent(`nobody-${index}@example.test`, 'Wrong-Password-2026!')
+      expect(failed.response.status).toBe(401)
+    }
+    const blocked = await prepareLoginAgent('nobody-30@example.test', 'Wrong-Password-2026!')
+    expect(blocked.response.status).toBe(429)
+    expect(blocked.response.body.error.message).toBe(
+      'Too many sign-in attempts. Please try again later.',
+    )
+  }, 30_000)
 
   it('expires anonymous CSRF sessions after ten minutes', async () => {
     const agent = request.agent(app)

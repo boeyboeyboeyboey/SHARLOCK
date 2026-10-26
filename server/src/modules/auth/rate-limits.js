@@ -4,6 +4,7 @@ import { AuthError } from './policy.js'
 
 const FIFTEEN_MINUTES = 15 * 60 * 1000
 const ONE_HOUR = 60 * 60 * 1000
+export const CSRF_BOOTSTRAP_LIMIT = 300
 
 function sendRateLimitError(request, response, message, retryAfter = 1) {
   response.set('Cache-Control', 'no-store')
@@ -14,12 +15,13 @@ function sendRateLimitError(request, response, message, retryAfter = 1) {
   })
 }
 
-function requestLimiter({ windowMs, limit, message, keyGenerator }) {
+function requestLimiter({ windowMs, limit, message, keyGenerator, skipSuccessfulRequests }) {
   const store = new MemoryStore()
   const middleware = rateLimit({
     windowMs,
     limit,
     store,
+    ...(skipSuccessfulRequests ? { skipSuccessfulRequests } : {}),
     ...(keyGenerator ? { keyGenerator } : { ipv6Subnet: 56 }),
     standardHeaders: 'draft-7',
     legacyHeaders: false,
@@ -40,7 +42,7 @@ export function createRateLimits({ secret, now = Date.now } = {}) {
 
   const csrf = requestLimiter({
     windowMs: FIFTEEN_MINUTES,
-    limit: 60,
+    limit: CSRF_BOOTSTRAP_LIMIT,
     message: 'Too many security checks. Please try again later.',
   })
   const registration = requestLimiter({
@@ -51,6 +53,8 @@ export function createRateLimits({ secret, now = Date.now } = {}) {
   const loginIp = requestLimiter({
     windowMs: FIFTEEN_MINUTES,
     limit: 30,
+    // only failed sign-ins spend the per-ip budget, so a shared address can still sign in
+    skipSuccessfulRequests: true,
     message: 'Too many sign-in attempts. Please try again later.',
   })
   const verification = requestLimiter({
