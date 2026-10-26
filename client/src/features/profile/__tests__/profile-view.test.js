@@ -114,17 +114,6 @@ describe('profile view', () => {
     expect(wrapper.text()).not.toContain('detective@example.test')
   })
 
-  it('keeps /progress read-only and does not request the profile editing API there', async () => {
-    mocks.route.path = '/progress'
-    const wrapper = mountProfile()
-    await flushPromises()
-
-    expect(wrapper.get('h1').text()).toBe('Your learning progress.')
-    expect(wrapper.find('button.profile-edit-button').exists()).toBe(false)
-    expect(mocks.getOwnProfile).not.toHaveBeenCalled()
-    expect(mocks.updateOwnProfile).not.toHaveBeenCalled()
-  })
-
   it('preserves an unsaved username and restores focus when editing is cancelled', async () => {
     const wrapper = mountProfile()
     await flushPromises()

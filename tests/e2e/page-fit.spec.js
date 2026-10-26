@@ -1,6 +1,6 @@
 import { test, expect } from './fixtures/auth.js'
 
-// fitted pages must not scroll at a laptop-height window; long pages (About, Instructor, Admin) are not listed
+// fitted pages must not scroll at a laptop-height window; long pages (About, Instructor, Admin, Progress) are not listed
 test.use({ viewport: { width: 1280, height: 720 } })
 test.skip(({ isMobile }) => isMobile, 'the fit target is desktop width')
 // one worker logs in once; parallel workers hit the login rate limit in the shared auth fixture
@@ -10,7 +10,6 @@ const SIGNED_IN = [
   ['Town map', '/'],
   ['News dialog over the town', '/games/threat-briefing'],
   ['Detective profile', '/profile'],
-  ['Learning progress', '/progress'],
   ['Your classes', '/classes'],
   ['SQL Injection Arcade briefing', '/games/sql-injection-arcade'],
   ['Regex preview', '/games/regex-defender'],

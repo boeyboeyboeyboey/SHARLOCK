@@ -431,5 +431,34 @@ export function createAttemptService(
     return commit(currentActor, attempt, candidate, action, requestHash, 'complete', receivedAt)
   }
 
-  return Object.freeze({ startAttempt, getAttempt, applyAction, completeAttempt })
+  // read-only history for one player: completed attempts only, no membership check by design
+  async function listCompletedAttempts(playerId, { gameId, skip = 0, limit = 10 } = {}) {
+    const filter = { playerId: new Types.ObjectId(playerId), status: 'completed' }
+    if (gameId !== undefined) filter.gameId = parseGameId(gameId)
+    const [attempts, total] = await Promise.all([
+      Attempt.find(filter, {
+        gameId: 1,
+        rulesetVersion: 1,
+        'context.kind': 1,
+        score: 1,
+        maxScore: 1,
+        completedAt: 1,
+        topicOutcomes: 1,
+      })
+        .sort({ completedAt: -1, _id: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Attempt.countDocuments(filter),
+    ])
+    return { attempts, total }
+  }
+
+  return Object.freeze({
+    startAttempt,
+    getAttempt,
+    applyAction,
+    completeAttempt,
+    listCompletedAttempts,
+  })
 }

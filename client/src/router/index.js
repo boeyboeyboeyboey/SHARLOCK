@@ -76,7 +76,7 @@ export const routes = [
   },
   {
     path: '/progress',
-    component: Profile,
+    component: () => import('../features/progress/ProgressPage.vue'),
     meta: { title: 'Learning progress', accountAware: true },
   },
   {

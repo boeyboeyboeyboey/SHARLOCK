@@ -88,8 +88,8 @@ onMounted(async () => {
       </p>
       <p class="preview-notice">
         Create an account or sign in to read The Sharlock Times and explore the town's games and
-        previews. Your account and avatar are saved; game results, progress and achievements are not
-        saved yet.
+        previews. Your account and avatar are saved. Points and badges are earned from saved
+        activity results, and only some activities save results so far.
       </p>
     </section>
     <section id="graphics" class="about-details" aria-labelledby="about-graphics-heading">

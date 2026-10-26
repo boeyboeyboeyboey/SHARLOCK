@@ -11,6 +11,7 @@ import { createAuditRouter } from './modules/audit/router.js'
 import { createAdminRouter } from './modules/admin/router.js'
 import { createAttemptRouter } from './modules/attempts/router.js'
 import { createProductionAttemptRegistry } from './modules/attempts/production-registry.js'
+import { createProgressRouter } from './modules/progress/router.js'
 import { createProfileRouter } from './modules/profile/router.js'
 import { createRecoveryRouter } from './modules/recovery/router.js'
 import { createHealthRouter } from './routes/health.js'
@@ -25,6 +26,7 @@ export function createApp(
     audit = {},
     cohorts = {},
     attempts = {},
+    progress = {},
     news = {},
     phishing = {},
     socialEngineering = {},
@@ -78,6 +80,13 @@ export function createApp(
     requireMutation: authRuntime.requireMutation,
   })
   app.use('/api', attemptRouter)
+  const progressRouter = createProgressRouter(database, {
+    registry: attempts.registry ?? createProductionAttemptRegistry(),
+    ...progress,
+    now: progress.now ?? attempts.now ?? authRuntime.now,
+    requireSession: authRuntime.requireSession,
+  })
+  app.use('/api', progressRouter)
   app.use(
     '/api',
     createProfileRouter(database, {
@@ -101,6 +110,7 @@ export function createApp(
     adminRouter.dispose()
     cohortRouter.dispose()
     attemptRouter.dispose()
+    progressRouter.dispose()
     authRuntime.dispose()
   }
   return app

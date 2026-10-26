@@ -57,7 +57,7 @@ The router owns and disposes its process-local limiter stores: creation 30/user 
 - `policy.js`: exact inputs, IDs/revisions, canonical JSON/hashes and budgets
 - `registry.js`: server ruleset registration and callback/schema contracts
 - `model.js` / `storage.js`: shared strict document, per-ruleset state, indexes and additive initialization
-- `service.js`: ownership/context, server time/scoring, atomic lifecycle and saved responses
+- `service.js`: ownership/context, server time/scoring, atomic lifecycle and saved responses; also `listCompletedAttempts(playerId, { gameId, skip, limit })`, a read-only helper for the progress module that returns `{ attempts, total }` for the player's completed attempts (newest `completedAt` first, explicit projection, no membership check so retained class results stay listed)
 - `router.js`: the four handlers, shared protection, owned limits and safe errors
 - `server/tests/unit/attempts/`: input, registry and model contracts
 - `server/tests/integration/attempts/`: injected synthetic adapter and real authenticated persistence/permission/retry/concurrency checks

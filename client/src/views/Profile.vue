@@ -13,7 +13,6 @@ import '../features/profile/profile.css'
 
 const route = useRoute()
 const auth = useAuthStore()
-const progressPage = computed(() => route.path === '/progress')
 const shownUsername = computed(() => profile.value?.username || auth.user?.username || '')
 const shownAvatarId = computed(() => profile.value?.avatarId || auth.user?.avatarId)
 const avatar = computed(() => avatarFor(shownAvatarId.value))
@@ -161,10 +160,8 @@ async function retrySession() {
 
 <template>
   <div class="profile-view">
-    <p class="eyebrow">{{ progressPage ? 'YOUR LEARNING JOURNEY' : 'YOUR DETECTIVE DESK' }}</p>
-    <h1 tabindex="-1">
-      {{ progressPage ? 'Your learning progress.' : 'A curious mind looks good on you.' }}
-    </h1>
+    <p class="eyebrow">YOUR DETECTIVE DESK</p>
+    <h1 tabindex="-1">A curious mind looks good on you.</h1>
     <p class="page-description">Your account, your capybara companion and your next discoveries.</p>
 
     <template v-if="auth.status === 'authenticated' && auth.user">
@@ -187,7 +184,6 @@ async function retrySession() {
           Town map <PixelIcon name="arrow" :size="18" aria-hidden="true" />
         </RouterLink>
         <button
-          v-if="!progressPage"
           ref="editButton"
           class="btn btn-primary profile-edit-button"
           type="button"
@@ -203,7 +199,7 @@ async function retrySession() {
         <button class="btn btn-secondary" type="button" @click="loadProfile">Try again</button>
       </div>
       <ProfileEditor
-        v-if="editing && !progressPage && profile"
+        v-if="editing && profile"
         :profile="profile"
         :draft="retainedDraft"
         :pending="saving"
@@ -220,7 +216,8 @@ async function retrySession() {
         </button>
       </div>
       <p class="preview-notice">
-        Your account and avatar are saved. Game results are not saved yet.
+        Your account and avatar are saved. Saved activity results, points and badges are on your
+        learning progress page.
       </p>
       <TrophyCase />
     </template>

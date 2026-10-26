@@ -143,7 +143,7 @@ async function resendCode() {
     <aside class="auth-aside">
       <PixelIcon name="shield" :size="30" aria-hidden="true" />
       <h2>Start with your own detective</h2>
-      <p>Registration signs you in automatically. Join a class or skip ahead to personal play. Game results are not saved yet.</p>
+      <p>Registration signs you in automatically. Join a class or skip ahead to personal play. Some activities already save results to your learning progress.</p>
       <RouterLink to="/about" class="auth-aside__link">
         About Sharlock <PixelIcon name="arrow" :size="16" aria-hidden="true" />
       </RouterLink>
