@@ -4,6 +4,7 @@ import AccessMatrix from '../components/AccessMatrix.vue'
 import DayControls from '../components/DayControls.vue'
 import LabelBoard from '../components/LabelBoard.vue'
 import LevelDebrief from '../components/LevelDebrief.vue'
+import LevelSelect from '../components/LevelSelect.vue'
 import PredictionPanel from '../components/PredictionPanel.vue'
 import RoleDesigner from '../components/RoleDesigner.vue'
 import TowerView from '../components/TowerView.vue'
@@ -144,7 +145,6 @@ describe('clearance tower components', () => {
             },
           ],
           takeaways: ['Roles scale.'],
-          slides: 'CS440 07-access-control',
         },
       },
     })
@@ -152,5 +152,23 @@ describe('clearance tower components', () => {
     expect(wrapper.text()).toContain('You said Blocked; it is Allowed.')
     expect(wrapper.text()).toContain('6 badge edits')
     expect(wrapper.findAll('button').map((button) => button.text())).not.toContain('Next case')
+    expect(wrapper.text()).toContain(`Source: ${roleLevel.slides}`)
+    expect(wrapper.text()).not.toContain('not saved')
+  })
+
+  it('lists cases with their scores and enables Finish climb only when ready', async () => {
+    const levels = [
+      { ...matrixLevel, submitted: true, result: { score: 90 } },
+      { ...labelLevel, submitted: false },
+    ]
+    const wrapper = mount(LevelSelect, { props: { levels, readyToComplete: false } })
+    expect(wrapper.text()).toContain('Scored 90 / 100')
+    expect(wrapper.text()).toContain('1 of 2 cases run')
+    expect(wrapper.get('button.is-primary').attributes('disabled')).toBeDefined()
+    await wrapper.setProps({ readyToComplete: true })
+    await wrapper.get('button.is-primary').trigger('click')
+    expect(wrapper.emitted('finish')).toHaveLength(1)
+    await wrapper.findAll('.clear-level-button')[1].trigger('click')
+    expect(wrapper.emitted('select')[0]).toEqual([labelLevel.id])
   })
 })

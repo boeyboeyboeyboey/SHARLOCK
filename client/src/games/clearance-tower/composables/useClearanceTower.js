@@ -1,115 +1,97 @@
-import { computed, onBeforeUnmount, ref } from 'vue'
-import {
-  createActionId,
-  errorMessage,
-  fetchLevels,
-  startRun,
-  submitRun,
-} from '../clearanceTower.js'
+import { computed, ref } from 'vue'
+import { useAttempt } from '../../../features/attempts/useAttempt.js'
 
-// phases: levels → brief → design → predict → day → debrief
+// phases inside an active climb: levels → brief → design → predict → day → debrief
 export function useClearanceTower() {
+  const attempt = useAttempt('clearance-tower')
+  const { snapshot, busy, error, retryable } = attempt
   const phase = ref('levels')
-  const levels = ref([])
-  const level = ref(null)
+  const levelId = ref(null)
   const policy = ref(null)
   const predictions = ref({})
-  const result = ref(null)
-  const bestScores = ref({})
-  const pending = ref(false)
-  const error = ref('')
-  let runId = null
-  let actionId = null
-  let controller = null
 
-  // runs one request at a time; a newer request or leaving the game cancels the older one
-  async function send(request, fallbackMessage) {
-    controller?.abort()
-    controller = new AbortController()
-    const { signal } = controller
-    pending.value = true
-    error.value = ''
-    try {
-      return await request(signal)
-    } catch (caught) {
-      if (!signal.aborted) error.value = errorMessage(caught, fallbackMessage)
-      return null
-    } finally {
-      if (!signal.aborted) pending.value = false
-    }
-  }
-
-  async function loadLevels() {
-    const data = await send(fetchLevels, 'The case list could not be loaded. Try again.')
-    if (data) levels.value = data.levels
-  }
-
-  async function openLevel(levelId) {
-    const data = await send(
-      (signal) => startRun(levelId, signal),
-      'That case could not be opened. Try again.',
-    )
-    if (!data) return
-    runId = data.runId
-    actionId = createActionId()
-    level.value = data.level
-    policy.value = structuredClone(data.level.startPolicy)
-    predictions.value = {}
-    result.value = null
-    phase.value = 'brief'
-  }
+  const state = computed(() => snapshot.value?.publicState ?? null)
+  const levels = computed(() => state.value?.levels ?? [])
+  const level = computed(() => levels.value.find((item) => item.id === levelId.value) ?? null)
+  const result = computed(() => level.value?.result ?? null)
 
   const allPredicted = computed(() =>
     Boolean(level.value?.predictions.every((prompt) => predictions.value[prompt.id])),
   )
 
   const nextLevelId = computed(() => {
-    const index = levels.value.findIndex((item) => item.id === level.value?.id)
+    const index = levels.value.findIndex((item) => item.id === levelId.value)
     return levels.value[index + 1]?.id ?? null
   })
 
+  // a submitted case reopens as its stored day; a new one starts from its starting policy
+  function openLevel(id) {
+    const item = levels.value.find((entry) => entry.id === id)
+    if (!item) return
+    levelId.value = id
+    predictions.value = {}
+    if (item.submitted) {
+      policy.value = structuredClone(item.result.policy)
+      phase.value = 'day'
+    } else {
+      policy.value = structuredClone(item.startPolicy)
+      phase.value = 'brief'
+    }
+  }
+
   async function runDay() {
-    const body = {
-      actionId,
+    const ok = await attempt.mutate('submit-level', {
+      levelId: levelId.value,
       policy: policy.value,
       predictions: level.value.predictions.map((prompt) => ({
         id: prompt.id,
         verdict: predictions.value[prompt.id],
       })),
-    }
-    const data = await send(
-      (signal) => submitRun(runId, body, signal),
-      'The day could not be run. Your policy is still here, so try again.',
-    )
-    if (!data) return
-    result.value = data
-    const best = Math.max(bestScores.value[data.levelId] ?? 0, data.score)
-    bestScores.value = { ...bestScores.value, [data.levelId]: best }
-    phase.value = 'day'
+    })
+    if (ok) phase.value = 'day'
+    return ok
+  }
+
+  async function retry() {
+    const ok = await attempt.retry()
+    if (ok && phase.value === 'predict') phase.value = 'day'
+    return ok
   }
 
   function showPhase(nextPhase) {
-    error.value = ''
+    if (!retryable.value) error.value = ''
     phase.value = nextPhase
   }
 
-  onBeforeUnmount(() => controller?.abort())
+  function reset() {
+    snapshot.value = null
+    levelId.value = null
+    policy.value = null
+    predictions.value = {}
+    phase.value = 'levels'
+  }
 
   return {
+    snapshot,
+    busy,
+    error,
+    retryable,
     phase,
     levels,
     level,
     policy,
     predictions,
     result,
-    bestScores,
-    pending,
-    error,
     allPredicted,
     nextLevelId,
-    loadLevels,
+    state,
+    start: attempt.start,
+    load: attempt.load,
+    complete: attempt.complete,
+    retry,
     openLevel,
     runDay,
     showPhase,
+    reset,
   }
 }

@@ -1,5 +1,7 @@
+import { randomBytes } from 'node:crypto'
 import { test, expect } from './fixtures/auth.js'
 import { findLevel, LEVELS } from '../../server/src/modules/games/clearance-tower/levels.js'
+import { seedClass, signedInPage } from './fixtures/class.js'
 import { SOLUTIONS } from '../../server/tests/unit/clearance-tower/solutions.js'
 
 test.beforeEach(async ({ page }) => {
@@ -23,8 +25,16 @@ async function pickCase(page, levelId) {
   return level
 }
 
+async function startClimb(page, contextOption = 'personal') {
+  await page.getByLabel('Save this case to').selectOption(contextOption)
+  await page.getByRole('button', { name: 'Open the case' }).click()
+  await expect(page).toHaveURL(/attempt=/)
+  await expect(page.getByRole('heading', { name: 'Choose a case' })).toBeVisible()
+}
+
 async function openCase(page, levelId) {
   await page.goto('/games/clearance-tower')
+  await startClimb(page)
   return pickCase(page, levelId)
 }
 
@@ -76,8 +86,8 @@ test('solves the matrix case to three stars from the town card', async ({ page }
   await card.getByRole('link').click()
   await expect(page).toHaveURL(/\/games\/clearance-tower$/)
   await expect(page.getByRole('heading', { name: 'Clearance Tower', level: 1 })).toBeVisible()
-
-  const level = await openCase(page, 'the-matrix')
+  await startClimb(page)
+  const level = await pickCase(page, 'the-matrix')
   const { policy, predictions } = SOLUTIONS['the-matrix']
   await setGrants(page, level, policy.grants)
   await page.getByRole('button', { name: 'Access lists' }).click()
@@ -201,19 +211,22 @@ test('keeps the day script and answers out of every response before submitting',
   const bodies = []
   page.on('response', async (response) => {
     if (
-      response.url().includes('/api/games/clearance-tower/') &&
-      !response.url().endsWith('/submit')
+      (response.url().includes('/api/games/clearance-tower/') ||
+        response.url().includes('/api/attempts/')) &&
+      !response.url().endsWith('/actions') &&
+      !response.url().endsWith('/complete')
     )
       bodies.push(await response.text())
   })
   await page.goto('/games/clearance-tower')
+  await startClimb(page)
   for (const level of LEVELS) {
     await pickCase(page, level.id)
     await page.getByRole('button', { name: 'Dossier' }).click()
     await page.getByRole('button', { name: 'All cases' }).click()
   }
   const seen = bodies.join('\n')
-  expect(seen).toContain('"runId"')
+  expect(seen).toContain('"submittedCount"')
   for (const level of LEVELS) {
     for (const prompt of level.predictions) expect(seen).not.toContain(prompt.explanation)
     for (const event of level.day.filter((item) => item.kind !== 'work'))
@@ -238,6 +251,7 @@ test('fits a laptop-height window without page scroll', async ({ page }, testInf
   const fits = () =>
     page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)
   await page.goto('/games/clearance-tower')
+  await startClimb(page)
   await expect(page.getByRole('button', { name: /The Matrix/ })).toBeVisible()
   expect(await fits()).toBe(true)
   await pickCase(page, 'roles-not-people')
@@ -267,8 +281,50 @@ test('keeps the shared town styles after leaving the game', async ({ page }) => 
   const before = await sharedStyle()
   await page.getByLabel('Jump to').selectOption('clearance-tower')
   await page.getByRole('region', { name: 'Clearance Tower', exact: true }).getByRole('link').click()
+  await startClimb(page)
   await pickCase(page, 'the-matrix')
   await page.getByRole('link', { name: 'Back to town' }).click()
   await expect(page).toHaveURL('/')
   await expect.poll(sharedStyle).toEqual(before)
+})
+
+test('a class student saves a climb and appears on the class leaderboard', async ({
+  browser,
+  baseURL,
+}) => {
+  const seeded = await seedClass(randomBytes(4).toString('hex'))
+  const { context, page } = await signedInPage(browser, baseURL, seeded.studentA)
+  try {
+    await page.goto('/games/clearance-tower')
+    await startClimb(page, seeded.classId)
+    const level = await pickCase(page, 'the-matrix')
+    const { policy, predictions } = SOLUTIONS['the-matrix']
+    await setGrants(page, level, policy.grants)
+    await predict(page, level, predictions)
+    await runWholeDay(page)
+    await openCaseFile(page)
+    await expect(page.locator('.clear-score')).toContainText('100 / 100')
+    await page.getByRole('button', { name: 'All cases' }).click()
+    await expect(page.getByText('Scored 100 / 100')).toBeVisible()
+
+    // a submitted case reopens as its stored day, and cannot be run twice
+    await page.getByRole('button', { name: new RegExp(level.title) }).click()
+    await expect(page.getByRole('heading', { name: 'The day plays out' })).toBeFocused()
+
+    await page.getByRole('button', { name: 'Skip to end' }).click()
+    await page.getByRole('button', { name: 'Open the case file' }).click()
+    await page.getByRole('button', { name: 'All cases' }).click()
+    await page.getByRole('button', { name: 'Finish climb' }).click()
+    await expect(page.getByText('100 / 600', { exact: true })).toBeVisible()
+    await expect(page.getByText('Result saved to your account.', { exact: true })).toBeVisible()
+    await expect(page.getByText(`${level.title}: 100 / 100`)).toBeVisible()
+
+    await page.goto('/leaderboard')
+    await expect(page.getByRole('heading', { level: 2, name: /Clearance Tower/ })).toBeVisible()
+    const own = page.getByRole('row', { name: new RegExp(seeded.studentA.username) })
+    await expect(own).toHaveCount(1)
+    await expect(own).toContainText('(you)')
+  } finally {
+    await context.close()
+  }
 })

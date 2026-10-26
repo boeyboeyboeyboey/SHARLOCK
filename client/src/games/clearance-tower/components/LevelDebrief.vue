@@ -8,7 +8,7 @@ const props = defineProps({
   result: { type: Object, required: true },
   hasNext: { type: Boolean, default: false },
 })
-const emit = defineEmits(['retry', 'next', 'levels'])
+const emit = defineEmits(['next', 'levels'])
 
 const meters = computed(() => props.result.meters)
 
@@ -27,7 +27,7 @@ function verdictLabel(value) {
         {{ starText(result.stars) }}
       </span>
     </p>
-    <p class="clear-hint">Practice result. Scores are not saved yet.</p>
+    <p class="clear-hint">Recorded in this climb. Finish the climb to save the total.</p>
 
     <MeterBoard :breakdown="result.breakdown" />
 
@@ -65,11 +65,10 @@ function verdictLabel(value) {
     <ul>
       <li v-for="takeaway in result.takeaways" :key="takeaway">{{ takeaway }}</li>
     </ul>
-    <p class="clear-source">Source: {{ result.slides }}</p>
+    <p class="clear-source">Source: {{ level.slides }}</p>
 
     <div class="clear-actions">
       <button type="button" class="clear-button" @click="emit('levels')">All cases</button>
-      <button type="button" class="clear-button" @click="emit('retry')">Retry case</button>
       <button v-if="hasNext" type="button" class="clear-button is-primary" @click="emit('next')">
         Next case
       </button>

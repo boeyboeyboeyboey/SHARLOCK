@@ -3,10 +3,12 @@ import { computed } from 'vue'
 
 const props = defineProps({
   levels: { type: Array, required: true },
-  bestScores: { type: Object, default: () => ({}) },
+  readyToComplete: { type: Boolean, default: false },
   pending: { type: Boolean, default: false },
 })
-const emit = defineEmits(['select', 'reload'])
+const emit = defineEmits(['select', 'finish'])
+
+const submittedCount = computed(() => props.levels.filter((level) => level.submitted).length)
 
 const acts = computed(() => {
   const groups = []
@@ -27,10 +29,8 @@ const acts = computed(() => {
     <h2 id="clear-levels-title" tabindex="-1" data-phase-heading>Choose a case</h2>
     <p>
       Six cases across three access-control models. Play them in any order; nothing is timed. Each
-      case: read the dossier, set the policy, predict a few decisions, then run the day.
-    </p>
-    <p v-if="!levels.length && !pending">
-      <button type="button" class="clear-button" @click="emit('reload')">Load the cases</button>
+      case runs once: read the dossier, set the policy, predict a few decisions, then run the day. A
+      climb scores up to 600 points, and cases you skip score 0.
     </p>
     <div v-for="act in acts" :key="act.number" class="clear-act">
       <h3>Act {{ act.number }} · {{ act.title }}</h3>
@@ -44,12 +44,24 @@ const acts = computed(() => {
           >
             <span class="clear-level-number">Case {{ level.number }}</span>
             <span class="clear-level-title">{{ level.title }}</span>
-            <span v-if="bestScores[level.id] !== undefined" class="clear-level-best">
-              Best <span class="clear-number">{{ bestScores[level.id] }}</span> / 100
+            <span v-if="level.submitted" class="clear-level-best">
+              Scored <span class="clear-number">{{ level.result.score }}</span> / 100 · review the
+              day
             </span>
           </button>
         </li>
       </ul>
+    </div>
+    <div class="clear-actions">
+      <p class="clear-hint">{{ submittedCount }} of {{ levels.length }} cases run.</p>
+      <button
+        type="button"
+        class="clear-button is-primary"
+        :disabled="!readyToComplete || pending"
+        @click="emit('finish')"
+      >
+        Finish climb
+      </button>
     </div>
   </section>
 </template>

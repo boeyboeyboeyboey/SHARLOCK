@@ -166,6 +166,17 @@
   margin-top: 1rem;
 }
 
+/* saved result */
+.clearance-game .clear-saved {
+  min-height: 0;
+  overflow: auto;
+}
+
+.clearance-game .clear-summary {
+  margin: 0 0 0.75rem;
+  padding-left: 1.25rem;
+}
+
 /* case list */
 .clearance-game .clear-level-list {
   display: grid;

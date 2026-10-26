@@ -1,30 +1,3 @@
-import { api } from '../../services/api.js'
-
-const BASE = '/games/clearance-tower'
-
-export function fetchLevels(signal) {
-  return api.get(`${BASE}/levels`, { signal }).then(({ data }) => data)
-}
-
-export function startRun(levelId, signal) {
-  return api.post(`${BASE}/runs`, { levelId }, { signal }).then(({ data }) => data)
-}
-
-export function submitRun(runId, body, signal) {
-  return api.post(`${BASE}/runs/${runId}/submit`, body, { signal }).then(({ data }) => data)
-}
-
-export function createActionId() {
-  return (
-    globalThis.crypto?.randomUUID?.() ??
-    `a-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
-  )
-}
-
-export function errorMessage(error, fallback) {
-  return error?.response?.data?.error?.message || fallback
-}
-
 export const VERDICTS = [
   { value: 'allow', label: 'Allowed' },
   { value: 'deny', label: 'Blocked' },
