@@ -1,5 +1,5 @@
 export const GAME_ID = 'social-engineering-simulator'
-export const RULESET_VERSION = '2026-10-24'
+export const RULESET_VERSION = '2026-10-27'
 export const MAX_SCORE = 100
 export const WEIGHTS = { noLeak: 60, verify: 25, efficiency: 15 }
 export const DEFAULT_TURN_BUDGET = 8
@@ -13,7 +13,7 @@ export const MAX_COMPLETED = 200
 export const DECISIONS = ['refuse', 'verify-independently', 'share-code']
 
 const SESSION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-const START_FIELDS = []
+const START_FIELDS = ['context']
 const MESSAGE_FIELDS = ['sessionId', 'content']
 const NUDGE_FIELDS = ['sessionId']
 const COMPLETE_FIELDS = ['sessionId', 'decision']
@@ -50,13 +50,16 @@ function readSessionId(value, fieldErrors) {
   return value
 }
 
-export function parseStart(body = {}) {
-  if (body === undefined || body === null) return {}
-  if (typeof body !== 'object' || Array.isArray(body)) throw invalid({ body: 'expected an object' })
+export function parseStart(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body))
+    throw invalid({ body: 'expected an object' })
   const fieldErrors = {}
   rejectUnknown(body, START_FIELDS, fieldErrors)
+  const { context } = body
+  if (!context || typeof context !== 'object' || Array.isArray(context))
+    fieldErrors.context = 'expected an object'
   if (Object.keys(fieldErrors).length) throw invalid(fieldErrors)
-  return {}
+  return { context }
 }
 
 export function parseMessage(body) {

@@ -4,9 +4,10 @@
 
 - What it is: the server side of G-SOC, a chat where a fictional colleague, played by an LLM, pressures the trainee to reveal a synthetic reset code.
 - Rules: the server owns the 12 scenarios (`scenarios.js`), the reset code and the system prompts, and decides the score; model output is never a security boundary.
-- API: `POST` `session`, `message`, `verifier-message`, `nudge` and `complete` under `/games/social-engineering-simulator` (`router.js`); sessions are held in memory.
+- API: signed-in `POST` `session`, `message`, `verifier-message`, `nudge` and `complete` under `/games/social-engineering-simulator` (`router.js`); live chat sessions are held in memory and each belongs to the player who started it.
+- Saving: `complete` records one practice attempt (max 100, never ranked as competitive) through `recordCompletedAttempt`; personal and class runs are readable at `/api/attempts/:id`, class runs appear on the class leaderboard.
 - LLM: a bad-actor adapter (`LLM_API_KEY` + `LLM_MODEL`) and a separate real-colleague adapter (`LLM_COLLEAGUE_*`); without them the game reports it is not configured.
-- Status: playable and unsaved, merged to `main` via PR #3. The `llm/` engine is separately owned and not changed here.
+- Status: playable and saved (SAVE-SOC, see TASKS.md). The `llm/` engine is separately owned and not changed here.
 
 Runs G-SOC: a fictional colleague, played by an LLM, pressures the trainee to reveal a
 synthetic reset code. The server owns the code and the system prompts and decides the
@@ -21,7 +22,8 @@ separate contributor's work. This module **imports** it and does not modify it.
 client/src/games/social-engineering-simulator/simulator.js
   -> shared Axios client (client/src/services/api.js, baseURL /api)
   -> Express app (server/src/app.js mounts createSocialEngineeringRouter under /api)
-  -> router.js    validates the body, paces repeated requests, maps errors
+  -> router.js    session + csrf guards, validates the body, resolves the run context, paces requests, maps errors
+  -> ruleset.js   attempt registry entry: strict state schema, recomputes the score on save
   -> policy.js    field allowlist, decision enum, limits, typed SocialEngError
   -> service.js   picks a persona, runs both chats, detects leaks, scores the run
   -> scenarios.js server-owned personas: system prompt + private code + public brief
@@ -33,13 +35,17 @@ client/src/games/social-engineering-simulator/simulator.js
 
 ## Endpoints
 
-| Route                                                           | Purpose                                                                                                                                                       |
-| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `POST /api/games/social-engineering-simulator/session`          | Starts a run; returns `{ sessionId, gameId, rulesetVersion, persona, brief, openingMessage, resetCode, verifier }`. `verifier` is `null` without a colleague. |
-| `POST /api/games/social-engineering-simulator/message`          | Body `{ sessionId, content }` (1..1000 chars); chat with the bad actor. Returns the reply, turn count and `leaked`/`ended`.                                   |
-| `POST /api/games/social-engineering-simulator/verifier-message` | Body `{ sessionId, content }` (1..1000 chars); chat with the real colleague. Returns `{ reply, verifierTurnsUsed, verifierTurnBudget, leaked, ended }`.       |
-| `POST /api/games/social-engineering-simulator/nudge`            | Body `{ sessionId }`; returns the next scripted bad-actor pressure line as `{ message, nudgesLeft }`. No model call.                                          |
-| `POST /api/games/social-engineering-simulator/complete`         | Body `{ sessionId, decision }` (`refuse` / `verify-independently` / `share-code`); returns the score and debrief.                                             |
+| Route                                                           | Purpose                                                                                                                                                                                                                                           |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /api/games/social-engineering-simulator/session`          | Body `{ context }` (`{ kind: 'personal' }` or `{ kind: 'cohort', cohortId }`, validated by the attempts service before the session exists). Returns `{ sessionId, gameId, rulesetVersion, persona, brief, openingMessage, resetCode, verifier }`. |
+| `POST /api/games/social-engineering-simulator/message`          | Body `{ sessionId, content }` (1..1000 chars); chat with the bad actor. Returns the reply, turn count and `leaked`/`ended`.                                                                                                                       |
+| `POST /api/games/social-engineering-simulator/verifier-message` | Body `{ sessionId, content }` (1..1000 chars); chat with the real colleague. Returns `{ reply, verifierTurnsUsed, verifierTurnBudget, leaked, ended }`.                                                                                           |
+| `POST /api/games/social-engineering-simulator/nudge`            | Body `{ sessionId }`; returns the next scripted bad-actor pressure line as `{ message, nudgesLeft }`. No model call.                                                                                                                              |
+| `POST /api/games/social-engineering-simulator/complete`         | Body `{ sessionId, decision }` (`refuse` / `verify-independently` / `share-code`); returns the score and debrief plus `saved` and, when saved, `attempt: { attemptId, score, maxScore, persisted, context }`.                                     |
+
+Every route needs a signed-in session; each POST also needs the allowed origin and the CSRF token.
+A session belongs to the player who started it: another player's `sessionId` gets the same
+`LLM_SESSION_NOT_FOUND` (404) as an unknown one, on every route including a replayed `complete`.
 
 All five send `Cache-Control: no-store`. Request bodies reject unknown fields.
 
@@ -49,13 +55,14 @@ Errors use the project shape `{ error: { code, message, fieldErrors? }, requestI
 `SOC_VERIFIER_BUSY` (429, another player's colleague reply is in flight),
 `SOC_RATE_LIMITED` (429),
 `LLM_NOT_CONFIGURED` / `LLM_UPSTREAM_UNAVAILABLE` (503) from the adapter, and
-`SOC_UNAVAILABLE` (503) as the catch-all. A colleague reply that fails or times out returns
+`SOC_UNAVAILABLE` (503) as the catch-all, and the shared auth and attempt errors
+(`AUTHENTICATION_REQUIRED` 401, `CSRF_INVALID` / `ORIGIN_FORBIDDEN` 403, and a foreign or inactive class at start). A colleague reply that fails or times out returns
 `LLM_UPSTREAM_UNAVAILABLE` with the text "<name> hasn't replied yet. Try again." and does not
 spend one of the five messages. No stack or configuration detail leaks.
 
 ## Scoring (server-authoritative)
 
-Maximum 100: `noLeak` 60, `verify` 25, `efficiency` 15. `rulesetVersion` is `2026-10-24`.
+Maximum 100: `noLeak` 60, `verify` 25, `efficiency` 15. `rulesetVersion` is `2026-10-27` (bumped when saving was added).
 
 Since 18 October 2026 half of the answer depends on the scenario. Each scenario has a
 `legitimate` flag, kept server-side and revealed only as `legitimate` in the `complete` result.
@@ -146,27 +153,32 @@ PR #3 (c46dfba). It is unsaved. Full design: `docs/superpowers/specs/2026-10-15-
   `llm/providers/cloud.js`, so attacker replies can be cut short; see the TASKS.md record. The
   gateway token is shared privately and lives only in each teammate's own `.env`.
 
-## Why there is no database here
+## Saved attempts (SAVE-SOC)
 
-Like G-PHISH, this module runs ahead of AUTH-01/AUTH-02/DATA-01/GAME-01, so it is
-deliberately stateless. Transcripts live only in the imported in-memory `chatSessionStore` (one store for the bad actor, one for the colleague;
-20-message bound, 30-minute idle TTL) and are dropped on completion or when they go idle.
-Every `complete` response carries `saved: false`, and the debrief is labelled
-"practice - not saved". The in-memory pacing in `router.js` bounds abuse of a public
-endpoint but is not a security boundary and does not survive a restart.
+The module is server-recorded: the attempts registry entry (`ruleset.js`, registered in
+`server/src/modules/attempts/production-registry.js`) has `serverRecorded: true`, so the public
+`POST /api/games/social-engineering-simulator/attempts` route answers `409 ATTEMPT_SERVER_RECORDED`.
+Live chat state stays in memory; only the finished run is stored.
 
-## Migrating onto GAME-01
-
-The response vocabulary already uses GAME-01 terms (`gameId`, `rulesetVersion`, `score`,
-`maxScore`, `outcome`). When GAME-01 exists:
-
-1. Replace the five routes with `POST /api/games/:gameId/attempts`, the `send-message`
-   action and `complete`. `service.js` keeps the chat/leak/score logic; `scoreOutcome()`
-   moves across unchanged as the ruleset summariser.
-2. Store `{ scenarioId, turnsUsed, leaked, decision }` plus the bounded transcript as the
-   attempt `state`; keep the system prompt and code server-side exactly as now.
-3. Let the shared action service enforce one in-flight generation and idempotent completion.
-4. Add `requireSession` in the router and pass the resolved actor into the service.
+- **Start.** `router.js` calls `attempts.resolveRunContext(actor, context)` first, so a foreign,
+  pending or removed class fails before a session or any LLM call exists. The resolved context and the
+  player id are kept in the session metadata, and every later route checks the owner.
+- **Complete.** `service.completeAndRecord` scores exactly as before, then calls
+  `recordCompletedAttempt(actor, 'social-engineering-simulator', { context, mode: 'practice',
+startedAt, state, resultKey: sessionId })`. The saved `state` holds only the effective scoring
+  inputs: `scenarioId`, `decision`, `leaked`, `turnsUsed`, `verifierRequired`, `verifierContacted`.
+  `ruleset.summarize` recomputes the score from them with the same `scoreOutcome`; legitimacy and the
+  turn budget are read from the scenario, never from the stored state. Transcripts, the reset code and
+  prompts are never stored.
+- **Idempotent and retryable.** The result is kept for 5 minutes (`COMPLETED_TTL_MS`). A repeated
+  `complete` returns the same saved attempt. If the save fails with an attempt or cohort error (for
+  example the student left the class mid-run) the response keeps the score and debrief with
+  `saved: false` and `saveError: { code, message }`; calling `complete` again within the window retries
+  the save. Unexpected errors surface as `SOC_UNAVAILABLE`.
+- **Scoring and boards.** `maxScore` 100, `competitive: false`, mode `practice`. Class runs appear on
+  the class leaderboard as practice best scores and in the all-time view; personal runs do not.
+- **Limits.** Pacing in `router.js` is per player and in memory (not a security boundary). A run
+  that is never completed, or whose idle transcript expired, is not saved.
 
 ## Tuning
 

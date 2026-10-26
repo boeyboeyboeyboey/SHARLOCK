@@ -838,6 +838,72 @@ describe('social-engineering service', () => {
   })
 })
 
+describe('social-engineering ownership and recording', () => {
+  const personal = { kind: 'personal' }
+  const saved = { attemptId: 'a1', score: 75, maxScore: 100, persisted: true, context: personal }
+
+  function startFor(service, playerId) {
+    return service.startSession({ playerId, context: personal })
+  }
+
+  it("treats another player's session as unknown on every route", async () => {
+    const { service } = makeService()
+    const start = startFor(service, 'p1')
+    const notFound = { code: 'LLM_SESSION_NOT_FOUND' }
+    await expect(service.sendMessage(start.sessionId, 'hi', 'p2')).rejects.toMatchObject(notFound)
+    await expect(service.sendVerifierMessage(start.sessionId, 'hi', 'p2')).rejects.toBeDefined()
+    expect(() => service.nudge(start.sessionId, 'p2')).toThrow(/not found/)
+    expect(() => service.complete(start.sessionId, 'refuse', 'p2')).toThrow(/not found/)
+    expect(service.complete(start.sessionId, 'refuse', 'p1').score).toBeGreaterThan(0)
+    // a finished result replays only for its owner
+    expect(() => service.complete(start.sessionId, 'refuse', 'p2')).toThrow(/not found/)
+  })
+
+  it('records the effective scoring inputs once and reuses the saved attempt', async () => {
+    const { service } = makeService()
+    const attempts = { recordCompletedAttempt: vi.fn(async () => saved) }
+    const start = startFor(service, 'p1')
+    const first = await service.completeAndRecord(start.sessionId, 'refuse', 'p1', attempts)
+    const second = await service.completeAndRecord(start.sessionId, 'refuse', 'p1', attempts)
+    expect(first).toMatchObject({ saved: true, attempt: { attemptId: 'a1' } })
+    expect(second).toEqual(first)
+    expect(attempts.recordCompletedAttempt).toHaveBeenCalledTimes(1)
+    const [actor, gameId, input] = attempts.recordCompletedAttempt.mock.calls[0]
+    expect(actor).toEqual({ id: 'p1' })
+    expect(gameId).toBe('social-engineering-simulator')
+    expect(input).toMatchObject({
+      context: personal,
+      mode: 'practice',
+      resultKey: start.sessionId,
+      state: { scenarioId: start.persona.id, decision: 'refuse', leaked: false, turnsUsed: 0 },
+    })
+    expect(input.startedAt).toBeInstanceOf(Date)
+  })
+
+  it('returns saved false with the error code on a save failure, then saves on retry', async () => {
+    const { service } = makeService()
+    const failure = Object.assign(new Error('gone'), { name: 'CohortError', code: 'COHORT_GONE' })
+    const attempts = {
+      recordCompletedAttempt: vi.fn().mockRejectedValueOnce(failure).mockResolvedValue(saved),
+    }
+    const start = startFor(service, 'p1')
+    const first = await service.completeAndRecord(start.sessionId, 'refuse', 'p1', attempts)
+    expect(first).toMatchObject({ saved: false, saveError: { code: 'COHORT_GONE' } })
+    expect(first.score).toBeGreaterThan(0)
+    const retry = await service.completeAndRecord(start.sessionId, 'refuse', 'p1', attempts)
+    expect(retry.saved).toBe(true)
+  })
+
+  it('rethrows an unexpected save error', async () => {
+    const { service } = makeService()
+    const attempts = { recordCompletedAttempt: vi.fn().mockRejectedValue(new Error('boom')) }
+    const start = startFor(service, 'p1')
+    await expect(
+      service.completeAndRecord(start.sessionId, 'refuse', 'p1', attempts),
+    ).rejects.toThrow('boom')
+  })
+})
+
 describe('tidyColleagueReply', () => {
   it('keeps text with an in-token period intact', () => {
     const text = 'I work at Sharlock.example and I do not know Jordan.'

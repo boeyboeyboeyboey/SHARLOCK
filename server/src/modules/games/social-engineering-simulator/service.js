@@ -88,7 +88,7 @@ function scoreLegitimate({
   return { score, outcome, breakdown }
 }
 
-function scoreOutcome({
+export function scoreOutcome({
   leaked,
   decision: chosen,
   turnsUsed,
@@ -228,13 +228,14 @@ export function createSocialEngineeringService({
     }
   }
 
-  function requireSession(sessionId) {
+  // another player's session looks exactly like an unknown one
+  function requireSession(sessionId, owner) {
     const entry = meta.get(sessionId)
-    if (!entry) throw sessionNotFound()
+    if (!entry || entry.playerId !== owner) throw sessionNotFound()
     return entry
   }
 
-  function startSession() {
+  function startSession({ playerId, context } = {}) {
     if (!adapter.configured) {
       throw new LlmError(
         'LLM_NOT_CONFIGURED',
@@ -252,6 +253,9 @@ export function createSocialEngineeringService({
     // continues from it on the next send
     store.append(sessionId, { role: 'assistant', content: scenario.opening })
     meta.set(sessionId, {
+      playerId,
+      context,
+      startedAt: now(),
       scenario,
       turnsUsed: 0,
       turnBudget: scenario.turnBudget,
@@ -288,8 +292,8 @@ export function createSocialEngineeringService({
     return `${base} You also sent these follow-up messages while the trainee was away: ${lines}`
   }
 
-  async function sendMessage(sessionId, content) {
-    const entry = requireSession(sessionId)
+  async function sendMessage(sessionId, content, owner) {
+    const entry = requireSession(sessionId, owner)
     if (entry.ended) throw sessionNotFound()
     if (entry.busy) {
       throw new LlmError(
@@ -336,7 +340,7 @@ export function createSocialEngineeringService({
     }
   }
 
-  async function sendVerifierMessage(sessionId, content) {
+  async function sendVerifierMessage(sessionId, content, owner) {
     if (!verifierAdapter?.configured) {
       throw new LlmError(
         'LLM_NOT_CONFIGURED',
@@ -344,7 +348,7 @@ export function createSocialEngineeringService({
         503,
       )
     }
-    const entry = requireSession(sessionId)
+    const entry = requireSession(sessionId, owner)
     // a leak ends the whole run; a spent attacker budget does not stop checking
     if (entry.leaked || !entry.verifierSessionId) throw sessionNotFound()
     if (entry.verifierTurns >= VERIFIER_TURN_BUDGET) {
@@ -417,8 +421,8 @@ export function createSocialEngineeringService({
   }
 
   // scripted pressure from the attacker persona: no model call, no turn spent
-  function nudge(sessionId) {
-    const entry = requireSession(sessionId)
+  function nudge(sessionId, owner) {
+    const entry = requireSession(sessionId, owner)
     const none = { message: null, nudgesLeft: 0 }
     if (entry.ended || entry.leaked) return none
     const index = entry.nudgesSent
@@ -430,12 +434,15 @@ export function createSocialEngineeringService({
     return { message, nudgesLeft: MAX_NUDGES - entry.nudgesSent }
   }
 
-  function complete(sessionId, chosenDecision) {
+  function complete(sessionId, chosenDecision, owner) {
     let decision = chosenDecision
     pruneCompleted()
     const replay = completed.get(sessionId)
-    if (replay) return replay.result
-    const entry = requireSession(sessionId)
+    if (replay) {
+      if (replay.playerId !== owner) throw sessionNotFound()
+      return replay.result
+    }
+    const entry = requireSession(sessionId, owner)
     const verifierName = entry.verifierSessionId
       ? verifierFor(entry.scenario.id)?.displayName
       : undefined
@@ -463,7 +470,7 @@ export function createSocialEngineeringService({
       uncheckedRefusal: entry.verifierRequired && decision === 'refuse' && !entry.verifierContacted,
       verifierName,
     })
-    // release the transcript and metadata; nothing is persisted
+    // release the transcript and metadata; completeAndRecord stores the summary
     store.end(sessionId)
     if (entry.verifierSessionId) verifierRunner.end(entry.verifierSessionId)
     meta.delete(sessionId)
@@ -478,9 +485,50 @@ export function createSocialEngineeringService({
       debrief,
       saved: false,
     }
-    completed.set(sessionId, { result, at: now() })
+    // the effective scoring inputs, so the ruleset can recompute the score on save
+    completed.set(sessionId, {
+      result,
+      at: now(),
+      playerId: entry.playerId,
+      context: entry.context,
+      startedAt: entry.startedAt,
+      state: {
+        scenarioId: entry.scenario.id,
+        decision,
+        leaked: entry.leaked && !sharedWithRequester,
+        turnsUsed: entry.turnsUsed,
+        verifierRequired: entry.verifierRequired,
+        verifierContacted: entry.verifierContacted,
+      },
+      savedAttempt: null,
+    })
     pruneCompleted()
     return result
+  }
+
+  // finishes the run, then stores it as a saved attempt exactly once (resultKey is the session id).
+  // a failed save keeps the score on screen with saved:false and a code, and a retry saves it
+  async function completeAndRecord(sessionId, chosenDecision, owner, attempts) {
+    const result = complete(sessionId, chosenDecision, owner)
+    const entry = completed.get(sessionId)
+    // the replay window closed between the two reads; the first result stands unsaved
+    if (!entry) return { ...result, saved: false }
+    if (!entry.savedAttempt) {
+      try {
+        entry.savedAttempt = await attempts.recordCompletedAttempt({ id: owner }, GAME_ID, {
+          context: entry.context,
+          mode: 'practice',
+          startedAt: new Date(entry.startedAt),
+          state: entry.state,
+          resultKey: sessionId,
+        })
+      } catch (error) {
+        if (error?.name !== 'AttemptError' && error?.name !== 'CohortError') throw error
+        return { ...result, saved: false, saveError: { code: error.code, message: error.message } }
+      }
+    }
+    const { attemptId, score, maxScore, persisted, context } = entry.savedAttempt
+    return { ...result, saved: true, attempt: { attemptId, score, maxScore, persisted, context } }
   }
 
   return {
@@ -490,6 +538,7 @@ export function createSocialEngineeringService({
     sendVerifierMessage,
     nudge,
     complete,
+    completeAndRecord,
     // exposed for tests and future GAME-01 adoption
     scoreOutcome,
     sessionCount: () => meta.size,

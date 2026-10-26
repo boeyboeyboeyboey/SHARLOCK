@@ -32,7 +32,7 @@ describe('verifier constants', () => {
     expect(VERIFIER_TURN_BUDGET).toBe(5)
     expect(MAX_NUDGES).toBe(3)
     expect(VERIFIER_CONCURRENCY).toBe(1)
-    expect(RULESET_VERSION).toBe('2026-10-24')
+    expect(RULESET_VERSION).toBe('2026-10-27')
   })
 })
 

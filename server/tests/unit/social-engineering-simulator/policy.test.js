@@ -9,10 +9,13 @@ import {
 const SESSION = '11111111-1111-1111-1111-111111111111'
 
 describe('social-engineering policy validators', () => {
-  it('accepts an empty start body and rejects unexpected fields', () => {
-    expect(parseStart({})).toEqual({})
-    expect(parseStart(undefined)).toEqual({})
-    expect(() => parseStart({ persona: 'it-helpdesk' })).toThrow(/SOC_INVALID_BODY|request/)
+  it('requires a context object and rejects unexpected fields', () => {
+    const context = { kind: 'personal' }
+    expect(parseStart({ context })).toEqual({ context })
+    expect(() => parseStart({})).toThrow()
+    expect(() => parseStart(undefined)).toThrow()
+    expect(() => parseStart({ context: 'personal' })).toThrow()
+    expect(() => parseStart({ context, persona: 'it-helpdesk' })).toThrow()
   })
 
   it('validates a message body', () => {

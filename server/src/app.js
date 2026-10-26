@@ -111,17 +111,25 @@ export function createApp(
   )
   app.use('/api', createHealthRouter(database))
   app.use('/api', createNewsRouter(database, news))
-  app.use('/api', createSocialEngineeringRouter(socialEngineering))
+  // one attempts service records every server-recorded game
+  const recordedAttempts = createAttemptService(database, {
+    registry: attempts.registry ?? createProductionAttemptRegistry(),
+    now: attempts.now ?? authRuntime.now,
+  })
+  app.use(
+    '/api',
+    createSocialEngineeringRouter({
+      ...socialEngineering,
+      attempts: socialEngineering.attempts ?? recordedAttempts,
+      requireSession: authRuntime.requireSession,
+      requireMutation: authRuntime.requireMutation,
+    }),
+  )
   app.use(
     '/api',
     createCliDefenderRouter({
       ...cliDefender,
-      attempts:
-        cliDefender.attempts ??
-        createAttemptService(database, {
-          registry: attempts.registry ?? createProductionAttemptRegistry(),
-          now: attempts.now ?? authRuntime.now,
-        }),
+      attempts: cliDefender.attempts ?? recordedAttempts,
       requireSession: authRuntime.requireSession,
       requireMutation: authRuntime.requireMutation,
     }),
