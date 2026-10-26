@@ -136,31 +136,33 @@ Move the task's active record rather than duplicating it across board states. Re
 
 ## In Progress
 
-- **Task ID / title / status / priority:** DOC-13 · Course alignment and testing policy · In Progress · P1
+No active implementation task.
+
+## Review
+
+- **Task ID / title / status / priority:** DOC-13 · Course alignment and testing policy · Review · P1
 - **Real active contributor / reviewer:** Boey / Boey
 - **Exact approval and scope:** the team gave Boey full control of the course-alignment and testing segment on 27 October 2026, and Boey approved the plan the same day. Scope: the course-alignment page, the Week 11 state and testing-requirement paragraphs, the leaderboard-eligibility sync, the README test instructions and the `test:e2e` script. No application code.
-- **Branch / existing PR or commit, if any:** `doc-13-course-test-alignment`, cut from origin/main `3654f45`; no PR; nothing committed.
+- **Branch / existing PR or commit, if any:** `doc-13-course-test-alignment`, cut from origin/main `3654f45`; commit `b81c7b7`, fast-forwarded into `main` on 27 October 2026 with Boey's approval; no PR.
 - **Affected files and minimal shared integrations:** `docs/course-alignment.md` (new), `agents.md` §4/§5/§9, `README.md` §2, `TASKS.md`, root `package.json` `test:e2e` script (now `node scripts/run-with-test-db.mjs e2e --replica-set`).
 - **Dependencies and approved contract versions:** none.
 - **Settled clarification decisions / open questions:** Week 11 localStorage Bearer-token exercises are deliberately not followed (HttpOnly session cookie plus in-memory CSRF token stays). Leaderboard eligibility changed on 27 October 2026 (see the Rankings decision). No coverage tooling and no test file renames.
 - **Collision evidence:** no DOC-13 ID existed; searched TASKS.md, `docs/` and agents.md. Remote branches were not inspected.
 - **Coordination:** the course-alignment page lists gaps owned by Athithya, Eric and Keane; it records them without editing their modules.
 - **Verification (27 October 2026):** Prettier passes on the changed Markdown and `package.json`; deck links resolve. `pnpm test:e2e` (now with `--replica-set`) ran 199 passed, 4 failed, 21 skipped in 10.5 min; the 4 failures (2 mobile cohorts/admin authentication timeouts, 2 desktop hub click timeouts under software rendering) passed when their specs were rerun alone (27 passed, 1 skipped). The earlier 13 transactional false failures did not recur. `pnpm test:unit` 1162/1162 with the known 2 phishing `scrollTo` rejections; `pnpm lint` errors only under `.local-handover/`.
-- **Next action:** Boey review, then commit.
+- **Next action:** Boey acceptance.
 
-- **Task ID / title / status / priority:** QA-01-A · E2E reliability and missing journeys (slice of QA-01) · In Progress · P0
+- **Task ID / title / status / priority:** QA-01-A · E2E reliability and missing journeys (slice of QA-01) · Review · P0
 - **Real active contributor / reviewer:** Boey / Boey
 - **Exact approval and scope:** same approval as DOC-13 (27 October 2026). Replace fixed sleeps in the hub specs with condition-based waits and add E2E journeys for profile and activation. QA-01 itself remains an unclaimed backlog row.
-- **Branch / existing PR or commit, if any:** `doc-13-course-test-alignment`, cut from origin/main `3654f45`; no PR; nothing committed.
+- **Branch / existing PR or commit, if any:** `doc-13-course-test-alignment`, cut from origin/main `3654f45`; commit `b81c7b7`, fast-forwarded into `main` on 27 October 2026 with Boey's approval; no PR.
 - **Affected files and minimal shared integrations:** `tests/e2e/hub.spec.js`, `tests/e2e/hub-auto.spec.js`, new `tests/e2e/profile.spec.js` and `tests/e2e/activation.spec.js`, and the testing section of `client/src/features/hub/README.md`.
 - **Dependencies and approved contract versions:** the `test:e2e` replica-set change from DOC-13.
 - **Settled clarification decisions / open questions:** one core journey per missing area; social-engineering gameplay E2E (Eric) and sql-injection-arcade client tests (Keane) are not part of this slice.
 - **Collision evidence:** no QA-01-A ID existed; QA-01 is unclaimed in the backlog; no other branch known to touch these specs (remote branches not inspected).
 - **Coordination:** specs touching the town force 2D mode and only the hub specs force 3D (agents.md §9).
 - **Verification (27 October 2026):** `rg waitForTimeout tests/e2e` finds nothing. Hub specs alone, three consecutive runs: 33 passed, 5 skipped each (10.8–12.2 min). New profile and activation specs, two runs: 8 passed each (about 16 s). In the full suite two desktop hub tests timed out under load and passed alone (see DOC-13). `hub.spec.js` and `hub-auto.spec.js` already failed `prettier --check` before this change and were not reformatted.
-- **Next action:** Boey review, then commit.
-
-## Review
+- **Next action:** Boey acceptance.
 
 **INST-01 — Assigned-cohort learning analytics (instructor class results)** · Status: **Review** · Contributor: **Boey** · Branch: `inst-01-class-results` (from `origin/main` at `6d38964`, 26 October 2026, upstream unset). Approved by Boey on 26 October 2026 after a question checkpoint. Spec: [INST-01](#inst-01--assigned-cohort-learning-analytics).
 
