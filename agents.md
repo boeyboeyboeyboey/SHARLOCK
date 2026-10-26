@@ -71,6 +71,8 @@ Use HTML, CSS, plain JavaScript, Vue 3 SFCs with `<script setup>`, Bootstrap 5.3
 
 Use Vue state, computed values, props/emits and component composition. Limit direct DOM access to justified integrations/accessibility. Keep transient game state inside its module; use shared stores only for shared responsibility. Prefer small components and services over speculative abstractions.
 
+State follows the WAD2 Week 11 model: Pinia setup stores (`ref` state, `computed` getters, function actions, all returned) only for state many parts of the app read, such as the signed-in user; feature-local composables for stateful page or game logic; props/emits between parent and child. Keep page-local visibility out of stores. Never keep auth tokens or session state in browser storage: the Week 11 exercises persist a login and Bearer token in localStorage, but this project deliberately uses an HttpOnly session cookie and an in-memory CSRF token (§6). Slide references and the mapping are in [course alignment](docs/course-alignment.md).
+
 The spine owns layout, navigation, authentication, access checks, common UI states, HTTP handling, registration and result contracts. Games own rules, content, local state and server scoring in `client/src/games/<game-id>/` and `server/src/modules/games/<game-id>/`.
 
 Follow [feature organization](TASKS.md#feature-organization) for every new feature. Group feature-owned components, composables, styles, assets and request wrappers under its frontend module, and routes/controllers/services/validators/provider adapters/feature-owned models under its server module. Use `client/src/features/<feature-id>/` for new non-game features unless an established module path applies; retain the news paths specified below. Group tests by feature within the existing test-discovery patterns. Plans and handovers must map the feature's client/server flow and exact shared integration edits. Do not relocate unrelated existing modules or duplicate shared services merely to satisfy folder grouping.
@@ -96,7 +98,7 @@ Every new or edited code comment must be strictly lowercase and minimal, with no
 - Every attempt has one server-validated cohort or personal context, immutable after creation. A student's other cohort memberships do not widen access to that attempt.
 - Scope every query/mutation and nested-resource lookup to the authenticated actor. Explicitly serialize only caller-appropriate fields.
 - Profile updates allow only approved username/avatar fields; never mass-assign bodies into user, membership or result documents.
-- Leaderboards expose only authorized cohort rankings with username, preset avatar and score/rank. Exclude staff, personal practice and untimed training scores; compare the same game/ruleset.
+- Leaderboards expose only authorized cohort rankings with username, preset avatar and score/rank. Rank only completed class-context attempts by students with current active membership; exclude staff and personal practice; never mix games or rulesets. A game with a timed competitive mode ranks only its timed runs; a game without one may rank untimed class-context best scores, labelled as practice best scores (team decision recorded by Boey on 27 October 2026, replacing the earlier exclusion of all untimed training).
 - Tests must request another cohort's, student's and attempt's IDs directly, including pending/removed membership cases.
 
 ## 6. Authentication, recovery and secrets
@@ -141,6 +143,8 @@ Use semantic controls, labels, visible focus and feedback beyond color; provide 
 ## 9. Verification and completion
 
 Use [verification commands and journey coverage](TASKS.md#verification-commands-and-journey-coverage). Add meaningful tests alongside security/core-journey changes: unit tests for scoring/permissions, API integration for authorization/sessions/persistence, E2E for actual student/staff flows. Use deterministic synthetic fixtures, stable role/label/test-ID selectors and condition-based waits; avoid fixed sleeps and test-order coupling.
+
+**Testing requirement (brief, rubric and WAD2 Week 10).** The brief requires at least end-to-end testing of core features; the Testing criterion rewards coverage of the main user journeys, repeatable and stable tests, stable selectors, clear structure and clear README run instructions. Every new feature or game ships with: unit tests for its logic; Vue Test Utils mount tests of its main components that assert rendered output, emitted events and states rather than CSS classes or HTML structure; server integration tests for any API it adds; and at least one Playwright E2E test of its main journey. Select by role, label or visible text first and `data-testid` second; never use `waitForTimeout`. Our names differ from the Week 10 slides: Vitest files are `*.test.js`, Playwright specs are `*.spec.js`, and "integration" also covers API tests against a disposable database. Slide references and open gaps are in [course alignment](docs/course-alignment.md).
 
 E2E specs that touch the town must force 2D mode (`await page.addInitScript(() => localStorage.setItem('sharlock.townMode', '2d'))`, see [hub README](client/src/features/hub/README.md#testing)); only the hub specs force 3D.
 

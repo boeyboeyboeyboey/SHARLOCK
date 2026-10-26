@@ -14,6 +14,17 @@ test.beforeEach(async ({ page }) => {
   await page.route('**/api/news**', (route) => route.abort())
 })
 
+// waits for rendered frames, so a "nothing happens" check covers real scene updates and not wall-clock time
+const frames = (page, count = 30) =>
+  page.evaluate(
+    (n) =>
+      new Promise((resolve) => {
+        let left = n
+        const tick = () => (--left <= 0 ? resolve() : requestAnimationFrame(tick))
+        requestAnimationFrame(tick)
+      }),
+    count,
+  )
 const stored = (page, key) => page.evaluate((k) => localStorage.getItem(k), key)
 
 test('picks the 2D map automatically and remembers a dismissed notice', async ({ page }) => {
@@ -124,7 +135,7 @@ test.describe('runtime performance watch', () => {
     await simulate(page, 5)
     await ready(page, 'low')
     await simulate(page, 5)
-    await page.waitForTimeout(500)
+    await frames(page)
     await expect(page.locator('canvas.hub-canvas')).toHaveCount(1)
     expect(await page.evaluate(() => window.__hub.state.tier)).toBe('low')
     expect(JSON.parse(await stored(page, 'sharlock.hubPerf')).twoD).toBeUndefined()
@@ -136,7 +147,7 @@ test.describe('runtime performance watch', () => {
     await page.getByTestId('hub-graphics').selectOption('low')
     await ready(page, 'low')
     await simulate(page, 1)
-    await page.waitForTimeout(500)
+    await frames(page)
     await expect(page.locator('canvas.hub-canvas')).toHaveCount(1)
     expect(await stored(page, 'sharlock.hubPerf')).toBeNull()
 

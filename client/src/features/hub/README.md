@@ -48,6 +48,7 @@ Players' controls and settings are described in the root README under "Using the
 
 - Unit: `client/src/features/hub/__tests__/`, including `idle.test.js` and `jump.test.js`.
 - E2E: `tests/e2e/hub.spec.js` and `tests/e2e/hub-auto.spec.js`. `hub.spec.js` covers the jump. Hub specs force 3D with `sharlock.hubForce3d=1` and `sharlock.hubWatchManual=1` (see `hub.spec.js` near line 44), because headless Chromium renders in software.
+- E2E waits are condition-based (`expect`, `expect.poll`, `waitForFunction`); never use `waitForTimeout`.
 - Any other E2E spec that touches the town must force 2D mode:
 
 ```js

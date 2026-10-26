@@ -166,6 +166,16 @@ pnpm exec playwright install chromium
 
 Skip it and **every** E2E test fails instantly with `browserType.launch: Executable doesn't exist`. That looks like a broken suite but is only a missing download - Playwright pins a browser revision per version, so an upgrade invalidates the one already on disk.
 
+**How to test** (after `pnpm install --frozen-lockfile` and the browser install above):
+
+```sh
+pnpm test:unit         # Vitest: client component tests and server unit tests
+pnpm test:integration  # API tests against a disposable MongoDB
+pnpm test:e2e          # Playwright journeys on a phone and a desktop viewport
+```
+
+`test:unit` needs no database. `test:integration` and `test:e2e` start and remove their own `_test` MongoDB; `test:e2e` already runs with a replica set, so the first run downloads the pinned MongoDB binary and the account, class and recovery journeys pass without extra flags. How these map to the WAD2 testing weeks is in [course alignment](docs/course-alignment.md).
+
 **Troubleshooting:**
 
 - Blank page with `504 Outdated Optimize Dep` in the console: stop `pnpm dev`, run `rm -rf client/node_modules/.vite`, then restart.
@@ -216,7 +226,7 @@ LOG-01-A/SEED-01-A provides metadata-only auditing with 90-day retention and cur
 
 ADMIN-01-A/REC-01-A replaces `/admin` with a real administrator workspace. Sign in as an administrator to create institutions/classes, provision a separate instructor, privately deliver its once-visible activation link and assign the activated instructor to active classes. The instructor opens `/activate-account#token=...`, sets a password and signs in normally; the link expires after 24 hours and works once. Existing users are never promoted. No demo fixtures, student enrollment or learning dashboard is included. REC-01-B supports active pure students: all admin-role staff use the admin workspace, including admin/instructor accounts, while instructors without the admin role may help students with active membership in an assigned active class and institution. Staff and dual-role targets are excluded; emergency recovery remains deferred. See the [admin journey](client/src/features/admin/README.md), [activation and recovery contract](server/src/modules/recovery/README.md), and [TASKS.md](TASKS.md) for current implementation and verification status. ADMIN-01-A/REC-01-A remain in Review.
 
-Targeted transaction and browser checks use `node scripts/run-with-test-db.mjs integration --replica-set` and `node scripts/run-with-test-db.mjs e2e --replica-set tests/e2e/admin-workspace.spec.js --workers=1`. The helper creates and removes its own disposable `_test` database; default test commands remain standalone and skip transaction-only API cases.
+Targeted transaction and browser checks use `node scripts/run-with-test-db.mjs integration --replica-set` and `node scripts/run-with-test-db.mjs e2e --replica-set tests/e2e/admin-workspace.spec.js --workers=1`. The helper creates and removes its own disposable `_test` database; `pnpm test:integration` and `pnpm test:unit` remain standalone and skip transaction-only API cases, while `pnpm test:e2e` already uses `--replica-set`.
 
 COH-01 adds `/classes` for joining and membership status, `/join-class` for invitations and optional onboarding, and enrollment controls at `/instructor` (the selected class stays in the address as `?class=<id>`, so a reload keeps it). New and existing students see the optional step once after sign-in; Skip allows personal play. Assigned instructors and administrators issue reusable seven-day invitations, approve/decline requests and remove members. Codes appear once; replacing or revoking one blocks future requests without removing current members. Class access requires approval. Enrollment writes, including onboarding completion, require transaction-capable MongoDB and commit with metadata-only audits. The account/enrollment browser journeys run with `node scripts/run-with-test-db.mjs e2e --replica-set tests/e2e/auth.spec.js tests/e2e/cohorts.spec.js --workers=1`; standalone discovery skips those transaction-dependent journeys. See the [student/staff flow](client/src/features/cohorts/README.md). No normal-data demo records are created.
 

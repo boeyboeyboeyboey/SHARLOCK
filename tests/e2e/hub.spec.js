@@ -63,6 +63,21 @@ async function hubReady(page) {
   expect(await page.evaluate(() => window.__hub?.state.ready)).toBe(true)
 }
 const position = (page) => page.evaluate(() => window.__hub.debug.position())
+const moved = async (page, from) => {
+  const at = await position(page)
+  return Math.hypot(at.x - from.x, at.z - from.z)
+}
+// waits for rendered frames, so a "nothing happens" check covers real scene updates and not wall-clock time
+const frames = (page, count = 30) =>
+  page.evaluate(
+    (n) =>
+      new Promise((resolve) => {
+        let left = n
+        const tick = () => (--left <= 0 ? resolve() : requestAnimationFrame(tick))
+        requestAnimationFrame(tick)
+      }),
+    count,
+  )
 
 test('lists every game, walks, and enters a game route', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
@@ -78,10 +93,8 @@ test('lists every game, walks, and enters a game route', async ({ page }) => {
   // keyboard walking works while nothing is paused
   const before = await position(page)
   await page.keyboard.down('KeyW')
-  await page.waitForTimeout(800)
+  await expect.poll(() => moved(page, before), slow).toBeGreaterThan(0.2)
   await page.keyboard.up('KeyW')
-  const after = await position(page)
-  expect(Math.hypot(after.x - before.x, after.z - before.z)).toBeGreaterThan(0.2)
 
   await page.getByTestId('dest-cli-cyber-defender').click()
   await expect(page.getByTestId('dest-cli-cyber-defender')).toHaveAttribute('aria-pressed', 'true')
@@ -96,17 +109,18 @@ test('deselects a destination by clicking it again or pressing Escape', async ({
   const dest = page.getByTestId('dest-social-engineering-simulator')
   const enter = page.getByTestId('enter')
 
+  const origin = await position(page)
   await dest.click()
   await expect(dest).toHaveAttribute('aria-pressed', 'true')
   await expect(enter).toBeVisible()
   // let the auto-walk get going, then cancel it
-  await page.waitForTimeout(500)
+  await expect.poll(() => moved(page, origin), slow).toBeGreaterThan(0.05)
   await dest.click()
   await expect(dest).toHaveAttribute('aria-pressed', 'false')
   await expect(enter).toHaveCount(0)
   expect(await page.evaluate(() => window.__hub.state.selected)).toBeNull()
   const stopped = await position(page)
-  await page.waitForTimeout(700)
+  await frames(page)
   const later = await position(page)
   expect(Math.hypot(later.x - stopped.x, later.z - stopped.z)).toBeLessThan(0.3)
 
@@ -119,11 +133,9 @@ test('deselects a destination by clicking it again or pressing Escape', async ({
   // steering by hand before arriving drops the pick
   await dest.click()
   await expect(dest).toHaveAttribute('aria-pressed', 'true')
-  await page.waitForTimeout(300)
   await page.keyboard.down('KeyS')
-  await page.waitForTimeout(400)
-  await page.keyboard.up('KeyS')
   await expect(dest).toHaveAttribute('aria-pressed', 'false', slow)
+  await page.keyboard.up('KeyS')
   await expect(enter).toHaveCount(0)
 })
 
@@ -144,7 +156,7 @@ test('returns to the door of the building that was entered', async ({ page }) =>
   expect(Math.hypot(at.x - door.x, at.z - door.z)).toBeLessThan(3)
   expect(await page.evaluate(() => sessionStorage.getItem('sharlock.hubReturn'))).toBeNull()
   // standing on the ring after coming back does not reselect the building
-  await page.waitForTimeout(500)
+  await frames(page)
   expect(await page.evaluate(() => window.__hub.state.selected)).toBeNull()
   await expect(page.getByTestId('dest-cli-cyber-defender')).toHaveAttribute('aria-pressed', 'false')
 
@@ -210,7 +222,7 @@ test('remounts the hub after leaving it and keeps the news dialog usable', async
 
   const before = await position(page)
   await page.keyboard.down('KeyW')
-  await page.waitForTimeout(800)
+  await frames(page)
   await page.keyboard.up('KeyW')
   const after = await position(page)
   expect(Math.hypot(after.x - before.x, after.z - before.z)).toBeLessThan(0.05)
