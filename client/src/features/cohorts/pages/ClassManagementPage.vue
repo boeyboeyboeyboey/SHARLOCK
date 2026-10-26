@@ -20,7 +20,7 @@ import '../../recovery/recovery.css'
 
 const auth = useAuthStore()
 const cohorts = ref([])
-const selectedId = ref('')
+const selectedId = ref(new URLSearchParams(window.location.search).get('class') || '')
 const memberships = ref([])
 const codeInfo = ref(null)
 const invitationUrl = ref('')
@@ -171,6 +171,7 @@ async function loadCohorts(nextPage = cohortPage.value) {
     cohortTotal.value = result.total || 0
     if (!cohorts.value.some((cohort) => cohort.cohortId === selectedId.value))
       selectedId.value = cohorts.value[0]?.cohortId || ''
+    syncClassQuery(selectedId.value)
     if (selectedId.value) await loadSelected()
   } catch (cause) {
     if (!controller.signal.aborted && operation === generation)
@@ -215,9 +216,19 @@ async function loadSelected(nextPage = 1) {
   }
 }
 
+// replaceState skips the router so the layout keeps focus and scroll on a class switch
+function syncClassQuery(id) {
+  const url = new URL(window.location.href)
+  if ((url.searchParams.get('class') || '') === id) return
+  if (id) url.searchParams.set('class', id)
+  else url.searchParams.delete('class')
+  window.history.replaceState(window.history.state, '', url)
+}
+
 function selectCohort(id) {
   clearRecovery()
   selectedId.value = id
+  syncClassQuery(id)
   status.value = 'pending'
   notice.value = ''
   codeInfo.value = null

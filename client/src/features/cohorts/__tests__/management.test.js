@@ -35,6 +35,7 @@ const activeStudent = {
 describe('instructor class management', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    window.history.replaceState(null, '', '/instructor')
     authMocks.auth.user.globalRoles = ['instructor']
     mocks.listManagedCohorts.mockResolvedValue({
       cohorts: [
@@ -126,6 +127,32 @@ describe('instructor class management', () => {
       .find((button) => button.text() === 'Close and clear link')
       .trigger('click')
     expect(wrapper.find('dialog').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('keeps the selected class in the address across a reload', async () => {
+    const wrapper = mount(ClassManagementPage)
+    await flushPromises()
+    expect(new URLSearchParams(window.location.search).get('class')).toBe('class-a')
+    await wrapper.get('#managed-class').setValue('class-b')
+    await flushPromises()
+    expect(new URLSearchParams(window.location.search).get('class')).toBe('class-b')
+    wrapper.unmount()
+
+    const reloaded = mount(ClassManagementPage)
+    await flushPromises()
+    expect(reloaded.get('#managed-class').element.value).toBe('class-b')
+    expect(mocks.listCohortMemberships).toHaveBeenLastCalledWith('class-b', expect.any(Object))
+    reloaded.unmount()
+  })
+
+  it('falls back to the first assigned class for an unknown class in the address', async () => {
+    window.history.replaceState(null, '', '/instructor?class=class-z')
+    const wrapper = mount(ClassManagementPage)
+    await flushPromises()
+    expect(wrapper.get('#managed-class').element.value).toBe('class-a')
+    expect(new URLSearchParams(window.location.search).get('class')).toBe('class-a')
+    expect(mocks.listCohortMemberships).not.toHaveBeenCalledWith('class-z', expect.anything())
     wrapper.unmount()
   })
 
