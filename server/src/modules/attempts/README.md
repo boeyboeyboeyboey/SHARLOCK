@@ -52,6 +52,15 @@ Requests are capped at the app's existing 16 KiB body limit and strict validatio
 
 The router owns and disposes its process-local limiter stores: creation 30/user and 60/IP per 15 minutes; actions/completion share 120/user and 240/IP per minute; reads 240/user and 480/IP per minute. No distributed-limit claim is made. Known failures use safe 400/401/403/404/409/429 responses; unknown adapter/storage failures return fixed 503 guidance without bodies, secrets, configuration or stack traces. No broader game audit caller is added; the canonical attempt/receipt is the saved result record.
 
+## Server-recorded games (SAVE-00)
+
+Some engines keep live state in their own server memory (timers, LLM calls, bespoke sessions) and cannot run through the synchronous action hooks. They set `serverRecorded: true` on their registry entry and record the server-computed result once, when the run ends. For such entries `createState`, `validateAction`, `applyAction` and `canComplete` may be omitted (if present they must still be functions); `stateSchema`, `summarize` and `serializePublicState` stay required.
+
+- `service.recordCompletedAttempt(actor, gameId, { context, mode, startedAt, state, resultKey })` is internal only; no HTTP route calls it. It rechecks the actor and context exactly like `startAttempt` (active membership, active parents), validates `state` against the strict schema and size limits, scores through `summarize(state)` and inserts one `completed` attempt (revision 0, no deadline, `completedAt` is the server clock, `startedAt` is capped at that clock, `competitiveEligible` uses the same rule as start). It returns the completed public snapshot, identical in shape to `completeAttempt`. Unknown or non-`serverRecorded` games, bad modes or keys, and invalid state fail with 4xx `AttemptError`s.
+- Idempotency: `resultKey` is a string of 8-64 `[A-Za-z0-9-]`. A partial unique index on `(playerId, gameId, resultKey)` plus a lookup means a repeat (or a lost race) returns the existing snapshot and never a second row. The game router should generate the key once per run.
+- `service.resolveRunContext(actor, requestedContext)` lets a game router fail early at run start: it returns the resolved context or throws the usual `AttemptError`/`CohortError`. It stores nothing.
+- The public start, action and complete routes reject these games with 409 `ATTEMPT_SERVER_RECORDED` (checked in the service). `GET /attempts/:id`, progress, class results and leaderboards read the recorded attempts unchanged.
+
 ## Files and verification
 
 - `policy.js`: exact inputs, IDs/revisions, canonical JSON/hashes and budgets

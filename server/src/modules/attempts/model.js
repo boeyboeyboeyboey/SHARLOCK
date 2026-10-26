@@ -134,6 +134,12 @@ function createBaseSchema(registry) {
           message: 'Attempt ruleset is invalid.',
         },
       },
+      resultKey: {
+        type: String,
+        default: undefined,
+        immutable: true,
+        match: /^[A-Za-z0-9-]{8,64}$/,
+      },
       context: { type: contextSchema, required: true, immutable: true },
       mode: { type: String, enum: ['standard', 'practice'], required: true, immutable: true },
       competitiveEligible: { type: Boolean, required: true, immutable: true },
@@ -222,6 +228,11 @@ function createBaseSchema(registry) {
   schema.index({ playerId: 1, gameId: 1, startedAt: -1 })
   schema.index({ 'context.cohortId': 1, gameId: 1, rulesetVersion: 1, status: 1 })
   schema.index({ 'context.cohortId': 1, status: 1, completedAt: -1 })
+  // one recorded result per player, game and client-supplied key
+  schema.index(
+    { playerId: 1, gameId: 1, resultKey: 1 },
+    { unique: true, partialFilterExpression: { resultKey: { $type: 'string' } } },
+  )
   return schema
 }
 
@@ -237,20 +248,19 @@ function attachRulesetModel(baseModel, entry) {
       autoCreate: false,
     },
   )
-  const rulesetModel = baseModel.discriminator(
-    discriminatorName,
-    discriminatorSchema,
-    entry.storageKey,
-  )
-  rulesetModel.schema
-    .path('gameId')
-    .validate((value) => value === entry.id, 'Attempt game id does not match its ruleset.')
-  rulesetModel.schema
-    .path('rulesetVersion')
-    .validate(
-      (value) => value === entry.rulesetVersion,
-      'Attempt ruleset version does not match its registry entry.',
-    )
+  // per-discriminator hook: path validators would be shared across every registered ruleset
+  discriminatorSchema.pre('validate', function checkRulesetIdentity() {
+    if (this.gameId !== entry.id) {
+      this.invalidate('gameId', 'Attempt game id does not match its ruleset.')
+    }
+    if (this.rulesetVersion !== entry.rulesetVersion) {
+      this.invalidate(
+        'rulesetVersion',
+        'Attempt ruleset version does not match its registry entry.',
+      )
+    }
+  })
+  baseModel.discriminator(discriminatorName, discriminatorSchema, entry.storageKey)
 }
 
 function boundedJsonString(value) {

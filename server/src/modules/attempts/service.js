@@ -227,11 +227,23 @@ export function createAttemptService(
     )
   }
 
+  function rejectServerRecorded(entry) {
+    if (entry.serverRecorded) {
+      throw failure(
+        'ATTEMPT_SERVER_RECORDED',
+        'This activity saves its result from the server only.',
+        409,
+      )
+    }
+  }
+
   async function startAttempt(actor, gameId, input, query = {}) {
     const receivedAt = clockDate(now)
     assertEmptyQuery(query)
     const id = parseGameId(gameId)
     const { context: requestedContext } = parseCreateInput(input)
+    const gameEntry = registry.getCurrent(id)
+    if (gameEntry) rejectServerRecorded(gameEntry)
     const currentActor = await permissions.resolveActor(actor)
     const context = await contexts.resolveAttemptContext(currentActor, requestedContext)
     const entry = registry.getCurrent(id)
@@ -360,6 +372,7 @@ export function createAttemptService(
       payload: action.payload,
     })
     const { currentActor, attempt } = await ownedAttempt(actor, attemptId)
+    rejectServerRecorded(ruleset(attempt))
     if (attempt.status !== 'completed') await requireActiveContext(currentActor, attempt)
     const replay = recordedOutcome(attempt, action.actionId, requestHash)
     if (replay) return replay
@@ -406,6 +419,7 @@ export function createAttemptService(
     const action = parseCompleteInput(input)
     const requestHash = stableRequestHash({ operation: 'complete' })
     const { currentActor, attempt } = await ownedAttempt(actor, attemptId)
+    rejectServerRecorded(ruleset(attempt))
     if (attempt.status !== 'completed') await requireActiveContext(currentActor, attempt)
     const replay = recordedOutcome(attempt, action.actionId, requestHash)
     if (replay) return replay
@@ -429,6 +443,109 @@ export function createAttemptService(
     candidate.completedAt = receivedAt
     candidate.revision = attempt.revision + 1
     return commit(currentActor, attempt, candidate, action, requestHash, 'complete', receivedAt)
+  }
+
+  // lets a game router fail early: returns the resolved context or throws the usual error
+  async function resolveRunContext(actor, requestedContext) {
+    const { context } = parseCreateInput({ context: requestedContext })
+    const currentActor = await permissions.resolveActor(actor)
+    return { ...(await contexts.resolveAttemptContext(currentActor, context)) }
+  }
+
+  // internal only: stores one finished run whose live state stayed in a game engine's memory
+  async function recordCompletedAttempt(
+    actor,
+    gameId,
+    { context: requestedContext, mode, startedAt, state, resultKey } = {},
+  ) {
+    const receivedAt = clockDate(now)
+    const id = parseGameId(gameId)
+    const entry = registry.getCurrent(id)
+    if (!entry) throw notFound()
+    if (!entry.serverRecorded) {
+      throw failure('ATTEMPT_INVALID_REQUEST', 'Check the request fields and try again.', 400)
+    }
+    if (typeof resultKey !== 'string' || !/^[A-Za-z0-9-]{8,64}$/.test(resultKey)) {
+      throw failure('ATTEMPT_INVALID_REQUEST', 'Check the request fields and try again.', 400)
+    }
+    if (!['standard', 'practice'].includes(mode)) {
+      throw failure('ATTEMPT_INVALID_REQUEST', 'Check the request fields and try again.', 400)
+    }
+    const started = new Date(startedAt)
+    if (!Number.isFinite(started.getTime())) {
+      throw failure('ATTEMPT_INVALID_REQUEST', 'Check the request fields and try again.', 400)
+    }
+    const { context: parsedContext } = parseCreateInput({ context: requestedContext })
+    const currentActor = await permissions.resolveActor(actor)
+    const context = await contexts.resolveAttemptContext(currentActor, parsedContext)
+    const existing = async () => {
+      const found = await Attempt.findOne({
+        playerId: new Types.ObjectId(currentActor.id),
+        gameId: entry.id,
+        resultKey,
+      }).lean()
+      return found?.finalSnapshotJson ? JSON.parse(found.finalSnapshotJson) : null
+    }
+    const replay = await existing()
+    if (replay) return replay
+
+    const roles = currentActor.globalRoles
+    const Model = rulesetModel(entry)
+    const candidate = new Model({
+      playerId: new Types.ObjectId(currentActor.id),
+      gameId: entry.id,
+      rulesetVersion: entry.rulesetVersion,
+      rulesetKey: entry.storageKey,
+      resultKey,
+      context,
+      mode,
+      competitiveEligible:
+        entry.competitive &&
+        context.kind === 'cohort' &&
+        mode === 'standard' &&
+        roles.includes('student') &&
+        !roles.some((role) => ['instructor', 'admin'].includes(role)),
+      status: 'completed',
+      // a client-supplied start can never be later than the server clock
+      startedAt: started.getTime() > receivedAt.getTime() ? receivedAt : started,
+      deadlineAt: null,
+      completedAt: receivedAt,
+      revision: 0,
+      score: 0,
+      maxScore: entry.maxScore,
+      state: cloneJson(state),
+      processedActions: [],
+      topicOutcomes: [],
+      feedbackJson: null,
+      finalSnapshotJson: null,
+      createdAt: receivedAt,
+      updatedAt: receivedAt,
+    })
+    try {
+      await candidate.validate()
+    } catch (error) {
+      if (error?.name === 'ValidationError') {
+        throw failure('ATTEMPT_INVALID_REQUEST', 'Check the request fields and try again.', 400)
+      }
+      throw error
+    }
+    const summary = summarize(candidate, entry, receivedAt)
+    candidate.score = summary.score
+    candidate.feedbackJson = encodePublicJson(summary.feedback, 131072)
+    candidate.topicOutcomes = summary.topicOutcomes
+    const snapshot = publicSnapshot(candidate, entry, receivedAt)
+    candidate.finalSnapshotJson = encodePublicJson(snapshot, 131072)
+    validateDocumentBudget(candidate)
+    try {
+      await candidate.save({ timestamps: false })
+    } catch (error) {
+      if (error?.code === 11000) {
+        const raced = await existing()
+        if (raced) return raced
+      }
+      throw error
+    }
+    return snapshot
   }
 
   // read-only history for one player: completed attempts only, no membership check by design
@@ -459,6 +576,8 @@ export function createAttemptService(
     getAttempt,
     applyAction,
     completeAttempt,
+    resolveRunContext,
+    recordCompletedAttempt,
     listCompletedAttempts,
   })
 }

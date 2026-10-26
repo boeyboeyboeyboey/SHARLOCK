@@ -10,6 +10,7 @@ const allowedEntryFields = new Set([
   'maxActions',
   'current',
   'competitive',
+  'serverRecorded',
   'createState',
   'validateAction',
   'applyAction',
@@ -19,14 +20,8 @@ const allowedEntryFields = new Set([
 ])
 const kebabPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const rulesetPattern = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/
-const requiredHooks = [
-  'createState',
-  'validateAction',
-  'applyAction',
-  'canComplete',
-  'serializePublicState',
-  'summarize',
-]
+const playHooks = ['createState', 'validateAction', 'applyAction', 'canComplete']
+const alwaysRequiredHooks = ['serializePublicState', 'summarize']
 
 export function createAttemptRegistry(entries = []) {
   const normalizedEntries = readDenseArray(
@@ -105,8 +100,19 @@ function normalizeEntry(entry) {
   if (Object.hasOwn(entry, 'competitive') && typeof entry.competitive !== 'boolean') {
     throw new TypeError('Attempt registry competitive flag is invalid.')
   }
-  for (const hook of requiredHooks) {
+  if (Object.hasOwn(entry, 'serverRecorded') && typeof entry.serverRecorded !== 'boolean') {
+    throw new TypeError('Attempt registry serverRecorded flag is invalid.')
+  }
+  const serverRecorded = entry.serverRecorded === true
+  for (const hook of alwaysRequiredHooks) {
     if (typeof entry[hook] !== 'function') throw new TypeError('Attempt registry hook is missing.')
+  }
+  // server-recorded games run their live state elsewhere, so play hooks are optional but typed
+  for (const hook of playHooks) {
+    const present = Object.hasOwn(entry, hook) && entry[hook] !== undefined
+    if (present ? typeof entry[hook] !== 'function' : !serverRecorded) {
+      throw new TypeError('Attempt registry hook is missing.')
+    }
   }
   assertStrictStateSchema(entry.stateSchema)
 
@@ -121,6 +127,7 @@ function normalizeEntry(entry) {
     maxActions: entry.maxActions,
     current: Object.hasOwn(entry, 'current') ? entry.current : true,
     competitive: Object.hasOwn(entry, 'competitive') ? entry.competitive : false,
+    serverRecorded,
     storageKey: `${entry.id}@${entry.rulesetVersion}`,
     createState: entry.createState,
     validateAction: entry.validateAction,

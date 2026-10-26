@@ -123,4 +123,27 @@ describe('attempt registry', () => {
       expect(() => createAttemptRegistry([createEntry({ stateSchema })])).toThrow(TypeError)
     }
   })
+
+  it('validates the serverRecorded flag and relaxes only the play hooks', () => {
+    const base = createEntry()
+    for (const hook of ['createState', 'validateAction', 'applyAction', 'canComplete']) {
+      const trimmed = { ...base }
+      delete trimmed[hook]
+      expect(() => createAttemptRegistry([trimmed])).toThrow(TypeError)
+      expect(() => createAttemptRegistry([{ ...trimmed, serverRecorded: true }])).not.toThrow()
+    }
+    expect(() => createAttemptRegistry([createEntry({ serverRecorded: 'yes' })])).toThrow(TypeError)
+    expect(createAttemptRegistry([base]).entries[0].serverRecorded).toBe(false)
+    expect(
+      createAttemptRegistry([createEntry({ serverRecorded: true })]).entries[0].serverRecorded,
+    ).toBe(true)
+    for (const hook of ['stateSchema', 'summarize', 'serializePublicState']) {
+      const trimmed = { ...base, serverRecorded: true }
+      delete trimmed[hook]
+      expect(() => createAttemptRegistry([trimmed])).toThrow(TypeError)
+    }
+    expect(() =>
+      createAttemptRegistry([createEntry({ serverRecorded: true, createState: 'nope' })]),
+    ).toThrow(TypeError)
+  })
 })

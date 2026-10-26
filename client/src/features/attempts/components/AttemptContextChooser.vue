@@ -57,7 +57,7 @@ onBeforeUnmount(() => controller.abort())
       {{ error }} <button type="button" class="text-link" @click="load">Retry class list</button>
     </p>
     <p class="small">
-      Untimed practice. Results are saved to your account and do not enter rankings.
+      Class attempts appear on that class's leaderboard. Personal practice does not.
     </p>
     <button class="btn btn-primary" :disabled="disabled || loading">Open the case</button>
   </form>

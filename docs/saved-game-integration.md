@@ -57,6 +57,10 @@ Use the exact route and response contract in the attempt README when a game has 
 
 Keep other security, data, scoring, design, and verification requirements in [agents.md](../agents.md), [DESIGN.md](../DESIGN.md), [TASKS.md](../TASKS.md), and the canonical attempt contract instead of copying policy text here.
 
+## Server-recorded path (SAVE-00)
+
+When a game's live state stays in its own server engine (timers, LLM calls, per-session memory), do not force it through the shared action hooks. Register a ruleset with `serverRecorded: true` (only `stateSchema`, `summarize` and `serializePublicState` required), validate the requested class at run start with `resolveRunContext(actor, context)`, then call `recordCompletedAttempt(actor, gameId, { context, mode, startedAt, state, resultKey })` once when the run ends, with a per-run `resultKey` so retries are idempotent. The result is scored on the server from the final state, appears in progress, class results and leaderboards like any other attempt, and the public start/action routes refuse the game with `ATTEMPT_SERVER_RECORDED`. Details: [attempts README](../server/src/modules/attempts/README.md#server-recorded-games-save-00).
+
 ## Typical integration stages
 
 Treat these as planning checkpoints, not a pre-approved implementation sequence. A missing prerequisite or owner decision can stop one stage without authorizing a workaround.
