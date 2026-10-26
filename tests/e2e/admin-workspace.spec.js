@@ -14,6 +14,26 @@ async function signIn(context, origin, identity) {
   expect(response.ok()).toBe(true)
 }
 
+// waits for the status change and the panel's own list reload, which would abort a filter request sent meanwhile
+async function changeAccountStatus(page, row, buttonName) {
+  const panel = page.locator('section[aria-labelledby="account-controls-title"]')
+  const patched = page.waitForResponse(
+    (response) =>
+      response.request().method() === 'PATCH' &&
+      /^\/api\/admin\/users\/[^/]+$/.test(new URL(response.url()).pathname),
+  )
+  const reloaded = page.waitForResponse(
+    (response) =>
+      response.request().method() === 'GET' &&
+      new URL(response.url()).pathname === '/api/admin/users',
+  )
+  if (buttonName === 'Disable account') page.once('dialog', (dialog) => dialog.accept())
+  await row.getByRole('button', { name: buttonName }).click()
+  expect((await patched).ok()).toBe(true)
+  expect((await reloaded).ok()).toBe(true)
+  await expect(panel.getByRole('button', { name: 'Apply filters' })).toBeEnabled()
+}
+
 async function findAccountRow(page, role, status, username) {
   const panel = page.locator('section[aria-labelledby="account-controls-title"]')
   await panel.getByLabel('Role').selectOption(role)
@@ -312,8 +332,7 @@ test('admin manages institutions, assignments, audit history, and account access
     expect(oldStudentSession.ok()).toBe(true)
 
     const studentRow = await findAccountRow(page, 'student', 'active', studentIdentity.username)
-    page.once('dialog', (dialog) => dialog.accept())
-    await studentRow.getByRole('button', { name: 'Disable account' }).click()
+    await changeAccountStatus(page, studentRow, 'Disable account')
     await expect
       .poll(async () =>
         (
@@ -340,7 +359,7 @@ test('admin manages institutions, assignments, audit history, and account access
       'disabled',
       studentIdentity.username,
     )
-    await disabledStudentRow.getByRole('button', { name: 'Enable account' }).click()
+    await changeAccountStatus(page, disabledStudentRow, 'Enable account')
     freshStudentContext = await browser.newContext(isolatedContext)
     await signIn(freshStudentContext, origin, studentIdentity)
     const freshStudentSession = await freshStudentContext.request.get(`${origin}/api/auth/me`, {
@@ -354,8 +373,7 @@ test('admin manages institutions, assignments, audit history, and account access
       'active',
       instructor.username,
     )
-    page.once('dialog', (dialog) => dialog.accept())
-    await activeInstructorRow.getByRole('button', { name: 'Disable account' }).click()
+    await changeAccountStatus(page, activeInstructorRow, 'Disable account')
     const disabledInstructorRow = await findAccountRow(
       page,
       'instructor',
