@@ -171,7 +171,16 @@ export function createAuthRouter(database, settings, { mailer = createConsoleMai
     }
   })
 
-  router.get('/csrf', rateLimits.csrf, async (request, response, next) => {
+  // only a bootstrap that writes a new session spends the per-ip csrf budget
+  function csrfBootstrapLimit(request, response, next) {
+    if (!sessionIsExpired(request.session, authSettings.now) && request.session.csrfToken) {
+      next()
+      return
+    }
+    rateLimits.csrf(request, response, next)
+  }
+
+  router.get('/csrf', csrfBootstrapLimit, async (request, response, next) => {
     try {
       parseEmptyQuery(request.query)
       const mustCreateSession = sessionIsExpired(request.session, authSettings.now)

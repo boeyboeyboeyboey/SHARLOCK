@@ -132,7 +132,9 @@ test('learner follows a class link and gets access after instructor approval', a
     await expect(page.getByText(studentIdentity.username, { exact: true })).toBeVisible()
     const requestRow = page.locator('li').filter({ hasText: studentIdentity.username }).first()
     await requestRow.getByRole('button', { name: 'Approve' }).click()
-    await expect(page.getByRole('status')).toContainText('Class access approved.')
+    await expect(
+      page.getByRole('status').filter({ hasText: 'Class access approved.' }),
+    ).toBeVisible()
 
     await studentPage.reload()
     await expect(studentPage.getByText('Active', { exact: true })).toBeVisible()

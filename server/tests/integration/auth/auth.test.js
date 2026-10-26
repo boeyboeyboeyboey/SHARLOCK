@@ -440,6 +440,23 @@ describe('account and Mongo session HTTP contract', () => {
     expect(conflict.text).not.toMatch(/emailNormalized|usernameNormalized|index|duplicate key/)
   })
 
+  it('limits CSRF bootstraps that create sessions but not token reuse on a live session', async () => {
+    const agent = request.agent(app)
+    for (let index = 0; index < 61; index += 1) {
+      await agent.get('/api/auth/csrf').set('Origin', baseAuthOptions.clientOrigin).expect(200)
+    }
+
+    for (let index = 0; index < 60; index += 1) {
+      await request(app).get('/api/auth/csrf').set('Origin', baseAuthOptions.clientOrigin)
+    }
+    const blocked = await request(app)
+      .get('/api/auth/csrf')
+      .set('Origin', baseAuthOptions.clientOrigin)
+      .expect(429)
+    expect(blocked.body.error.message).toBe('Too many security checks. Please try again later.')
+    await agent.get('/api/auth/csrf').set('Origin', baseAuthOptions.clientOrigin).expect(200)
+  })
+
   it('expires anonymous CSRF sessions after ten minutes', async () => {
     const agent = request.agent(app)
     const bootstrap = await agent
