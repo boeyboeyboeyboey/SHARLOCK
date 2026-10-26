@@ -45,6 +45,8 @@ watch(
     } else if (name === 'town' && previous === 'news') {
       openedFromTown = false
       await nextTick()
+      // skip the restore if a newly opened card already took focus
+      if (document.activeElement?.closest('.game-info-card')) return
       if (is3d.value) hubScene.value?.focusDestination('threat-briefing')
       else townMap.value?.focusBuilding('threat-briefing')
     }

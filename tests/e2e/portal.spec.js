@@ -33,6 +33,8 @@ test('explores every building without prerequisites while showing account state'
       await expect(page.getByRole('dialog', { name: 'The Sharlock Times' })).toBeVisible()
       await page.getByRole('button', { name: 'Close newspaper' }).click()
       await expect(page).toHaveURL('/')
+      // wait for the newsstand focus restore so it cannot race the next card
+      await expect(building).toBeFocused()
       continue
     }
     if (game.id === 'cli-cyber-defender') {
