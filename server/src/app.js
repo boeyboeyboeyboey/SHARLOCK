@@ -13,6 +13,7 @@ import { createAttemptRouter } from './modules/attempts/router.js'
 import { createProductionAttemptRegistry } from './modules/attempts/production-registry.js'
 import { createProgressRouter } from './modules/progress/router.js'
 import { createClassResultsRouter } from './modules/class-results/router.js'
+import { createLeaderboardRouter } from './modules/leaderboards/router.js'
 import { createProfileRouter } from './modules/profile/router.js'
 import { createRecoveryRouter } from './modules/recovery/router.js'
 import { createHealthRouter } from './routes/health.js'
@@ -93,6 +94,11 @@ export function createApp(
     requireSession: authRuntime.requireSession,
   })
   app.use('/api', classResultsRouter)
+  const leaderboardRouter = createLeaderboardRouter(database, {
+    registry: attempts.registry ?? createProductionAttemptRegistry(),
+    requireSession: authRuntime.requireSession,
+  })
+  app.use('/api', leaderboardRouter)
   app.use(
     '/api',
     createProfileRouter(database, {
@@ -118,6 +124,7 @@ export function createApp(
     attemptRouter.dispose()
     progressRouter.dispose()
     classResultsRouter.dispose()
+    leaderboardRouter.dispose()
     authRuntime.dispose()
   }
   return app

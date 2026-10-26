@@ -30,7 +30,7 @@ The browser cannot supply a player, ruleset, score, award, eligibility flag or t
 - The saved player/context/game/ruleset/start/deadline/mode/eligibility fields do not change later. A new membership never transfers an attempt to another class.
 - An active or abandoned class attempt needs current class access when read; further actions or completion also need it. Class removal, inactive parents or a removed teaching assignment deny the next request. A player can start a separate personal attempt once an actual game adapter exists.
 - **An active account retains its own completed result after losing class access.** Completed-result reads do not require continued class membership. Disabled/version-stale/expired accounts still fail authentication. There is no staff override on the owner endpoint: instructors/admins cannot use it to read someone else's attempt. Instructor/admin teaching reads exist only in `server/src/modules/class-results/` (scoped by `cohort:teach`, completed class-context attempts only); this owner endpoint is unchanged.
-- Server eligibility is fixed at start: only standard play in a class, through a competitive ruleset, by a student without instructor/admin roles can be eligible. Future rankings must additionally check current membership/roles and compare the same game/ruleset. This marker does not create a leaderboard.
+- Server eligibility is fixed at start: only standard play in a class, through a competitive ruleset, by a student without instructor/admin roles can be eligible. Future rankings must additionally check current membership/roles and compare the same game/ruleset; `server/src/modules/leaderboards/` does this at read time. This marker does not create a leaderboard.
 
 ## Lifecycle, retries and deadlines
 

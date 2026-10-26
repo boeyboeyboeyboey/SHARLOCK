@@ -172,16 +172,16 @@ export const routes = [
     meta: { title: 'Case preview', requiresAccount: true },
   },
   {
+    path: '/leaderboard',
+    component: () => import('../features/leaderboard/LeaderboardPage.vue'),
+    meta: { title: 'Leaderboards', requiresAccount: true },
+  },
+  {
     path: '/about',
     component: () => import('../views/About.vue'),
     meta: { title: 'About Sharlock' },
   },
   ...[
-    [
-      'leaderboard',
-      'A little friendly competition',
-      'Cohort rankings will celebrate your learning alongside your classmates.',
-    ],
     ['forbidden', 'This case needs permission', 'Return to town to find an available activity.'],
   ].map(([path, title, description]) => ({
     path: `/${path}`,

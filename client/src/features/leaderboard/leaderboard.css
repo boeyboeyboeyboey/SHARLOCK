@@ -1,0 +1,134 @@
+.leaderboard {
+  display: grid;
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+.leaderboard .leaderboard__section {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+  padding: clamp(1rem, 3vw, 1.5rem);
+  border: 2px solid var(--border-strong);
+  background: var(--surface);
+  box-shadow: var(--shadow-pixel);
+}
+
+.leaderboard .leaderboard__section h2,
+.leaderboard .leaderboard__section p {
+  margin: 0;
+}
+
+.leaderboard .leaderboard__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+}
+
+.leaderboard .leaderboard__filter {
+  display: grid;
+  gap: 0.4rem;
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.leaderboard .leaderboard__filter select {
+  min-height: 48px;
+  max-width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 2px solid var(--border-strong);
+  border-radius: 0;
+  background: var(--surface);
+  color: var(--text-main);
+}
+
+.leaderboard .leaderboard__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.leaderboard .leaderboard__tabs button {
+  min-height: 48px;
+  padding: 0.5rem 1rem;
+  border: 2px solid var(--border-strong);
+  border-radius: 0;
+  background: var(--surface);
+  color: var(--text-main);
+  font: inherit;
+  font-weight: 700;
+}
+
+.leaderboard .leaderboard__tabs button[aria-selected='true'] {
+  background: var(--text-main);
+  color: var(--surface);
+}
+
+.leaderboard .leaderboard__tabs button:focus-visible,
+.leaderboard .leaderboard__filter select:focus-visible {
+  outline: 3px solid var(--text-main);
+  outline-offset: 3px;
+}
+
+.leaderboard .leaderboard__scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.leaderboard table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+}
+
+.leaderboard caption {
+  padding: 0 0 0.5rem;
+  color: inherit;
+  font-weight: 700;
+  text-align: left;
+}
+
+.leaderboard th,
+.leaderboard td {
+  padding: 0.5rem 0.75rem;
+  border: 2px solid var(--border-strong);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.leaderboard thead th {
+  white-space: nowrap;
+}
+
+.leaderboard .leaderboard__self th,
+.leaderboard .leaderboard__self td {
+  background: var(--accent-secondary);
+  border-width: 3px;
+}
+
+.leaderboard .leaderboard__player {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.leaderboard .leaderboard__avatar {
+  flex: none;
+  image-rendering: pixelated;
+}
+
+.leaderboard .leaderboard__pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+}
+
+@media (max-width: 575px) {
+  .leaderboard th,
+  .leaderboard td {
+    padding: 0.4rem 0.5rem;
+  }
+}
