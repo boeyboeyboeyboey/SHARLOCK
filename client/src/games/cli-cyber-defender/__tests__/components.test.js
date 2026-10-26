@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest'
-import { mount, RouterLinkStub } from '@vue/test-utils'
+import { describe, expect, it, vi } from 'vitest'
+import { flushPromises, mount, RouterLinkStub } from '@vue/test-utils'
+import AttemptContextChooser from '../../../features/attempts/components/AttemptContextChooser.vue'
 import BriefingPanel from '../components/BriefingPanel.vue'
 import CommandReference from '../components/CommandReference.vue'
 import ConceptTags from '../components/ConceptTags.vue'
@@ -10,23 +11,40 @@ import ScoreHud from '../components/ScoreHud.vue'
 import ShiftDebrief from '../components/ShiftDebrief.vue'
 import TerminalPanel from '../components/TerminalPanel.vue'
 
+vi.mock('../../../features/attempts/api.js', () => ({
+  listAttemptContexts: vi.fn().mockResolvedValue({ cohorts: [], total: 0 }),
+  safeAttemptError: () => ({ message: 'error' }),
+}))
+
+async function chooseContext(wrapper) {
+  await flushPromises()
+  wrapper.getComponent(AttemptContextChooser).vm.$emit('start', { kind: 'personal' })
+  await wrapper.vm.$nextTick()
+}
+
 describe('cli defender components', () => {
   it('starts practice at once but confirms a timed shift first', async () => {
     const wrapper = mount(BriefingPanel)
+    expect(wrapper.text()).not.toContain('Practice (no timer)')
+    await chooseContext(wrapper)
+    expect(wrapper.text()).toContain('Practice (no timer)')
     const [timed, practice] = wrapper.findAll('section > div > button')
     await practice.trigger('click')
-    expect(wrapper.emitted('start')).toEqual([['practice']])
+    expect(wrapper.emitted('start')).toEqual([['practice', { kind: 'personal' }]])
     await timed.trigger('click')
     expect(wrapper.emitted('start')).toHaveLength(1)
     const dialog = wrapper.getComponent(ConfirmDialog)
     expect(dialog.props('open')).toBe(true)
-    expect(dialog.text()).toContain('recorded once accounts are connected')
+    expect(dialog.text()).toContain('saved to your account')
     dialog.vm.$emit('cancel')
     await wrapper.vm.$nextTick()
     expect(dialog.props('open')).toBe(false)
     await timed.trigger('click')
     dialog.vm.$emit('confirm')
-    expect(wrapper.emitted('start')).toEqual([['practice'], ['timed']])
+    expect(wrapper.emitted('start')).toEqual([
+      ['practice', { kind: 'personal' }],
+      ['timed', { kind: 'personal' }],
+    ])
   })
 
   it('emits confirm, cancel and escape from the dialog', async () => {
@@ -165,6 +183,7 @@ describe('cli defender components', () => {
       props: {
         result: {
           mode: 'practice',
+          saved: true,
           score: 2100,
           maxScore: 2100,
           result: { bestStreak: 8 },
@@ -204,7 +223,7 @@ describe('cli defender components', () => {
     expect(rows[0]).toContain('Strong')
     expect(rows[1]).toContain('Account security')
     expect(rows[1]).toContain('Review')
-    expect(wrapper.text()).toContain('Practice results are not saved.')
+    expect(wrapper.text()).toContain('Result saved to your account.')
     expect(wrapper.text()).not.toContain('Back to town')
     expect(wrapper.text()).toContain('hint used')
     expect(wrapper.text()).toContain('Reconnaissance')
@@ -221,6 +240,8 @@ describe('cli defender components', () => {
       props: {
         result: {
           mode: 'timed',
+          saved: false,
+          saveError: { code: 'COHORT_NOT_FOUND', message: 'Class unavailable.' },
           score: 300,
           maxScore: 2100,
           result: { bestStreak: 2 },
@@ -245,8 +266,14 @@ describe('cli defender components', () => {
     })
     expect(wrapper.text()).toContain('MISSED')
     expect(wrapper.text()).toContain('block ip 192.0.2.66')
-    expect(wrapper.text()).toContain('not saved')
-    await wrapper.get('button').trigger('click')
+    expect(wrapper.text()).not.toContain('Result saved to your account.')
+    expect(wrapper.get('[role="alert"]').text()).toContain('Class unavailable.')
+    await wrapper.get('[role="alert"] button').trigger('click')
+    expect(wrapper.emitted('retry-save')).toHaveLength(1)
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text().includes('Play again'))
+      .trigger('click')
     expect(wrapper.emitted('replay')).toHaveLength(1)
   })
 })

@@ -50,6 +50,7 @@ const {
   resuming,
   lastReview,
   hinting,
+  saving,
   start,
   hint,
   resume,
@@ -57,6 +58,7 @@ const {
   finish,
   endPractice,
   replay,
+  retrySave,
   pause,
 } = useCliDefender({ onEvent })
 
@@ -155,6 +157,8 @@ watch([phase, paused], async ([next, isPaused]) => {
     <ShiftDebrief
       v-else-if="phase === 'debrief' && result"
       :result="result"
+      :saving="saving"
+      @retry-save="retrySave"
       @replay="start(mode)"
       @menu="replay"
     />

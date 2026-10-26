@@ -3,8 +3,11 @@ import { computed, onMounted, ref } from 'vue'
 import CliIcon from './CliIcon.vue'
 import ConceptTags from './ConceptTags.vue'
 
-const props = defineProps({ result: { type: Object, required: true } })
-const emit = defineEmits(['replay', 'menu'])
+const props = defineProps({
+  result: { type: Object, required: true },
+  saving: { type: Boolean, default: false },
+})
+const emit = defineEmits(['replay', 'menu', 'retry-save'])
 
 const heading = ref(null)
 const OUTCOME_LABELS = {
@@ -35,11 +38,6 @@ function confettiStyle(step) {
 }
 
 const contained = computed(() => props.result.result.correct ?? 0)
-const savedNote = computed(() =>
-  props.result.mode === 'practice'
-    ? 'Practice results are not saved.'
-    : 'Results are not saved yet.',
-)
 
 // per-topic tally from the incident list, drawn as a terminal block bar
 const topicRows = computed(() =>
@@ -118,7 +116,14 @@ onMounted(() => heading.value?.focus())
         </div>
       </div>
     </div>
-    <p class="cli-note mt-2">{{ result.feedback.summary }} {{ savedNote }}</p>
+    <p class="cli-note mt-2">{{ result.feedback.summary }}</p>
+    <p v-if="result.saved" class="cli-note" role="status">Result saved to your account.</p>
+    <div v-else class="cli-alert" role="alert">
+      <p>{{ result.saveError?.message ?? 'This result has not been saved.' }}</p>
+      <button type="button" class="btn" :disabled="saving" @click="emit('retry-save')">
+        Try saving again
+      </button>
+    </div>
 
     <div class="d-flex flex-wrap align-items-center gap-3">
       <button type="button" class="btn cli-btn-primary" @click="emit('replay')">

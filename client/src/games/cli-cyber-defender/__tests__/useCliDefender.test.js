@@ -85,14 +85,46 @@ describe('cli defender composable', () => {
     const clock = { now: 30_000 }
     startRun.mockResolvedValue(snapshot())
     const { game } = harness(clock)
-    await game.start('timed')
-    expect(startRun).toHaveBeenCalledWith('timed', expect.any(AbortSignal))
+    await game.start('timed', { kind: 'cohort', cohortId: 'c1' })
+    expect(startRun).toHaveBeenCalledWith(
+      'timed',
+      { kind: 'cohort', cohortId: 'c1' },
+      expect.any(AbortSignal),
+    )
     expect(game.phase.value).toBe('running')
     expect(game.lines.value.some((line) => line.text === 'First alert')).toBe(true)
     expect(game.remainingMs.value).toBe(7000)
     clock.now += 2000
     vi.advanceTimersByTime(100)
     expect(game.remainingMs.value).toBe(5000)
+  })
+
+  it('reuses the chosen context when a game is replayed and retries a failed save', async () => {
+    const clock = { now: 50_000 }
+    startRun.mockResolvedValue(snapshot({ mode: 'practice' }))
+    completeRun.mockResolvedValueOnce({
+      score: 0,
+      maxScore: 2100,
+      mode: 'practice',
+      debrief: [],
+      saved: false,
+      saveError: { code: 'COHORT_NOT_FOUND', message: 'Class unavailable.' },
+    })
+    const { game } = harness(clock)
+    await game.start('practice', { kind: 'personal' })
+    game.endPractice()
+    await flushPromises()
+    expect(game.result.value.saved).toBe(false)
+    completeRun.mockResolvedValueOnce({ score: 0, maxScore: 2100, debrief: [], saved: true })
+    await game.retrySave()
+    expect(completeRun).toHaveBeenCalledTimes(2)
+    expect(game.result.value.saved).toBe(true)
+    await game.start('practice')
+    expect(startRun).toHaveBeenLastCalledWith(
+      'practice',
+      { kind: 'personal' },
+      expect.any(AbortSignal),
+    )
   })
 
   it('keeps help, history and clear local', async () => {

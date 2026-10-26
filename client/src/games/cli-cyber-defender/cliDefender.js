@@ -1,4 +1,5 @@
 import { api } from '../../services/api.js'
+import { writeAttempt } from '../../features/attempts/api.js'
 
 const BASE = '/games/cli-cyber-defender/runs'
 
@@ -46,8 +47,8 @@ export const DEMO_SCENES = [
 
 export const LOCAL_COMMANDS = ['help', 'clear', 'history']
 
-export function startRun(mode, signal) {
-  return api.post(BASE, { mode }, { signal }).then(({ data }) => data)
+export function startRun(mode, context, signal) {
+  return writeAttempt(BASE, { mode, context }, signal)
 }
 
 export function fetchRun(runId, signal) {
@@ -55,23 +56,23 @@ export function fetchRun(runId, signal) {
 }
 
 export function requestHint(runId, incidentId, signal) {
-  return api.post(`${BASE}/${runId}/hint`, { incidentId }, { signal }).then(({ data }) => data)
+  return writeAttempt(`${BASE}/${runId}/hint`, { incidentId }, signal)
 }
 
 export function pauseRun(runId, signal) {
-  return api.post(`${BASE}/${runId}/pause`, {}, { signal }).then(({ data }) => data)
+  return writeAttempt(`${BASE}/${runId}/pause`, {}, signal)
 }
 
 export function resumeRun(runId, signal) {
-  return api.post(`${BASE}/${runId}/resume`, {}, { signal }).then(({ data }) => data)
+  return writeAttempt(`${BASE}/${runId}/resume`, {}, signal)
 }
 
 export function submitCommand(runId, body, signal) {
-  return api.post(`${BASE}/${runId}/commands`, body, { signal }).then(({ data }) => data)
+  return writeAttempt(`${BASE}/${runId}/commands`, body, signal)
 }
 
 export function completeRun(runId, actionId, signal) {
-  return api.post(`${BASE}/${runId}/complete`, { actionId }, { signal }).then(({ data }) => data)
+  return writeAttempt(`${BASE}/${runId}/complete`, { actionId }, signal)
 }
 
 export function createActionId() {
@@ -86,6 +87,7 @@ export function errorCode(error) {
 }
 
 export function errorMessage(error, fallback) {
+  if (error?.response?.status === 401) return 'Your session ended. Sign in again to play.'
   const message = error?.response?.data?.error?.message
   return typeof message === 'string' && message ? message : fallback
 }

@@ -34,9 +34,11 @@ export function useCliDefender({ now = () => Date.now(), tickMs = 100, onEvent =
   const frozenRemaining = ref(null)
   const lastReview = ref(null)
   const hinting = ref(false)
+  const saving = ref(false)
 
   // server time minus local time, so deadlines are compared on the server's clock
   let offset = 0
+  let context = { kind: 'personal' }
   let lineId = 0
   let shownIncident = null
   let announced = new Set()
@@ -137,20 +139,21 @@ export function useCliDefender({ now = () => Date.now(), tickMs = 100, onEvent =
     announced = new Set()
   }
 
-  async function start(selectedMode) {
+  async function start(selectedMode, selectedContext) {
     reset()
+    if (selectedContext) context = selectedContext
     mode.value = selectedMode === 'practice' ? 'practice' : 'timed'
     controller = new AbortController()
     phase.value = 'starting'
     try {
-      const data = await startRun(mode.value, controller.signal)
+      const data = await startRun(mode.value, context, controller.signal)
       if (disposed) return
       phase.value = 'running'
       print(
         'system',
         mode.value === 'timed'
-          ? 'SHARLOCK SOC TERMINAL | timed game | 8 challenges | not saved'
-          : 'SHARLOCK SOC TERMINAL | practice | 8 challenges | not saved',
+          ? 'SHARLOCK SOC TERMINAL | timed game | 8 challenges'
+          : 'SHARLOCK SOC TERMINAL | practice | 8 challenges',
       )
       print('system', 'Type "help" for commands. All systems here are fictional.')
       apply(data)
@@ -256,6 +259,27 @@ export function useCliDefender({ now = () => Date.now(), tickMs = 100, onEvent =
     }
   }
 
+  // a failed save keeps the debrief; completing again retries the same attempt
+  async function retrySave() {
+    if (!snapshot.value || saving.value || result.value?.saved) return
+    saving.value = true
+    try {
+      const data = await completeRun(snapshot.value.runId, createActionId(), controller?.signal)
+      if (!disposed) result.value = data
+    } catch (requestError) {
+      if (disposed || controller?.signal.aborted) return
+      result.value = {
+        ...result.value,
+        saveError: {
+          code: errorCode(requestError),
+          message: errorMessage(requestError, 'The result could not be saved. Try again.'),
+        },
+      }
+    } finally {
+      if (!disposed) saving.value = false
+    }
+  }
+
   function printReview(outcome, review) {
     if (outcome !== 'correct') print('why', `  correct: ${review.expectedCommand}`)
     print('why', `  why: ${review.explanation}`)
@@ -352,6 +376,7 @@ export function useCliDefender({ now = () => Date.now(), tickMs = 100, onEvent =
     resuming,
     lastReview,
     hinting,
+    saving,
     start,
     hint,
     pause,
@@ -360,6 +385,7 @@ export function useCliDefender({ now = () => Date.now(), tickMs = 100, onEvent =
     finish,
     endPractice,
     replay,
+    retrySave,
     sync,
   }
 }

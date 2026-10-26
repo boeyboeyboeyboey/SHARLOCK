@@ -2,23 +2,32 @@
 
 Browser half of the `cli-cyber-defender` game (G-CLI), served at `/games/cli-cyber-defender` from the existing `cottage` building at (112, 112). Scoring and timing live on the server; see `server/src/modules/games/cli-cyber-defender/README.md`.
 
+## Presentation summary
+
+- **What:** a timed terminal game. Read a fictional security alert, then type the one command that contains it (`block ip`, `disable user`, `isolate host`). Eight challenges per shift, maximum 2,100 points.
+- **Concept taught:** incident triage and containment (firewall blocking, account security, host isolation) with CIA-triad and attack-stage tags in every debrief; nothing real is ever executed.
+- **How to play:** choose where to save the run (personal or a class), then **Start game** (10-15 seconds per challenge, pausable) or **Practice** (no timer, one hint per incident). Tap alert names or command templates on touch screens.
+- **Technical points:** `CliDefenderGame.vue` → `useCliDefender.js` → `cliDefender.js`. Runs need a signed-in session and CSRF (via the shared `writeAttempt`); the server owns the timing and score. The shared `AttemptContextChooser` supplies the run context.
+- **Saved runs:** a finished timed shift or a practice run is saved as an attempt on `/complete`; the debrief shows "Result saved to your account." or the save error with **Try saving again**. Timed class runs rank on the class Best board (Timed runs); practice counts toward the all-time view.
+- **Status and limits:** record in TASKS.md (SAVE-CLI). Runs live in server memory with a 10-minute idle expiry, so an abandoned run is never saved. Rankings are practice evidence, not validated mastery.
+
 ## Data flow
 
 `CliDefenderGame.vue` → `useCliDefender.js` → `cliDefender.js` (shared `services/api.js`) → Express router → service → in-memory run.
 
-1. The briefing states the player's role, plays `DemoTerminal` and offers **Start game** (confirmed in a "Ready to play?" `ConfirmDialog`) or **Practice (no timer)**. Starting emits `start(mode)` and the composable creates a run and prints the first challenge.
+1. `BriefingPanel` first shows `AttemptContextChooser` (personal or a class), then states the player's role, plays `DemoTerminal` and offers **Start game** (confirmed in a "Ready to play?" `ConfirmDialog`) or **Practice (no timer)**. Starting emits `start(mode, context)` and the composable posts `{ mode, context }`, creates a run and prints the first challenge.
 2. The player types a command, taps a command template, or taps a name in the alert to fill in the target. `help`, `history` and `clear` stay in the browser; everything else is posted with a fresh `actionId`. Enter is ignored while a command is in flight.
 3. A 100ms interval only refreshes the displayed countdown from the server deadline, corrected by `serverNow`. When a window reaches zero, or the tab becomes visible again, the composable fetches a fresh snapshot instead of counting ticks.
 4. After each closed challenge the terminal and `ReviewNote` show the correct command, why, and concept tags; `useCliDefender({ onEvent })` reports `alert`, `ok`, `fail` and `miss` so the screen can play `useCliSound` beeps, a keyed flash/stamp overlay and a shake.
 5. In a timed game, hiding the tab or choosing **Pause** in `GameMenu` freezes the server clock. `PausedPanel` covers the full-size console (the alert and terminal stay mounted but hidden and inert) until **Resume game**. Practice never pauses.
 6. **Leave game** confirms that points won't be saved and returns to the briefing; in a timed game the clock pauses while the dialog is open. **End practice** finishes a practice game early.
-7. When no challenge remains, the composable requests the debrief. `ShiftDebrief` shows summary tiles, a topic table and collapsible incidents; **Play again** restarts the same mode and **Main menu** returns to the briefing.
+7. When no challenge remains, the composable requests the debrief. `ShiftDebrief` shows summary tiles, a topic table and collapsible incidents; the result shows "Result saved to your account." or the server's `saveError` with **Try saving again** (`retrySave` calls `/complete` again); **Play again** restarts the same mode and context and **Main menu** returns to the briefing.
 
 ## Components
 
 | Component              | Props                                                                                                                                                                  | Emits                                             |
 | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
-| `BriefingPanel.vue`    | `{ pending, error }`; owns the Ready-to-play dialog                                                                                                                    | `start(mode)`                                     |
+| `BriefingPanel.vue`    | `{ pending, error }`; owns the context step and the Ready-to-play dialog                                                                                               | `start(mode, context)`                            |
 | `DemoTerminal.vue`     | `{ typeMs }`: looping demo with demo-only incidents; pauses off-screen or in a hidden tab, still frame for reduced motion                                              | —                                                 |
 | `ConfirmDialog.vue`    | `{ open, id, title, confirmLabel, cancelLabel }`; native modal dialog, default slot for the message                                                                    | `confirm`, `cancel`                               |
 | `GameMenu.vue`         | `{ canPause, paused, canEnd, soundOn, soundUnavailable }`: in-game dropdown replacing Back to town                                                                     | `pause`, `resume`, `toggle-sound`, `end`, `leave` |
@@ -29,7 +38,7 @@ Browser half of the `cli-cyber-defender` game (G-CLI), served at `/games/cli-cyb
 | `TerminalPanel.vue`    | `{ lines, disabled, busy, modelValue, history, maxLength }`; exposes `focus()`                                                                                         | `submit-command`, `update:modelValue`             |
 | `CommandReference.vue` | `{ disabled }`: command templates under the prompt                                                                                                                     | `insert-template(template)`                       |
 | `PausedPanel.vue`      | `{ pending }`; focuses Resume game on mount                                                                                                                            | `resume`                                          |
-| `ShiftDebrief.vue`     | `{ result }`                                                                                                                                                           | `replay`, `menu`                                  |
+| `ShiftDebrief.vue`     | `{ result, saving }`                                                                                                                                                   | `replay`, `menu`, `retry-save`                    |
 | `CliIcon.vue`          | `{ name, size }`: original line icons drawn with `currentColor`, always decorative beside text                                                                         | —                                                 |
 
 ## Design and accessibility
@@ -43,4 +52,4 @@ The game uses the DESIGN.md game exception: an original green/amber-on-black ter
 - Up/Down recall earlier commands; template, chip and menu targets are at least 34–48px tall; the input disables autocorrect and autocapitalisation.
 - Animations (alert entry and typing, line fade-in, stamps, flash/shake, score count-up, icon pops, radar sweep, confetti, demo loop) are limited to moments that mean something, and reduced motion turns all of them off along with the scanlines. Sound is generated with Web Audio, off on every visit, and the context is closed on unmount.
 - All requests are aborted and the interval, `visibilitychange` and outside-click listeners removed on unmount.
-- Results are labelled "not saved" until the shared GAME-01 attempt contract exists.
+- A signed-out request (401) shows "Your session ended. Sign in again to play."

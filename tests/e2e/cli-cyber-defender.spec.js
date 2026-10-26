@@ -1,4 +1,6 @@
+import { randomBytes } from 'node:crypto'
 import { test, expect } from './fixtures/auth.js'
+import { seedClass, signedInPage } from './fixtures/class.js'
 import { formatCommand } from '../../server/src/modules/games/cli-cyber-defender/parser.js'
 import { SCENARIOS } from '../../server/src/modules/games/cli-cyber-defender/scenarios.js'
 import { DEMO_SCENES } from '../../client/src/games/cli-cyber-defender/cliDefender.js'
@@ -45,8 +47,17 @@ async function useMenu(page, item) {
     .click()
 }
 
-async function startShift(page, mode) {
+// the context chooser comes first; personal practice is its default
+async function chooseContext(page, classId) {
+  const chooser = page.getByLabel('Save this case to')
+  await expect(chooser).toBeEnabled()
+  if (classId) await chooser.selectOption(classId)
+  await page.getByRole('button', { name: 'Open the case' }).click()
+}
+
+async function startShift(page, mode, classId) {
   await page.goto('/games/cli-cyber-defender')
+  await chooseContext(page, classId)
   if (mode === 'practice') await page.getByRole('button', { name: 'Practice (no timer)' }).click()
   else {
     await page.getByRole('button', { name: 'Start game' }).click()
@@ -65,9 +76,10 @@ test('asks before a timed shift and starts nothing on cancel', async ({ page }) 
       started += 1
   })
   await page.goto('/games/cli-cyber-defender')
+  await chooseContext(page)
   await page.getByRole('button', { name: 'Start game' }).click()
   const dialog = page.getByRole('dialog', { name: 'Ready to play?' })
-  await expect(dialog).toContainText('recorded once accounts are connected')
+  await expect(dialog).toContainText('saved to your account')
   await expect(dialog.getByRole('button', { name: 'Start', exact: true })).toBeFocused()
   await page.keyboard.press('Escape')
   await expect(dialog).toBeHidden()
@@ -143,6 +155,7 @@ test('animates a briefing demo that never spoils a real shift', async ({ page })
   )
   for (const scene of DEMO_SCENES) expect(answers.has(scene.command)).toBe(false)
   await page.goto('/games/cli-cyber-defender')
+  await chooseContext(page)
   const demo = page.locator('.cli-demo-window')
   await expect(demo).toContainText(DEMO_SCENES[0].alert)
   await expect(demo.locator('.cli-demo-ok')).toContainText(DEMO_SCENES[0].result)
@@ -160,9 +173,7 @@ test('plays a perfect practice shift to 2,100 and replays', async ({ page }) => 
   await expect(debrief).toBeFocused()
   await expect(page.getByText('2,100 / 2,100 points')).toBeVisible()
   await expect(page.locator('.cli-outcome-correct')).toHaveCount(8)
-  await expect(page.locator('.cli-debrief .cli-note').first()).toContainText(
-    'Practice results are not saved.',
-  )
+  await expect(page.getByText('Result saved to your account.')).toBeVisible()
   await expect(page.getByRole('link', { name: 'Back to town' })).toHaveCount(1)
   await page.getByRole('button', { name: 'Play again' }).click()
   await expect(commandInput(page)).toBeFocused()
@@ -441,4 +452,29 @@ test('fits every supported width without page overflow', async ({ page }) => {
   }
   await page.setViewportSize({ width: 667, height: 375 })
   await expect(page.getByRole('button', { name: 'Run', exact: true })).toBeVisible()
+})
+
+// last: seeding a class mid-file invalidates the shared worker session for later tests
+test('a class student saves a timed shift and appears on the timed leaderboard', async ({
+  browser,
+  baseURL,
+}) => {
+  const seeded = await seedClass(randomBytes(4).toString('hex'))
+  const { context, page } = await signedInPage(browser, baseURL, seeded.studentA)
+  try {
+    await startShift(page, 'timed', seeded.classId)
+    for (let handled = 1; handled <= 8; handled += 1) await run(page, await expectedCommand(page))
+    await expect(page.getByRole('heading', { name: 'Shift debrief' })).toBeFocused()
+    await expect(page.getByText('2,100 / 2,100 points')).toBeVisible()
+    await expect(page.getByText('Result saved to your account.')).toBeVisible()
+
+    await page.goto(`/leaderboard?game=cli-cyber-defender&class=${seeded.classId}`)
+    await expect(page.getByRole('heading', { level: 2, name: /CLI Cyber Defender/ })).toBeVisible()
+    await expect(page.getByText('Timed runs')).toBeVisible()
+    const own = page.getByRole('row', { name: new RegExp(seeded.studentA.username) })
+    await expect(own).toHaveCount(1)
+    await expect(own).toContainText('(you)')
+  } finally {
+    await context.close()
+  }
 })
