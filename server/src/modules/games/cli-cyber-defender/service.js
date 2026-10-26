@@ -110,13 +110,12 @@ export function createCliDefenderService({
     while (runs.size >= MAX_RUNS) runs.delete(runs.keys().next().value)
   }
 
-  function requireRun(runId) {
+  // another player's run is indistinguishable from an unknown one
+  function requireRun(runId, owner) {
     const run = runs.get(runId)
-    if (!run || now() - run.lastActivityAt > IDLE_MS) {
-      runs.delete(runId)
-      throw runNotFound()
-    }
-    return run
+    if (run && now() - run.lastActivityAt > IDLE_MS) runs.delete(runId)
+    else if (run && run.playerId === owner) return run
+    throw runNotFound()
   }
 
   // game time skips paused spans, so every deadline freezes while a timed shift is paused
@@ -162,15 +161,18 @@ export function createCliDefenderService({
       multiplier: progress.multiplier,
       maxScore: MAX_SCORE,
       saved: false,
+      context: run.context,
     }
   }
 
-  function startRun({ mode }) {
+  function startRun({ mode, context = null }, owner) {
     const at = now()
     sweep(at)
     const windows = generateWindows(randomInt)
     const run = {
       runId: createId(),
+      playerId: owner,
+      context,
       mode,
       startedAt: at,
       endedAt: null,
@@ -186,19 +188,20 @@ export function createCliDefenderService({
       })),
       actions: new Map(),
       completion: null,
+      savedAttempt: null,
     }
     runs.set(run.runId, run)
     return snapshot(run, at)
   }
 
-  function getRun(runId) {
-    const run = requireRun(runId)
+  function getRun(runId, owner) {
+    const run = requireRun(runId, owner)
     return snapshot(run, gameTime(run, now()))
   }
 
   // practice only: names the evidence line, never the answer, and is marked in the debrief
-  function hintRun(runId, { incidentId: target }) {
-    const run = requireRun(runId)
+  function hintRun(runId, { incidentId: target }, owner) {
+    const run = requireRun(runId, owner)
     const wall = now()
     if (run.mode !== 'practice' || run.completion) throw hintUnavailable()
     const progress = deriveProgress(run, gameTime(run, wall))
@@ -212,8 +215,8 @@ export function createCliDefenderService({
     }
   }
 
-  function pauseRun(runId) {
-    const run = requireRun(runId)
+  function pauseRun(runId, owner) {
+    const run = requireRun(runId, owner)
     const wall = now()
     if (run.mode !== 'timed' || run.completion) throw pauseUnavailable()
     if (run.pausedAt === null && !deriveProgress(run, gameTime(run, wall)).finished) {
@@ -223,8 +226,8 @@ export function createCliDefenderService({
     return snapshot(run, gameTime(run, wall))
   }
 
-  function resumeRun(runId) {
-    const run = requireRun(runId)
+  function resumeRun(runId, owner) {
+    const run = requireRun(runId, owner)
     const wall = now()
     if (run.pausedAt !== null) {
       run.pausedTotal += wall - run.pausedAt
@@ -234,8 +237,8 @@ export function createCliDefenderService({
     return snapshot(run, gameTime(run, wall))
   }
 
-  function submitCommand(runId, { actionId, incidentId: target, command }) {
-    const run = requireRun(runId)
+  function submitCommand(runId, { actionId, incidentId: target, command }, owner) {
+    const run = requireRun(runId, owner)
     const fingerprint = `${target}\n${command}`
     const previous = run.actions.get(actionId)
     if (previous) {
@@ -281,8 +284,8 @@ export function createCliDefenderService({
     return response
   }
 
-  function completeRun(runId, { actionId }) {
-    const run = requireRun(runId)
+  function completeRun(runId, { actionId }, owner) {
+    const run = requireRun(runId, owner)
     if (run.completion) return { ...run.completion, actionId }
     const wall = now()
     const at = gameTime(run, wall)
@@ -354,5 +357,50 @@ export function createCliDefenderService({
     return { ...run.completion, actionId }
   }
 
-  return { startRun, getRun, hintRun, pauseRun, resumeRun, submitCommand, completeRun }
+  // finishes the run, then stores it as a saved attempt exactly once (resultKey is the run id).
+  // a failed save keeps the score on screen with saved:false and a code, and a retry saves it
+  async function completeAndRecord(runId, body, owner, attempts) {
+    const completion = completeRun(runId, body, owner)
+    const run = runs.get(runId)
+    if (!run.savedAttempt) {
+      const incidents = run.completion.debrief.map((item) => ({
+        scenarioId: run.incidents[item.index].scenario.id,
+        outcome: item.outcome,
+        hintUsed: item.hintUsed,
+      }))
+      try {
+        run.savedAttempt = await attempts.recordCompletedAttempt({ id: owner }, GAME_ID, {
+          context: run.context,
+          mode: run.mode === 'timed' ? 'standard' : 'practice',
+          startedAt: new Date(run.startedAt),
+          state: { mode: run.mode, incidents },
+          resultKey: run.runId,
+        })
+      } catch (error) {
+        if (error?.name !== 'AttemptError' && error?.name !== 'CohortError') throw error
+        return {
+          ...completion,
+          saved: false,
+          saveError: { code: error.code, message: error.message },
+        }
+      }
+    }
+    const { attemptId, score, maxScore, persisted, context } = run.savedAttempt
+    return {
+      ...completion,
+      saved: true,
+      attempt: { attemptId, score, maxScore, persisted, context },
+    }
+  }
+
+  return {
+    startRun,
+    getRun,
+    hintRun,
+    pauseRun,
+    resumeRun,
+    submitCommand,
+    completeRun,
+    completeAndRecord,
+  }
 }

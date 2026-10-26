@@ -9,6 +9,7 @@ import { createCohortRouter } from './modules/cohorts/router.js'
 import { createAuditRouter } from './modules/audit/router.js'
 import { createAdminRouter } from './modules/admin/router.js'
 import { createAttemptRouter } from './modules/attempts/router.js'
+import { createAttemptService } from './modules/attempts/service.js'
 import { createProductionAttemptRegistry } from './modules/attempts/production-registry.js'
 import { createProgressRouter } from './modules/progress/router.js'
 import { createClassResultsRouter } from './modules/class-results/router.js'
@@ -111,7 +112,20 @@ export function createApp(
   app.use('/api', createHealthRouter(database))
   app.use('/api', createNewsRouter(database, news))
   app.use('/api', createSocialEngineeringRouter(socialEngineering))
-  app.use('/api', createCliDefenderRouter(cliDefender))
+  app.use(
+    '/api',
+    createCliDefenderRouter({
+      ...cliDefender,
+      attempts:
+        cliDefender.attempts ??
+        createAttemptService(database, {
+          registry: attempts.registry ?? createProductionAttemptRegistry(),
+          now: attempts.now ?? authRuntime.now,
+        }),
+      requireSession: authRuntime.requireSession,
+      requireMutation: authRuntime.requireMutation,
+    }),
+  )
   app.use('/api', createClearanceRouter(clearanceTower))
   app.use(notFound)
   app.use(handleError)

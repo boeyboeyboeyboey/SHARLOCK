@@ -24,12 +24,14 @@ describe('cli defender request validation', () => {
   })
 
   it('accepts only timed or practice starts with no extra fields', () => {
-    expect(parseStart({ mode: 'timed' })).toEqual({ mode: 'timed' })
-    expect(parseStart({ mode: 'practice' })).toEqual({ mode: 'practice' })
-    expect(codeOf(() => parseStart({ mode: 'easy' })).fieldErrors).toHaveProperty('mode')
-    expect(codeOf(() => parseStart({ mode: 'timed', score: 2100 })).fieldErrors).toHaveProperty(
-      'score',
-    )
+    const context = { kind: 'personal' }
+    expect(parseStart({ mode: 'timed', context })).toEqual({ mode: 'timed', context })
+    expect(parseStart({ mode: 'practice', context })).toEqual({ mode: 'practice', context })
+    expect(codeOf(() => parseStart({ mode: 'easy', context })).fieldErrors).toHaveProperty('mode')
+    expect(codeOf(() => parseStart({ mode: 'timed' })).fieldErrors).toHaveProperty('context')
+    expect(
+      codeOf(() => parseStart({ mode: 'timed', context, score: 2100 })).fieldErrors,
+    ).toHaveProperty('score')
     expect(codeOf(() => parseStart(null)).code).toBe('CLI_INVALID_BODY')
     expect(codeOf(() => parseStart(['timed'])).code).toBe('CLI_INVALID_BODY')
   })

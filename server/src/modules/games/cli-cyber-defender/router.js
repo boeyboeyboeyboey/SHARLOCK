@@ -1,4 +1,7 @@
 import { Router } from 'express'
+import { AuthError } from '../../auth/policy.js'
+import { CohortError } from '../../cohorts/policy.js'
+import { AttemptError } from '../../attempts/policy.js'
 import {
   CliError,
   parseCommandBody,
@@ -32,7 +35,29 @@ function createPacer(now, limit) {
   }
 }
 
+const authMessages = {
+  AUTHENTICATION_REQUIRED: [401, 'Sign in to continue.'],
+  CAPABILITY_FORBIDDEN: [403, 'This action is unavailable.'],
+  CSRF_INVALID: [403, 'Refresh the security token and try again.'],
+  ORIGIN_FORBIDDEN: [403, 'This request came from an untrusted origin.'],
+}
+
+function failAuth(response, error) {
+  const [status, message] = authMessages[error.code] ?? [401, 'Sign in to continue.']
+  response.status(status).json({
+    error: { code: error.code, message },
+    requestId: response.locals.requestId,
+  })
+}
+
 function fail(response, error) {
+  if (error instanceof AuthError) return failAuth(response, error)
+  if (error instanceof AttemptError || error instanceof CohortError) {
+    return response.status(error.status).json({
+      error: { code: error.code, message: error.message },
+      requestId: response.locals.requestId,
+    })
+  }
   const safe =
     error instanceof CliError
       ? error
@@ -53,6 +78,9 @@ function fail(response, error) {
 
 export function createCliDefenderRouter({
   service,
+  attempts,
+  requireSession = [],
+  requireMutation = [],
   now = Date.now,
   limit = MAX_REQUESTS_PER_WINDOW,
 } = {}) {
@@ -60,59 +88,67 @@ export function createCliDefenderRouter({
   const allow = createPacer(now, limit)
   const router = Router()
   const base = '/games/cli-cyber-defender/runs'
+  const playerOf = (response) => response.locals.authUser.id
 
-  function handle(action) {
-    return (request, response) => {
-      response.set('Cache-Control', 'no-store')
-      try {
-        if (!allow(request.ip || 'unknown')) throw rateLimited()
-        response.json(action(request))
-      } catch (error) {
-        fail(response, error)
-      }
-    }
+  // session and csrf middleware run first; their errors reach the shared error handler below
+  function route(method, path, ...actions) {
+    const guards = method === 'get' ? requireSession : [...requireSession, ...requireMutation]
+    router[method](
+      path,
+      (_request, response, next) => {
+        response.set('Cache-Control', 'no-store')
+        next()
+      },
+      ...guards,
+      async (request, response) => {
+        try {
+          if (!allow(`${request.ip || 'unknown'}:${playerOf(response)}`)) throw rateLimited()
+          response.json(await actions[0](request, response))
+        } catch (error) {
+          fail(response, error)
+        }
+      },
+    )
   }
 
-  router.post(
-    base,
-    handle((request) => game.startRun(parseStart(request.body))),
+  route('post', base, async (request, response) => {
+    const { mode, context } = parseStart(request.body)
+    const resolved = await attempts.resolveRunContext(response.locals.authUser, context)
+    return game.startRun({ mode, context: resolved }, playerOf(response))
+  })
+  route('get', `${base}/:runId`, (request, response) =>
+    game.getRun(parseRunId(request.params.runId), playerOf(response)),
   )
-  router.get(
-    `${base}/:runId`,
-    handle((request) => game.getRun(parseRunId(request.params.runId))),
+  route('post', `${base}/:runId/hint`, (request, response) =>
+    game.hintRun(parseRunId(request.params.runId), parseHintBody(request.body), playerOf(response)),
   )
-  router.post(
-    `${base}/:runId/hint`,
-    handle((request) =>
-      game.hintRun(parseRunId(request.params.runId), parseHintBody(request.body)),
+  route('post', `${base}/:runId/pause`, (request, response) => {
+    parseEmptyBody(request.body)
+    return game.pauseRun(parseRunId(request.params.runId), playerOf(response))
+  })
+  route('post', `${base}/:runId/resume`, (request, response) => {
+    parseEmptyBody(request.body)
+    return game.resumeRun(parseRunId(request.params.runId), playerOf(response))
+  })
+  route('post', `${base}/:runId/commands`, (request, response) =>
+    game.submitCommand(
+      parseRunId(request.params.runId),
+      parseCommandBody(request.body),
+      playerOf(response),
     ),
   )
-  router.post(
-    `${base}/:runId/pause`,
-    handle((request) => {
-      parseEmptyBody(request.body)
-      return game.pauseRun(parseRunId(request.params.runId))
-    }),
-  )
-  router.post(
-    `${base}/:runId/resume`,
-    handle((request) => {
-      parseEmptyBody(request.body)
-      return game.resumeRun(parseRunId(request.params.runId))
-    }),
-  )
-  router.post(
-    `${base}/:runId/commands`,
-    handle((request) =>
-      game.submitCommand(parseRunId(request.params.runId), parseCommandBody(request.body)),
+  route('post', `${base}/:runId/complete`, (request, response) =>
+    game.completeAndRecord(
+      parseRunId(request.params.runId),
+      parseCompleteBody(request.body),
+      playerOf(response),
+      attempts,
     ),
   )
-  router.post(
-    `${base}/:runId/complete`,
-    handle((request) =>
-      game.completeRun(parseRunId(request.params.runId), parseCompleteBody(request.body)),
-    ),
-  )
+
+  // session and csrf failures arrive here from the guards
+  // eslint-disable-next-line no-unused-vars
+  router.use((error, _request, response, _next) => fail(response, error))
 
   return router
 }

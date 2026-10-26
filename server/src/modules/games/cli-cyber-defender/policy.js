@@ -1,5 +1,5 @@
 export const GAME_ID = 'cli-cyber-defender'
-export const RULESET_VERSION = 'cli-1'
+export const RULESET_VERSION = 'cli-2'
 export const MODES = ['timed', 'practice']
 export const INCIDENT_COUNT = 8
 export const SHIFT_SECONDS = 100
@@ -60,10 +60,13 @@ export function parseRunId(value) {
 }
 
 export function parseStart(body) {
-  const fieldErrors = readObject(body, ['mode'])
+  const fieldErrors = readObject(body, ['mode', 'context'])
   if (!MODES.includes(body.mode)) fieldErrors.mode = 'expected timed or practice'
+  const { context } = body
+  if (!context || typeof context !== 'object' || Array.isArray(context))
+    fieldErrors.context = 'expected a context object'
   if (Object.keys(fieldErrors).length) throw invalid(fieldErrors)
-  return { mode: body.mode }
+  return { mode: body.mode, context }
 }
 
 export function parseCommandBody(body) {

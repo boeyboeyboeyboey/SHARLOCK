@@ -45,7 +45,7 @@ describe('cli defender service', () => {
     const snapshot = service.startRun({ mode: 'timed' })
     expect(snapshot).toMatchObject({
       gameId: 'cli-cyber-defender',
-      rulesetVersion: 'cli-1',
+      rulesetVersion: 'cli-2',
       runId: RUN_ID,
       mode: 'timed',
       status: 'active',
@@ -409,5 +409,69 @@ describe('scenario integrity', () => {
       (item) => item.alert.lines.join(' ').match(/\b\d{1,3}(?:\.\d{1,3}){3}\b/g) ?? [],
     )
     for (const ip of ips) expect(ip).toMatch(/^(?:192\.0\.2\.|198\.51\.100\.|203\.0\.113\.|10\.)/)
+  })
+
+  it('hides a run from every other player', () => {
+    const { service } = setup()
+    service.startRun({ mode: 'practice', context: { kind: 'personal' } }, 'player-a')
+    expect(() => service.getRun(RUN_ID, 'player-a')).not.toThrow()
+    for (const call of [
+      () => service.getRun(RUN_ID, 'player-b'),
+      () => service.hintRun(RUN_ID, { incidentId: 'incident-01' }, 'player-b'),
+      () => service.pauseRun(RUN_ID, 'player-b'),
+      () => service.resumeRun(RUN_ID, 'player-b'),
+      () =>
+        service.submitCommand(
+          RUN_ID,
+          { actionId: 'action-9999', incidentId: 'incident-01', command: 'x' },
+          'player-b',
+        ),
+      () => service.completeRun(RUN_ID, { actionId: 'action-9998' }, 'player-b'),
+    ])
+      expectCliError(call, 'CLI_RUN_NOT_FOUND')
+  })
+
+  it('records a finished run once and keeps the score when saving fails', async () => {
+    const { service } = setup()
+    service.startRun({ mode: 'practice', context: { kind: 'personal' } }, 'player-a')
+    const calls = []
+    let failing = true
+    const attempts = {
+      async recordCompletedAttempt(actor, gameId, input) {
+        calls.push({ actor, gameId, input })
+        if (failing)
+          throw Object.assign(new Error('gone'), { name: 'CohortError', code: 'COHORT_NOT_FOUND' })
+        return {
+          attemptId: 'a1',
+          score: 0,
+          maxScore: 2100,
+          persisted: true,
+          context: input.context,
+        }
+      },
+    }
+    const first = await service.completeAndRecord(
+      RUN_ID,
+      { actionId: nextAction() },
+      'player-a',
+      attempts,
+    )
+    expect(first).toMatchObject({ saved: false, saveError: { code: 'COHORT_NOT_FOUND' } })
+    failing = false
+    const second = await service.completeAndRecord(
+      RUN_ID,
+      { actionId: nextAction() },
+      'player-a',
+      attempts,
+    )
+    expect(second).toMatchObject({ saved: true, attempt: { attemptId: 'a1' } })
+    await service.completeAndRecord(RUN_ID, { actionId: nextAction() }, 'player-a', attempts)
+    expect(calls).toHaveLength(2)
+    expect(calls[1]).toMatchObject({
+      actor: { id: 'player-a' },
+      gameId: 'cli-cyber-defender',
+      input: { mode: 'practice', resultKey: RUN_ID, state: { mode: 'practice' } },
+    })
+    expect(calls[1].input.state.incidents).toHaveLength(8)
   })
 })
