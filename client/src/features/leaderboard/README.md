@@ -8,7 +8,7 @@
 - Components: `LeaderboardPage.vue` (container: class list by role, games, board, stale-response handling, pager, states), `LeaderboardFilters.vue`, `LeaderboardTable.vue`.
 - API (`api.js`): `GET /cohorts/:cohortId/leaderboard/games` and `GET /cohorts/:cohortId/leaderboard?gameId=&view=&page=`. Classes come from the existing `listMemberships` (students) or `listManagedCohorts` (instructors, admins). Nothing is stored client-side.
 - Status: see the BOARD-01 record in [TASKS.md](../../../../TASKS.md).
-- Limits: only the SQL Injection Arcade saves attempts today, so boards show practice best scores. There is no ruleset selector; the server uses the newest completed ruleset. Rankings are performance evidence, not validated mastery.
+- Limits: all five games (SQL Injection Arcade, Clearance Tower, Phishing Post-Mortem, CLI Cyber Defender, Social Engineering Simulator) feed boards. CLI timed runs are the only competitive ruleset ("Timed runs" best board); every other game shows "Practice best scores". There is no ruleset selector; the server uses the newest completed ruleset. Rankings are performance evidence, not validated mastery.
 
 ## Components
 

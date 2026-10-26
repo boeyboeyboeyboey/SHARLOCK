@@ -15,6 +15,10 @@ This guide helps a game owner and their teammate or agent plan one real game's c
 
 These are separate readiness facts. A completed server foundation does not make a game saved, and a playable game does not imply that its owner approved a migration. Check [TASKS.md](../TASKS.md) for current branch, publication, task status, approval, and contributor evidence before proposing work.
 
+## Current status (27 October 2026)
+
+All five scored games now save through the shared attempts contract: G-SQL (GAME-01-B), then Clearance Tower, Phishing Post-Mortem, CLI Cyber Defender and Social Engineering Simulator under SAVE-01 (In Progress in [TASKS.md](../TASKS.md)). Clearance and Phishing use the normal start/action/complete routes. CLI and Social keep live engine state in server memory and are server-recorded: the server records the finished result once and the public start and action routes return 409 `ATTEMPT_SERVER_RECORDED`; see [Server-recorded path](#server-recorded-path-save-00) and the [attempts README](../server/src/modules/attempts/README.md#server-recorded-games-save-00). The readiness table above and the sections below are the historical baseline.
+
 ## Current G-SQL continuation
 
 The approved GAME-01-B / G-SQL work supplies `client/src/features/attempts/` request/context/result components, authenticated context discovery, and one production `sql-1` practice adapter. G-SQL uses the canonical saved-attempt routes. The table above preserves the earlier baseline; other games still require their own owner-agreed integration plans. Follow the current TASKS record and the shared browser/server module READMEs instead of treating that historical missing-prerequisite snapshot as current availability.
