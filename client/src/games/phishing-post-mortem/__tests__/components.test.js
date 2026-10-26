@@ -1,18 +1,26 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
+import { createMemoryHistory, createRouter } from 'vue-router'
 import PhishingPostMortem from '../PhishingPostMortem.vue'
 import EmailInspector from '../components/EmailInspector.vue'
 import InboxList from '../components/InboxList.vue'
 import VerdictPanel from '../components/VerdictPanel.vue'
-import { fetchCase, submitVerdict } from '../phishing.js'
+import { readAttempt, writeAttempt } from '../../../features/attempts/api.js'
 
-vi.mock('../phishing.js', async (original) => ({
-  ...(await original()),
-  fetchCase: vi.fn(),
-  submitVerdict: vi.fn(),
+vi.mock('../../../features/attempts/api.js', () => ({
+  readAttempt: vi.fn(),
+  writeAttempt: vi.fn(),
+  listAttemptContexts: vi.fn(),
+  safeAttemptError: (failure) => ({
+    message: failure?.response?.data?.error?.message ?? 'Could not reach saved play.',
+    status: failure?.response?.status ?? 0,
+  }),
 }))
 
-afterEach(() => vi.clearAllMocks())
+// jsdom has no element scrollTo
+Element.prototype.scrollTo = vi.fn()
+
+afterEach(() => vi.resetAllMocks())
 
 const email = {
   id: 'a11',
@@ -36,6 +44,21 @@ const options = [
   { id: 'ev-c', label: 'Clue C' },
 ]
 
+async function mountPage(attemptId) {
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: '/', component: { template: '<div />' } },
+      { path: '/games/phishing-post-mortem', component: PhishingPostMortem },
+    ],
+  })
+  await router.push({ path: '/games/phishing-post-mortem', query: { attempt: attemptId } })
+  await router.isReady()
+  const wrapper = mount(PhishingPostMortem, { global: { plugins: [router] } })
+  await flushPromises()
+  return wrapper
+}
+
 describe('inbox list', () => {
   it('shows every message with its sender and emits the opened id', async () => {
     const wrapper = mount(InboxList, {
@@ -50,21 +73,39 @@ describe('inbox list', () => {
 
 describe('phishing case page', () => {
   it('keeps a failed verdict visible and lets the learner retry it', async () => {
-    fetchCase.mockResolvedValue({
-      caseId: 'case-01',
-      datasetVersion: '2026-09-21',
-      title: 'Test case',
-      organisation: 'Testco',
-      briefing: 'Find it',
-      timezoneLabel: 'SGT (UTC+8)',
-      emails: [{ ...email, read: undefined }],
-      timeline: [{ id: 't1', at: '2026-09-14T00:30:00.000Z', label: 'Proxy', detail: 'opened' }],
-      evidenceOptions: options,
-    })
+    const attempt = {
+      gameId: 'phishing-post-mortem',
+      attemptId: 'att-1',
+      revision: 0,
+      status: 'active',
+      score: 0,
+      maxScore: 100,
+      publicState: {
+        verdict: null,
+        case: {
+          caseId: 'case-01',
+          datasetVersion: '2026-09-21',
+          title: 'Test case',
+          organisation: 'Testco',
+          briefing: 'Find it',
+          timezoneLabel: 'SGT (UTC+8)',
+          requiredEvidence: 2,
+          emails: [email],
+          timeline: [
+            { id: 't1', at: '2026-09-14T00:30:00.000Z', label: 'Proxy', detail: 'opened' },
+          ],
+          evidenceOptions: options,
+        },
+      },
+    }
+    readAttempt.mockResolvedValue(attempt)
     let finishRetry
-    submitVerdict
+    writeAttempt
       .mockRejectedValueOnce({
-        response: { data: { error: { message: 'The verdict service is unavailable.' } } },
+        response: {
+          status: 503,
+          data: { error: { message: 'The verdict service is unavailable.' } },
+        },
       })
       .mockImplementationOnce(
         () =>
@@ -73,10 +114,7 @@ describe('phishing case page', () => {
           }),
       )
 
-    const wrapper = mount(PhishingPostMortem, {
-      global: { stubs: { RouterLink: { template: '<a><slot /></a>' } } },
-    })
-    await flushPromises()
+    const wrapper = await mountPage('att-1')
     await wrapper.get('.sharmail-row').trigger('click')
     await wrapper.get('.sharmail-accuse').trigger('click')
     await wrapper.findAll('input[type="checkbox"]')[0].setValue(true)
@@ -94,30 +132,38 @@ describe('phishing case page', () => {
       .find((button) => button.text() === 'Retry verdict')
     expect(retryButton.exists()).toBe(true)
 
-    const clues = wrapper.findAll('input[type="checkbox"]')
-    await clues[0].setValue(false)
-    expect(retryButton.attributes('disabled')).toBeDefined()
-    await clues[0].setValue(true)
-    expect(retryButton.attributes('disabled')).toBeUndefined()
-
     await retryButton.trigger('click')
-    expect(retryButton.attributes('disabled')).toBeDefined()
-    finishRetry({
-      score: 100,
-      maxScore: 100,
-      result: { emailCorrect: true },
-      feedback: { summary: 'The evidence supports your verdict.' },
-      debrief: {
-        summary: 'The message started the incident.',
-        patientZero: {
-          subject: email.subject,
-          senderName: email.senderName,
-          senderAddress: email.senderAddress,
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+    const judged = {
+      ...attempt,
+      revision: 1,
+      publicState: {
+        ...attempt.publicState,
+        verdict: {
+          score: 100,
+          result: { emailCorrect: true },
+          feedback: { summary: 'The evidence supports your verdict.' },
+          debrief: {
+            summary: 'The message started the incident.',
+            patientZero: {
+              subject: email.subject,
+              senderName: email.senderName,
+              senderAddress: email.senderAddress,
+            },
+            chain: ['A link was opened.'],
+            evidence: [],
+            decoys: [],
+          },
         },
-        chain: ['A link was opened.'],
-        evidence: [],
-        decoys: [],
       },
+    }
+    finishRetry(judged)
+    writeAttempt.mockResolvedValueOnce({
+      ...judged,
+      revision: 2,
+      status: 'completed',
+      score: 100,
+      persisted: true,
     })
     await flushPromises()
     expect(wrapper.text()).toContain('100 / 100 points')

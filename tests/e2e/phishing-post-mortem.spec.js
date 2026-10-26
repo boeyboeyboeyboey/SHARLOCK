@@ -1,6 +1,8 @@
 import { test, expect } from './fixtures/auth.js'
 import { readFileSync } from 'node:fs'
+import { randomBytes } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
+import { seedClass, signedInPage } from './fixtures/class.js'
 
 const MODULE = '../../server/src/modules/games/phishing-post-mortem'
 const load = (relativePath) =>
@@ -19,13 +21,36 @@ test.beforeEach(async ({ page }) => {
   )
 })
 
-async function openCase(page) {
-  await page.goto('/games/phishing-post-mortem')
-  await expect(page.getByRole('heading', { name: 'The Phishing Post-Mortem' })).toBeVisible()
+// the server picks the case, so the spec reads the served title to find its answer key
+async function startCase(page, contextOption = 'personal') {
+  await page.getByLabel('Save this case to').selectOption(contextOption)
+  await page.getByRole('button', { name: 'Open the case' }).click()
+  await expect(page).toHaveURL(/attempt=/)
+  await expect(page.locator('.sharmail-briefing h2')).toBeVisible()
   const title = await page.locator('.sharmail-briefing h2').textContent()
   const active = CASES.find((entry) => entry.content.title === title.trim())
   expect(active, 'served case should be one of the authored cases').toBeTruthy()
   return active
+}
+
+async function openCase(page) {
+  await page.goto('/games/phishing-post-mortem')
+  await expect(page.getByRole('heading', { name: 'The Phishing Post-Mortem' })).toBeVisible()
+  return startCase(page)
+}
+
+async function solve(page, active, isMobile) {
+  const patientZero = active.content.emails.find(
+    (email) => email.id === active.answers.patientZeroId,
+  )
+  await openMessage(page, patientZero, isMobile)
+  await page.getByRole('button', { name: 'Accuse this message' }).click()
+  await openEvidence(page)
+  for (const evidenceId of active.answers.evidenceIds) {
+    const option = active.content.evidenceOptions.find((entry) => entry.id === evidenceId)
+    await page.getByRole('checkbox', { name: option.label }).check()
+  }
+  await page.getByRole('button', { name: 'Submit final verdict' }).click()
 }
 
 // the clue checkboxes live in a panel opened from the docked verdict bar
@@ -61,7 +86,7 @@ test('solves a case end to end and scores the full hundred', async ({ page }, te
 
   await expect(page.getByRole('heading', { name: '100 / 100 points' })).toBeVisible()
   await expect(page.getByText('Verdict upheld')).toBeVisible()
-  await expect(page.getByText('Not saved.', { exact: false })).toBeVisible()
+  await expect(page.getByText('Result saved to your account.')).toBeVisible()
   await expect(page.getByText(active.answers.chain[0], { exact: false })).toBeVisible()
 
   // finished cases stay readable: reopen Patient Zero from the inbox, then return to the debrief
@@ -94,7 +119,8 @@ test('a wrong verdict scores nothing and still reveals the chain', async ({ page
 test('never sends the answer key to the browser before a verdict', async ({ page }) => {
   const payloads = []
   page.on('response', async (response) => {
-    if (response.url().includes('/api/games/phishing-post-mortem/case'))
+    const url = response.url()
+    if (url.includes('/api/games/phishing-post-mortem/attempts') || url.includes('/api/attempts/'))
       payloads.push(await response.text())
   })
   const active = await openCase(page)
@@ -118,30 +144,32 @@ test('link destinations are inert and only shown on request', async ({ page }, t
   await expect(page.getByText(link.destination, { exact: false })).toHaveCount(0)
   await page.getByRole('button', { name: 'Inspect destination' }).first().click()
   await expect(page.getByText(link.destination, { exact: false })).toBeVisible()
-  await expect(page).toHaveURL(/\/games\/phishing-post-mortem$/)
+  await expect(page).toHaveURL(/\/games\/phishing-post-mortem\?attempt=/)
   await expect(page.locator('.sharmail-links a')).toHaveCount(0)
 })
 
-test('replay hands over the other case', async ({ page }, testInfo) => {
+test('play again returns to the chooser for a fresh server-picked case', async ({
+  page,
+}, testInfo) => {
   const isMobile = testInfo.project.name === 'mobile-chromium'
   const active = await openCase(page)
-  const patientZero = active.content.emails.find(
-    (email) => email.id === active.answers.patientZeroId,
-  )
-
-  await openMessage(page, patientZero, isMobile)
-  await page.getByRole('button', { name: 'Accuse this message' }).click()
-  await openEvidence(page)
-  for (const evidenceId of active.answers.evidenceIds) {
-    const option = active.content.evidenceOptions.find((entry) => entry.id === evidenceId)
-    await page.getByRole('checkbox', { name: option.label }).check()
-  }
-  await page.getByRole('button', { name: 'Submit final verdict' }).click()
+  await solve(page, active, isMobile)
   await expect(page.getByRole('heading', { name: '100 / 100 points' })).toBeVisible()
 
-  await page.getByRole('button', { name: 'Investigate the other case' }).click()
-  const other = CASES.find((entry) => entry.id !== active.id)
-  await expect(page.locator('.sharmail-briefing h2')).toHaveText(other.content.title)
+  await page.getByRole('button', { name: 'Play again' }).click()
+  await expect(page).not.toHaveURL(/attempt=/)
+  await expect(page.getByLabel('Save this case to')).toBeVisible()
+  await startCase(page)
+})
+
+test('resumes a saved attempt from its address', async ({ page }, testInfo) => {
+  const isMobile = testInfo.project.name === 'mobile-chromium'
+  const active = await openCase(page)
+  await solve(page, active, isMobile)
+  await expect(page.getByText('Result saved to your account.')).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole('heading', { name: '100 / 100 points' })).toBeVisible()
+  await expect(page.getByText('Result saved to your account.')).toBeVisible()
 })
 
 test('the inbox panes follow the responsive layout and return focus to the message row', async ({
@@ -198,14 +226,14 @@ test('recovers from a rejected verdict without losing the case', async ({ page }
   )
   let rejectFirstSubmission = true
 
-  await page.route('**/api/games/phishing-post-mortem/verdict', async (route) => {
+  await page.route('**/api/attempts/*/actions', async (route) => {
     if (rejectFirstSubmission) {
       rejectFirstSubmission = false
       await route.fulfill({
         status: 503,
         contentType: 'application/json',
         body: JSON.stringify({
-          error: { message: 'The verdict service is unavailable. Try again or reload this case.' },
+          error: { message: 'The verdict service is unavailable. Try again.' },
         }),
       })
       return
@@ -222,14 +250,14 @@ test('recovers from a rejected verdict without losing the case', async ({ page }
   }
   await page.getByRole('button', { name: 'Submit final verdict' }).click()
 
-  await expect(page.getByRole('alert')).toContainText('Try again or reload this case.')
+  await expect(page.getByRole('alert')).toContainText('Retry to check the same request.')
   await expect(page.locator('.sharmail-row[aria-current="true"]')).toHaveAttribute(
     'data-email-id',
     patientZero.id,
   )
-  await expect(page.getByRole('button', { name: 'Reload case' })).toBeVisible()
   await page.getByRole('button', { name: 'Retry verdict' }).click()
   await expect(page.getByRole('heading', { name: '100 / 100 points' })).toBeVisible()
+  await expect(page.getByText('Result saved to your account.')).toBeVisible()
 })
 
 test('fits every supported width without a horizontal page scrollbar', async ({ page }) => {
@@ -295,4 +323,30 @@ test('keeps the shared town styles after leaving the game', async ({ page }) => 
       }),
     )
     .toEqual(bodyStyle)
+})
+
+test('a class student saves a solved case and appears on the class leaderboard', async ({
+  browser,
+  baseURL,
+}, testInfo) => {
+  const isMobile = testInfo.project.name === 'mobile-chromium'
+  const seeded = await seedClass(randomBytes(4).toString('hex'))
+  const { context, page } = await signedInPage(browser, baseURL, seeded.studentA)
+  try {
+    await page.goto('/games/phishing-post-mortem')
+    const active = await startCase(page, seeded.classId)
+    await solve(page, active, isMobile)
+    await expect(page.getByRole('heading', { name: '100 / 100 points' })).toBeVisible()
+    await expect(page.getByText('Result saved to your account.')).toBeVisible()
+
+    await page.goto('/leaderboard')
+    await expect(
+      page.getByRole('heading', { level: 2, name: /The Phishing Post-Mortem/ }),
+    ).toBeVisible()
+    const own = page.getByRole('row', { name: new RegExp(seeded.studentA.username) })
+    await expect(own).toHaveCount(1)
+    await expect(own).toContainText('(you)')
+  } finally {
+    await context.close()
+  }
 })

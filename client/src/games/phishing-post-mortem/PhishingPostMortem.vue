@@ -1,5 +1,8 @@
 <script setup>
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import AttemptContextChooser from '../../features/attempts/components/AttemptContextChooser.vue'
+import SavedAttemptResult from '../../features/attempts/components/SavedAttemptResult.vue'
 import CaseDebrief from './components/CaseDebrief.vue'
 import EmailInspector from './components/EmailInspector.vue'
 import EvidenceTimeline from './components/EvidenceTimeline.vue'
@@ -9,13 +12,17 @@ import VerdictPanel from './components/VerdictPanel.vue'
 import { usePhishingCase } from './composables/usePhishingCase.js'
 import './phish.css'
 
+const route = useRoute()
+const router = useRouter()
 const {
+  snapshot,
   caseFile,
   emails,
-  loading,
-  submitting,
-  loadError,
-  submissionError,
+  busy,
+  error,
+  retryable,
+  completed,
+  unsaved,
   result,
   selectedEmailId,
   selectedEmail,
@@ -24,10 +31,12 @@ const {
   selectedEvidenceIds,
   pane,
   reviewing,
-  canSubmit,
+  start,
   load,
-  replay,
   submit,
+  save,
+  retry,
+  resetGame,
   selectEmail,
   accuse,
   inspectLink,
@@ -39,7 +48,22 @@ const {
 const readingPane = ref(null)
 const unread = computed(() => emails.value.filter((email) => !email.read).length)
 
-onMounted(() => load())
+const initializing = ref(true)
+
+onMounted(async () => {
+  if (typeof route.query.attempt === 'string') await load(route.query.attempt)
+  initializing.value = false
+})
+
+async function begin(context) {
+  if (await start(context)) await router.replace({ query: { attempt: snapshot.value.attemptId } })
+}
+
+// replay returns to the chooser, and the server picks the next case
+async function replay() {
+  await router.replace({ query: {} })
+  resetGame()
+}
 
 // the reading pane scrolls inside the page, so a new message or the debrief starts at the top
 watch([selectedEmailId, result, reviewing], async () => {
@@ -88,14 +112,44 @@ async function backToInbox() {
       </p>
     </div>
 
-    <p v-if="loading" class="phish-state" role="status">Opening the case file...</p>
+    <p v-if="busy && !caseFile" class="phish-state" role="status">Opening the case file...</p>
 
-    <div v-else-if="loadError" class="phish-state phish-error" role="alert">
-      <p>{{ loadError }}</p>
-      <button type="button" class="sharmail-submit" @click="load()">Try again</button>
+    <div v-if="error" class="phish-state phish-error" role="alert">
+      <p>{{ error }}</p>
+      <button
+        v-if="retryable"
+        type="button"
+        class="sharmail-submit"
+        :disabled="busy"
+        @click="retry"
+      >
+        {{ unsaved ? 'Retry save' : 'Retry verdict' }}
+      </button>
+      <button
+        v-else-if="snapshot"
+        type="button"
+        class="sharmail-inspect"
+        :disabled="busy"
+        @click="load(snapshot.attemptId)"
+      >
+        Reload case
+      </button>
     </div>
 
-    <template v-else-if="caseFile">
+    <section v-if="!snapshot && !initializing" class="phish-state" aria-labelledby="phish-start">
+      <h2 id="phish-start">Open a case</h2>
+      <p>
+        The server picks the case. Your verdict is scored there and saved as a result of up to 100
+        points.
+      </p>
+      <AttemptContextChooser :disabled="busy" @start="begin" />
+    </section>
+
+    <component
+      :is="completed ? SavedAttemptResult : 'div'"
+      v-else-if="caseFile"
+      v-bind="completed ? { attempt: snapshot, onReplay: replay } : {}"
+    >
       <SharmailShell :mailbox="caseFile.organisation" :case-title="caseFile.title" :unread="unread">
         <section
           class="sharmail-pane sharmail-pane-list"
@@ -122,7 +176,7 @@ async function backToInbox() {
         >
           <button type="button" class="sharmail-back" @click="backToInbox">Back to inbox</button>
 
-          <CaseDebrief v-if="result && !reviewing" :result="result" @replay="replay" />
+          <CaseDebrief v-if="result && !reviewing" :result="result" />
 
           <template v-else>
             <div v-if="reviewing" class="sharmail-review-bar">
@@ -177,22 +231,16 @@ async function backToInbox() {
             :selected-subject="accusedEmail?.subject ?? ''"
             :evidence-options="caseFile.evidenceOptions"
             :selected-evidence-ids="selectedEvidenceIds"
-            :disabled="submitting"
+            :disabled="busy"
             @update-evidence="setEvidence"
             @submit-verdict="submit"
           />
         </template>
       </SharmailShell>
 
-      <div v-if="submissionError" class="phish-state phish-error" role="alert">
-        <p>{{ submissionError }}</p>
-        <button type="button" class="sharmail-submit" :disabled="!canSubmit" @click="submit">
-          Retry verdict
-        </button>
-        <button type="button" class="sharmail-inspect" :disabled="submitting" @click="load()">
-          Reload case
-        </button>
+      <div v-if="unsaved && !error && !busy" class="phish-state">
+        <button type="button" class="sharmail-submit" @click="save">Save result</button>
       </div>
-    </template>
+    </component>
   </div>
 </template>

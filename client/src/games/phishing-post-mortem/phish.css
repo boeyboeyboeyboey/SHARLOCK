@@ -638,12 +638,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-:where(.phish-game) .sharmail-debrief-unsaved {
-  margin: 0.75rem 0 0;
-  font-size: 0.85rem;
-  color: var(--game-muted);
-}
-
 :where(.phish-game) .sharmail-debrief-summary,
 :where(.phish-game) .sharmail-debrief p {
   max-width: 68ch;

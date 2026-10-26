@@ -2,7 +2,6 @@
 defineProps({
   result: { type: Object, required: true },
 })
-defineEmits(['replay'])
 </script>
 
 <template>
@@ -18,10 +17,6 @@ defineEmits(['replay'])
         {{ result.score }} / {{ result.maxScore }} points
       </h2>
       <p>{{ result.feedback.summary }}</p>
-      <p class="sharmail-debrief-unsaved">
-        Not saved. Sign-in and saved results are a separate piece of work, so this score is for this
-        sitting only.
-      </p>
     </header>
 
     <h3>What actually happened</h3>
@@ -64,9 +59,5 @@ defineEmits(['replay'])
         <p>{{ decoy.note }}</p>
       </li>
     </ul>
-
-    <button type="button" class="sharmail-submit" @click="$emit('replay')">
-      Investigate the other case
-    </button>
   </section>
 </template>

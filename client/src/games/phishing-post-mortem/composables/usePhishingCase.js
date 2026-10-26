@@ -1,15 +1,11 @@
-import { computed, onBeforeUnmount, ref } from 'vue'
-import { fetchCase, newActionId, phishingErrorMessage, submitVerdict } from '../phishing.js'
+import { computed, ref, watch } from 'vue'
+import { useAttempt } from '../../../features/attempts/useAttempt.js'
 
 export const REQUIRED_EVIDENCE = 2
 
 export function usePhishingCase() {
-  const caseFile = ref(null)
-  const loading = ref(false)
-  const submitting = ref(false)
-  const loadError = ref('')
-  const submissionError = ref('')
-  const result = ref(null)
+  const attempt = useAttempt('phishing-post-mortem')
+  const { snapshot, busy, error, retryable } = attempt
   const selectedEmailId = ref('')
   const accusedEmailId = ref('')
   const readEmailIds = ref([])
@@ -18,10 +14,15 @@ export function usePhishingCase() {
   const pane = ref('message')
   const reviewing = ref(false)
 
-  let controller
-  let generation = 0
-  let disposed = false
-  let actionId = ''
+  const caseFile = computed(() => snapshot.value?.publicState?.case ?? null)
+  // the debrief component reads one object: the server verdict plus the attempt's max score
+  const result = computed(() => {
+    const verdict = snapshot.value?.publicState?.verdict
+    return verdict ? { ...verdict, maxScore: snapshot.value.maxScore } : null
+  })
+  const completed = computed(() => snapshot.value?.status === 'completed')
+  // a verdict exists but the attempt is not saved yet
+  const unsaved = computed(() => Boolean(result.value) && !completed.value)
 
   const findEmail = (id) => caseFile.value?.emails.find((email) => email.id === id) ?? null
   const selectedEmail = computed(() => findEmail(selectedEmailId.value))
@@ -37,7 +38,8 @@ export function usePhishingCase() {
     () =>
       Boolean(accusedEmailId.value) &&
       selectedEvidenceIds.value.length === REQUIRED_EVIDENCE &&
-      !submitting.value &&
+      !busy.value &&
+      !retryable.value &&
       !result.value,
   )
 
@@ -47,11 +49,12 @@ export function usePhishingCase() {
     readEmailIds.value = []
     inspectedLinkIds.value = []
     selectedEvidenceIds.value = []
-    result.value = null
     reviewing.value = false
     pane.value = 'message'
-    actionId = newActionId()
   }
+
+  // a different attempt means a different case, so the inbox starts clean
+  watch(() => snapshot.value?.attemptId, reset)
 
   function selectEmail(id) {
     selectedEmailId.value = id
@@ -83,79 +86,51 @@ export function usePhishingCase() {
     pane.value = 'inbox'
   }
 
-  async function load(after = null) {
-    controller?.abort()
-    controller = new AbortController()
-    // a generation guard keeps a slow earlier response from overwriting a newer case
-    const request = (generation += 1)
-    loading.value = true
-    loadError.value = ''
-    submissionError.value = ''
-    caseFile.value = null
-    reset()
-    try {
-      const data = await fetchCase(after, controller.signal)
-      if (disposed || request !== generation) return
-      caseFile.value = data
-    } catch (requestError) {
-      if (disposed || request !== generation) return
-      loadError.value = phishingErrorMessage(
-        requestError,
-        'The case file could not be opened. Check your connection and try again.',
-      )
-    } finally {
-      if (!disposed && request === generation) loading.value = false
-    }
+  // saving follows the verdict straight away; a failed save stays retryable
+  async function save() {
+    if (retryable.value) return attempt.retry()
+    return attempt.complete()
   }
 
   async function submit() {
-    if (!canSubmit.value || !caseFile.value) return
-    const request = generation
-    submitting.value = true
-    try {
-      const data = await submitVerdict(
-        {
-          caseId: caseFile.value.caseId,
-          datasetVersion: caseFile.value.datasetVersion,
-          actionId,
-          selectedEmailId: accusedEmailId.value,
-          evidenceIds: [...selectedEvidenceIds.value],
-        },
-        controller?.signal,
-      )
-      if (disposed || request !== generation) return
-      result.value = data
+    if (!canSubmit.value) return false
+    const sent = await attempt.mutate('submit-verdict', {
+      selectedEmailId: accusedEmailId.value,
+      evidenceIds: [...selectedEvidenceIds.value],
+    })
+    if (!sent) return false
+    reviewing.value = false
+    pane.value = 'message'
+    return attempt.complete()
+  }
+
+  // a failed verdict retries the same request; after a verdict the retry is the save
+  async function retry() {
+    const ok = await attempt.retry()
+    if (!ok) return false
+    if (snapshot.value?.status === 'active' && result.value) {
       reviewing.value = false
-      submissionError.value = ''
       pane.value = 'message'
-    } catch (requestError) {
-      if (disposed || request !== generation) return
-      submissionError.value = phishingErrorMessage(
-        requestError,
-        'That verdict could not be submitted. Try again in a moment.',
-      )
-    } finally {
-      if (!disposed && request === generation) submitting.value = false
+      return attempt.complete()
     }
+    return true
   }
 
-  function replay() {
-    return load(caseFile.value?.caseId ?? null)
+  function resetGame() {
+    snapshot.value = null
+    error.value = ''
   }
-
-  onBeforeUnmount(() => {
-    disposed = true
-    controller?.abort()
-  })
 
   return {
+    snapshot,
     caseFile,
     emails,
-    loading,
-    submitting,
-    loadError,
-    submissionError,
+    busy,
+    error,
+    retryable,
     result,
+    completed,
+    unsaved,
     selectedEmailId,
     selectedEmail,
     accusedEmailId,
@@ -165,14 +140,17 @@ export function usePhishingCase() {
     pane,
     reviewing,
     canSubmit,
-    load,
-    replay,
+    start: attempt.start,
+    load: attempt.load,
     submit,
+    save,
+    retry,
     selectEmail,
     accuse,
     inspectLink,
     setEvidence,
     showInbox,
     backToDebrief,
+    resetGame,
   }
 }
