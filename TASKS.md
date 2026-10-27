@@ -270,6 +270,11 @@ No active implementation task.
 - **Consumers:** `hashPassword`, `verifyPassword` and `verifyDummyPassword` (login, registration, activation, recovery, fixtures that hash directly); the client message in `client/src/features/auth/api.js` is unchanged. Rate limits are unchanged.
 - **Checks (27 October 2026):** `pnpm exec vitest run --project server server/tests/unit` exit 0 (password file 5/5); `node scripts/run-with-test-db.mjs integration server/tests/integration/auth --no-file-parallelism` 26 passed, 2 skipped, exit 0; eslint clean on changed files; `prettier --check` clean on the code and test (the auth README already failed prettier on `origin/main` in an existing table, left unchanged).
 
+**DOC-17 — Close the phishing `scrollTo` test gap** · Status: **Review** · Contributor: **Boey** · Branch: `doc-17-scrollto-gap` · Approved by Boey on 27 October 2026.
+
+- **Scope:** `docs/course-alignment.md` open-gaps row 2 marked closed with evidence; documentation only. Owner of the tests: Athithya (no test or component change). The component still calls `readingPane.value?.scrollTo` unguarded (`PhishingPostMortem.vue:69-72`), which real browsers support; jsdom lacks it, so the tests stub it at `client/src/games/phishing-post-mortem/__tests__/game.test.js:91-92` and `components.test.js:20-21`.
+- **Checks (27 October 2026):** `pnpm test:unit` on `main` `12a6a90`: 111 files, 1277/1277, exit 0, no unhandled errors; `prettier --check docs/course-alignment.md TASKS.md` clean.
+
 **BOARD-01 — Class leaderboards** · Status: **Review** · Contributor: **Boey** · Branch: `board-01-class-leaderboards` (cut from `origin/main` at `9e6c3a1`, 27 October 2026, upstream unset). Plan approved by Boey on 27 October 2026. Spec: [BOARD-01](#board-01--cohort-leaderboards).
 
 - **Collision check (27 October 2026):** no leaderboard code on `main`, in local or remote branch names, or in the `admin-01-b-admin-controls` (Codex admin-controls) worktree. Existing references are only the `/leaderboard` ComingSoon placeholder (`client/src/router/index.js`), nav links (`Navbar.vue:34`, `PortalLayout.vue:30`), the pixel-wipe label, docs mentions, and an empty `server/src/modules/leaderboards/.gitkeep`. Remote branch contents, PRs and teammates' machines were not inspected.
