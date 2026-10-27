@@ -11,6 +11,7 @@ const props = defineProps({
 })
 defineEmits(['openMenu', 'signOut'])
 const avatar = computed(() => avatarFor(props.user?.avatarId))
+const roles = computed(() => props.user?.globalRoles ?? [])
 const menuButton = ref(null)
 defineExpose({ focusMenu: () => menuButton.value?.focus() })
 </script>
@@ -44,6 +45,18 @@ defineExpose({ focusMenu: () => menuButton.value?.focus() })
         >Meet Sharlock</RouterLink
       >
       <template v-if="user">
+        <RouterLink
+          v-if="roles.includes('admin')"
+          to="/admin"
+          class="header-link role-link role-link--admin d-none d-md-inline-flex"
+          >Admin</RouterLink
+        >
+        <RouterLink
+          v-if="roles.includes('instructor')"
+          to="/instructor"
+          class="header-link role-link role-link--instructor d-none d-md-inline-flex"
+          >Instructor</RouterLink
+        >
         <RouterLink
           v-if="!town"
           to="/profile"

@@ -217,6 +217,7 @@ pnpm test:e2e          # Playwright journeys on a phone and a desktop viewport
 - Mouse: click the ground to walk there; drag to orbit; scroll to zoom. A destination list button walks Sharlock to that building, and on arrival "Enter <building>" opens it. "Reset camera" is a button. On desktop the minimap (bottom right) travels to a building when you click its pin.
 - Touch (phones and tablets): the joystick at the top right walks, and the "Jump" button next to the joystick jumps; drag to orbit; pinch to zoom. The "Map" button opens a full-screen map (Esc closes it) whose pins travel to a building.
 - Standing still for a while, Sharlock looks around, sits down and yawns.
+- Staff reach their areas from the header (768px and up) or the sidebar: admins see an **Admin** button and instructors an **Instructor** button; students see neither.
 - The daily briefing newsstand opens the newspaper as an overlay on the hub. Closing it returns to the hub, and hub input is paused while it is open.
 
 **2D mode** (the "2D map" toggle; the choice is remembered)

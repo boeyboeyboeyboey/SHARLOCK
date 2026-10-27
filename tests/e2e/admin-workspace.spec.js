@@ -124,7 +124,13 @@ test('admin manages institutions, assignments, audit history, and account access
   let freshStudentContext
 
   try {
-    await page.goto('/admin')
+    if (!testInfo.project.use.isMobile) {
+      await page.goto('/profile')
+      await page.getByRole('link', { name: 'Admin', exact: true }).click()
+      await expect(page).toHaveURL(/\/admin$/)
+    } else {
+      await page.goto('/admin')
+    }
     await expect(page.getByRole('heading', { name: 'Admin workspace' })).toBeVisible()
 
     await page.getByLabel('Institution name').fill(institutionName)

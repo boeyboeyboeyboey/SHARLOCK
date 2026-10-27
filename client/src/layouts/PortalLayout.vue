@@ -29,10 +29,24 @@ const navigation = computed(() => [
     : []),
   { to: '/leaderboard', label: 'Cohort leaderboard', icon: 'people' },
   ...(auth.user?.globalRoles?.some((role) => ['instructor', 'admin'].includes(role))
-    ? [{ to: '/instructor', label: 'Class enrollment', icon: 'people' }]
+    ? [
+        {
+          to: '/instructor',
+          label: 'Class enrollment',
+          icon: 'people',
+          roleClass: 'role-link--instructor',
+        },
+      ]
     : []),
   ...(auth.user?.globalRoles?.includes('admin')
-    ? [{ to: '/admin', label: 'Administrator workspace', icon: 'shield' }]
+    ? [
+        {
+          to: '/admin',
+          label: 'Administrator workspace',
+          icon: 'shield',
+          roleClass: 'role-link--admin',
+        },
+      ]
     : []),
 ])
 function openMenu() {
@@ -148,7 +162,12 @@ onBeforeUnmount(() => {
         />
         <p class="nav-caption">YOUR EXPLORER'S KIT</p>
         <nav class="nav flex-column portal-nav" aria-label="Main navigation">
-          <RouterLink v-for="item in navigation" :key="item.to" :to="item.to" class="nav-link"
+          <RouterLink
+            v-for="item in navigation"
+            :key="item.to"
+            :to="item.to"
+            class="nav-link"
+            :class="item.roleClass"
             ><PixelIcon :name="item.icon" :size="20" />{{ item.label
             }}<span class="active-nav-dot" aria-hidden="true"></span
           ></RouterLink>
