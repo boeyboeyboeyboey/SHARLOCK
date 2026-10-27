@@ -10,7 +10,7 @@ export const passwordHashOptions = Object.freeze({
 })
 
 const DUMMY_PASSWORD = 'sharlock-auth-dummy-verification-value'
-const maximumOperations = 2
+const gateLimits = Object.freeze({ maximumOperations: 2, maximumWaiting: 32, waitMs: 5000 })
 
 export class PasswordBusyError extends AuthError {
   constructor() {
@@ -19,15 +19,47 @@ export class PasswordBusyError extends AuthError {
   }
 }
 
-export function createPasswordGate() {
+// at most maximumOperations hashes run at once to bound memory; later callers wait in order
+// for a slot, and only a full queue or a wait past waitMs answers busy
+export function createPasswordGate(limits = gateLimits) {
+  const { maximumOperations, maximumWaiting, waitMs } = { ...gateLimits, ...limits }
   let activeOperations = 0
+  const waiting = []
+
+  function acquire() {
+    if (activeOperations < maximumOperations) {
+      activeOperations += 1
+      return Promise.resolve()
+    }
+    if (waiting.length >= maximumWaiting) return Promise.reject(new PasswordBusyError())
+    return new Promise((resolve, reject) => {
+      const entry = { resolve }
+      entry.timer = setTimeout(() => {
+        waiting.splice(waiting.indexOf(entry), 1)
+        reject(new PasswordBusyError())
+      }, waitMs)
+      entry.timer.unref?.()
+      waiting.push(entry)
+    })
+  }
+
+  function release() {
+    const next = waiting.shift()
+    if (!next) {
+      activeOperations -= 1
+      return
+    }
+    // the slot passes straight to the next caller, so activeOperations stays the same
+    clearTimeout(next.timer)
+    next.resolve()
+  }
+
   return async function runPasswordOperation(operation) {
-    if (activeOperations >= maximumOperations) throw new PasswordBusyError()
-    activeOperations += 1
+    await acquire()
     try {
       return await operation()
     } finally {
-      activeOperations -= 1
+      release()
     }
   }
 }
