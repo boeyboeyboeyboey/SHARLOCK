@@ -38,7 +38,7 @@ ClearanceTowerGame.vue ── useClearanceTower() ── useAttempt('clearance-t
 | `components/HowToPlayScene.vue`    | Code-built animated mini matrix, log and score for each guide step; static under reduced motion.                |
 | `components/*.vue`                 | Presentational pieces with explicit props and emits; none of them call the API.                                 |
 | `howToPlay.js`                     | Steps, learning line, rules and controls passed to the shared `HowToPlayDialog` (HOW-01).                       |
-| `clearance.css`                    | Every rule scoped under `.clearance-game`, using the town's light palette and Pixelify Sans.                    |
+| `clearance.css`                    | Scoped under `.clearance-game`; town light palette, DotGothic16 body, Pixelify Sans headings (FONT-06).         |
 
 ## Boundaries
 
