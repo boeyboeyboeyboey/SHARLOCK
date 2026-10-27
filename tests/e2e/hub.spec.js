@@ -319,7 +319,7 @@ test('turns the camera with Q and brings it back with the reset button and R', a
 test('minimap selects a destination and follows the player', async ({ page }, testInfo) => {
   await page.goto('/')
   await hubReady(page)
-  const compact = testInfo.project.name === 'mobile-chromium'
+  const compact = testInfo.project.name.endsWith('mobile-chromium')
   const map = page.getByTestId('hub-minimap')
   const toggle = page.getByTestId('hub-map-toggle')
   const id = 'social-engineering-simulator'
@@ -358,7 +358,7 @@ test('minimap selects a destination and follows the player', async ({ page }, te
 })
 
 test('the mobile map opens from the Map button and closes with Escape', async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile-chromium', 'the compact map only exists on phones')
+  test.skip(!testInfo.project.name.endsWith('mobile-chromium'), 'the compact map only exists on phones')
   await page.goto('/')
   await hubReady(page)
   const map = page.getByTestId('hub-minimap')
@@ -429,7 +429,7 @@ test('the jump button shows with the joystick on phones only', async ({ page }, 
   await page.goto('/')
   await hubReady(page)
   const jump = page.getByTestId('hub-jump')
-  if (testInfo.project.name === 'mobile-chromium') {
+  if (testInfo.project.name.endsWith('mobile-chromium')) {
     await expect(jump).toBeVisible(slow)
     await expect(jump).toHaveAccessibleName('Jump')
     const box = await jump.boundingBox()

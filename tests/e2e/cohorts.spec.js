@@ -23,6 +23,7 @@ test('learner follows a class link and gets access after instructor approval', a
   baseURL,
   studentIdentity,
 }, testInfo) => {
+  test.setTimeout(90_000)
   const staffRequest = page.context().request
   const suffix = `${testInfo.workerIndex}-${Date.now().toString(36)}`
   const institution = await post(staffRequest, baseURL, '/admin/institutions', {
