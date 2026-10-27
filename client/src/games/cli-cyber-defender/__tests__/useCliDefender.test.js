@@ -284,6 +284,30 @@ describe('cli defender composable', () => {
     expect(game.lines.value.filter((line) => line.text === 'First alert')).toHaveLength(1)
   })
 
+  it('sends resume only after a slow pause settles so keep playing ends unpaused', async () => {
+    const clock = { now: 50_000 }
+    startRun.mockResolvedValue(snapshot())
+    let settlePause
+    pauseRun.mockReturnValue(
+      new Promise((resolve) => {
+        settlePause = resolve
+      }),
+    )
+    resumeRun.mockResolvedValue(snapshot({ serverNow: 53_000, paused: false }))
+    const { game } = harness(clock)
+    await game.start('timed')
+    const pausing = game.pause()
+    await flushPromises()
+    const resuming = game.resume()
+    await flushPromises()
+    expect(resumeRun).not.toHaveBeenCalled()
+    settlePause(snapshot({ serverNow: 52_000, paused: true }))
+    await Promise.all([pausing, resuming])
+    expect(resumeRun).toHaveBeenCalledTimes(1)
+    expect(pauseRun.mock.invocationCallOrder[0]).toBeLessThan(resumeRun.mock.invocationCallOrder[0])
+    expect(game.paused.value).toBe(false)
+  })
+
   it('never pauses practice', async () => {
     startRun.mockResolvedValue(snapshot({ mode: 'practice' }))
     const { game } = harness({ now: 50_000 })
