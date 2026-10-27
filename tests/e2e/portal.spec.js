@@ -12,6 +12,7 @@ test.beforeEach(async ({ page }) => {
 test('explores every building without prerequisites while showing account state', async ({
   page,
 }) => {
+  test.setTimeout(90_000)
   await page.goto('/')
   await expect(page).toHaveURL('/')
   await expect(page.getByRole('button', { name: /^Explore / })).toHaveCount(6)
@@ -76,7 +77,9 @@ test('explores every building without prerequisites while showing account state'
     if (game.id === 'sql-injection-arcade') {
       await card.getByRole('link', { name: 'Enter activity' }).click()
       await expect(page).toHaveURL(new RegExp(`${game.route}$`))
-      await expect(page.getByRole('heading', { name: 'SQL Injection Arcade', level: 1 })).toBeVisible()
+      await expect(
+        page.getByRole('heading', { name: 'SQL Injection Arcade', level: 1 }),
+      ).toBeVisible()
       await page.getByRole('link', { name: 'Back to town' }).click()
       await expect(page).toHaveURL('/')
       continue

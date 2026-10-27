@@ -123,6 +123,7 @@ test('shares sections and filters while local search and pagination spend no req
   await expect(page).toHaveURL(/q=passkey/)
   expect(requests).toHaveLength(1)
   await page.getByLabel('Search this edition').fill('')
+  await expect(page).not.toHaveURL(/[?&]q=/)
   await page.getByRole('button', { name: 'Technology', exact: true }).click()
   await expect(dialog.locator('.gazette-article').first()).toContainText('Synthetic technology')
   await page.getByRole('combobox', { name: 'Edition', exact: true }).selectOption('month')

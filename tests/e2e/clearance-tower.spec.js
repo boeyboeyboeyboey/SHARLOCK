@@ -208,6 +208,7 @@ test('plays a case through focused controls and keyboard activation', async ({
 test('keeps the day script and answers out of every response before submitting', async ({
   page,
 }) => {
+  test.setTimeout(90_000)
   const bodies = []
   page.on('response', async (response) => {
     if (

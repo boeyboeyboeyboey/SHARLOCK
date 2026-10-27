@@ -7,6 +7,7 @@ const props = defineProps({
   expiresAt: { type: String, default: '' },
   revision: { type: Number, default: 0 },
   pending: { type: Boolean, default: false },
+  loading: { type: Boolean, default: false },
 })
 const emit = defineEmits(['generate', 'revoke', 'clear'])
 const rawCode = ref('')
@@ -84,7 +85,7 @@ defineExpose({ receiveCode, clearCode })
       <button
         class="btn btn-secondary"
         type="button"
-        :disabled="pending"
+        :disabled="pending || loading"
         @click="$emit('revoke', { id: code.id, revision })"
       >
         Revoke code
@@ -92,7 +93,7 @@ defineExpose({ receiveCode, clearCode })
       <button
         class="btn btn-primary"
         type="button"
-        :disabled="pending"
+        :disabled="pending || loading"
         @click="$emit('generate', revision)"
       >
         Replace code
@@ -103,7 +104,7 @@ defineExpose({ receiveCode, clearCode })
       <button
         class="btn btn-primary"
         type="button"
-        :disabled="pending"
+        :disabled="pending || loading"
         @click="$emit('generate', revision)"
       >
         {{ pending ? 'Generating…' : 'Generate code' }}

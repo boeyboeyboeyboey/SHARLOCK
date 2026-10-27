@@ -32,6 +32,9 @@ export function searchEdition(articles, query) {
       .includes(needle),
   )
 }
+// latest intended query, so two updates before a replace commits do not read a stale route
+let pendingLocation = null
+
 export function useNewsLocation() {
   const route = useRoute()
   const router = useRouter()
@@ -48,8 +51,12 @@ export function useNewsLocation() {
   )
   function update(changes) {
     const resetPage = ['section', 'range', 'query'].some((key) => key in changes)
-    const value = { ...location.value, ...(resetPage && { page: 1 }), ...changes }
-    return router.replace({ name: 'news', query: newsQuery(value) })
+    const base = pendingLocation || location.value
+    const value = { ...base, ...(resetPage && { page: 1 }), ...changes }
+    pendingLocation = value
+    return router.replace({ name: 'news', query: newsQuery(value) }).finally(() => {
+      if (pendingLocation === value) pendingLocation = null
+    })
   }
   return {
     location,

@@ -321,7 +321,7 @@ export function useCliDefender({ now = () => Date.now(), tickMs = 100, onEvent =
         // the resume request resynchronises with the server either way
       }
     })()
-    await pausing
+    // report the local pause at once so a quick "keep playing" still resumes; resume awaits the request
     return true
   }
 

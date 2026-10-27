@@ -40,8 +40,17 @@ test('learner follows a class link and gets access after instructor approval', a
 
   await page.goto('/instructor')
   await expect(page.getByRole('heading', { name: 'Manage your classes' })).toBeVisible()
+  const isCodeRequest = (response, method) =>
+    new URL(response.url()).pathname.endsWith(`/cohorts/${classId}/enrollment-codes`) &&
+    response.request().method() === method
+  const codeLoaded = page.waitForResponse((response) => isCodeRequest(response, 'GET'))
   await page.getByLabel('Class', { exact: true }).selectOption(classId)
-  await page.getByRole('button', { name: 'Generate code' }).click()
+  await codeLoaded
+  const [generated] = await Promise.all([
+    page.waitForResponse((response) => isCodeRequest(response, 'POST')),
+    page.getByRole('button', { name: 'Generate code' }).click(),
+  ])
+  expect(generated.ok()).toBeTruthy()
   const linkField = page.getByLabel('Invitation link')
   const invitationUrl = await linkField.inputValue()
   await page.getByRole('button', { name: 'Close and clear code' }).click()

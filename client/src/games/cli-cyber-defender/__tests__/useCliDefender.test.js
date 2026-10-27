@@ -308,6 +308,22 @@ describe('cli defender composable', () => {
     expect(game.paused.value).toBe(false)
   })
 
+  it('reports a timed pause before its request settles so a quick stay can resume', async () => {
+    startRun.mockResolvedValue(snapshot())
+    let settlePause
+    pauseRun.mockReturnValue(
+      new Promise((resolve) => {
+        settlePause = resolve
+      }),
+    )
+    const { game } = harness({ now: 50_000 })
+    await game.start('timed')
+    await expect(game.pause()).resolves.toBe(true)
+    expect(game.paused.value).toBe(true)
+    settlePause(snapshot({ serverNow: 52_000, paused: true }))
+    await flushPromises()
+  })
+
   it('never pauses practice', async () => {
     startRun.mockResolvedValue(snapshot({ mode: 'practice' }))
     const { game } = harness({ now: 50_000 })
