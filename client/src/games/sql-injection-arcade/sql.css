@@ -464,8 +464,6 @@
     margin: 0;
   }
   .sql-game {
-    width: calc(100vw - var(--sidebar-width));
-    margin-inline: calc((100% - (100vw - var(--sidebar-width))) / 2);
     margin-block: -0.75rem -1rem;
     height: calc(100dvh - var(--shell-chrome) + 1.75rem);
     min-height: 380px;

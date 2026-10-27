@@ -1,5 +1,8 @@
 import { test, expect } from './fixtures/auth.js'
 
+// classic scrollbars take layout space, as on windows and linux desktops
+test.use({ launchOptions: { ignoreDefaultArgs: ['--hide-scrollbars'] } })
+
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('sharlock.townMode', '2d'))
   await page.route(/fonts\.(googleapis|gstatic)\.com/, (route) =>
@@ -103,6 +106,30 @@ test('reflows with keyboard access at required widths and fits the laptop viewpo
   await page.keyboard.type("' OR 1=1 --")
   await page.keyboard.press('Enter')
   await expect(page.getByRole('group', { name: 'Seal the breach' })).toBeVisible()
+})
+
+test.describe('with a classic vertical scrollbar', () => {
+  test('keeps the frame and back link inside the visible width', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop-chromium', 'desktop layout only')
+    await page.goto('/games/sql-injection-arcade')
+    await page.getByRole('button', { name: 'Open the case' }).click()
+    await page.addStyleTag({ content: 'html{overflow-y:scroll}' })
+    for (const width of [992, 1200, 1440]) {
+      await page.setViewportSize({ width, height: 900 })
+      const edges = await page.evaluate(() => ({
+        scrollbar: innerWidth - document.documentElement.clientWidth,
+        visible: document.documentElement.clientWidth,
+        game: document.querySelector('.sql-game').getBoundingClientRect().right,
+      }))
+      expect(edges.scrollbar).toBeGreaterThan(0)
+      const back = await page
+        .getByRole('link', { name: /Back to town/ })
+        .first()
+        .boundingBox()
+      expect(edges.game).toBeLessThanOrEqual(edges.visible)
+      expect(back.x + back.width).toBeLessThanOrEqual(edges.visible)
+    }
+  })
 })
 
 test('enters through the existing town destination and legacy alias', async ({ page }) => {
