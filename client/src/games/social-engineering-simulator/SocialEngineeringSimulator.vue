@@ -89,7 +89,12 @@ const fitsViewport = computed(() => inConversation.value || status.value === 'br
     </div>
 
     <div v-if="status === 'choosing'" class="soc-state soc-start">
-      <AttemptContextChooser :disabled="pending" @start="start" />
+      <AttemptContextChooser
+        :disabled="pending"
+        label="Save this call to"
+        submit-label="Start the call"
+        @start="start"
+      />
     </div>
 
     <p v-else-if="status === 'idle' && pending" class="soc-state" role="status">

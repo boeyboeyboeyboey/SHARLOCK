@@ -4,6 +4,7 @@
 
 - What it is: G-SOC, a chat where a fictional colleague pressures the player to hand over a synthetic reset code, then the player picks a decision.
 - Concept taught: social engineering and impersonation, and verifying a request through an independent channel (see the course reference index in TASKS.md).
+- Chooser: the first screen is labelled "Save this call to" with **Start the call** as its button.
 - How to play: choose where to save the run (personal practice or a class), read the brief, chat with the contact, optionally message a real colleague in a second tab, then choose "Refuse and end", "Verify through a known channel" or "Share the code".
 - Saved results: the shared `AttemptContextChooser` runs before the briefing and its context is sent when the session starts. The server scores the run and saves it as an attempt, so class runs reach that class's leaderboard (untimed, practice best scores). The debrief shows "Result saved to your account." or the save error with "Try saving again", which asks the server to complete the same decision again.
 - Technical: `SocialEngineeringSimulator.vue` uses `composables/useSocialEngineeringSession.js` and `useVerifierChat.js`; `simulator.js` posts through the shared Axios client with a CSRF token on every request (see the [server module](../../../../server/src/modules/games/social-engineering-simulator/README.md)). Chat replies come from an LLM on the server.

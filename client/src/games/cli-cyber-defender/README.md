@@ -6,6 +6,7 @@ Browser half of the `cli-cyber-defender` game (G-CLI), served at `/games/cli-cyb
 
 - **What:** a timed terminal game. Read a fictional security alert, then type the one command that contains it (`block ip`, `disable user`, `isolate host`). Eight challenges per shift, maximum 2,100 points.
 - **Concept taught:** incident triage and containment (firewall blocking, account security, host isolation) with CIA-triad and attack-stage tags in every debrief; nothing real is ever executed.
+- **Chooser:** the first screen is labelled "Save this run to" with **Start the run** as its button.
 - **How to play:** choose where to save the run (personal or a class), then **Start game** (10-15 seconds per challenge, pausable) or **Practice** (no timer, one hint per incident). Tap alert names or command templates on touch screens.
 - **Technical points:** `CliDefenderGame.vue` → `useCliDefender.js` → `cliDefender.js`. Runs need a signed-in session and CSRF (via the shared `writeAttempt`); the server owns the timing and score. The shared `AttemptContextChooser` supplies the run context.
 - **Saved runs:** a finished timed shift or a practice run is saved as an attempt on `/complete`; the debrief shows "Result saved to your account." or the save error with **Try saving again**. Timed class runs rank on the class Best board (Timed runs); practice counts toward the all-time view.

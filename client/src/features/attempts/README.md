@@ -4,7 +4,7 @@
 
 - Reusable browser integration for server-owned saved exercises
 - Uses the existing Axios client, cookie session and CSRF token endpoint
-- `AttemptContextChooser` emits `start(context)` for personal or eligible class practice
+- `AttemptContextChooser` emits `start(context)` for personal or eligible class practice; optional `label` (default "Save this case to") and `submitLabel` (default "Open the case") let each game set its wording
 - Class choices come from authenticated `GET /api/attempt-contexts?page=1&limit=50`
 - `useAttempt(gameId)` owns the snapshot, pending mutation, busy/error and retry state
 - Mutations keep the original action ID, revision and payload until acknowledged
@@ -17,7 +17,7 @@
 
 `api.js` reuses `client/src/services/api.js`; no second Axios instance is created. Paths omit the `/api` prefix because it is already the base URL. Writes fetch the current CSRF token. `useAttempt` supports start, read, action, completion and exact-request retry, and aborts outstanding requests on unmount. A failed start is not automatically replayed: the server start contract has no idempotency key, so a lost start response may leave an uncompleted attempt. No score or completed result is fabricated.
 
-`AttemptContextChooser({disabled})` paginates current eligible classes and offers personal practice. The server rechecks permissions on start and every active request. `SavedAttemptResult({attempt})` has a default slot for game-owned explanation and emits `replay`; it displays saved confirmation only for a persisted completed result. These components use existing shared control classes; game wrappers own layout/style.
+`AttemptContextChooser({disabled, label, submitLabel})` paginates current eligible classes and offers personal practice. `label` defaults to "Save this case to" and `submitLabel` to "Open the case"; CLI uses "Save this run to" / "Start the run" and Social uses "Save this call to" / "Start the call". The server rechecks permissions on start and every active request. `SavedAttemptResult({attempt})` has a default slot for game-owned explanation and emits `replay`; it displays saved confirmation only for a persisted completed result. These components use existing shared control classes; game wrappers own layout/style.
 
 The canonical API, lifecycle and permission contract lives in the [server attempt README](../../../../server/src/modules/attempts/README.md). This slice does not add a history listing, teaching analytics, points store or leaderboard. Other games retain their existing contracts.
 

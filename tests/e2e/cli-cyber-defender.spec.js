@@ -49,10 +49,10 @@ async function useMenu(page, item) {
 
 // the context chooser comes first; personal practice is its default
 async function chooseContext(page, classId) {
-  const chooser = page.getByLabel('Save this case to')
+  const chooser = page.getByLabel('Save this run to')
   await expect(chooser).toBeEnabled()
   if (classId) await chooser.selectOption(classId)
-  await page.getByRole('button', { name: 'Open the case' }).click()
+  await page.getByRole('button', { name: 'Start the run' }).click()
 }
 
 async function startShift(page, mode, classId) {
