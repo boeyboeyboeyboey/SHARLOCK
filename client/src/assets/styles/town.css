@@ -262,158 +262,64 @@
   inset: 0;
   pointer-events: none;
 }
-.town-paths {
+.town-ground,
+.town-lamps {
   position: absolute;
   inset: 0;
   max-width: none;
 }
+.town-lamps {
+  z-index: 1;
+}
+.town-barges,
+.town-life {
+  position: absolute;
+  inset: 0;
+  max-width: none;
+  pointer-events: none;
+}
+.town-walker,
+.town-still {
+  position: absolute;
+  width: 48px;
+  height: 32px;
+  margin: -32px 0 0 -24px;
+}
+.town-walker.gull {
+  width: 36px;
+  height: 24px;
+  margin: -12px 0 0 -18px;
+}
+.town-flip,
+.town-capy,
+.town-gull-art {
+  display: block;
+}
+.town-capy,
+.town-gull-art {
+  max-width: none;
+}
+.cap-f1,
+.cap-f2,
+.gull-down {
+  display: none;
+}
+.town-props {
+  position: absolute;
+  inset: 0;
+}
+.town-prop {
+  position: absolute;
+  max-width: none;
+}
 .pixel-tree,
-.pixel-bush,
-.capybara-npc {
+.pixel-bush {
   position: absolute;
 }
 .town-world img,
 .town-player img,
 .town-menu-profile img {
   image-rendering: pixelated;
-}
-.capybara-npc {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 64px;
-}
-.capybara-npc span {
-  font-size: 12px;
-  padding: 1px 4px;
-  background: #e5efcf;
-  box-shadow: 2px 2px 0 #729762;
-}
-.town-pond {
-  position: absolute;
-  left: 720px;
-  top: 408px;
-  width: 240px;
-  height: 128px;
-  background: #87bcc4;
-  border: 8px solid #719961;
-  box-shadow:
-    inset 0 8px 0 #6296a7,
-    8px 8px 0 #94b378;
-  clip-path: polygon(
-    16px 0,
-    calc(100% - 24px) 0,
-    calc(100% - 24px) 16px,
-    100% 16px,
-    100% calc(100% - 24px),
-    calc(100% - 16px) calc(100% - 24px),
-    calc(100% - 16px) 100%,
-    24px 100%,
-    24px calc(100% - 16px),
-    0 calc(100% - 16px),
-    0 16px,
-    16px 16px
-  );
-}
-.town-pond::before,
-.town-pond::after {
-  content: '';
-  position: absolute;
-  height: 4px;
-  background: #cee5d4;
-  width: 36px;
-  top: 32px;
-  left: 32px;
-  box-shadow: 76px 36px 0 #cee5d4;
-}
-.town-pond::after {
-  width: 24px;
-  left: 148px;
-  top: 20px;
-  box-shadow: -116px 60px 0 #cee5d4;
-}
-.town-pond span {
-  position: absolute;
-  background: #759954;
-  width: 24px;
-  height: 16px;
-  left: 100px;
-  top: 24px;
-  border-right: 8px solid #87bcc4;
-}
-.town-pond i {
-  position: absolute;
-  width: 8px;
-  height: 8px;
-  background: #eec9aa;
-  left: 104px;
-  top: 24px;
-}
-.town-flowerbed {
-  position: absolute;
-  width: 80px;
-  height: 40px;
-  background: repeating-conic-gradient(#eac3a3 0 25%, #6d9560 0 50%, #f4e7a4 0 75%, #91b575 0) 0 /
-    16px 16px;
-  border: 4px solid #719961;
-}
-.flowers-west {
-  left: 92px;
-  top: 422px;
-}
-.flowers-east {
-  left: 928px;
-  top: 94px;
-}
-.town-bench {
-  position: absolute;
-  width: 64px;
-  height: 24px;
-  border: 4px solid #745b40;
-  background: repeating-linear-gradient(#bd996b 0 4px, #92714c 4px 8px);
-  box-shadow: 0 4px 0 #6e7149;
-}
-.town-bench::after {
-  content: '';
-  position: absolute;
-  width: 4px;
-  height: 12px;
-  left: 4px;
-  top: 16px;
-  background: #745b40;
-  box-shadow: 44px 0 0 #745b40;
-}
-.bench-west {
-  left: 348px;
-  top: 414px;
-}
-.bench-east {
-  left: 638px;
-  top: 408px;
-}
-.town-sign {
-  position: absolute;
-  left: 470px;
-  top: 342px;
-  width: 120px;
-  text-align: center;
-  padding: 4px;
-  border: 4px solid #745b40;
-  background: #f5dfa6;
-  box-shadow: 4px 4px 0 #bda878;
-  font-size: 16px;
-  font-weight: 700;
-  line-height: 1.1;
-}
-.town-welcome-sign {
-  position: absolute;
-  left: 402px;
-  top: 26px;
-  border: 3px solid #745b40;
-  padding: 6px 12px;
-  background: #f5dfa6;
-  font-size: 14px;
-  letter-spacing: 1px;
 }
 .town-buildings {
   margin: 0;
@@ -426,10 +332,8 @@
   height: 200px;
 }
 .building-button {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
+  position: relative;
+  display: block;
   width: 100%;
   height: 100%;
   padding: 0;
@@ -438,26 +342,32 @@
   color: var(--town-ink);
 }
 .building-sprite {
-  width: 160px;
-  height: 160px;
-  object-fit: contain;
-  flex-shrink: 0;
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  max-width: none;
+  transform: translateX(-50%);
+  transition: filter 0.1s steps(2);
+}
+.building-button:hover .building-sprite,
+.building-button:focus-visible .building-sprite,
+.building-selected .building-sprite {
+  filter: drop-shadow(0 0 5px #ffe9a0) brightness(1.08);
 }
 .building-name {
+  position: absolute;
+  top: calc(100% - 8px);
+  left: 50%;
+  width: max-content;
+  max-width: 230px;
+  transform: translateX(-50%);
   font-size: 16px;
   line-height: 1.2;
   font-weight: 700;
   background: var(--town-paper);
   border: 2px solid #745b40;
-  padding: 4px 8px;
-  max-width: 192px;
+  padding: 3px 8px;
   box-shadow: 3px 3px 0 rgb(80 99 77 / 30%);
-}
-.building-hint {
-  font-size: 12px;
-  letter-spacing: 1px;
-  line-height: 1;
-  padding-top: 6px;
 }
 .building-button:hover .building-name,
 .building-selected .building-name,
@@ -469,6 +379,7 @@
   content: '';
   position: absolute;
   top: -12px;
+  left: calc(50% - 8px);
   width: 16px;
   height: 12px;
   background: var(--town-ink);
@@ -791,5 +702,113 @@
   .town-footnote {
     flex: none;
     margin: 6px 0 0;
+  }
+}
+
+/* town life: static by default, animated only when motion is welcome */
+@media (prefers-reduced-motion: no-preference) {
+  .town-walker.x {
+    animation: town-walk-x var(--t) linear infinite;
+  }
+  .town-walker.y {
+    animation: town-walk-y var(--t) linear infinite;
+  }
+  .town-walker .town-flip {
+    animation: town-flip var(--t) linear infinite;
+  }
+  .town-walker:not(.gull) .cap-f0 {
+    display: none;
+  }
+  .town-walker:not(.gull) .cap-f1 {
+    display: inline;
+    animation: town-leg-a 0.5s steps(1) infinite;
+  }
+  .town-walker:not(.gull) .cap-f2 {
+    display: inline;
+    animation: town-leg-b 0.5s steps(1) infinite;
+  }
+  .town-walker:not(.gull) .cap-body {
+    animation: town-bob 0.5s steps(1) infinite;
+  }
+  .gull-down {
+    display: inline;
+    animation: town-leg-b 0.8s steps(1) infinite;
+  }
+  .gull-up {
+    animation: town-leg-a 0.8s steps(1) infinite;
+  }
+  .town-still.bob .cap-body {
+    animation: town-bob 2.4s steps(1) infinite;
+  }
+  .town-barge.b1 {
+    animation: town-drift 7s steps(7) infinite alternate;
+  }
+  .town-barge.b2 {
+    animation: town-drift 9s steps(9) infinite alternate-reverse;
+  }
+  .town-barge.b3 {
+    animation: town-drift 5s steps(5) infinite alternate;
+  }
+  .town-smoke {
+    animation: town-smoke 3s steps(6) infinite;
+  }
+  .town-smoke.s2 {
+    animation-delay: 1s;
+  }
+  .town-smoke.s3 {
+    animation-delay: 2s;
+  }
+}
+@keyframes town-walk-x {
+  50% {
+    transform: translateX(var(--d));
+  }
+}
+@keyframes town-walk-y {
+  50% {
+    transform: translateY(var(--d));
+  }
+}
+@keyframes town-flip {
+  0%,
+  49.99% {
+    transform: scaleX(1);
+  }
+  50%,
+  100% {
+    transform: scaleX(-1);
+  }
+}
+@keyframes town-leg-a {
+  50% {
+    opacity: 0;
+  }
+}
+@keyframes town-leg-b {
+  0% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@keyframes town-bob {
+  50% {
+    transform: translateY(-1px);
+  }
+}
+@keyframes town-drift {
+  to {
+    transform: translateX(7px);
+  }
+}
+@keyframes town-smoke {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translate(3px, -9px);
+    opacity: 0;
   }
 }

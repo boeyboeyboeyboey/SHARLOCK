@@ -48,7 +48,7 @@ export const gameCatalog = defineGameCatalog([
     isPreview: false,
     duration: '2 min + debrief',
     icon: 'shield',
-    building: { type: 'cottage', x: 112, y: 112 },
+    building: { type: 'cottage', x: 234, y: 200 },
   },
   {
     id: 'phishing-post-mortem',
@@ -60,7 +60,7 @@ export const gameCatalog = defineGameCatalog([
     isPreview: false,
     duration: '8 min',
     icon: 'news',
-    building: { type: 'library', x: 480, y: 64 },
+    building: { type: 'library', x: 664, y: 380 },
   },
   {
     id: 'sql-injection-arcade',
@@ -72,7 +72,7 @@ export const gameCatalog = defineGameCatalog([
     isPreview: false,
     duration: '6 min',
     icon: 'lock',
-    building: { type: 'hut', x: 832, y: 128 },
+    building: { type: 'hut', x: 694, y: 180 },
   },
   {
     id: 'threat-briefing',
@@ -85,7 +85,7 @@ export const gameCatalog = defineGameCatalog([
     duration: '5 min',
     icon: 'news',
     activation: 'direct',
-    building: { type: 'newsstand', x: 144, y: 480 },
+    building: { type: 'newsstand', x: 424, y: 0 },
   },
   {
     id: 'social-engineering-simulator',
@@ -102,7 +102,7 @@ export const gameCatalog = defineGameCatalog([
     isPreview: false,
     duration: '5 min',
     icon: 'people',
-    building: { type: 'office', x: 432, y: 520 },
+    building: { type: 'office', x: 234, y: 400 },
   },
   {
     id: 'clearance-tower',
@@ -119,6 +119,6 @@ export const gameCatalog = defineGameCatalog([
     isPreview: false,
     duration: '10 min',
     icon: 'lock',
-    building: { type: 'shed', x: 720, y: 496 },
+    building: { type: 'shed', x: 879, y: 565 },
   },
 ])

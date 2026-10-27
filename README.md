@@ -226,6 +226,7 @@ Games open a **How to play** guide on your first visit. Tick "Don't show again" 
 
 - Drag or swipe to pan; pinch or Ctrl/Cmd + wheel to zoom (a plain wheel pans); arrow keys pan; + and - zoom; 0 resets. On-screen zoom and Reset view buttons do the same.
 - Hover or focus a building for its card; Esc dismisses the card.
+- The town is a wharf with the newsstand on the pier, a cobbled street to a fountain plaza and generic capybaras and gulls going about their day; the animation stops when your system asks for reduced motion.
 - The background music button exists only in 2D mode and starts muted.
 
 **Graphics** (Auto, High, Medium or Low; remembered). Auto checks the device: no WebGL2 or a software renderer selects 2D; save-data, 2 GB of memory or less, or 2 CPU cores or fewer selects Low. It then watches the frame rate, stepping quality down and finally to 2D, unless you explicitly chose 3D. An automatic-2D notice offers "Try 3D anyway" with a warning.
@@ -386,7 +387,7 @@ All commands manipulate fictional game state. Never invoke a shell, firewall, op
 **Architectural blueprint**
 
 - Route/ID: `/games/cli-cyber-defender` / `cli-cyber-defender`.
-- Town entry: `cottage` at `{ x: 112, y: 112 }` in the shared catalog, reused by the implementation recorded below; no second building or route.
+- Town entry: `cottage` at `{ x: 234, y: 200 }` in the shared catalog, reused by the implementation recorded below; no second building or route.
 - `CliDefenderGame.vue`: owns the attempt and composes the following components.
 - `TerminalPanel.vue`: props `{ lines, disabled }`; emits `submit-command(command)`.
 - `IncidentBanner.vue`: props `{ incident, remainingMs }`.
@@ -587,7 +588,7 @@ The game follows the hub's light town palette and Pixelify Sans, scoped under `.
 
 **Architectural blueprint**
 
-- Existing identity remains `threat-briefing`, `/games/threat-briefing`, **The daily briefing**, at `{ x: 144, y: 480 }`. The implemented entry uses `newsstand`, direct activation and `isPreview: false` following registered-key verification. The other five catalog entries retain their existing scored-game identities; do not create a second news activity.
+- Existing identity remains `threat-briefing`, `/games/threat-briefing`, **The daily briefing**, at `{ x: 424, y: 0 }`. The implemented entry uses `newsstand`, direct activation and `isPreview: false` following registered-key verification. The other five catalog entries retain their existing scored-game identities; do not create a second news activity.
 - Frontend module: `client/src/games/threat-briefing/`; backend module: `server/src/modules/news/`. Reuse the shared Axios client, catalog, town, shell, pixel tokens and icons.
 - `NewsDialog.vue` owns the native modal lifecycle, URL location and emits `request-close`; `CyberNewsCentral.vue({ location, update })` owns news composition; `NewsFilters.vue({ section, range, query, loading, canRefresh })` emits section/range/query updates and `refresh`; `NewsArticle.vue({ article, featured })` renders safe publisher links; `SafeInline.vue({ nodes })` renders validated text/link/break nodes without `v-html`; `NewsPagination.vue({ page, pageCount })` emits `update:page`; `NewsStatus.vue({ loading, error, stale, partial, fetchedAt, refreshAvailableAt, canRefresh })` emits `retry`.
 - `NewsTabs.vue({ activeTab })` emits `update:tab`, using manual activation with arrow/Home/End focus movement and Enter/Space selection. `OwaspTopTen.vue` renders the ten ordered entries from `data/owaspTopTen.js`, with plain-language summaries, original fictional examples, prevention guidance and per-category official links. Credit OWASP Top 10:2025 and CC BY 3.0; identify the reviewed date and distinguish risk categories from individual vulnerabilities. This bundled reference requires no server endpoint or key. `NewsAudio.vue` emits `status` for inline feedback below the toolbar and owns the supplied `/audio/Lo-fi_8-bit_coffee_s_1-1789752418868.mp3` loop, 20% volume, mute/retry state, autoplay-failure feedback and disposal; no durable preference. The supplied MP3 was renamed to remove `#` for reliable static-file serving; its audio bytes are unchanged.
