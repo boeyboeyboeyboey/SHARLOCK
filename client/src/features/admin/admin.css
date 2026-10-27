@@ -167,6 +167,57 @@
   background: var(--accent-secondary);
 }
 
+.admin-workspace .admin-workspace__text-button--danger {
+  background: var(--alert-danger);
+  color: #fff;
+}
+
+.admin-workspace .admin-workspace__text-button--danger:hover:not(:disabled) {
+  background: #8f1c12;
+}
+
+.admin-workspace .admin-workspace__text-button--enable {
+  background: var(--accent-primary);
+  color: var(--text-main);
+}
+
+.admin-workspace .admin-workspace__text-button--enable:hover:not(:disabled) {
+  background: #98ba7b;
+}
+
+.admin-workspace .admin-workspace__tabpanel {
+  display: grid;
+  min-width: 0;
+  gap: 1.25rem;
+}
+
+.admin-workspace .admin-workspace__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.admin-workspace .admin-workspace__tabs button {
+  min-height: 48px;
+  padding: 0.5rem 1rem;
+  border: 2px solid var(--border-strong);
+  border-radius: 0;
+  background: var(--surface);
+  color: var(--text-main);
+  font: inherit;
+  font-weight: 700;
+}
+
+.admin-workspace .admin-workspace__tabs button[aria-selected='true'] {
+  background: var(--text-main);
+  color: var(--surface);
+}
+
+.admin-workspace .admin-workspace__tabs button:focus-visible {
+  outline: 3px solid var(--text-main);
+  outline-offset: 3px;
+}
+
 .admin-workspace .admin-workspace__button:disabled,
 .admin-workspace .admin-workspace__text-button:disabled {
   cursor: not-allowed;

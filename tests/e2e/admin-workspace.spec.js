@@ -14,6 +14,14 @@ async function signIn(context, origin, identity) {
   expect(response.ok()).toBe(true)
 }
 
+async function openTab(page, name) {
+  await page.getByRole('tab', { name, exact: true }).click()
+  await expect(page.getByRole('tab', { name, exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  )
+}
+
 // waits for the status change and the panel's own list reload, which would abort a filter request sent meanwhile
 async function changeAccountStatus(page, row, buttonName) {
   const panel = page.locator('section[aria-labelledby="account-controls-title"]')
@@ -35,6 +43,7 @@ async function changeAccountStatus(page, row, buttonName) {
 }
 
 async function findAccountRow(page, role, status, username) {
+  await openTab(page, 'Accounts')
   const panel = page.locator('section[aria-labelledby="account-controls-title"]')
   await panel.getByLabel('Role').selectOption(role)
   await panel.getByLabel('Status').selectOption(status)
@@ -133,6 +142,15 @@ test('admin manages institutions, assignments, audit history, and account access
     }
     await expect(page.getByRole('heading', { name: 'Admin workspace' })).toBeVisible()
 
+    await page.goto('/admin?tab=audit')
+    const auditTab = page.getByRole('tab', { name: 'Audit log', exact: true })
+    await expect(auditTab).toHaveAttribute('aria-selected', 'true')
+    await expect(page.getByRole('heading', { name: 'Audit events' })).toBeVisible()
+    await auditTab.press('ArrowRight')
+    const institutionsTab = page.getByRole('tab', { name: 'Institutions & classes', exact: true })
+    await expect(institutionsTab).toHaveAttribute('aria-selected', 'true')
+    await expect(institutionsTab).toBeFocused()
+
     await page.getByLabel('Institution name').fill(institutionName)
     await page.getByLabel('Institution slug').fill(institutionSlug)
     await page.getByRole('button', { name: 'Create institution' }).click()
@@ -151,6 +169,7 @@ test('admin manages institutions, assignments, audit history, and account access
     )
     expect(createdCohort?.id).toMatch(/^[a-f\d]{24}$/i)
 
+    await openTab(page, 'Instructors')
     await page.getByLabel('Instructor email').fill(instructor.email)
     await page.getByLabel('Instructor username').fill(instructor.username)
     await page.getByRole('button', { name: 'Create instructor and activation link' }).click()
@@ -233,6 +252,7 @@ test('admin manages institutions, assignments, audit history, and account access
     )
     expect(createdInstitution?.id).toMatch(/^[a-f\d]{24}$/i)
 
+    await openTab(page, 'Institutions & classes')
     const renamedInstitution = `${institutionName} Renamed`
     await page.getByRole('button', { name: `Edit ${institutionName}`, exact: true }).click()
     await page
@@ -254,6 +274,7 @@ test('admin manages institutions, assignments, audit history, and account access
       cohortRow(page, renamedCohort).getByText(renamedCohort, { exact: true }),
     ).toBeVisible()
 
+    await openTab(page, 'Instructors')
     await page.getByRole('button', { name: 'Refresh instructors' }).click()
     const retainedInstructor = page.getByRole('article', {
       name: instructor.username,
@@ -273,6 +294,7 @@ test('admin manages institutions, assignments, audit history, and account access
       })
       .toContain(createdCohort.id)
 
+    await openTab(page, 'Institutions & classes')
     await page.getByRole('button', { name: `Edit ${renamedInstitution}`, exact: true }).click()
     await page
       .locator(`#admin-institution-edit-status-${createdInstitution.id}`)
@@ -300,6 +322,7 @@ test('admin manages institutions, assignments, audit history, and account access
     await page.locator(`#admin-cohort-edit-status-${createdCohort.id}`).selectOption('active')
     await page.getByRole('button', { name: 'Save class' }).click()
 
+    await openTab(page, 'Instructors')
     await page.getByRole('button', { name: 'Refresh instructors' }).click()
     const updatedInstructor = page.getByRole('article', {
       name: instructor.username,
@@ -312,6 +335,7 @@ test('admin manages institutions, assignments, audit history, and account access
     ).toBeChecked()
     await expect(updatedInstructor.getByText('Inactive; retained assignment')).toHaveCount(0)
 
+    await openTab(page, 'Audit log')
     const auditPanel = page.locator('section[aria-labelledby="audit-events-title"]')
     await auditPanel.getByLabel('Event type').selectOption('admin.cohort.update')
     await auditPanel.getByRole('button', { name: 'Apply filters' }).click()
@@ -349,6 +373,7 @@ test('admin manages institutions, assignments, audit history, and account access
       )
       .toBe(401)
 
+    await openTab(page, 'Audit log')
     const studentAuditPanel = page.locator('section[aria-labelledby="audit-events-title"]')
     await studentAuditPanel.getByLabel('Event type').selectOption('admin.user.disable')
     await studentAuditPanel.getByRole('button', { name: 'Apply filters' }).click()

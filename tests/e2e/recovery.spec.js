@@ -167,7 +167,7 @@ test('admin recovery revokes sessions and requires normal sign-in', async ({
     const gatePage = await gateContext.newPage()
     await signInWithUi(gatePage, student)
 
-    await page.goto('/admin')
+    await page.goto('/admin?tab=accounts')
     await expect(page.getByRole('heading', { name: 'Student password recovery' })).toBeVisible()
     const firstLink = await issueAdminLink(page, student, origin)
     const prepareButton = page.getByRole('button', { name: 'Prepare password reset link' })
@@ -442,6 +442,7 @@ test('instructors issue links; admin-only roles have no roster recovery control'
     const cohort = (await cohortResponse.json()).cohorts.find((item) => item.name === cohortName)
     expect(cohort?.id).toMatch(/^[a-f\d]{24}$/i)
 
+    await page.getByRole('tab', { name: 'Instructors', exact: true }).click()
     await page.getByLabel('Instructor email').fill(instructor.email)
     await page.getByLabel('Instructor username').fill(instructor.username)
     await page.getByRole('button', { name: 'Create instructor and activation link' }).click()
