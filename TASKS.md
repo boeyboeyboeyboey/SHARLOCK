@@ -360,6 +360,13 @@ No active implementation task.
 - **Checks (28 October 2026):** `node scripts/run-with-test-db.mjs e2e --replica-set tests/e2e/cli-cyber-defender.spec.js --project=mobile-chromium --project=desktop-chromium --workers=1` exit 0 (43 passed, 1 skipped); prettier check clean.
 - **Docs:** no docs impact beyond this record: test-only change. Notify Xin Lei when merged.
 
+**FONT-06 — Clearance Tower body font** · Status: **Review** · Contributor: **Boey** (owner Russell; owner agreement: "Yup ok you can go ahead to make any changes you want, just let us know once done and work in a separate branch for git rollback in event of anything") · Branch: `font-06-clearance-body-font` (cut from `origin/main` at `8ea6f0b`, 28 October 2026, upstream unset) · Approved by Boey on 28 October 2026 (overnight batch 7).
+
+- **Change:** `clearance.css` sets `--game-font: var(--font-body)` (DotGothic16) for body text and adds a game-local `--game-heading-font: var(--font-pixel)` applied to headings inside `.clearance-game`, so headings stay Pixelify Sans; `--game-number-font` and the How to play font token are unchanged (the guide follows the body font).
+- **Verified (28 October 2026):** `vitest run client/src/games/__tests__/game-palette.test.js client/src/games/clearance-tower` 37/37; `tests/e2e/clearance-tower.spec.js` 26 passed / 2 skipped, exit 0 (includes the shared-style leak check); prettier clean. Not visually inspected.
+- **Docs:** Clearance module README file table, README.md Clearance paragraph.
+- **Next action:** Boey reviews; notify Russell once merged.
+
 **BOARD-01 — Class leaderboards** · Status: **Review** · Contributor: **Boey** · Branch: `board-01-class-leaderboards` (cut from `origin/main` at `9e6c3a1`, 27 October 2026, upstream unset). Plan approved by Boey on 27 October 2026. Spec: [BOARD-01](#board-01--cohort-leaderboards).
 
 - **Collision check (27 October 2026):** no leaderboard code on `main`, in local or remote branch names, or in the `admin-01-b-admin-controls` (Codex admin-controls) worktree. Existing references are only the `/leaderboard` ComingSoon placeholder (`client/src/router/index.js`), nav links (`Navbar.vue:34`, `PortalLayout.vue:30`), the pixel-wipe label, docs mentions, and an empty `server/src/modules/leaderboards/.gitkeep`. Remote branch contents, PRs and teammates' machines were not inspected.

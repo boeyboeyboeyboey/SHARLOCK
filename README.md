@@ -560,7 +560,7 @@ The screen never authenticates the player as a real administrator.
 - Original interim endpoints, since replaced by the saved-attempt adapter (SAVE-01): `GET /api/games/clearance-tower/levels`, `POST .../runs` with `{ levelId }`, `POST .../runs/:runId/submit` with `{ actionId, policy, predictions }`. They use “runs”, like CLI, so they never shadow the shared `POST /api/games/:gameId/attempts` route. One submission per run; the same action ID replays its result. The day script, prediction answers and explanations stay on the server until submission.
 - Future Mongoose `state`: `{ levelId, policy, predictions, submittedAt }`.
 
-The game follows the hub's light town palette and Pixelify Sans, scoped under `.clearance-game`. Reduced motion stops autoplay and animations, so players step through the duty log.
+The game follows the hub's light town palette, with DotGothic16 body text and Pixelify Sans headings, scoped under `.clearance-game`. Reduced motion stops autoplay and animations, so players step through the duty log.
 
 **Acceptance:** Known solutions score as specified; the Trojan horse leaks under discretionary control and is stopped by the star property; Bell–LaPadula allows integrity tampering; separation-of-duties conflicts and excess rights cost points; strict validation rejects unknown fields and IDs; no answers reach the browser before submission; keyboard, touch, reduced motion and 375–1440px layouts work.
 
