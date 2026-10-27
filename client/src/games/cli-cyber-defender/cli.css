@@ -1,4 +1,11 @@
-@import url('https://fonts.googleapis.com/css2?family=Azeret+Mono:wght@400;700&family=Silkscreen:wght@400;700&display=swap');
+@import '@fontsource/azeret-mono/latin-400.css';
+@import '@fontsource/azeret-mono/latin-700.css';
+@import '@fontsource/azeret-mono/latin-ext-400.css';
+@import '@fontsource/azeret-mono/latin-ext-700.css';
+@import '@fontsource/silkscreen/latin-400.css';
+@import '@fontsource/silkscreen/latin-700.css';
+@import '@fontsource/silkscreen/latin-ext-400.css';
+@import '@fontsource/silkscreen/latin-ext-700.css';
 
 /* every rule is scoped to .cli-game so the hub pixel scheme is untouched */
 .cli-game {

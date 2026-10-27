@@ -56,7 +56,7 @@ What Sharlock Hub (IS216 Group 7) builds on. Versions and licences were read fro
 
 ## Fonts
 
-DESIGN.md ("Verification and credits") records that Pixelify Sans (headings and brand, OFL-1.1, self-hosted via `@fontsource/pixelify-sans`), DotGothic16 (body and UI text, OFL-1.1, Fontworks, self-hosted via `@fontsource/dotgothic16`) and the CLI game's Silkscreen and Azeret Mono use the SIL Open Font License.
+DESIGN.md ("Verification and credits") records that Pixelify Sans (headings and brand, OFL-1.1, self-hosted via `@fontsource/pixelify-sans`), DotGothic16 (body and UI text, OFL-1.1, Fontworks, self-hosted via `@fontsource/dotgothic16`) and the CLI and SQL games' Silkscreen (self-hosted via `@fontsource/silkscreen`) and the CLI game's Azeret Mono (self-hosted via `@fontsource/azeret-mono`) use the SIL Open Font License.
 
 ## Images and artwork
 
