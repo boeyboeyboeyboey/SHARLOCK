@@ -162,6 +162,7 @@ No active implementation task.
 - **Checks:** `pnpm exec vitest run --project client client/src/features/admin/__tests__/` 32 of 32 passed (3 files); `eslint` on changed files exit 0; `prettier --check` on changed files passed. `tests/e2e/admin-workspace.spec.js` passed (2 of 2, setup plus journey); the `recovery.spec.js` selector change was not run.
 
 **UI-08 — Instructor sign-up copy** · Status: **Review** · Contributor: **Boey** · Branch: `ui-08-instructor-signup-copy` · Approved by Boey on 27 October 2026 (lunch batch).
+
 - **Scope:** `client/src/features/auth/pages/LoginPage.vue` and `RegisterPage.vue` (one `auth-field-hint` line each under the switch link), `client/src/features/auth/__tests__/auth.test.js` (text assertions), `client/src/features/auth/README.md` and the "Using the app" instructor clause in `README.md`. No new CSS or shared-style edits.
 - **Collision check (27 October 2026):** `rg` found no instructor sign-up copy in the auth module, tests or E2E specs.
 - **Checks:** `pnpm exec vitest run --project client client/src/features/auth` 66/66 pass; eslint on changed Vue/test files exit 0; prettier clean on the new lines and on the auth test, auth README and root README. Both Vue files still fail prettier on pre-existing lines (the sign-in button and the register copy), not touched here. E2E not run; `tests/e2e/auth.spec.js` asserts headings only, so no exact-text break is expected.
