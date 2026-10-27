@@ -58,7 +58,7 @@ Blocks on a 16 × 10 grid switch on in hard one-millisecond steps (never a fade)
 
 These browser checks are user experience controls, not direct-API authorization. Existing game APIs still use their interim unsaved resource contracts. Server capabilities, cohort permissions and game-resource ownership require their later approved foundation tasks; do not claim those guarantees from this UI.
 
-`auth.css` is limited to auth feature roots and consumes the existing cream/earthy-green tokens, Pixelify Sans, square controls and hard shadows. Navbar/layout reuse the retained smooth 3D logo, mobile offcanvas and focus handling. Town camera, gestures, audio and game-local styles are preserved. See [DESIGN.md](../../../../DESIGN.md).
+`auth.css` is limited to auth feature roots and consumes the existing cream/earthy-green tokens, Pixelify Sans headings with DotGothic16 body text, square controls and hard shadows. Navbar/layout reuse the retained smooth 3D logo, mobile offcanvas and focus handling. Town camera, gestures, audio and game-local styles are preserved. See [DESIGN.md](../../../../DESIGN.md).
 
 ## Review and verification
 

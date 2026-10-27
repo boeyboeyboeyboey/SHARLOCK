@@ -1,6 +1,6 @@
 .news-dialog {
   color: var(--text-main);
-  font-family: var(--font-pixel);
+  font-family: var(--font-body);
   background: var(--surface);
   border: 3px solid var(--border-strong);
   box-shadow: 8px 8px 0 var(--border-strong);
