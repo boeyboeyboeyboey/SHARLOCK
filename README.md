@@ -226,7 +226,7 @@ Games open a **How to play** guide on your first visit. Tick "Don't show again" 
 
 - Drag or swipe to pan; pinch or Ctrl/Cmd + wheel to zoom (a plain wheel pans); arrow keys pan; + and - zoom; 0 resets. On-screen zoom and Reset view buttons do the same.
 - Hover or focus a building for its card; Esc dismisses the card.
-- The background music button exists only in 2D mode and starts muted.
+- Background music tries to start on arrival in both modes; if the browser blocks it, it starts on your first click, key press or tap. The Sound on/off button (map toolbar in 2D, top bar in 3D) mutes it, and a mute is remembered only until you close the tab.
 
 **Graphics** (Auto, High, Medium or Low; remembered). Auto checks the device: no WebGL2 or a software renderer selects 2D; save-data, 2 GB of memory or less, or 2 CPU cores or fewer selects Low. It then watches the frame rate, stepping quality down and finally to 2D, unless you explicitly chose 3D. An automatic-2D notice offers "Try 3D anyway" with a warning.
 
@@ -583,7 +583,7 @@ The game follows the hub's light town palette and Pixelify Sans, scoped under `.
 3. Browse the past seven days, switch section, search the fetched edition and use ten-story pages. The older-stories option expands to the past 30 days.
 4. Read publisher headlines, short excerpts, bylines and publication dates; open the publisher's full article in a new tab.
 5. Refresh or retry with honest empty/error/cache-age feedback. Switch to OWASP Top 10 for versioned field notes, examples and official guidance. Close or use Escape to return to the same town camera position and restore focus.
-6. Newspaper ambience starts automatically when browser policy allows; the sticky corner Sound/Mute button controls it. Closing stops the loop and restores town music only if previously enabled.
+6. Newspaper ambience starts automatically when browser policy allows; the sticky corner Sound/Mute button controls it. Closing stops the loop and resumes town music unless you muted it.
 
 **Architectural blueprint**
 

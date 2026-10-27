@@ -13,3 +13,7 @@ Rollback:
 2. Full: check out git tag `legacy-town-2026-10` (commit `f5f8995`) to restore the original town and Dashboard.
 
 Owned files: `TownMap.vue`, `TownScenery.vue`, `TownAudio.vue`, `GameInfoCard.vue`, `useTownMode.js`, `__tests__/`.
+
+## Audio
+
+`TownAudio.vue` wraps `client/src/composables/useLandingMusic.js` and is mounted by `TownMap.vue` (2D) and by `Dashboard.vue`'s HUD row (3D hub), so exactly one player exists on `/`. It tries to start `/audio/sharlock-bgm.mp3` on arrival; if `play()` is rejected it arms one-time `pointerdown`/`keydown`/`touchstart` listeners on the document and starts on the first one. A mute is stored in `sessionStorage` (`sharlock.musicMuted`) for the session only and stops auto-start until unmuted; an unmuted preference is never stored. `suspended` (the Times is open) pauses it and resumes unless muted. Leaving `/` pauses it and removes the listeners. Team consent: Boey, 28 October 2026.

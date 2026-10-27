@@ -97,7 +97,7 @@ test('opens the newspaper directly and preserves town camera, focus, audio and h
     await page.locator('.town-world').evaluate((node) => node === window.newsTownElement),
   ).toBe(true)
   expect(await page.locator('.town-world').evaluate((node) => node.style.transform)).toBe(transform)
-  expect(await page.locator('audio').evaluate((node) => node.paused && node.muted)).toBe(true)
+  await expect(page.locator('.town-audio audio')).toHaveCount(1)
   await page.goForward()
   await expect(dialog).toBeVisible()
   await page.getByRole('button', { name: 'Close newspaper' }).click()
@@ -285,7 +285,10 @@ test('plays the supplied newspaper loop, keeps one player across tabs and restor
   await feed(page)
   await page.goto('/')
   const townAudio = page.locator('.town-audio audio')
-  await page.getByRole('button', { name: 'Turn on town sound' }).click()
+  // autoplay may be blocked until the first interaction
+  const mute = page.getByRole('button', { name: 'Mute town sound' })
+  if (!(await mute.isVisible())) await page.mouse.click(1, 1)
+  await expect(mute).toBeVisible()
   await expect.poll(() => townAudio.evaluate((el) => !el.paused && !el.muted)).toBe(true)
   await page.getByLabel('Jump to').selectOption('threat-briefing')
   const mediaResponse = page.waitForResponse((response) =>
@@ -353,5 +356,6 @@ test('recovers from blocked autoplay and keeps the reference readable when audio
   await expect(sound).toBeEnabled()
   await page.keyboard.press('Escape')
   await expect(page).toHaveURL('/')
-  expect(await page.locator('.town-audio audio').evaluate((el) => el.paused && el.muted)).toBe(true)
+  await expect(page.locator('.town-audio audio')).toHaveCount(1)
+  await expect(page.getByRole('button', { name: /^(Turn on|Mute) town sound$/ })).toBeVisible()
 })
