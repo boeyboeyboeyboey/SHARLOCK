@@ -446,7 +446,7 @@ test('instructors issue links; admin-only roles have no roster recovery control'
     await page.getByLabel('Instructor username').fill(instructor.username)
     await page.getByRole('button', { name: 'Create instructor and activation link' }).click()
     const activationUrl = await page.getByLabel('Activation link', { exact: true }).inputValue()
-    await page.getByRole('button', { name: 'Close and clear link' }).click()
+    await page.getByRole('button', { name: 'Close', exact: true }).click()
     await expect(page.getByLabel('Activation link', { exact: true })).toHaveCount(0)
 
     instructorContext = await browser.newContext(isolated)

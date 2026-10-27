@@ -66,8 +66,7 @@ onBeforeUnmount(() => {
       <p class="admin-workspace__eyebrow">PRIVATE STAFF LINK</p>
       <h2 id="activation-link-title">Deliver this link privately</h2>
       <p>
-        Share it only with the instructor. It is single-use, expires within 24 hours, and disappears
-        from this page when closed.
+        Copy this link now. It won't be shown again; it still works once and expires in 24 hours.
       </p>
       <label for="admin-activation-link">Activation link</label>
       <input
@@ -86,7 +85,7 @@ onBeforeUnmount(() => {
           Copy activation link
         </button>
         <button class="admin-workspace__text-button" type="button" @click="closeDialog">
-          Close and clear link
+          Close
         </button>
       </div>
     </div>
