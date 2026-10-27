@@ -305,18 +305,23 @@ export function useCliDefender({ now = () => Date.now(), tickMs = 100, onEvent =
     }
   }
 
+  let pausing = Promise.resolve()
+
   // switching away freezes the server clock; the player resumes explicitly when back
   async function pause(note = 'Game paused while you were away. The clock is stopped.') {
     if (mode.value !== 'timed' || phase.value !== 'running' || paused.value) return false
     frozenRemaining.value = remainingMs.value
     paused.value = true
     print('info', note)
-    try {
-      const data = await pauseRun(snapshot.value.runId, controller?.signal)
-      if (!disposed && phase.value === 'running') apply(data)
-    } catch {
-      // the resume request resynchronises with the server either way
-    }
+    pausing = (async () => {
+      try {
+        const data = await pauseRun(snapshot.value.runId, controller?.signal)
+        if (!disposed && phase.value === 'running') apply(data)
+      } catch {
+        // the resume request resynchronises with the server either way
+      }
+    })()
+    await pausing
     return true
   }
 
@@ -324,6 +329,8 @@ export function useCliDefender({ now = () => Date.now(), tickMs = 100, onEvent =
     if (!paused.value || resuming.value) return
     resuming.value = true
     error.value = ''
+    // resume only after the in-flight pause settles so the server sees pause then resume
+    await pausing
     try {
       const data = await resumeRun(snapshot.value.runId, controller?.signal)
       if (disposed) return
