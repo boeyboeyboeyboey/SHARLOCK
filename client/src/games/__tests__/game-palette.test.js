@@ -107,8 +107,9 @@ describe.each(GAMES)('$name palette', ({ css, rootClass, extra, ui }) => {
 describe('social engineering pixel theme', () => {
   const tokens = readTokens(socCss, '.soc-game')
 
-  it('uses the hub pixel font', () => {
-    expect(tokens['--game-font']).toMatch(/var\(--font-pixel\)/)
+  it('uses the hub body font for text and the pixel font for headings', () => {
+    expect(tokens['--game-font']).toMatch(/var\(--font-body\)/)
+    expect(tokens['--game-heading-font']).toMatch(/var\(--font-pixel\)/)
   })
 
   it('shows scores and counters in a plain numeral font, because the pixel 5 reads as an S', () => {
