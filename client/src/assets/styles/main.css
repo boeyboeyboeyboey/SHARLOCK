@@ -1,4 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;700&display=swap');
+@import '@fontsource/dotgothic16/latin-400.css';
+@import '@fontsource/dotgothic16/latin-ext-400.css';
+@import '@fontsource/pixelify-sans/latin-400.css';
+@import '@fontsource/pixelify-sans/latin-700.css';
+@import '@fontsource/pixelify-sans/latin-ext-400.css';
+@import '@fontsource/pixelify-sans/latin-ext-700.css';
 
 :root {
   --shell-chrome: 236px;
@@ -12,6 +17,7 @@
   --border-strong: #50634d;
   --shadow-pixel: 4px 4px 0 var(--border-strong);
   --font-pixel: 'Pixelify Sans', 'Courier New', monospace;
+  --font-body: 'DotGothic16', system-ui, sans-serif;
   --town-ink: var(--text-main);
   --town-edge: var(--border-strong);
   --town-paper: var(--surface);
@@ -21,7 +27,7 @@
   --town-gold: #996b24;
   --header-height: 76px;
   --sidebar-width: 236px;
-  --bs-body-font-family: var(--font-pixel);
+  --bs-body-font-family: var(--font-body);
   --bs-body-font-weight: 400;
   --bs-body-bg: var(--bg-primary);
   --bs-body-color: var(--text-main);
@@ -60,6 +66,17 @@ h6,
   font-weight: 700;
   color: var(--text-main);
   line-height: 1.2;
+}
+/* pixel headings on shared pages only; games and utility pages keep their own inherited font */
+:where(h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6, .game-title):not(
+  .is-utility *,
+  .phish-game *,
+  .sql-game *,
+  .clearance-game *,
+  .soc-game *,
+  .cli-game *
+) {
+  font-family: var(--font-pixel);
 }
 h1 {
   font-size: clamp(2rem, 3.1vw, 3rem);

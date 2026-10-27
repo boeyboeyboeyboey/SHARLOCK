@@ -1,6 +1,6 @@
 .is-town {
   background: var(--town-sky);
-  font-family: var(--font-pixel);
+  font-family: var(--font-body);
   color: var(--town-ink);
   line-height: 1.4;
 }

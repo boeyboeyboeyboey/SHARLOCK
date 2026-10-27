@@ -16,6 +16,6 @@ Class codes are normalized in memory and never written to browser storage. On a 
 
 All mutations fetch a fresh CSRF token and send one request. API errors map to fixed local messages. List and detail loads accept abort signals; mounted pages abort work and discard stale responses when selection changes or the view leaves. The code panel's Generate, Replace and Revoke buttons stay disabled while the selected class's code is loading. Membership states and inactive parent classes remain visible as supplied by the server; these client screens do not grant access or choose learning context.
 
-Shared pages reuse the Pixelify Sans hub theme, main.css palette and hard-shadow controls. `cohorts.css` contains rules to this feature's `.cohort-*` classes. No town camera, shared root token, navbar, or game module styles are changed.
+Shared pages reuse the hub theme (Pixelify Sans headings, DotGothic16 body text), main.css palette and hard-shadow controls. `cohorts.css` contains rules to this feature's `.cohort-*` classes. No town camera, shared root token, navbar, or game module styles are changed.
 
 Focused tests are in `__tests__/`; the guarded browser flow is `tests/e2e/cohorts.spec.js`. E2E setup must use the repository's disposable `_test` database runner and synthetic account fixture. No normal database or provider operation is part of this feature.

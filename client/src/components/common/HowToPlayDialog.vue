@@ -191,7 +191,7 @@ onBeforeUnmount(stopTimer)
   border: 3px solid var(--game-howto-edge, var(--border-strong, #50634d));
   border-radius: 0;
   box-shadow: 4px 4px 0 var(--game-howto-edge, var(--border-strong, #50634d));
-  font-family: var(--game-howto-font, var(--font-pixel, monospace));
+  font-family: var(--game-howto-font, var(--font-body, sans-serif));
 }
 
 .howto-dialog::backdrop {
