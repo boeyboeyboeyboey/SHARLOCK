@@ -15,7 +15,7 @@
 
 ## Contracts
 
-`api.js` reuses `client/src/services/api.js`; no second Axios instance is created. Paths omit the `/api` prefix because it is already the base URL. Writes fetch the current CSRF token. `useAttempt` supports start, read, action, completion and exact-request retry, and aborts outstanding requests on unmount. A failed start is not automatically replayed: the server start contract has no idempotency key, so a lost start response may leave an uncompleted attempt. No score or completed result is fabricated.
+`api.js` reuses `client/src/services/api.js`; no second Axios instance is created. Paths omit the `/api` prefix because it is already the base URL. Writes reuse a CSRF token cached in module memory (never browser storage), shared across concurrent first writes; a `CSRF_INVALID` rejection clears it, fetches a fresh one and retries that write once, and a 401 clears it. `useAttempt` supports start, read, action, completion and exact-request retry, and aborts outstanding requests on unmount. A failed start is not automatically replayed: the server start contract has no idempotency key, so a lost start response may leave an uncompleted attempt. No score or completed result is fabricated.
 
 `AttemptContextChooser({disabled})` paginates current eligible classes and offers personal practice. The server rechecks permissions on start and every active request. `SavedAttemptResult({attempt})` has a default slot for game-owned explanation and emits `replay`; it displays saved confirmation only for a persisted completed result. These components use existing shared control classes; game wrappers own layout/style.
 
