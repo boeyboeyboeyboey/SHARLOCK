@@ -175,8 +175,17 @@ test('plays a perfect practice shift to 2,100 and replays', async ({ page }) => 
   await expect(page.locator('.cli-outcome-correct')).toHaveCount(8)
   await expect(page.getByText('Result saved to your account.')).toBeVisible()
   await expect(page.getByRole('link', { name: 'Back to town' })).toHaveCount(1)
+  await expect(page.getByTestId('cli-next-run')).toHaveText(
+    'Next run: Personal practice · Practice',
+  )
+  await page.getByRole('button', { name: 'Change' }).click()
+  await page.getByRole('group', { name: 'Mode' }).getByLabel('Timed').check()
+  await expect(page.getByTestId('cli-next-run')).toHaveText('Next run: Personal practice · Timed')
   await page.getByRole('button', { name: 'Play again' }).click()
+  await expect(page.getByRole('dialog', { name: 'Ready to play?' })).toHaveCount(0)
   await expect(commandInput(page)).toBeFocused()
+  await expect(hud(page)).not.toContainText('untimed')
+  await expect(hud(page).getByText(/^\d+\.\ds$/)).toBeVisible()
   await expect(hud(page)).toContainText('1 / 8')
   await expect(hud(page)).toContainText('0')
   await expect(page.locator('.cli-flash')).toHaveCount(0)
