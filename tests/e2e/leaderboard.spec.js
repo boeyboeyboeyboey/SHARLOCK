@@ -143,6 +143,14 @@ test('student sees their own row on the practice and all-time boards', async ({
       0,
     )
 
+    // only one game has attempts here, so the game tab row has a single tab
+    const gameTab = page
+      .getByRole('tablist', { name: 'Game' })
+      .getByRole('tab', { name: 'SQL Injection Arcade' })
+    await expect(gameTab).toHaveAttribute('aria-selected', 'true')
+    await gameTab.click()
+    await expect(page).toHaveURL(/game=sql-injection-arcade/)
+
     await page.getByRole('tab', { name: 'All-time' }).click()
     await expect(page).toHaveURL(/view=all-time/)
     const allTime = page.getByRole('table', { name: 'All-time points' })

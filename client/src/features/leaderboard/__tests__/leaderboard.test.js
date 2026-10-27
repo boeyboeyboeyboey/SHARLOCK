@@ -96,11 +96,48 @@ describe('LeaderboardFilters', () => {
       },
     })
     await wrapper.find('select').setValue('c2')
-    await wrapper.findAll('select')[1].setValue('g2')
+    await wrapper.findAll('[role="tab"]')[1].trigger('click')
     expect(wrapper.emitted('update:modelValue')).toEqual([
       [{ cohortId: 'c2', gameId: 'g1' }],
       [{ cohortId: 'c1', gameId: 'g2' }],
     ])
+  })
+})
+
+describe('LeaderboardFilters game tabs', () => {
+  const props = {
+    cohorts: [{ cohortId: 'c1', cohortName: 'Blue' }],
+    games: [
+      { gameId: 'g1', name: 'One' },
+      { gameId: 'g2', name: 'Two' },
+      { gameId: 'g3', name: 'Three' },
+    ],
+    modelValue: { cohortId: 'c1', gameId: 'g1' },
+  }
+
+  it('marks the selected game and uses a roving tabindex', () => {
+    const wrapper = mount(LeaderboardFilters, { props })
+    const tabs = wrapper.findAll('[role="tab"]')
+    const labelId = wrapper.find('[role="tablist"]').attributes('aria-labelledby')
+    expect(wrapper.get(`#${labelId}`).text()).toBe('Game')
+    expect(tabs.map((tab) => tab.attributes('aria-selected'))).toEqual(['true', 'false', 'false'])
+    expect(tabs.map((tab) => tab.attributes('tabindex'))).toEqual(['0', '-1', '-1'])
+  })
+
+  it('moves focus with arrows, home and end without selecting', async () => {
+    const wrapper = mount(LeaderboardFilters, { props, attachTo: document.body })
+    const tabs = wrapper.findAll('[role="tab"]')
+    tabs[0].element.focus()
+    await tabs[0].trigger('keydown', { key: 'ArrowRight' })
+    expect(document.activeElement).toBe(tabs[1].element)
+    await tabs[1].trigger('keydown', { key: 'End' })
+    expect(document.activeElement).toBe(tabs[2].element)
+    await tabs[2].trigger('keydown', { key: 'ArrowRight' })
+    expect(document.activeElement).toBe(tabs[0].element)
+    await tabs[0].trigger('keydown', { key: 'ArrowLeft' })
+    expect(document.activeElement).toBe(tabs[2].element)
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined()
+    wrapper.unmount()
   })
 })
 
@@ -172,6 +209,32 @@ describe('LeaderboardPage', () => {
       expect.objectContaining({ view: 'all-time' }),
     )
     expect(wrapper.text()).toContain('All-time points')
+  })
+
+  it('requests the chosen game when its tab is clicked', async () => {
+    mocks.getLeaderboardGames.mockResolvedValue({
+      games: [
+        { gameId: 'sql-injection-arcade', rulesetVersion: 'v1', competitive: false },
+        { gameId: 'clearance-tower', rulesetVersion: 'v1', competitive: false },
+      ],
+    })
+    const wrapper = mountPage()
+    await flushPromises()
+    const gameTabs = wrapper
+      .find('[role="tablist"][aria-labelledby="leaderboard-game-label"]')
+      .findAll('[role="tab"]')
+    expect(gameTabs.map((tab) => tab.attributes('aria-selected'))).toEqual(['true', 'false'])
+    await gameTabs[1].trigger('click')
+    await flushPromises()
+    expect(mocks.route.query.game).toBe('clearance-tower')
+    expect(mocks.getLeaderboard).toHaveBeenLastCalledWith(
+      'c1',
+      expect.objectContaining({ gameId: 'clearance-tower' }),
+    )
+    const updated = wrapper
+      .find('[role="tablist"][aria-labelledby="leaderboard-game-label"]')
+      .findAll('[role="tab"]')
+    expect(updated.map((tab) => tab.attributes('aria-selected'))).toEqual(['false', 'true'])
   })
 
   it('shows the own rank when it is not on the current page', async () => {

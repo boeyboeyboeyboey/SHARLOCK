@@ -181,6 +181,12 @@ No active implementation task.
 - **Collision check:** none of the eight READMEs had a presentation summary; `features/about/` had no README.
 - **Checks:** walkthrough button/heading labels checked against the Vue sources with `rg`; `prettier --check` on every changed Markdown file passed. Not run in a browser; Atlas Network Access and a marker DB user still need Boey's check. The walkthrough says "close the dialog" so it holds before and after UI-07.
 
+**BOARD-02 — Leaderboard game tabs** · Status: **Review** · Contributor: **Boey** · Branch: `board-02-leaderboard-game-tabs` · Approved by Boey on 27 October 2026 (Round 1).
+
+- **Scope:** `client/src/features/leaderboard/LeaderboardFilters.vue` (the game `<select>` becomes a `role="tablist"` of one-click tabs with roving tabindex; Arrow/Home/End move focus, click/Enter/Space select; both tab rows use `aria-controls="leaderboard-panel"`), `leaderboard.css` (reuses the existing tab styles, wraps at 375px), `__tests__/leaderboard.test.js`, `tests/e2e/leaderboard.spec.js`, the leaderboard README and the "Using the app" Leaderboards paragraph. The class select, the `gameId` route query and the filter props/emits are unchanged.
+- **Collision check:** the leaderboard module is Boey's (BOARD-01); no other branch touches it.
+- **Checks:** `pnpm exec vitest run --project client client/src/features/leaderboard` 13/13 pass (new tab-selection, roving-tabindex, arrow-key focus and page-level `?game=` tests); eslint and prettier clean on changed files; `tests/e2e/leaderboard.spec.js` 4/4 pass (desktop and mobile, game tab click asserts `game=` in the URL). 375px wrap not checked in a browser.
+
 **BOARD-01 — Class leaderboards** · Status: **Review** · Contributor: **Boey** · Branch: `board-01-class-leaderboards` (cut from `origin/main` at `9e6c3a1`, 27 October 2026, upstream unset). Plan approved by Boey on 27 October 2026. Spec: [BOARD-01](#board-01--cohort-leaderboards).
 
 - **Collision check (27 October 2026):** no leaderboard code on `main`, in local or remote branch names, or in the `admin-01-b-admin-controls` (Codex admin-controls) worktree. Existing references are only the `/leaderboard` ComingSoon placeholder (`client/src/router/index.js`), nav links (`Navbar.vue:34`, `PortalLayout.vue:30`), the pixel-wipe label, docs mentions, and an empty `server/src/modules/leaderboards/.gitkeep`. Remote branch contents, PRs and teammates' machines were not inspected.
