@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount, RouterLinkStub } from '@vue/test-utils'
+import { listAttemptContexts } from '../../../features/attempts/api.js'
 import AttemptContextChooser from '../../../features/attempts/components/AttemptContextChooser.vue'
 import BriefingPanel from '../components/BriefingPanel.vue'
 import CommandReference from '../components/CommandReference.vue'
@@ -20,6 +21,31 @@ async function chooseContext(wrapper) {
   await flushPromises()
   wrapper.getComponent(AttemptContextChooser).vm.$emit('start', { kind: 'personal' })
   await wrapper.vm.$nextTick()
+}
+
+const CLASSES = {
+  cohorts: [{ cohortId: 'c1', institutionName: 'SMU', cohortName: 'IS216 G7' }],
+  total: 1,
+}
+
+function debriefResult(mode = 'timed') {
+  return {
+    mode,
+    saved: true,
+    score: 300,
+    maxScore: 2100,
+    result: { bestStreak: 2 },
+    feedback: { summary: 'You contained 2 of 8 incidents.' },
+    topicOutcomes: [],
+    debrief: [],
+  }
+}
+
+function mountDebrief(props = {}) {
+  return mount(ShiftDebrief, {
+    props: { result: debriefResult(props.mode), ...props },
+    global: { stubs: { RouterLink: RouterLinkStub } },
+  })
 }
 
 describe('cli defender components', () => {
@@ -275,5 +301,82 @@ describe('cli defender components', () => {
       .find((b) => b.text().includes('Play again'))
       .trigger('click')
     expect(wrapper.emitted('replay')).toHaveLength(1)
+  })
+
+  describe('replay choice', () => {
+    it('summarises the last run and replays with it', async () => {
+      const wrapper = mountDebrief({ mode: 'practice' })
+      await flushPromises()
+      expect(wrapper.get('[data-testid="cli-next-run"]').text()).toBe(
+        'Next run: Personal practice · Practice',
+      )
+      const change = wrapper.get('button[aria-controls="cli-replay-options"]')
+      expect(change.attributes('aria-expanded')).toBe('false')
+      await wrapper
+        .findAll('button')
+        .find((b) => b.text() === 'Play again')
+        .trigger('click')
+      expect(wrapper.emitted('replay')).toEqual([
+        [{ mode: 'practice', context: { kind: 'personal' } }],
+      ])
+    })
+
+    it('loads classes on first open and updates the summary and payload', async () => {
+      listAttemptContexts.mockResolvedValueOnce(CLASSES)
+      const wrapper = mountDebrief()
+      expect(listAttemptContexts).not.toHaveBeenCalled()
+      const change = wrapper.get('button[aria-controls="cli-replay-options"]')
+      await change.trigger('click')
+      await flushPromises()
+      expect(change.attributes('aria-expanded')).toBe('true')
+      const select = wrapper.get('select')
+      expect(wrapper.get('label[for="cli-replay-context"]').text()).toBe('Save this run to')
+      expect(wrapper.get('fieldset legend').text()).toBe('Mode')
+      await select.setValue('c1')
+      await wrapper.get('input[value="practice"]').setValue()
+      expect(wrapper.get('[data-testid="cli-next-run"]').text()).toBe(
+        'Next run: SMU · IS216 G7 · Practice',
+      )
+      await wrapper
+        .findAll('button')
+        .find((b) => b.text() === 'Play again')
+        .trigger('click')
+      expect(wrapper.emitted('replay')).toEqual([
+        [{ mode: 'practice', context: { kind: 'cohort', cohortId: 'c1' } }],
+      ])
+      await change.trigger('click')
+      expect(listAttemptContexts).toHaveBeenCalledTimes(1)
+    })
+
+    it('preselects the previous class and falls back when it is gone', async () => {
+      listAttemptContexts.mockResolvedValueOnce(CLASSES)
+      const kept = mountDebrief({ context: { kind: 'cohort', cohortId: 'c1' } })
+      await flushPromises()
+      expect(kept.get('[data-testid="cli-next-run"]').text()).toContain('SMU · IS216 G7')
+      listAttemptContexts.mockResolvedValueOnce({ cohorts: [], total: 0 })
+      const gone = mountDebrief({ context: { kind: 'cohort', cohortId: 'old' } })
+      await flushPromises()
+      expect(gone.get('[data-testid="cli-next-run"]').text()).toContain('Personal practice')
+      await gone
+        .findAll('button')
+        .find((b) => b.text() === 'Play again')
+        .trigger('click')
+      expect(gone.emitted('replay')[0][0].context).toEqual({ kind: 'personal' })
+    })
+
+    it('shows an error with retry when the class list fails', async () => {
+      listAttemptContexts.mockRejectedValueOnce(new Error('down'))
+      const wrapper = mountDebrief()
+      await wrapper.get('button[aria-controls="cli-replay-options"]').trigger('click')
+      await flushPromises()
+      expect(wrapper.get('[role="alert"]').text()).toContain('error')
+      listAttemptContexts.mockResolvedValueOnce({ cohorts: [], total: 0 })
+      await wrapper
+        .findAll('button')
+        .find((b) => b.text() === 'Retry class list')
+        .trigger('click')
+      await flushPromises()
+      expect(wrapper.text()).toContain('You have no active classes')
+    })
   })
 })

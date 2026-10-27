@@ -51,6 +51,7 @@ const {
   lastReview,
   hinting,
   saving,
+  runContext,
   start,
   hint,
   resume,
@@ -158,8 +159,9 @@ watch([phase, paused], async ([next, isPaused]) => {
       v-else-if="phase === 'debrief' && result"
       :result="result"
       :saving="saving"
+      :context="runContext"
       @retry-save="retrySave"
-      @replay="start(mode)"
+      @replay="start($event.mode, $event.context)"
       @menu="replay"
     />
 

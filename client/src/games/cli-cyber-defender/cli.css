@@ -1799,3 +1799,70 @@
     }
   }
 }
+
+.cli-replay {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.cli-replay-summary {
+  margin: 0;
+  color: var(--game-ink);
+  overflow-wrap: anywhere;
+}
+
+.cli-replay-options {
+  display: grid;
+  flex-basis: 100%;
+  grid-template-columns: minmax(0, 28rem);
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--game-line);
+  background: var(--game-bg);
+}
+
+.cli-replay-options label,
+.cli-replay-options legend {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.95rem;
+  float: none;
+  width: auto;
+  color: var(--game-green-dim);
+}
+
+.cli-replay-options .form-select {
+  max-width: 100%;
+  color: var(--game-ink);
+  background-color: var(--game-panel);
+  border: 1px solid var(--game-line);
+}
+
+.cli-replay-modes {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.cli-replay-modes .cli-replay-radio {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  color: var(--game-ink);
+}
+
+.cli-replay-options input[type='radio'] {
+  width: 1.25rem;
+  height: 1.25rem;
+  accent-color: var(--game-green);
+}
+
+.cli-replay-options select:focus-visible,
+.cli-replay-options input:focus-visible {
+  outline: 3px solid var(--game-amber);
+  outline-offset: 2px;
+}

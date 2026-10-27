@@ -125,6 +125,13 @@ describe('cli defender composable', () => {
       { kind: 'personal' },
       expect.any(AbortSignal),
     )
+    const cohort = { kind: 'cohort', cohortId: 'c1' }
+    game.finish()
+    await game.start('timed', cohort)
+    expect(startRun).toHaveBeenLastCalledWith('timed', cohort, expect.any(AbortSignal))
+    expect(game.runContext.value).toEqual(cohort)
+    await game.start('practice')
+    expect(startRun).toHaveBeenLastCalledWith('practice', cohort, expect.any(AbortSignal))
   })
 
   it('keeps help, history and clear local', async () => {

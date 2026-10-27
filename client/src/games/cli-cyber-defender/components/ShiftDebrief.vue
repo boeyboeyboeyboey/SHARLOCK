@@ -2,14 +2,17 @@
 import { computed, onMounted, ref } from 'vue'
 import CliIcon from './CliIcon.vue'
 import ConceptTags from './ConceptTags.vue'
+import ReplayChoice from './ReplayChoice.vue'
 
 const props = defineProps({
   result: { type: Object, required: true },
   saving: { type: Boolean, default: false },
+  context: { type: Object, default: () => ({ kind: 'personal' }) },
 })
 const emit = defineEmits(['replay', 'menu', 'retry-save'])
 
 const heading = ref(null)
+const next = ref({ mode: props.result.mode, context: props.context })
 const OUTCOME_LABELS = {
   correct: 'OK',
   wrong: 'WRONG',
@@ -125,8 +128,9 @@ onMounted(() => heading.value?.focus())
       </button>
     </div>
 
+    <ReplayChoice :context="context" :mode="result.mode" @change="next = $event" />
     <div class="d-flex flex-wrap align-items-center gap-3">
-      <button type="button" class="btn cli-btn-primary" @click="emit('replay')">
+      <button type="button" class="btn cli-btn-primary" @click="emit('replay', next)">
         <CliIcon name="replay" :size="18" />Play again
       </button>
       <button type="button" class="btn" @click="emit('menu')">

@@ -35,10 +35,10 @@ export function useCliDefender({ now = () => Date.now(), tickMs = 100, onEvent =
   const lastReview = ref(null)
   const hinting = ref(false)
   const saving = ref(false)
+  const runContext = ref({ kind: 'personal' })
 
   // server time minus local time, so deadlines are compared on the server's clock
   let offset = 0
-  let context = { kind: 'personal' }
   let lineId = 0
   let shownIncident = null
   let announced = new Set()
@@ -141,12 +141,12 @@ export function useCliDefender({ now = () => Date.now(), tickMs = 100, onEvent =
 
   async function start(selectedMode, selectedContext) {
     reset()
-    if (selectedContext) context = selectedContext
+    if (selectedContext) runContext.value = selectedContext
     mode.value = selectedMode === 'practice' ? 'practice' : 'timed'
     controller = new AbortController()
     phase.value = 'starting'
     try {
-      const data = await startRun(mode.value, context, controller.signal)
+      const data = await startRun(mode.value, runContext.value, controller.signal)
       if (disposed) return
       phase.value = 'running'
       print(
@@ -377,6 +377,7 @@ export function useCliDefender({ now = () => Date.now(), tickMs = 100, onEvent =
     lastReview,
     hinting,
     saving,
+    runContext,
     start,
     hint,
     pause,
