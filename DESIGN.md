@@ -59,11 +59,12 @@ The following palette and typography rules apply to shared UI; game-local stylin
 | `--accent-secondary` | `#E3EACB`                        | Light green secondary surfaces/actions.             |
 | `--text-main`        | `#334155`                        | Dark text and visible focus outlines.               |
 | `--alert-warning`    | `#F5DFA6`                        | Warm warning/error backgrounds, with explicit text. |
+| `--alert-danger`     | `#B42318`                        | Destructive actions, with white text (6.57:1).      |
 | `--surface`          | `#FFF8DF`                        | Cream cards, navigation and forms.                  |
 | `--border-strong`    | `#50634D`                        | Hard borders and offset shadows.                    |
 | `--shadow-pixel`     | `4px 4px 0 var(--border-strong)` | Default hard shadow, without blur.                  |
 
-Use dark text on light fills and 2–3px borders. Shared buttons, panels, avatars and badges have square corners. Button hover/pressed states shift the hard shadow slightly; reduced motion disables transitions. Warning/error meaning must also be stated in text. Bootstrap form/button/status styles use the shared palette.
+Enable account uses `--accent-primary` with `--text-main` text (5.61:1). Use dark text on light fills and 2–3px borders. Shared buttons, panels, avatars and badges have square corners. Button hover/pressed states shift the hard shadow slightly; reduced motion disables transitions. Warning/error meaning must also be stated in text. Bootstrap form/button/status styles use the shared palette.
 
 `client/src/assets/styles/town.css` retains town-specific layout and interaction styles. Its shared root aliases are `--town-ink: var(--text-main)`, `--town-edge: var(--border-strong)`, `--town-paper: var(--surface)`, plus `--town-grass: #A8C98A`, `--town-grass-dark: #91B575`, `--town-sky: #DFEAD6` and `--town-gold: #996B24`. Earth/water colours belong to the original scenery assets. Game-specific colours must remain scoped inside that module.
 

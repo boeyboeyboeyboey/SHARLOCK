@@ -247,14 +247,14 @@ Admin
 
 1. Sign in at `/login` with the demo administrator supplied privately with the submission (email or username, then password), then open `/admin` ("Admin workspace").
 2. On a fresh database with no administrator, run `pnpm db:bootstrap-admin` once in a private interactive terminal instead, answer the prompts and type the confirmations it asks for. It refuses to run when an administrator already exists.
-3. In "Institutions and classes", use "Create an institution" (`Create institution`), then select it and use "Create a class" (`Create class`).
+3. On the "Institutions & classes" tab of the admin workspace, use "Create an institution" (`Create institution`), then select it and use "Create a class" (`Create class`).
 
 Instructor
 
-4. In the admin workspace open "Provision an instructor", enter the instructor's email and username, choose an avatar and press `Create instructor and activation link`.
+4. Open the "Instructors" tab, use "Provision an instructor", enter the instructor's email and username, choose an avatar and press `Create instructor and activation link`.
 5. The "Activation link" dialog shows the link once. Press `Copy activation link`, deliver it privately, then close the dialog. The link works once and expires after 24 hours.
 6. The instructor opens the link (`/activate-account#token=...`), enters and confirms a new password under "Activate your account" and presses `Set password and activate account`. Activation does not sign them in: use `Go to sign in` and sign in normally.
-7. Back in the admin workspace, find the instructor under "Instructors", tick the classes to assign and press `Save assignments`.
+7. Back on the "Instructors" tab, find the instructor, tick the classes to assign and press `Save assignments`.
 8. As the instructor, open `/instructor` ("Manage your classes"), pick the class and press `Generate code` under "Class invitation code". The code appears once; share it with students.
 
 Student

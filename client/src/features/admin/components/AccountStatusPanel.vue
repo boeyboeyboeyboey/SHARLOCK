@@ -132,6 +132,12 @@ function actionLabel(user) {
   return user.accountStatus === 'active' ? 'Disable account' : 'Enable account'
 }
 
+function statusButtonClass(user) {
+  if (actionLabel(user) === 'Disable account') return 'admin-workspace__text-button--danger'
+  if (actionLabel(user) === 'Enable account') return 'admin-workspace__text-button--enable'
+  return ''
+}
+
 function actionPending(user) {
   return Boolean(pendingUsers.value[user.id] || props.reissuing[user.id])
 }
@@ -281,6 +287,7 @@ onBeforeUnmount(() => {
               <button
                 v-if="actionLabel(user)"
                 class="admin-workspace__text-button"
+                :class="statusButtonClass(user)"
                 type="button"
                 :disabled="loading || actionPending(user)"
                 @click="changeStatus(user)"

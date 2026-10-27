@@ -1,5 +1,6 @@
 <script setup>
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { avatarFor } from '../../auth/avatars.js'
 import ActivationLinkDialog from '../components/ActivationLinkDialog.vue'
 import AccountStatusPanel from '../components/AccountStatusPanel.vue'
@@ -27,6 +28,37 @@ import { issueAdminRecovery, lookupStudent, safeRecoveryError } from '../../reco
 import '../admin.css'
 import '../../auth/auth.css'
 import '../../recovery/recovery.css'
+
+const TABS = [
+  { id: 'institutions', label: 'Institutions & classes' },
+  { id: 'instructors', label: 'Instructors' },
+  { id: 'accounts', label: 'Accounts' },
+  { id: 'audit', label: 'Audit log' },
+]
+const route = useRoute()
+const router = useRouter()
+const tablist = ref(null)
+const tab = computed(() => {
+  const requested = String(route.query.tab || '')
+  return TABS.some((item) => item.id === requested) ? requested : TABS[0].id
+})
+
+function selectTab(id) {
+  router.replace({ query: { ...route.query, tab: id } })
+}
+
+function onTabKey(event) {
+  const steps = { ArrowRight: 1, ArrowLeft: -1 }
+  if (!(event.key in steps) && event.key !== 'Home' && event.key !== 'End') return
+  event.preventDefault()
+  const index = TABS.findIndex((item) => item.id === tab.value)
+  const last = TABS.length - 1
+  let next = (index + steps[event.key] + TABS.length) % TABS.length
+  if (event.key === 'Home') next = 0
+  if (event.key === 'End') next = last
+  selectTab(TABS[next].id)
+  tablist.value?.querySelectorAll('[role="tab"]')[next]?.focus()
+}
 
 const PAGE_SIZE = 20
 const ASSIGNMENT_PAGE_SIZE = 50
@@ -484,145 +516,199 @@ onBeforeUnmount(() => {
 
     <p v-if="notice" class="admin-workspace__alert" role="alert">{{ notice }}</p>
 
-    <InstitutionCohortForm
-      ref="institutionForm"
-      :institutions="institutions"
-      :cohorts="cohorts"
-      :institution-page="institutionPage"
-      :institution-total="institutionTotal"
-      :cohort-page="cohortPage"
-      :cohort-total="cohortTotal"
-      :selected-institution-id="selectedInstitutionId"
-      :loading-institutions="loadingInstitutions"
-      :loading-cohorts="loadingCohorts"
-      :pending-institution="pendingInstitution"
-      :pending-cohort="pendingCohort"
-      :updating-institution-id="updatingInstitutionId"
-      :updating-cohort-id="updatingCohortId"
-      :error="institutionError"
-      @create-institution="createInstitutionEntry"
-      @create-cohort="createCohortEntry"
-      @update-institution="updateInstitutionEntry"
-      @update-cohort="updateCohortEntry"
-      @select-institution="selectedInstitutionId = $event"
-      @institution-page="loadInstitutions"
-      @cohort-page="loadCohorts"
-    />
+    <div
+      ref="tablist"
+      class="admin-workspace__tabs"
+      role="tablist"
+      aria-label="Admin sections"
+      @keydown="onTabKey"
+    >
+      <button
+        v-for="item in TABS"
+        :id="`admin-tab-${item.id}`"
+        :key="item.id"
+        type="button"
+        role="tab"
+        :aria-selected="tab === item.id"
+        :aria-controls="`admin-panel-${item.id}`"
+        :tabindex="tab === item.id ? 0 : -1"
+        @click="selectTab(item.id)"
+      >
+        {{ item.label }}
+      </button>
+    </div>
 
-    <InstructorProvisionForm
-      ref="instructorForm"
-      :pending="pendingInstructor"
-      :error="instructorError"
-      @provision="provisionInstructor"
-    />
-
-    <AccountStatusPanel
-      :reissuing="reissuing"
-      :activation-errors="activationErrors"
-      :access-error="activationAccessError"
-      @reissue-activation="reissueActivation"
-    />
-
-    <section class="recovery-panel" aria-labelledby="admin-recovery-title">
-      <p class="recovery-eyebrow">STUDENT ACCOUNT SUPPORT</p>
-      <h2 id="admin-recovery-title">Student password recovery</h2>
-      <RecoveryStudentLookup
-        :pending="recoveryLookupPending"
-        :match="recoveryMatch"
-        :error="recoveryLookupError"
-        @lookup="lookupRecoveryStudent"
-        @select="selectRecoveryStudent"
+    <div
+      v-show="tab === 'institutions'"
+      id="admin-panel-institutions"
+      class="admin-workspace__tabpanel"
+      role="tabpanel"
+      aria-labelledby="admin-tab-institutions"
+    >
+      <InstitutionCohortForm
+        ref="institutionForm"
+        :institutions="institutions"
+        :cohorts="cohorts"
+        :institution-page="institutionPage"
+        :institution-total="institutionTotal"
+        :cohort-page="cohortPage"
+        :cohort-total="cohortTotal"
+        :selected-institution-id="selectedInstitutionId"
+        :loading-institutions="loadingInstitutions"
+        :loading-cohorts="loadingCohorts"
+        :pending-institution="pendingInstitution"
+        :pending-cohort="pendingCohort"
+        :updating-institution-id="updatingInstitutionId"
+        :updating-cohort-id="updatingCohortId"
+        :error="institutionError"
+        @create-institution="createInstitutionEntry"
+        @create-cohort="createCohortEntry"
+        @update-institution="updateInstitutionEntry"
+        @update-cohort="updateCohortEntry"
+        @select-institution="selectedInstitutionId = $event"
+        @institution-page="loadInstitutions"
+        @cohort-page="loadCohorts"
       />
-      <RecoveryIssueForm
-        v-if="recoveryStudent"
-        ref="recoveryIssueForm"
-        :eligible-student="recoveryStudent"
-        :pending="recoveryIssuePending"
-        :error="recoveryIssueError"
-        @issue="issueRecoveryLink"
-      />
-    </section>
+    </div>
 
-    <section class="admin-workspace__panel" aria-labelledby="instructors-title">
-      <div class="admin-workspace__section-heading">
-        <div>
-          <p class="admin-workspace__eyebrow">ACCESS AND ASSIGNMENTS</p>
-          <h2 id="instructors-title">Instructors</h2>
-        </div>
-        <button
-          class="admin-workspace__text-button"
-          type="button"
-          :disabled="loadingInstructors"
-          @click="loadInstructors(instructorPage)"
-        >
-          {{ loadingInstructors ? 'Refreshing…' : 'Refresh instructors' }}
-        </button>
-      </div>
-      <p v-if="loadingInstructors && instructors.length === 0" role="status">
-        Loading instructors…
-      </p>
-      <p v-else-if="instructors.length === 0" class="admin-workspace__empty">
-        No instructors are listed yet.
-      </p>
-      <div v-else class="admin-workspace__instructor-list">
-        <div
-          v-for="instructor in instructors"
-          :key="instructor.id"
-          class="admin-workspace__instructor-row"
-        >
-          <div class="admin-workspace__instructor-identity">
-            <img
-              :src="avatarFor(instructor.avatarId).path"
-              width="48"
-              height="48"
-              :alt="`${avatarFor(instructor.avatarId).label} capybara avatar`"
-            />
-            <div>
-              <strong>{{ instructor.username }}</strong>
-              <span>{{ instructor.email }}</span>
-              <span class="admin-workspace__status">
-                {{ statusLabel(instructor.accountStatus) }}
-              </span>
-            </div>
+    <div
+      v-show="tab === 'instructors'"
+      id="admin-panel-instructors"
+      class="admin-workspace__tabpanel"
+      role="tabpanel"
+      aria-labelledby="admin-tab-instructors"
+    >
+      <InstructorProvisionForm
+        ref="instructorForm"
+        :pending="pendingInstructor"
+        :error="instructorError"
+        @provision="provisionInstructor"
+      />
+
+      <section class="admin-workspace__panel" aria-labelledby="instructors-title">
+        <div class="admin-workspace__section-heading">
+          <div>
+            <p class="admin-workspace__eyebrow">ACCESS AND ASSIGNMENTS</p>
+            <h2 id="instructors-title">Instructors</h2>
           </div>
-          <AssignmentEditor
-            :instructor="instructor"
-            :cohorts="assignmentCohorts"
-            :cohort-page="assignmentCohortPage"
-            :cohort-total="assignmentCohortTotal"
-            :pending="Boolean(pendingAssignments[instructor.id]) || loadingAssignmentCohorts"
-            :error="assignmentErrors[instructor.id] || ''"
-            @save="saveAssignments"
-            @reload="reloadAssignments"
-            @cohort-page="loadAssignmentCohorts"
-          />
+          <button
+            class="admin-workspace__text-button"
+            type="button"
+            :disabled="loadingInstructors"
+            @click="loadInstructors(instructorPage)"
+          >
+            {{ loadingInstructors ? 'Refreshing…' : 'Refresh instructors' }}
+          </button>
         </div>
-      </div>
-      <div class="admin-workspace__pagination" aria-label="Instructor pages">
-        <button
-          class="admin-workspace__text-button"
-          type="button"
-          :disabled="instructorPage <= 1 || loadingInstructors"
-          @click="loadInstructors(instructorPage - 1)"
-        >
-          Previous instructors
-        </button>
-        <span
-          >Page {{ instructorPage }} of
-          {{ Math.max(1, Math.ceil(instructorTotal / PAGE_SIZE)) }}</span
-        >
-        <button
-          class="admin-workspace__text-button"
-          type="button"
-          :disabled="instructorPage * PAGE_SIZE >= instructorTotal || loadingInstructors"
-          @click="loadInstructors(instructorPage + 1)"
-        >
-          Next instructors
-        </button>
-      </div>
-    </section>
+        <p v-if="loadingInstructors && instructors.length === 0" role="status">
+          Loading instructors…
+        </p>
+        <p v-else-if="instructors.length === 0" class="admin-workspace__empty">
+          No instructors are listed yet.
+        </p>
+        <div v-else class="admin-workspace__instructor-list">
+          <div
+            v-for="instructor in instructors"
+            :key="instructor.id"
+            class="admin-workspace__instructor-row"
+          >
+            <div class="admin-workspace__instructor-identity">
+              <img
+                :src="avatarFor(instructor.avatarId).path"
+                width="48"
+                height="48"
+                :alt="`${avatarFor(instructor.avatarId).label} capybara avatar`"
+              />
+              <div>
+                <strong>{{ instructor.username }}</strong>
+                <span>{{ instructor.email }}</span>
+                <span class="admin-workspace__status">
+                  {{ statusLabel(instructor.accountStatus) }}
+                </span>
+              </div>
+            </div>
+            <AssignmentEditor
+              :instructor="instructor"
+              :cohorts="assignmentCohorts"
+              :cohort-page="assignmentCohortPage"
+              :cohort-total="assignmentCohortTotal"
+              :pending="Boolean(pendingAssignments[instructor.id]) || loadingAssignmentCohorts"
+              :error="assignmentErrors[instructor.id] || ''"
+              @save="saveAssignments"
+              @reload="reloadAssignments"
+              @cohort-page="loadAssignmentCohorts"
+            />
+          </div>
+        </div>
+        <div class="admin-workspace__pagination" aria-label="Instructor pages">
+          <button
+            class="admin-workspace__text-button"
+            type="button"
+            :disabled="instructorPage <= 1 || loadingInstructors"
+            @click="loadInstructors(instructorPage - 1)"
+          >
+            Previous instructors
+          </button>
+          <span
+            >Page {{ instructorPage }} of
+            {{ Math.max(1, Math.ceil(instructorTotal / PAGE_SIZE)) }}</span
+          >
+          <button
+            class="admin-workspace__text-button"
+            type="button"
+            :disabled="instructorPage * PAGE_SIZE >= instructorTotal || loadingInstructors"
+            @click="loadInstructors(instructorPage + 1)"
+          >
+            Next instructors
+          </button>
+        </div>
+      </section>
+    </div>
 
-    <AuditEventsPanel />
+    <div
+      v-show="tab === 'accounts'"
+      id="admin-panel-accounts"
+      class="admin-workspace__tabpanel"
+      role="tabpanel"
+      aria-labelledby="admin-tab-accounts"
+    >
+      <AccountStatusPanel
+        :reissuing="reissuing"
+        :activation-errors="activationErrors"
+        :access-error="activationAccessError"
+        @reissue-activation="reissueActivation"
+      />
+
+      <section class="recovery-panel" aria-labelledby="admin-recovery-title">
+        <p class="recovery-eyebrow">STUDENT ACCOUNT SUPPORT</p>
+        <h2 id="admin-recovery-title">Student password recovery</h2>
+        <RecoveryStudentLookup
+          :pending="recoveryLookupPending"
+          :match="recoveryMatch"
+          :error="recoveryLookupError"
+          @lookup="lookupRecoveryStudent"
+          @select="selectRecoveryStudent"
+        />
+        <RecoveryIssueForm
+          v-if="recoveryStudent"
+          ref="recoveryIssueForm"
+          :eligible-student="recoveryStudent"
+          :pending="recoveryIssuePending"
+          :error="recoveryIssueError"
+          @issue="issueRecoveryLink"
+        />
+      </section>
+    </div>
+
+    <div
+      v-show="tab === 'audit'"
+      id="admin-panel-audit"
+      class="admin-workspace__tabpanel"
+      role="tabpanel"
+      aria-labelledby="admin-tab-audit"
+    >
+      <AuditEventsPanel />
+    </div>
 
     <ActivationLinkDialog
       v-if="activationLink"

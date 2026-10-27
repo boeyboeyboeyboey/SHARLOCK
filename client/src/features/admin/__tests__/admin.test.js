@@ -1,5 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { reactive } from 'vue'
 import AdminPage from '../pages/AdminPage.vue'
 import AccountStatusPanel from '../components/AccountStatusPanel.vue'
 import AuditEventsPanel from '../components/AuditEventsPanel.vue'
@@ -35,6 +36,12 @@ const mocks = vi.hoisted(() => {
 })
 
 vi.mock('../api.js', () => mocks)
+
+const routerMocks = vi.hoisted(() => ({ route: null, replace: vi.fn() }))
+vi.mock('vue-router', () => ({
+  useRoute: () => routerMocks.route,
+  useRouter: () => ({ replace: routerMocks.replace }),
+}))
 
 const recoveryMocks = vi.hoisted(() => ({
   issueAdminRecovery: vi.fn(),
@@ -93,6 +100,10 @@ function setDefaultLists({ instructorRows = [], institutionRows = [institution] 
 describe('admin workspace', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    routerMocks.route = reactive({ query: {} })
+    routerMocks.replace.mockImplementation(({ query }) => {
+      routerMocks.route.query = query
+    })
     setDefaultLists()
     mocks.createInstitution.mockResolvedValue({ id: institution.id })
     mocks.createCohort.mockResolvedValue({ id: cohort.id })
@@ -649,6 +660,35 @@ describe('admin workspace', () => {
     wrapper.unmount()
   })
 
+  it('labels the status buttons by the action they perform', async () => {
+    const make = (id, role, accountStatus) => ({
+      id,
+      username: `User_${id}`,
+      avatarId: 'mint',
+      globalRoles: [role],
+      accountStatus,
+      revision: 1,
+    })
+    mocks.listAdminUsers.mockResolvedValue({
+      users: [
+        make('a', 'student', 'active'),
+        make('b', 'student', 'disabled'),
+        make('c', 'instructor', 'disabled'),
+      ],
+      page: 1,
+      total: 3,
+    })
+    const wrapper = mount(AccountStatusPanel)
+    await flushPromises()
+
+    expect(wrapper.findAll('tbody button').map((button) => button.text())).toEqual([
+      'Disable account',
+      'Enable account',
+      'Reissue activation link',
+    ])
+    wrapper.unmount()
+  })
+
   it('confirms student disable, sends the revision, and uses activation for disabled instructors', async () => {
     const student = {
       id: 'student-id',
@@ -782,5 +822,76 @@ describe('admin workspace', () => {
     expect(wrapper.get('[role="alert"]').text()).toContain('Your session ended. Sign in again.')
     expect(wrapper.text()).not.toContain(instructor.username)
     wrapper.unmount()
+  })
+  describe('tabs', () => {
+    async function mountTabs(query = {}) {
+      routerMocks.route.query = query
+      const wrapper = mount(AdminPage, { attachTo: document.body })
+      await flushPromises()
+      return wrapper
+    }
+
+    it('renders four tabs with tab semantics and defaults to institutions', async () => {
+      const wrapper = await mountTabs()
+      const tabs = wrapper.findAll('[role="tab"]')
+      expect(wrapper.get('[role="tablist"]').attributes('aria-label')).toBe('Admin sections')
+      expect(tabs.map((item) => item.text())).toEqual([
+        'Institutions & classes',
+        'Instructors',
+        'Accounts',
+        'Audit log',
+      ])
+      expect(tabs.map((item) => item.attributes('aria-selected'))).toEqual([
+        'true',
+        'false',
+        'false',
+        'false',
+      ])
+      expect(tabs.map((item) => item.attributes('tabindex'))).toEqual(['0', '-1', '-1', '-1'])
+      tabs.forEach((item) => {
+        const panel = wrapper.get(`#${item.attributes('aria-controls')}`)
+        expect(panel.attributes('role')).toBe('tabpanel')
+        expect(panel.attributes('aria-labelledby')).toBe(item.attributes('id'))
+      })
+      wrapper.unmount()
+    })
+
+    it('shows only the selected panel and keeps the others mounted', async () => {
+      const wrapper = await mountTabs({ tab: 'audit' })
+      expect(wrapper.get('#admin-panel-audit').isVisible()).toBe(true)
+      expect(wrapper.get('#admin-panel-institutions').isVisible()).toBe(false)
+      expect(wrapper.get('#admin-panel-accounts').isVisible()).toBe(false)
+      expect(wrapper.find('#admin-panel-institutions form').exists()).toBe(true)
+      wrapper.unmount()
+    })
+
+    it('falls back to institutions for an invalid tab value', async () => {
+      const wrapper = await mountTabs({ tab: 'nope' })
+      expect(wrapper.get('#admin-tab-institutions').attributes('aria-selected')).toBe('true')
+      wrapper.unmount()
+    })
+
+    it('writes the chosen tab to the query and keeps other query values', async () => {
+      const wrapper = await mountTabs({ page: '2' })
+      await wrapper.get('#admin-tab-accounts').trigger('click')
+      expect(routerMocks.replace).toHaveBeenCalledWith({ query: { page: '2', tab: 'accounts' } })
+      expect(wrapper.get('#admin-tab-accounts').attributes('aria-selected')).toBe('true')
+      wrapper.unmount()
+    })
+
+    it('moves selection and focus with arrow, Home and End keys', async () => {
+      const wrapper = await mountTabs()
+      const tablist = wrapper.get('[role="tablist"]')
+      await tablist.trigger('keydown', { key: 'ArrowLeft' })
+      expect(wrapper.get('#admin-tab-audit').attributes('aria-selected')).toBe('true')
+      expect(document.activeElement.id).toBe('admin-tab-audit')
+      await tablist.trigger('keydown', { key: 'ArrowRight' })
+      expect(wrapper.get('#admin-tab-institutions').attributes('aria-selected')).toBe('true')
+      await tablist.trigger('keydown', { key: 'End' })
+      expect(wrapper.get('#admin-tab-audit').attributes('aria-selected')).toBe('true')
+      await tablist.trigger('keydown', { key: 'Home' })
+      expect(wrapper.get('#admin-tab-institutions').attributes('aria-selected')).toBe('true')
+      wrapper.unmount()
+    })
   })
 })
