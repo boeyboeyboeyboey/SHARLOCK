@@ -1,5 +1,6 @@
 import { AuthError, normalizeUsername, parseEmptyQuery } from '../auth/policy.js'
 import { isAvatarId } from '../auth/avatars.js'
+import { HOW_TO_PLAY_GAME_IDS } from './how-to-play.js'
 
 export class ProfileError extends Error {
   constructor(code, message, status = 400, fieldErrors) {
@@ -67,4 +68,28 @@ export function parseProfileQuery(query) {
     if (!(error instanceof AuthError)) throw error
     throw new ProfileError(error.code, error.message, error.status, error.fieldErrors)
   }
+}
+
+export function parseHowToPlayInput(gameId, input) {
+  const fieldErrors = Object.create(null)
+  if (typeof gameId !== 'string' || !HOW_TO_PLAY_GAME_IDS.includes(gameId)) {
+    fieldErrors.gameId = 'Choose a game that has a how to play guide.'
+  }
+
+  const prototype = input && typeof input === 'object' ? Object.getPrototypeOf(input) : null
+  const isRecord =
+    input !== null &&
+    typeof input === 'object' &&
+    !Array.isArray(input) &&
+    (prototype === Object.prototype || prototype === null)
+  if (!isRecord) {
+    fieldErrors._ = 'Must be a JSON object.'
+  } else {
+    const keys = Reflect.ownKeys(input)
+    if (keys.length !== 1 || keys[0] !== 'dismissed') fieldErrors._ = 'Only dismissed is allowed.'
+    else if (typeof input.dismissed !== 'boolean') fieldErrors.dismissed = 'Must be true or false.'
+  }
+
+  if (Object.keys(fieldErrors).length > 0) throw validationError(fieldErrors)
+  return { gameId, dismissed: input.dismissed }
 }

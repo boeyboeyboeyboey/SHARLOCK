@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
-  api: { get: vi.fn(), patch: vi.fn() },
+  api: { get: vi.fn(), patch: vi.fn(), put: vi.fn() },
   requestCsrfToken: vi.fn(),
 }))
 
 vi.mock('../../../services/api.js', () => ({ api: mocks.api }))
 vi.mock('../../auth/api.js', () => ({ requestCsrfToken: mocks.requestCsrfToken }))
 
-import { getOwnProfile, ProfileApiError, updateOwnProfile } from '../api.js'
+import { getOwnProfile, ProfileApiError, setHowToPlayDismissed, updateOwnProfile } from '../api.js'
 
 describe('profile API', () => {
   beforeEach(() => vi.clearAllMocks())
@@ -63,6 +63,49 @@ describe('profile API', () => {
       status: 409,
       fieldErrors: { username: 'That username is already in use. Choose another one.' },
       message: 'That username is already in use. Choose another one.',
+    })
+  })
+})
+
+describe('how to play API', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('sends exactly { dismissed } with a fresh CSRF token and returns the list', async () => {
+    mocks.requestCsrfToken.mockResolvedValue('csrf-token')
+    mocks.api.put.mockResolvedValue({ data: { howToPlayDismissed: ['clearance-tower'] } })
+
+    await expect(setHowToPlayDismissed('clearance-tower', true)).resolves.toEqual([
+      'clearance-tower',
+    ])
+    expect(mocks.api.put).toHaveBeenCalledWith(
+      '/me/how-to-play/clearance-tower',
+      { dismissed: true },
+      { signal: undefined, headers: { 'X-CSRF-Token': 'csrf-token' } },
+    )
+  })
+
+  it('rejects bad input before any request and malformed responses after', async () => {
+    await expect(setHowToPlayDismissed('../x', true)).rejects.toBeInstanceOf(ProfileApiError)
+    await expect(setHowToPlayDismissed('clearance-tower', 'yes')).rejects.toBeInstanceOf(
+      ProfileApiError,
+    )
+    expect(mocks.api.put).not.toHaveBeenCalled()
+
+    mocks.requestCsrfToken.mockResolvedValue('csrf-token')
+    mocks.api.put.mockResolvedValue({ data: { howToPlayDismissed: 'nope' } })
+    await expect(setHowToPlayDismissed('clearance-tower', true)).rejects.toBeInstanceOf(
+      ProfileApiError,
+    )
+  })
+
+  it('maps server failures to a safe error', async () => {
+    mocks.requestCsrfToken.mockResolvedValue('csrf-token')
+    mocks.api.put.mockRejectedValue({
+      response: { status: 403, data: { error: { code: 'CSRF_INVALID', message: 'private' } } },
+    })
+    await expect(setHowToPlayDismissed('clearance-tower', true)).rejects.toMatchObject({
+      code: 'CSRF_INVALID',
+      status: 403,
     })
   })
 })

@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
+import { useAuthStore } from '../../../features/auth/store.js'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import ClearanceTowerGame from '../ClearanceTowerGame.vue'
 import { listAttemptContexts, readAttempt, writeAttempt } from '../../../features/attempts/api.js'
@@ -26,7 +28,12 @@ const active = {
   publicState: { totalLevels: 6, submittedCount: 0, readyToComplete: false, levels },
 }
 
-async function mountGame(query = {}) {
+async function mountGame(query = {}, dismissed = ['clearance-tower']) {
+  const pinia = createPinia()
+  setActivePinia(pinia)
+  const auth = useAuthStore()
+  auth.user = { howToPlayDismissed: dismissed }
+  auth.status = 'authenticated'
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
@@ -36,12 +43,28 @@ async function mountGame(query = {}) {
   })
   await router.push({ path: '/games/clearance-tower', query })
   await router.isReady()
-  const wrapper = mount(ClearanceTowerGame, { global: { plugins: [router] } })
+  const wrapper = mount(ClearanceTowerGame, {
+    global: { plugins: [router, pinia] },
+    attachTo: document.body,
+  })
   await flushPromises()
   return { wrapper, router }
 }
 
-afterEach(() => vi.resetAllMocks())
+afterEach(() => {
+  vi.resetAllMocks()
+  document.body.innerHTML = ''
+})
+
+function stubDialog() {
+  HTMLDialogElement.prototype.showModal = function showModal() {
+    this.setAttribute('open', '')
+  }
+  HTMLDialogElement.prototype.close = function close() {
+    this.removeAttribute('open')
+    this.dispatchEvent(new Event('close'))
+  }
+}
 
 describe('clearance tower game', () => {
   it('starts a climb from the chooser and resumes it from the route', async () => {
@@ -84,5 +107,28 @@ describe('clearance tower game', () => {
     expect(wrapper.text()).toContain(`${levels[0].title}: 90 / 100`)
     expect(wrapper.text()).toContain('not played, 0 / 100')
     expect(wrapper.text()).not.toContain('not saved')
+  })
+})
+
+describe('clearance tower how to play guide', () => {
+  it('opens on the first visit before the save chooser', async () => {
+    stubDialog()
+    listAttemptContexts.mockResolvedValue({ cohorts: [], total: 0 })
+    const { wrapper } = await mountGame({}, [])
+    expect(wrapper.get('dialog').attributes('open')).toBeDefined()
+    expect(wrapper.get('dialog').text()).toContain('How to play: Clearance Tower')
+  })
+
+  it('stays closed when dismissed and reopens from the button', async () => {
+    stubDialog()
+    listAttemptContexts.mockResolvedValue({ cohorts: [], total: 0 })
+    const { wrapper } = await mountGame()
+    expect(wrapper.get('dialog').attributes('open')).toBeUndefined()
+    await wrapper
+      .findAll('button')
+      .find((item) => item.text() === 'How to play')
+      .trigger('click')
+    await flushPromises()
+    expect(wrapper.get('dialog').attributes('open')).toBeDefined()
   })
 })

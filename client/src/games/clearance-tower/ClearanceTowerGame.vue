@@ -3,10 +3,13 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AttemptContextChooser from '../../features/attempts/components/AttemptContextChooser.vue'
 import SavedAttemptResult from '../../features/attempts/components/SavedAttemptResult.vue'
+import HowToPlayDialog from '../../components/common/HowToPlayDialog.vue'
+import { useHowToPlay } from '../../composables/useHowToPlay.js'
 import AccessMatrix from './components/AccessMatrix.vue'
 import DayControls from './components/DayControls.vue'
 import DossierBrief from './components/DossierBrief.vue'
 import EventLog from './components/EventLog.vue'
+import HowToPlayScene from './components/HowToPlayScene.vue'
 import LabelBoard from './components/LabelBoard.vue'
 import LevelDebrief from './components/LevelDebrief.vue'
 import LevelSelect from './components/LevelSelect.vue'
@@ -14,6 +17,7 @@ import PredictionPanel from './components/PredictionPanel.vue'
 import RoleDesigner from './components/RoleDesigner.vue'
 import TowerView from './components/TowerView.vue'
 import { describeStep, starText } from './clearanceTower.js'
+import { HOW_TO_PLAY } from './howToPlay.js'
 import { useClearanceTower } from './composables/useClearanceTower.js'
 import { useDayPlayback } from './composables/useDayPlayback.js'
 import './clearance.css'
@@ -44,6 +48,7 @@ const {
   reset,
 } = useClearanceTower()
 const initializing = ref(true)
+const { open: howToOpen, show: showHowTo } = useHowToPlay('clearance-tower')
 
 const events = computed(() => result.value?.events ?? [])
 const {
@@ -135,6 +140,9 @@ onMounted(async () => {
       <p>
         Six cases across discretionary, mandatory and role-based access control. Run each case once;
         the server scores the day and the climb totals up to 600 points.
+      </p>
+      <p>
+        <button type="button" class="clear-button" @click="showHowTo">How to play</button>
       </p>
       <AttemptContextChooser :disabled="busy" @start="begin" />
     </section>
@@ -289,5 +297,14 @@ onMounted(async () => {
         />
       </div>
     </div>
+    <HowToPlayDialog v-model:open="howToOpen" game-id="clearance-tower" v-bind="HOW_TO_PLAY">
+      <template #scene="scene">
+        <HowToPlayScene
+          :step="scene.step"
+          :playing="scene.playing"
+          :reduced-motion="scene.reducedMotion"
+        />
+      </template>
+    </HowToPlayDialog>
   </div>
 </template>

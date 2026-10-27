@@ -3,6 +3,7 @@ import { avatarPresets } from '../auth/avatars.js'
 import { requestCsrfToken } from '../auth/api.js'
 
 const AVATAR_IDS = new Set(avatarPresets.map((preset) => preset.id))
+const GAME_ID_PATTERN = /^[a-z][a-z0-9-]{0,63}$/
 const USERNAME_PATTERN = /^[a-z0-9_-]{3,32}$/i
 
 const SAFE_MESSAGES = Object.freeze({
@@ -141,6 +142,40 @@ export async function updateOwnProfile(input, { signal } = {}) {
       headers: { 'X-CSRF-Token': csrfToken },
     })
     return exactProfile(response.data)
+  } catch (error) {
+    throw safeError(error)
+  }
+}
+
+export async function setHowToPlayDismissed(gameId, dismissed, { signal } = {}) {
+  try {
+    if (
+      typeof gameId !== 'string' ||
+      !GAME_ID_PATTERN.test(gameId) ||
+      typeof dismissed !== 'boolean'
+    ) {
+      throw new ProfileApiError({
+        status: 400,
+        code: 'VALIDATION_ERROR',
+        message: SAFE_MESSAGES.VALIDATION_ERROR,
+      })
+    }
+    const csrfToken = await requestCsrfToken()
+    signal?.throwIfAborted()
+    const response = await api.put(
+      `/me/how-to-play/${gameId}`,
+      { dismissed },
+      { signal, headers: { 'X-CSRF-Token': csrfToken } },
+    )
+    const list = response.data?.howToPlayDismissed
+    if (
+      Object.keys(response.data ?? {}).length !== 1 ||
+      !Array.isArray(list) ||
+      list.some((id) => typeof id !== 'string')
+    ) {
+      throw new ProfileApiError({ message: 'Sharlock returned an incomplete response. Try again.' })
+    }
+    return Object.freeze([...list])
   } catch (error) {
     throw safeError(error)
   }
