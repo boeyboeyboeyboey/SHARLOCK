@@ -271,6 +271,33 @@ main:focus {
   text-decoration: underline;
   text-underline-offset: 5px;
 }
+.role-link {
+  border: 2px solid var(--border-strong);
+  box-shadow: var(--shadow-pixel);
+  padding: 0.4rem 0.6rem;
+  color: var(--bs-white);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.role-link--admin {
+  background: var(--town-gold);
+}
+.role-link--instructor {
+  background: var(--border-strong);
+}
+.role-link:hover,
+.role-link:focus-visible,
+.portal-nav .nav-link.role-link:hover {
+  color: var(--bs-white);
+}
+.portal-nav .nav-link.role-link--admin {
+  background: var(--town-gold);
+  color: var(--bs-white);
+}
+.portal-nav .nav-link.role-link--instructor {
+  background: var(--border-strong);
+  color: var(--bs-white);
+}
 .header-link:hover,
 .text-link:hover,
 .sidebar-about:hover {

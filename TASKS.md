@@ -199,6 +199,13 @@ No active implementation task.
 - **Gaps:** the 12 skyline plates in `client/public/hub/plates/` have no recorded source; the town soundtrack `sharlock-bgm.mp3` still needs creator and permission; the newspaper lo-fi MP3 has no recorded creator or licence. These are listed as such in `CREDITS.md`, not invented.
 - **Checks:** `pnpm exec prettier --check CREDITS.md README.md TASKS.md`; README still has five `## ` sections; added links resolve.
 
+**UI-11 — Header role buttons** · Status: **Review** · Contributor: **Boey** · Branch: `ui-11-navbar-role-buttons` · Approved by Boey on 27 October 2026 (Round 1).
+
+- **Scope:** `client/src/components/portal/Navbar.vue` ("Admin" and "Instructor" links before the profile link, md and up, town and non-town), `client/src/layouts/PortalLayout.vue` (role class on the two existing sidebar entries, labels unchanged), additive `.role-link` rules in `client/src/assets/styles/main.css` (no `:root` or token change), new `client/src/components/portal/__tests__/Navbar.test.js`, `tests/e2e/admin-workspace.spec.js` (desktop click-through from the header), DESIGN.md navbar row, README "Using the app".
+- **Shared consumers:** Navbar and PortalLayout are mounted on every page; the CSS is additive and scoped to `.role-link`.
+- **Contrast:** `--bs-white` on `--town-gold` 4.68:1 and on `--border-strong` 6.50:1 (WCAG AA 4.5:1). The `--surface` cream on gold was 4.40:1, so white is used.
+- **Checks:** client vitest (portal Navbar plus auth) 73/73 pass; eslint 0 errors; prettier clean on changed files; `tests/e2e/admin-workspace.spec.js` 2 of 2 pass (mobile setup plus desktop journey with the header Admin click). Not checked in a real dev browser.
+
 **BOARD-01 — Class leaderboards** · Status: **Review** · Contributor: **Boey** · Branch: `board-01-class-leaderboards` (cut from `origin/main` at `9e6c3a1`, 27 October 2026, upstream unset). Plan approved by Boey on 27 October 2026. Spec: [BOARD-01](#board-01--cohort-leaderboards).
 
 - **Collision check (27 October 2026):** no leaderboard code on `main`, in local or remote branch names, or in the `admin-01-b-admin-controls` (Codex admin-controls) worktree. Existing references are only the `/leaderboard` ComingSoon placeholder (`client/src/router/index.js`), nav links (`Navbar.vue:34`, `PortalLayout.vue:30`), the pixel-wipe label, docs mentions, and an empty `server/src/modules/leaderboards/.gitkeep`. Remote branch contents, PRs and teammates' machines were not inspected.
