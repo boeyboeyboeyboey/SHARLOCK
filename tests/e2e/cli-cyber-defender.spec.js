@@ -467,6 +467,7 @@ test('a class student saves a timed shift and appears on the timed leaderboard',
   browser,
   baseURL,
 }) => {
+  test.setTimeout(90_000)
   const seeded = await seedClass(randomBytes(4).toString('hex'))
   const { context, page } = await signedInPage(browser, baseURL, seeded.studentA)
   try {

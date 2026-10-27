@@ -211,10 +211,9 @@ test('signing out with a lapsed session cookie still lands on the sign-in page',
     await desktopSignOut.click()
   } else {
     await page.getByRole('button', { name: 'Open navigation and profile' }).click()
-    await page
-      .getByRole('dialog', { name: 'Your detective desk' })
-      .getByRole('button', { name: 'Sign out' })
-      .click()
+    const detectiveDesk = page.getByRole('dialog', { name: 'Your detective desk' })
+    await expect(detectiveDesk).toBeVisible()
+    await detectiveDesk.getByRole('button', { name: 'Sign out' }).click()
   }
   await expect(page).toHaveURL(/\/login/)
   await expect(page.getByRole('heading', { name: 'Sign in to Sharlock' })).toBeVisible()

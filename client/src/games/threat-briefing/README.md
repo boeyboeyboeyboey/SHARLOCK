@@ -19,7 +19,7 @@ Cyber News Central retains catalog ID `threat-briefing` and `/games/threat-brief
 1. `Dashboard.vue` remains mounted at `/` while its nested news route opens `NewsDialog.vue`. In the default 3D hub the newsstand ("The daily briefing") is a building too and opens the same overlay; the TownMap path is 2D mode.
 2. `NewsDialog.vue` calls native `showModal()` and owns Escape/Close; Dashboard owns Back versus direct-link replacement and restores the newsstand focus
 3. `NewsDialog.vue` also owns URL location, `NewsTabs.vue`, `OwaspTopTen.vue` and `NewsAudio.vue`; `CyberNewsCentral.vue` composes the newspaper, sections, feedback, story grid and pagination
-4. `useNewsLocation.js` validates URL filters and searches/pages the loaded edition without HTTP calls
+4. `useNewsLocation.js` validates URL filters and searches/pages the loaded edition without HTTP calls; `update()` merges into the latest intended query so two updates in one tick never resurrect an earlier value
 5. `useCyberNews.js` cancels superseded Axios requests, enforces browser content expiry and disposes its timer/listener/request
 6. `news.js` reuses the shared `/api` Axios client; the [server news module](../../../../server/src/modules/news/README.md) owns upstream access, secrets and persistence
 

@@ -81,4 +81,11 @@ describe('cohort components', () => {
     await wrapper.get('button:last-of-type').trigger('click')
     expect(wrapper.text()).not.toContain('ABCD-EFGH-JKLM-NPQR')
   })
+
+  it('disables code actions while the class code is loading', async () => {
+    const wrapper = mount(EnrollmentCodePanel, { props: { loading: true } })
+    expect(wrapper.get('button').attributes('disabled')).toBeDefined()
+    await wrapper.setProps({ loading: false })
+    expect(wrapper.get('button').attributes('disabled')).toBeUndefined()
+  })
 })

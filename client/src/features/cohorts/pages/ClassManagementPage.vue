@@ -406,6 +406,7 @@ onBeforeUnmount(() => {
         :expires-at="codeInfo?.expiresAt"
         :revision="codeRevision"
         :pending="savingCode"
+        :loading="loading"
         @generate="generateCode"
         @revoke="revokeCode"
         @clear="invitationUrl = ''"
