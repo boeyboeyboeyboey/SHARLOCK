@@ -171,6 +171,11 @@ export async function createInstructor(input, signal) {
   return { ...result, ...validateActivationResult(result) }
 }
 
+export async function createAdministrator(input, signal) {
+  const result = await requestMutation('post', '/admin/administrators', input, signal)
+  return { ...result, ...validateActivationResult(result) }
+}
+
 export async function reissueInstructorActivation(instructorId, signal) {
   const result = await requestMutation(
     'post',

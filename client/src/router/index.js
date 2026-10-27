@@ -95,7 +95,7 @@ export const routes = [
   {
     path: '/activate-account',
     component: () => import('../features/activation/pages/ActivationPage.vue'),
-    meta: { title: 'Activate instructor account' },
+    meta: { title: 'Activate staff account' },
   },
   {
     path: RESET_PASSWORD_PATH,

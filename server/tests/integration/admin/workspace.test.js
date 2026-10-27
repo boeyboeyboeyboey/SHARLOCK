@@ -211,6 +211,90 @@ describe.skipIf(process.env.SHARLOCK_TEST_REPLICA_SET !== '1')('admin workspace 
       .expect(400)
   })
 
+  it('provisions an administrator through a one-time link, never promotes an existing account and keeps instructor flow intact', async () => {
+    const suffix = randomUUID().replaceAll('-', '').slice(0, 10)
+    const body = {
+      email: `newadmin-${suffix}@example.test`,
+      username: `newadmin-${suffix}`,
+      avatarId: 'mint',
+    }
+    const post = (agent, csrfToken, payload = body, headers = {}) =>
+      agent
+        .post('/api/admin/administrators')
+        .set('Origin', origin)
+        .set('X-CSRF-Token', csrfToken)
+        .set(headers)
+        .send(payload)
+
+    await request(app).post('/api/admin/administrators').send(body).expect(401)
+    await post(student.agent, student.csrfToken).expect(403)
+    await admin.agent.post('/api/admin/administrators').set('Origin', origin).send(body).expect(403)
+    await post(admin.agent, admin.csrfToken, body, { Origin: 'https://evil.example.test' }).expect(
+      403,
+    )
+    await post(admin.agent, admin.csrfToken, { ...body, globalRoles: ['admin'] }).expect(400)
+
+    const created = await post(admin.agent, admin.csrfToken).expect(201)
+    owned.users.add(created.body.administrator.id)
+    expect(created.body.administrator).toMatchObject({ accountStatus: 'disabled' })
+    expect(JSON.stringify(created.body)).not.toMatch(/passwordHash|authVersion|tokenHash/)
+    const stored = await userModel(database).findById(created.body.administrator.id).lean()
+    expect(stored.globalRoles).toEqual(['admin'])
+
+    // existing accounts are never promoted
+    await post(admin.agent, admin.csrfToken).expect(409)
+    const studentRow = await userModel(database).findById(student.user.id).lean()
+    await post(admin.agent, admin.csrfToken, {
+      ...body,
+      email: studentRow.emailNormalized,
+      username: `other-${suffix}`,
+    }).expect(409)
+    expect((await userModel(database).findById(student.user.id).lean()).globalRoles).toEqual([
+      'student',
+    ])
+
+    // the link finishes only the stored role and then allows normal sign-in
+    const token = new URLSearchParams(new URL(created.body.activationUrl).hash.slice(1)).get(
+      'token',
+    )
+    const visitor = request.agent(app)
+    const csrf = await visitor.get('/api/auth/csrf').expect(200)
+    await visitor
+      .post('/api/auth/activate-account')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', csrf.body.csrfToken)
+      .send({ token, password })
+      .expect(204)
+    const login = request.agent(app)
+    const loginCsrf = await login.get('/api/auth/csrf').expect(200)
+    await login
+      .post('/api/auth/login')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', loginCsrf.body.csrfToken)
+      .send({ email: body.email, password })
+      .expect(200)
+    await login.get('/api/admin/institutions').set('Origin', origin).expect(200)
+
+    const events = await database.db
+      .collection('audit_events')
+      .find({ targetId: new Types.ObjectId(created.body.administrator.id) })
+      .project({ eventType: 1, actorId: 1 })
+      .toArray()
+    expect(events.map(({ eventType }) => eventType).sort()).toEqual([
+      'account.administrator.activate',
+      'admin.administrator.activation.issue',
+      'admin.administrator.provision',
+    ])
+
+    // pending administrators are not reachable through the instructor reissue route
+    await admin.agent
+      .post(`/api/admin/instructors/${created.body.administrator.id}/activation`)
+      .set('Origin', origin)
+      .set('X-CSRF-Token', admin.csrfToken)
+      .send({})
+      .expect(404)
+  })
+
   it('replaces active instructor assignments with revision checks and hides admin APIs from students', async () => {
     const { cohort } = await createInstitutionAndCohort(admin.agent, admin.csrfToken)
     const secondCohortResponse = await admin.agent

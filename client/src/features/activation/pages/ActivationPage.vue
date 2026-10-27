@@ -157,10 +157,10 @@ onBeforeUnmount(() => {
       <div class="activation-workspace__icon" aria-hidden="true">
         <PixelIcon name="key" :size="32" />
       </div>
-      <p class="activation-workspace__eyebrow">INSTRUCTOR ACCOUNT</p>
+      <p class="activation-workspace__eyebrow">STAFF ACCOUNT</p>
       <h1 id="activation-title">Activate your account</h1>
       <p class="activation-workspace__intro">
-        Choose a password to finish setting up your instructor account.
+        Choose a password to finish setting up your staff account.
       </p>
 
       <div

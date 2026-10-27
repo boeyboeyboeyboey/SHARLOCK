@@ -12,6 +12,7 @@ const passwordResetSchema = new Schema(
     tokenHash: { type: String, required: true, match: /^[a-f0-9]{64}$/, immutable: true },
     authVersion: { type: Number, required: true, min: 1, immutable: true },
     initiatedBy: { type: Schema.Types.ObjectId, required: true, immutable: true },
+    activationRole: { type: String, enum: ['instructor', 'admin'], default: null, immutable: true },
     scopeCohortId: { type: Schema.Types.ObjectId, default: null, immutable: true },
     expiresAt: { type: Date, required: true, immutable: true },
     consumedAt: { type: Date, default: null },

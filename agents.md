@@ -93,6 +93,7 @@ Every new or edited code comment must be strictly lowercase and minimal, with no
 
 - Institutions contain cohorts; users may have multiple memberships and instructors multiple assignments. Membership states are pending, active and removed.
 - Registration creates only a student. A submitted role, user ID, cohort ID, institution, score or achievement is never proof of authorization.
+- An administrator may provision another administrator only through the audited one-time activation link (ADMIN-03, Boey, 27 October 2026); an existing account is never promoted and the role comes from the route, never the request body.
 - Cohort entry requires an active approved membership. New requests must reflect removals/account changes; revoke or refresh stale sessions.
 - Instructors may inspect only their assigned cohorts' activity. Administrators may inspect learning activity across cohorts. Staff gameplay does not expand teaching permissions.
 - Every attempt has one server-validated cohort or personal context, immutable after creation. A student's other cohort memberships do not widen access to that attempt.

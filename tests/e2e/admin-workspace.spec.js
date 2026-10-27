@@ -434,3 +434,31 @@ test('admin manages institutions, assignments, audit history, and account access
     await freshStudentContext?.close()
   }
 })
+
+test('admin provisions another administrator through a one-time activation link', async ({
+  page,
+}, testInfo) => {
+  const origin = new URL(testInfo.project.use.baseURL).origin
+  const suffix = randomBytes(6).toString('hex')
+  await page.goto('/admin')
+  await expect(page.getByRole('heading', { name: 'Admin workspace' })).toBeVisible()
+  await openTab(page, 'Instructors')
+
+  await expect(page.getByRole('heading', { name: 'Provision an administrator' })).toBeVisible()
+  await page.getByLabel('Administrator email').fill(`e2e-admin-${suffix}@example.test`)
+  await page.getByLabel('Administrator username').fill(`e2e-a-${suffix}`)
+  await page.getByRole('button', { name: 'Create administrator and activation link' }).click()
+
+  const linkField = page.getByLabel('Activation link', { exact: true })
+  await expect(linkField).toBeVisible()
+  await expect
+    .poll(async () =>
+      /^https?:\/\/[^/]+\/activate-account#token=[A-Za-z\d_-]{43}$/.test(
+        await linkField.inputValue(),
+      ),
+    )
+    .toBe(true)
+  expect(new URL(await linkField.inputValue()).origin).toBe(origin)
+  await page.getByRole('button', { name: 'Close', exact: true }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+})

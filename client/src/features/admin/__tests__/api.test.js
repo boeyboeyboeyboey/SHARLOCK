@@ -11,6 +11,7 @@ vi.mock('../../auth/api.js', () => ({ requestCsrfToken: mocks.requestCsrfToken }
 import {
   createCohort,
   createInstitution,
+  createAdministrator,
   createInstructor,
   listAdminUsers,
   listAuditEvents,
@@ -245,6 +246,30 @@ describe('admin workspace API', () => {
       `${window.location.origin}/activate-account#token=${'A'.repeat(43)}`,
     )
     expect(created.activationUrl).not.toContain('?')
+  })
+
+  it('posts administrator provisioning to its own endpoint and validates the returned link', async () => {
+    const input = { email: 'boss@example.test', username: 'Example_Admin', avatarId: 'mint' }
+    mocks.requestCsrfToken.mockResolvedValueOnce('csrf-admin')
+    mocks.api.post.mockResolvedValueOnce({
+      data: {
+        administrator: { id: '0123456789abcdef01234567' },
+        activationUrl: `${window.location.origin}/activate-account#token=${'D'.repeat(43)}`,
+        expiresAt: '2026-10-16T00:00:00.000Z',
+      },
+    })
+    const created = await createAdministrator(input)
+    expect(mocks.api.post).toHaveBeenCalledWith('/admin/administrators', input, {
+      signal: undefined,
+      headers: { 'X-CSRF-Token': 'csrf-admin' },
+    })
+    expect(created.activationUrl).toContain('#token=')
+
+    mocks.requestCsrfToken.mockResolvedValueOnce('csrf-admin-two')
+    mocks.api.post.mockResolvedValueOnce({
+      data: { activationUrl: 'https://evil.example.test/activate-account#token=x', expiresAt: 'x' },
+    })
+    await expect(createAdministrator(input)).rejects.toBeInstanceOf(Error)
   })
 
   it('uses revisioned allowlisted PATCH payloads for institutions and classes', async () => {

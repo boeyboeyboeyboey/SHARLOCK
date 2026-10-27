@@ -15,6 +15,7 @@ import {
   AdminApiError,
   createCohort,
   createInstitution,
+  createAdministrator,
   createInstructor,
   listCohorts,
   listInstitutions,
@@ -103,6 +104,9 @@ const recoveryIssueError = ref('')
 const recoveryIssueForm = ref(null)
 const institutionForm = ref(null)
 const instructorForm = ref(null)
+const administratorForm = ref(null)
+const pendingAdministrator = ref(false)
+const administratorError = ref('')
 const controllers = new Map()
 let disposed = false
 
@@ -362,6 +366,31 @@ async function provisionInstructor(input) {
   }
 }
 
+async function provisionAdministrator(input) {
+  if (pendingAdministrator.value) return
+  administratorError.value = ''
+  pendingAdministrator.value = true
+  const controller = startRequest('create-administrator')
+  try {
+    const result = await createAdministrator(input, controller.signal)
+    if (disposed) return
+    activationLink.value = {
+      activationUrl: result.activationUrl,
+      expiresAt: result.expiresAt,
+    }
+    administratorForm.value?.resetForm()
+  } catch (error) {
+    if (!disposed && !controller.signal.aborted) {
+      administratorError.value = safeMessage(
+        error,
+        'The administrator could not be created. Review and try again.',
+      )
+    }
+  } finally {
+    if (controllers.get('create-administrator') === controller) pendingAdministrator.value = false
+  }
+}
+
 async function lookupRecoveryStudent({ email }) {
   controllers.get('recovery-issue')?.abort()
   recoveryLink.value = null
@@ -583,6 +612,14 @@ onBeforeUnmount(() => {
         :pending="pendingInstructor"
         :error="instructorError"
         @provision="provisionInstructor"
+      />
+
+      <InstructorProvisionForm
+        ref="administratorForm"
+        role="administrator"
+        :pending="pendingAdministrator"
+        :error="administratorError"
+        @provision="provisionAdministrator"
       />
 
       <section class="admin-workspace__panel" aria-labelledby="instructors-title">
