@@ -153,6 +153,7 @@ No active implementation task.
 - **Merge (27 October 2026):** commit `3e80732` fast-forwarded into `main` with Boey's approval, together with this record update; no PR. The branch is pushed to `origin`. The dev-browser and 375 px checks were not done before the merge.
 - **Full E2E on `main` (27 October 2026, `dd55bdd`, after the fixture fix):** `pnpm test:e2e` 212 passed, 7 failed, 21 skipped (11.1 min, exit 1). Every failure passed when rerun alone with `--workers=1`: mobile `activation.spec.js:83` and `cohorts.spec.js:20` 3/3 (both had failed in the shared admin sign-in, `tests/e2e/fixtures/admin.js:26`, "Could not authenticate the E2E session"); desktop `hub.spec.js` 11 passed 1 skipped (`:142`, `:198` had timed out); desktop `sql-injection-arcade.spec.js` 4/4 (`:10`, `:65`, `:121` had timed out). No SAVE-01 spec failed. The load-dependent admin sign-in failure is unexplained (a login rate limit or slowdown late in the run is suspected, not confirmed), so the full run does not yet exit 0.
 - **Manual check (27 October 2026):** Boey ran the dev-browser pass against the team Atlas `sharlock_dev` (admin, instructor, class with join code, students; each game personal and class; `/leaderboard`; CLI timed vs practice; Phishing completed screen; 375 px) and reported "all looks good". UX follow-ups found during the pass are tracked in Boey's local todo, not here. The four owners have been told their games now save.
+- **Review decisions (27 October 2026):** Boey accepted, as-is, the agents.md G-SQL wording ("saved practice") and the Clearance Tower topic threshold (both levels of a model at 75 or more).
 - **Next action:** acceptance by Boey.
 
 **UI-07 — Activation-link dialog copy** · Status: **Review** · Contributor: **Boey** · Branch: `ui-07-activation-dialog-copy` · Approved by Boey on 27 October 2026 (lunch batch).
@@ -180,6 +181,12 @@ No active implementation task.
 - **Scope:** README.md §2 "Quick start for markers" (the `MONGO_URI` and demo login are supplied privately with the submission, never in the repo; dev mailer prints verification codes in the server terminal; `pnpm db:local` fallback lacks transactions) and a 12-step "Account setup walkthrough" in "Using the app"; `## Presentation summary` added to the activation, admin, auth, cohorts, profile, recovery, threat-briefing and `server/src/modules/news` READMEs; new `client/src/features/about/README.md`.
 - **Collision check:** none of the eight READMEs had a presentation summary; `features/about/` had no README.
 - **Checks:** walkthrough button/heading labels checked against the Vue sources with `rg`; `prettier --check` on every changed Markdown file passed. Not run in a browser; Atlas Network Access and a marker DB user still need Boey's check. The walkthrough says "close the dialog" so it holds before and after UI-07.
+
+**DOC-15 — Credits** · Status: **Review** · Contributor: **Boey** · Branch: `doc-15-credits` · Approved by Boey on 27 October 2026 (Round 1).
+
+- **Scope:** new root `CREDITS.md` (libraries with versions and licences read from `node_modules`, fonts, images, audio, data and content sources, original work and owners), one link line in `README.md` section 4, this record and a SAVE-01 bullet. Docs only; no code or git state changed.
+- **Gaps:** the 12 skyline plates in `client/public/hub/plates/` have no recorded source; the town soundtrack `sharlock-bgm.mp3` still needs creator and permission; the newspaper lo-fi MP3 has no recorded creator or licence. These are listed as such in `CREDITS.md`, not invented.
+- **Checks:** `pnpm exec prettier --check CREDITS.md README.md TASKS.md`; README still has five `## ` sections; added links resolve.
 
 **BOARD-01 — Class leaderboards** · Status: **Review** · Contributor: **Boey** · Branch: `board-01-class-leaderboards` (cut from `origin/main` at `9e6c3a1`, 27 October 2026, upstream unset). Plan approved by Boey on 27 October 2026. Spec: [BOARD-01](#board-01--cohort-leaderboards).
 
