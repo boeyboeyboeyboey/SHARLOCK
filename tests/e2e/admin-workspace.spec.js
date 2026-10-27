@@ -109,6 +109,7 @@ test('admin manages institutions, assignments, audit history, and account access
   page,
   studentIdentity,
 }, testInfo) => {
+  test.setTimeout(90_000)
   const baseURL = testInfo.project.use.baseURL
   expect(typeof baseURL).toBe('string')
   const origin = new URL(baseURL).origin

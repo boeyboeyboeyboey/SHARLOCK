@@ -4,6 +4,15 @@ import { defineConfig } from '@playwright/test'
 // the test server writes sign-up codes here; tests/e2e/fixtures/mail.js reads the same path
 const mailOutbox = resolve('.local', 'e2e-mail.jsonl')
 
+const mobileUse = {
+  browserName: 'chromium',
+  viewport: { width: 375, height: 667 },
+  isMobile: true,
+  hasTouch: true,
+}
+const desktopUse = { browserName: 'chromium', viewport: { width: 1440, height: 900 } }
+const hubSpecs = /[\\/]hub(-auto)?\.spec\.js$/
+
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: true,
@@ -15,19 +24,29 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
+  // hub specs run software WebGL, so they get their own projects with one worker each
   projects: [
     {
       name: 'mobile-chromium',
-      use: {
-        browserName: 'chromium',
-        viewport: { width: 375, height: 667 },
-        isMobile: true,
-        hasTouch: true,
-      },
+      testIgnore: hubSpecs,
+      use: mobileUse,
     },
     {
       name: 'desktop-chromium',
-      use: { browserName: 'chromium', viewport: { width: 1440, height: 900 } },
+      testIgnore: hubSpecs,
+      use: desktopUse,
+    },
+    {
+      name: 'hub-mobile-chromium',
+      testMatch: hubSpecs,
+      workers: 1,
+      use: mobileUse,
+    },
+    {
+      name: 'hub-desktop-chromium',
+      testMatch: hubSpecs,
+      workers: 1,
+      use: desktopUse,
     },
   ],
   webServer: [
