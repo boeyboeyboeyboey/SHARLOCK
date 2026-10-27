@@ -445,7 +445,7 @@ test('enters from the town card and leaves no styles behind', async ({ page }) =
   await page.goto('/about')
   await expect(page.locator('.cli-game')).toHaveCount(0)
   expect(await page.evaluate(() => getComputedStyle(document.body).fontFamily)).toContain(
-    'Pixelify',
+    'DotGothic16',
   )
 })
 
