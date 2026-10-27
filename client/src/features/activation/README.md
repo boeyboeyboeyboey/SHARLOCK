@@ -2,7 +2,7 @@
 
 ## Presentation summary
 
-- What it is: the public `/activate-account` page where an administrator-provisioned instructor sets a first password and activates the account.
+- What it is: the public `/activate-account` page where an administrator-provisioned instructor or administrator sets a first password and activates the account.
 - Security concept: single-use, expiring credentials delivered out of band, and account lifecycle control. Instructors cannot self-register; an administrator creates a disabled account and a 24-hour link, and the token is held only in memory and stripped from the address bar. Course link: authentication and identity (06-authentication v2.pptx) and web security (11a/12a decks) in the [course reference index](../../../../TASKS.md#course-reference-index).
 - Using it: open the link from the administrator (`/activate-account#token=...`), enter and confirm a password, press "Set password and activate account", then use "Go to sign in". Activation does not sign you in.
 - Components: `pages/ActivationPage.vue` (fragment cleanup, confirmation, request state, secret clearing); `api.js` (the POST and fixed error mapping).
@@ -10,7 +10,7 @@
 - Status: see the ADMIN-01-A/REC-01-A records in [TASKS.md](../../../../TASKS.md).
 - Limits: needs transaction-capable MongoDB; invalid, expired and used links share one generic message; no email delivery, so the administrator hands over the link privately.
 
-The public `/activate-account` page completes an administrator-created instructor account. Router registration and the branded `PortalLayout` are shared integration points; the page's own styles remain under `.activation-workspace` and reuse the shared pixel colors, controls, and `PixelIcon`.
+The public `/activate-account` page completes an administrator-created instructor or administrator account (ADMIN-03). The page shows neutral "STAFF ACCOUNT" copy because the role is not revealed before the token is redeemed. Router registration and the branded `PortalLayout` are shared integration points; the page's own styles remain under `.activation-workspace` and reuse the shared pixel colors, controls, and `PixelIcon`.
 
 On entry, the page accepts only a 43-character base64url token from `#token=...`. It keeps the token in component memory and removes the fragment through the router before making any request. Tokens in a query string are rejected and removed. The instructor form collects a new password and a client-local confirmation, validates through the shared data-only `parseNewPasswordInput`, and posts exactly `{ token, password }` with a freshly obtained CSRF token. It never stores a token or password in the auth store or browser storage.
 

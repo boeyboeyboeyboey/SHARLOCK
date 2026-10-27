@@ -245,6 +245,28 @@ export function createAdminRouter(
   )
 
   router.post(
+    '/admin/administrators',
+    ...sessionMiddleware,
+    activationWrites.middleware,
+    ...mutationMiddleware,
+    async (request, response, next) => {
+      try {
+        response
+          .status(201)
+          .json(
+            await service.provisionAdministrator(
+              response.locals.authUser,
+              request.body,
+              request.query,
+            ),
+          )
+      } catch (error) {
+        next(error)
+      }
+    },
+  )
+
+  router.post(
     '/admin/instructors/:userId/activation',
     ...sessionMiddleware,
     activationWrites.middleware,

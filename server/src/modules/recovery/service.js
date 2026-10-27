@@ -24,6 +24,9 @@ function tokenHash(token) {
   return createHash('sha256').update(token).digest('hex')
 }
 
+// the stored role decides which staff account an activation link may finish
+const provisionedRoleFilter = [{ globalRoles: ['instructor'] }, { globalRoles: ['admin'] }]
+
 export function createRecoveryService(
   database,
   {
@@ -307,10 +310,10 @@ export function createRecoveryService(
     }).session(session)
     if (!administrator) throw new ActivationError('ACTIVATION_UNAVAILABLE', 403)
     const target = await User.findOneAndUpdate(
-      { _id: targetId, accountStatus: 'disabled', globalRoles: ['instructor'] },
+      { _id: targetId, accountStatus: 'disabled', $or: provisionedRoleFilter },
       { $inc: { authVersion: 1 } },
       { new: true, session, runValidators: true },
-    ).select('_id authVersion')
+    ).select('_id authVersion globalRoles')
     if (!target) throw new ActivationError()
     const occurredAt = new Date(now())
     const expiresAt = new Date(occurredAt.getTime() + activationLifetimeMs)
@@ -328,6 +331,7 @@ export function createRecoveryService(
           tokenHash: tokenHash(token),
           authVersion: target.authVersion,
           initiatedBy: administratorId,
+          activationRole: target.globalRoles[0],
           scopeCohortId: null,
           createdAt: occurredAt,
           expiresAt,
@@ -337,7 +341,9 @@ export function createRecoveryService(
     )
     await writeAudit(
       {
-        eventType: 'admin.instructor.activation.issue',
+        eventType: target.globalRoles.includes('admin')
+          ? 'admin.administrator.activation.issue'
+          : 'admin.instructor.activation.issue',
         actorKind: 'user',
         actorId: administratorId,
         targetId,
@@ -392,7 +398,7 @@ export function createRecoveryService(
             {
               _id: reset.userId,
               accountStatus: 'disabled',
-              globalRoles: ['instructor'],
+              globalRoles: [reset.activationRole ?? 'instructor'],
               authVersion: reset.authVersion,
             },
             {
@@ -400,7 +406,7 @@ export function createRecoveryService(
               $inc: { authVersion: 1 },
             },
             { new: true, session, runValidators: true },
-          ).select('_id')
+          ).select('_id globalRoles')
           if (!target) throw new ActivationError()
           const userId = target._id.toString()
           await PasswordReset.updateMany(
@@ -419,7 +425,9 @@ export function createRecoveryService(
             .deleteMany({ 'session.userId': userId }, { session })
           await writeAudit(
             {
-              eventType: 'account.instructor.activate',
+              eventType: target.globalRoles.includes('admin')
+                ? 'account.administrator.activate'
+                : 'account.instructor.activate',
               actorKind: 'user',
               actorId: userId,
               targetId: userId,

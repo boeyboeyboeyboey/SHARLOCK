@@ -32,12 +32,15 @@ describe('audit record policy', () => {
     ).toMatchObject({ actorKind: 'operator', actorId: null, scopeCohortId: cohortId })
   })
 
-  it.each(['admin.institution.update', 'admin.cohort.update'])(
-    'accepts the %s event type',
-    (eventType) => {
-      expect(parseAuditRecord(validRecord({ eventType })).eventType).toBe(eventType)
-    },
-  )
+  it.each([
+    'admin.institution.update',
+    'admin.cohort.update',
+    'admin.administrator.provision',
+    'admin.administrator.activation.issue',
+    'account.administrator.activate',
+  ])('accepts the %s event type', (eventType) => {
+    expect(parseAuditRecord(validRecord({ eventType })).eventType).toBe(eventType)
+  })
 
   it.each([
     ['unknown event', { eventType: 'auth.login' }],

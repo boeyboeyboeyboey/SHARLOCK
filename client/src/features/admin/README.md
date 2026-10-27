@@ -2,17 +2,19 @@
 
 ## Presentation summary
 
-- What it is: the `/admin` workspace for administrators to create institutions and classes, provision instructors, assign them to classes, manage account status, read audit events and start student password recovery.
+- What it is: the `/admin` workspace for administrators to create institutions and classes, provision instructors and other administrators, assign instructors to classes, manage account status, read audit events and start student password recovery.
 - Security concept: role-based access control and least privilege with accountable administration. The route requires a freshly verified admin; the server re-checks role on every call, never accepts a submitted role, and writes metadata-only audit events. Course link: access control (07-access-control.pptx) and authentication (06-authentication v2.pptx) in the [course reference index](../../../../TASKS.md#course-reference-index).
-- Using it: sign in as an administrator, open Admin workspace (four tabs: Institutions & classes, Instructors, Accounts, Audit log; the choice lives in `?tab=`), create an institution then a class, open the Instructors tab, use "Provision an instructor", copy the one-time activation link from the dialog and deliver it privately, then "Save assignments" once the instructor has activated.
+- Using it: sign in as an administrator, open Admin workspace (four tabs: Institutions & classes, Instructors, Accounts, Audit log; the choice lives in `?tab=`), create an institution then a class, open the Instructors tab, use "Provision an instructor", copy the one-time activation link from the dialog and deliver it privately, then "Save assignments" once the instructor has activated. The same tab has "Provision an administrator" (ADMIN-03), which reuses the form and the one-time link dialog and creates a disabled admin account that finishes setup at `/activate-account`.
 - Components: `pages/AdminPage.vue` plus `InstitutionCohortForm`, `InstructorProvisionForm`, `AssignmentEditor`, `ActivationLinkDialog`, `AccountStatusPanel` and `AuditEventsPanel`; `api.js` wraps the admin endpoints.
 - Data: sends only `{ name, slug }`, `{ institutionId, name, term }`, `{ email, username, avatarId }` and `{ cohortIds, expectedRevision }`; edits use `expectedRevision` to reject stale writes. Activation links are shown once and cleared on close.
 - Status: see the ADMIN-01-A, REC-01-A and LOG-01-A records in [TASKS.md](../../../../TASKS.md).
-- Limits: needs transaction-capable MongoDB; existing users are never promoted; no student enrolment or learning dashboard here (see the cohorts and class-results modules); no demo fixtures.
+- Limits: needs transaction-capable MongoDB; existing users are never promoted; a new administrator exists only after an existing administrator issues the link and it is redeemed (pending administrators cannot be reissued or listed here); no student enrolment or learning dashboard here (see the cohorts and class-results modules); no demo fixtures.
 
 The `/admin` utility page replaces the earlier preview in place. It uses the shared admin API and the existing `PortalLayout`, pixel tokens, `PixelIcon`, and `AvatarPicker`; router registration, account guards, and the role-aware navigation entry are shared integration points.
 
 ## Administrator flow
+
+Administrator provisioning (ADMIN-03) sends the same `{ email, username, avatarId }` to `POST /admin/administrators` through `createAdministrator`; the account is created disabled and the link is shown in the existing dialog. The account-status panel still lists only pure students and instructors, so administrators are never disabled here.
 
 A tab row under the hero switches between **Institutions & classes**, **Instructors** (provisioning, assignments), **Accounts** (account controls and student password recovery) and **Audit log**. The selected tab is the `?tab=` query value (`institutions`, `instructors`, `accounts`, `audit`); a missing or unknown value falls back to `institutions`, and selecting a tab uses `router.replace` so history is not filled. The tabs follow the leaderboard pattern: `role="tablist"`, a roving `tabindex`, ArrowLeft/ArrowRight wrapping and Home/End. Panels are hidden with `v-show`, so form drafts survive tab switches and each list still loads once on mount. The activation-link dialog sits outside the tabs. The Disable account button uses `--alert-danger` with white text and Enable account uses `--accent-primary`; both keep their text labels.
 

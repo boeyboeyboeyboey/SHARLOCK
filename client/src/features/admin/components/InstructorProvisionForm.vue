@@ -1,12 +1,19 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import AvatarPicker from '../../auth/components/AvatarPicker.vue'
 
-defineProps({
+const props = defineProps({
+  role: {
+    type: String,
+    default: 'instructor',
+    validator: (value) => ['instructor', 'administrator'].includes(value),
+  },
   pending: { type: Boolean, default: false },
   error: { type: String, default: '' },
 })
 const emit = defineEmits(['provision'])
+const noun = computed(() => props.role)
+const Noun = computed(() => (props.role === 'administrator' ? 'Administrator' : 'Instructor'))
 const email = ref('')
 const username = ref('')
 const avatarId = ref('mint')
@@ -29,18 +36,18 @@ defineExpose({ resetForm })
 </script>
 
 <template>
-  <section class="admin-workspace__panel" aria-labelledby="provision-instructor-title">
+  <section class="admin-workspace__panel" :aria-labelledby="`provision-${noun}-title`">
     <p class="admin-workspace__eyebrow">STAFF ACCESS</p>
-    <h2 id="provision-instructor-title">Provision an instructor</h2>
+    <h2 :id="`provision-${noun}-title`">Provision an {{ noun }}</h2>
     <p class="admin-workspace__intro">
-      The instructor will choose a password through a private, single-use activation link.
+      The {{ noun }} will choose a password through a private, single-use activation link.
     </p>
     <p v-if="error" class="admin-workspace__alert" role="alert">{{ error }}</p>
 
     <form class="admin-workspace__form" @submit.prevent="provision">
-      <label for="admin-instructor-email">Instructor email</label>
+      <label :for="`admin-${noun}-email`">{{ Noun }} email</label>
       <input
-        id="admin-instructor-email"
+        :id="`admin-${noun}-email`"
         v-model="email"
         type="email"
         name="email"
@@ -49,24 +56,24 @@ defineExpose({ resetForm })
         required
         :disabled="pending"
       />
-      <label for="admin-instructor-username">Instructor username</label>
+      <label :for="`admin-${noun}-username`">{{ Noun }} username</label>
       <input
-        id="admin-instructor-username"
+        :id="`admin-${noun}-username`"
         v-model="username"
         name="username"
         autocomplete="off"
         minlength="3"
         maxlength="32"
-        aria-describedby="admin-instructor-username-hint"
+        :aria-describedby="`admin-${noun}-username-hint`"
         required
         :disabled="pending"
       />
-      <small id="admin-instructor-username-hint">
+      <small :id="`admin-${noun}-username-hint`">
         Use 3–32 letters, numbers, underscores or hyphens.
       </small>
       <AvatarPicker v-model:selected="avatarId" :disabled="pending" />
       <button class="admin-workspace__button" type="submit" :disabled="pending">
-        {{ pending ? 'Preparing private link…' : 'Create instructor and activation link' }}
+        {{ pending ? 'Preparing private link…' : `Create ${noun} and activation link` }}
       </button>
     </form>
   </section>

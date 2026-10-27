@@ -1,6 +1,6 @@
 # Admin workspace and first-administrator setup
 
-This module contains the operator-only first-administrator tool and the authenticated institution, class and instructor workspace. It does not seed demo users or classes, promote an existing account, or create an administrator at application startup. Public registration still creates only students.
+This module contains the operator-only first-administrator tool and the authenticated institution, class and instructor workspace. It does not seed demo users or classes, promote an existing account, or create an administrator at application startup; the bootstrap tool stays a one-shot for the first administrator. Later administrators come only from an existing administrator through the audited activation-link flow below (ADMIN-03). Public registration still creates only students.
 
 ## Administrator institution and class workspace
 
@@ -17,6 +17,8 @@ The public revision tracks admin edits independently of the hidden recovery guar
 `GET /api/admin/instructors?page=&limit=` returns only accounts whose global roles are exactly `instructor`, whether active or disabled. Its DTO contains ID, normalized email, username, avatar ID, account status, assignment revision, current active cohort IDs and bounded safe metadata for those cohorts (including inactive parents/cohorts). It never returns password hashes, activation material, sessions or another roster.
 
 `POST /api/admin/instructors { email, username, avatarId }` creates a separate disabled instructor and returns `{ instructor, activationUrl, expiresAt }`. A new random password is hashed and discarded; an existing user is never promoted. The activation URL is shown once for private delivery. `POST /api/admin/instructors/:userId/activation` accepts an empty body and reissues a link only for a disabled instructor. Recovery owns token storage, expiry and superseding; this admin service only calls its activation interface.
+
+`POST /api/admin/administrators { email, username, avatarId }` (ADMIN-03, Boey, 27 October 2026) uses the same session, CSRF/origin, `activationWrites` limiter (20 per hour per IP) and transaction guards. It creates a separate disabled account with `globalRoles ['admin']` and returns `{ administrator, activationUrl, expiresAt }`. The role is fixed by the route, never read from the body (extra fields give 400). An existing email or username returns the same safe 409 and the existing account is never promoted. Audit events: `admin.administrator.provision` and `admin.administrator.activation.issue`. Reissue (`/admin/instructors/:userId/activation`) stays instructor-only, so a lost administrator link needs a new account.
 
 `PUT /api/admin/instructors/:userId/assignments { cohortIds, expectedRevision }` replaces active assignments for an active instructor. It accepts up to 50 unique IDs. New IDs must name active cohorts with active institutions; existing assignments may be retained when their cohort or institution has since become inactive. The write increments the instructor's revision conditionally and updates assignment pairs in one transaction; a stale editor receives a conflict and must reload. Removed pairs remain as history. Provisioning, link issue/reissue and assignment updates are audited in the same transaction as their privileged writes.
 

@@ -652,6 +652,62 @@ export function createAdminService(
     return created
   }
 
+  async function provisionAdministrator(actor, input, query = {}) {
+    const currentActor = await requireAdmin(actor, 'admin:instructors:manage')
+    assertEmptyAdminQuery(query)
+    const parsed = parseInstructorInput(input)
+    return withTransaction(
+      async (session, passwordHash) => {
+        await assertTransactionAdministrator(currentActor, session)
+        const collision = await User.exists({
+          $or: [
+            { emailNormalized: parsed.emailNormalized },
+            { usernameNormalized: parsed.username.normalized },
+          ],
+        }).session(session)
+        if (collision) throw new AdminError('ADMIN_CONFLICT')
+        const [administrator] = await User.create(
+          [
+            {
+              emailNormalized: parsed.emailNormalized,
+              username: parsed.username.display,
+              usernameNormalized: parsed.username.normalized,
+              avatarId: parsed.avatarId,
+              passwordHash,
+              globalRoles: ['admin'],
+              accountStatus: 'disabled',
+              authVersion: 1,
+              instructorAssignmentRevision: 0,
+              passwordChangedAt: new Date(now()),
+            },
+          ],
+          { session },
+        )
+        const activation = await issueActivation(
+          { userId: idString(administrator._id), actorId: currentActor.id },
+          { session },
+        )
+        await recordAdminEvent(
+          currentActor,
+          'admin.administrator.provision',
+          administrator._id,
+          session,
+        )
+        return {
+          administrator: {
+            id: idString(administrator._id),
+            email: administrator.emailNormalized,
+            username: administrator.username,
+            avatarId: administrator.avatarId,
+            accountStatus: administrator.accountStatus,
+          },
+          ...activation,
+        }
+      },
+      async () => hashPassword(randomBytes(32).toString('hex')),
+    )
+  }
+
   async function reissueActivation(actor, userId, input, query = {}) {
     const currentActor = await requireAdmin(actor, 'admin:instructors:manage')
     assertEmptyAdminQuery(query)
@@ -824,6 +880,7 @@ export function createAdminService(
     updateCohort,
     listInstructors,
     provisionInstructor,
+    provisionAdministrator,
     reissueActivation,
     setAssignments,
   })

@@ -27,6 +27,7 @@ const mocks = vi.hoisted(() => {
     createInstitution: vi.fn(),
     createCohort: vi.fn(),
     createInstructor: vi.fn(),
+    createAdministrator: vi.fn(),
     reissueInstructorActivation: vi.fn(),
     updateInstructorAssignments: vi.fn(),
     updateAdminUser: vi.fn(),
@@ -550,6 +551,51 @@ describe('admin workspace', () => {
       .trigger('click')
     expect(wrapper.find('dialog').exists()).toBe(false)
     expect(wrapper.html()).not.toContain('C'.repeat(43))
+    wrapper.unmount()
+  })
+
+  it('provisions an administrator from its own form and shows the one-time link', async () => {
+    const activationUrl = `http://localhost:5174/activate-account#token=${'E'.repeat(43)}`
+    mocks.createAdministrator.mockResolvedValueOnce({
+      administrator: { id: 'a1' },
+      activationUrl,
+      expiresAt: '2026-10-16T00:00:00.000Z',
+    })
+    const wrapper = mount(AdminPage)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Provision an administrator')
+    await wrapper.get('#admin-administrator-email').setValue('boss@example.test')
+    await wrapper.get('#admin-administrator-username').setValue('Synthetic_Admin')
+    await wrapper
+      .findAll('form')
+      .find((form) => form.text().includes('Administrator email'))
+      .trigger('submit')
+    await flushPromises()
+
+    expect(mocks.createAdministrator).toHaveBeenCalledWith(
+      { email: 'boss@example.test', username: 'Synthetic_Admin', avatarId: 'mint' },
+      expect.any(AbortSignal),
+    )
+    expect(mocks.createInstructor).not.toHaveBeenCalled()
+    expect(wrapper.get('#admin-activation-link').element.value).toBe(activationUrl)
+    wrapper.unmount()
+  })
+
+  it('shows a safe message when administrator provisioning fails', async () => {
+    mocks.createAdministrator.mockRejectedValueOnce(new Error('private backend detail'))
+    const wrapper = mount(AdminPage)
+    await flushPromises()
+    await wrapper.get('#admin-administrator-email').setValue('boss@example.test')
+    await wrapper.get('#admin-administrator-username').setValue('Synthetic_Admin')
+    await wrapper
+      .findAll('form')
+      .find((form) => form.text().includes('Administrator email'))
+      .trigger('submit')
+    await flushPromises()
+    expect(wrapper.text()).not.toContain('private backend detail')
+    expect(wrapper.text()).toContain('The administrator could not be created')
+    expect(wrapper.find('dialog').exists()).toBe(false)
     wrapper.unmount()
   })
 

@@ -1,6 +1,6 @@
 # Audit events
 
-This module stores only explicit, allowlisted administrator-bootstrap, institution/class creation, instructor provisioning, activation-link issue, assignment update and instructor-activation events. It does not add retroactive authentication, game, or general operational logging. Shared request-error behavior remains in `server/src/middleware/errors.js`.
+This module stores only explicit, allowlisted administrator-bootstrap, institution/class creation, instructor provisioning, activation-link issue, assignment update, instructor-activation and administrator provision, activation-link issue and activation events (`admin.administrator.provision`, `admin.administrator.activation.issue`, `account.administrator.activate`). It does not add retroactive authentication, game, or general operational logging. Shared request-error behavior remains in `server/src/middleware/errors.js`.
 
 `initializeAuditStorage(database)` creates the connection-bound `audit_events` collection and declared indexes. It does not seed, delete, synchronize, or drop data. The model uses `AuditEvent`, strict field handling, and disabled automatic collection/index creation.
 
