@@ -164,7 +164,7 @@ test('admin manages institutions, assignments, audit history, and account access
     expect(activation.search).toBe('')
     expect(activation.hash).toMatch(/^#token=[A-Za-z\d_-]{43}$/)
 
-    await page.getByRole('button', { name: 'Close and clear link' }).click()
+    await page.getByRole('button', { name: 'Close', exact: true }).click()
     await expect(page.getByRole('dialog')).toHaveCount(0)
     await expect(page.getByText(activationUrl, { exact: true })).toHaveCount(0)
 
@@ -385,7 +385,7 @@ test('admin manages institutions, assignments, audit history, and account access
     )
     await disabledInstructorRow.getByRole('button', { name: 'Reissue activation link' }).click()
     await expect(page.getByLabel('Activation link', { exact: true })).toBeVisible()
-    await page.getByRole('button', { name: 'Close and clear link' }).click()
+    await page.getByRole('button', { name: 'Close', exact: true }).click()
 
     await studentContext.close()
     studentContext = freshStudentContext

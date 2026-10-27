@@ -533,8 +533,9 @@ describe('admin workspace', () => {
     )
     expect(wrapper.get('#admin-activation-link').element.value).toBe(activationUrl)
     await wrapper
+      .get('dialog')
       .findAll('button')
-      .find((button) => button.text() === 'Close and clear link')
+      .find((button) => button.text() === 'Close')
       .trigger('click')
     expect(wrapper.find('dialog').exists()).toBe(false)
     expect(wrapper.html()).not.toContain('C'.repeat(43))

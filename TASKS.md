@@ -153,6 +153,12 @@ No active implementation task.
 - **Merge (27 October 2026):** commit `3e80732` fast-forwarded into `main` with Boey's approval, together with this record update; no PR. The branch is pushed to `origin`. The dev-browser and 375 px checks were not done before the merge.
 - **Next action:** Boey checks the games and `/leaderboard` in a dev browser (desktop and 375 px), then acceptance; tell the four owners their games now save.
 
+**UI-07 — Activation-link dialog copy** · Status: **Review** · Contributor: **Boey** · Branch: `ui-07-activation-dialog-copy` · Approved by Boey on 27 October 2026 (lunch batch).
+
+- **Scope:** `client/src/features/admin/components/ActivationLinkDialog.vue` (help text now "Copy this link now. It won't be shown again; it still works once and expires in 24 hours."; button "Close and clear link" is now "Close", same behaviour); `client/src/features/admin/__tests__/admin.test.js` (activation close step); new `client/src/features/admin/__tests__/activation-link-dialog.test.js`; `tests/e2e/admin-workspace.spec.js` (2 close selectors) and `tests/e2e/recovery.spec.js` (1 close selector); `client/src/features/admin/README.md`. The recovery dialog's copy is unchanged.
+- **Collision check:** `rg` for "Close and clear link" and the old help text found no other work on the activation dialog copy; `RecoveryLinkDialog.vue` keeps its own "Close and clear link".
+- **Checks:** `pnpm exec vitest run --project client client/src/features/admin/__tests__/` 32 of 32 passed (3 files); `eslint` on changed files exit 0; `prettier --check` on changed files passed. `tests/e2e/admin-workspace.spec.js` passed (2 of 2, setup plus journey); the `recovery.spec.js` selector change was not run.
+
 **BOARD-01 — Class leaderboards** · Status: **Review** · Contributor: **Boey** · Branch: `board-01-class-leaderboards` (cut from `origin/main` at `9e6c3a1`, 27 October 2026, upstream unset). Plan approved by Boey on 27 October 2026. Spec: [BOARD-01](#board-01--cohort-leaderboards).
 
 - **Collision check (27 October 2026):** no leaderboard code on `main`, in local or remote branch names, or in the `admin-01-b-admin-controls` (Codex admin-controls) worktree. Existing references are only the `/leaderboard` ComingSoon placeholder (`client/src/router/index.js`), nav links (`Navbar.vue:34`, `PortalLayout.vue:30`), the pixel-wipe label, docs mentions, and an empty `server/src/modules/leaderboards/.gitkeep`. Remote branch contents, PRs and teammates' machines were not inspected.
