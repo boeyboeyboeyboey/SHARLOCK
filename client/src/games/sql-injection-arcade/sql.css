@@ -12,6 +12,17 @@
   --game-cyan: #88e2ff;
   --game-amber: #ffd479;
   --game-edge: #658eb8;
+  --game-howto-surface: var(--game-paper);
+  --game-howto-scene: var(--game-screen);
+  --game-howto-edge: var(--game-edge);
+  --game-howto-ink: var(--game-ink);
+  --game-howto-muted: var(--game-muted);
+  --game-howto-soft: #123a5c;
+  --game-howto-bar: var(--game-blue);
+  --game-howto-bar-ink: #04101e;
+  --game-howto-bad: var(--game-amber);
+  --game-howto-bad-soft: #3a2f12;
+  --game-howto-font: var(--game-font);
   --game-display: 'Silkscreen', var(--font-pixel);
   --game-font: ui-monospace, 'Cascadia Mono', Consolas, 'Liberation Mono', monospace;
   color: var(--game-ink);

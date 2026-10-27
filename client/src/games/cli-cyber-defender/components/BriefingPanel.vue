@@ -10,7 +10,7 @@ defineProps({
   pending: { type: Boolean, default: false },
   error: { type: String, default: '' },
 })
-const emit = defineEmits(['start'])
+const emit = defineEmits(['start', 'how-to-play'])
 
 const confirmingTimed = ref(false)
 const context = ref(null)
@@ -24,6 +24,7 @@ function startTimed() {
 <template>
   <section class="cli-panel cli-briefing" aria-labelledby="cli-briefing-heading">
     <h2 id="cli-briefing-heading" class="cli-heading">Shift briefing</h2>
+    <button type="button" class="btn mb-3" @click="emit('how-to-play')">How to play</button>
     <div v-if="!context" class="cli-context">
       <p class="cli-note">
         Timed games in a class count for its Best board. Practice counts toward all-time.

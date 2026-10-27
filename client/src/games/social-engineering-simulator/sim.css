@@ -21,6 +21,17 @@
   --game-bad: #9a3324;
   --game-bad-soft: #fbecea;
   --game-font: var(--font-pixel);
+  --game-howto-surface: var(--game-surface);
+  --game-howto-scene: var(--game-bg);
+  --game-howto-edge: var(--game-edge);
+  --game-howto-ink: var(--game-ink);
+  --game-howto-muted: var(--game-muted);
+  --game-howto-soft: var(--game-accent-soft);
+  --game-howto-bar: var(--game-bar);
+  --game-howto-bar-ink: var(--game-bar-ink);
+  --game-howto-bad: var(--game-bad);
+  --game-howto-bad-soft: var(--game-bad-soft);
+  --game-howto-font: var(--game-font);
   --game-number-font: ui-monospace, 'Cascadia Mono', Consolas, 'Courier New', monospace;
   /* the page container spans the whole content area; the centred column is set on its children
      below, so the back link can sit at the top left of the area */

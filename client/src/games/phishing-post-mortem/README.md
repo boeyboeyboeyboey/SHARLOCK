@@ -5,6 +5,7 @@
 - What: a SHARMAIL inbox of twenty synthetic messages where the player finds Patient Zero, the one email that caused the compromise, and backs the verdict with exactly two clues.
 - Concept: tracing a credential theft through lookalike domains, reply-to mismatches and proxy logs (course reference index, phishing and web security decks).
 - How to play: choose where to save the case, read and inspect messages (link destinations stay inert until inspected), accuse one message, pick two clues, submit once.
+- How to play guide: the shared `HowToPlayDialog` opens on the first visit and from the **How to play** button above the chooser, until the player ticks the dismiss box. Four steps beside a code-built mini inbox scene, plus the learning point, rules and controls from `howToPlay.js`.
 - Technical: `useAttempt('phishing-post-mortem')` runs the server attempt; the server picks the case, scores the `submit-verdict` action and holds the answer key, and the client completes the attempt right after the verdict.
 - Saved: a verdict is worth up to 100 points and is saved as a completed attempt; class attempts appear on the class leaderboard, personal practice does not. `?attempt=` resumes a saved result with its debrief.
 - Status: playable and saved (see TASKS.md). Limits: two authored cases, one verdict per attempt, scores record this exercise rather than validated mastery.
@@ -22,6 +23,8 @@
 | `components/CaseDebrief.vue`      | Score, evidence chain, clue review, decoy explanations. Emits `replay`.                                                                                                                                      |
 | `composables/usePhishingCase.js`  | Module state: the attempt (via `useAttempt`), selection, accusation, clues, verdict submit and save.                                                                                                         |     |
 | `phishing.js`                     | Date and initials helpers.                                                                                                                                                                                   |
+| `howToPlay.js`                    | Guide content: steps, learning point, rules and controls.                                                                                                                                                    |
+| `components/HowToPlayScene.vue`   | Mini inbox animation driven by the guide step, mounted only while the guide is open; static under reduced motion.                                                                                            |
 | `phish.css`                       | Every style, scoped under `.phish-game`.                                                                                                                                                                     |
 
 ## State ownership

@@ -8,6 +8,7 @@
 - Inspect a fictional query and try up to five payloads, then make one repair choice
 - Earn 80 points for a simulated bypass and 20 for the parameterized-query repair
 - Unsupported teaching syntax consumes a test; success ends testing immediately
+- How to play: a button on the briefing (and a first-visit dialog until dismissed) opens a four-step guide; content in `howToPlay.js`, animated scene in `components/HowToPlayScene.vue`, tests in `__tests__/howToPlay.test.js`
 - `MockAdminLogin`, `QueryExplanation` and `RepairSelector` compose the screen
 - Shared attempt components choose personal/class context and display the saved result
 - The server owns rules, scoring and persistence; no actual SQL is executed

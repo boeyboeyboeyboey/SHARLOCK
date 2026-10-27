@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
+import { createPinia, setActivePinia } from 'pinia'
+import { useAuthStore } from '../../../features/auth/store.js'
 import PhishingPostMortem from '../PhishingPostMortem.vue'
 import { listAttemptContexts, readAttempt, writeAttempt } from '../../../features/attempts/api.js'
 
@@ -74,6 +76,9 @@ const saved = {
 }
 
 async function mountGame(query = {}) {
+  const pinia = createPinia()
+  setActivePinia(pinia)
+  useAuthStore().user = { howToPlayDismissed: ['phishing-post-mortem'] }
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
@@ -83,7 +88,7 @@ async function mountGame(query = {}) {
   })
   await router.push({ path: '/games/phishing-post-mortem', query })
   await router.isReady()
-  const wrapper = mount(PhishingPostMortem, { global: { plugins: [router] } })
+  const wrapper = mount(PhishingPostMortem, { global: { plugins: [router, pinia] } })
   await flushPromises()
   return { wrapper, router }
 }

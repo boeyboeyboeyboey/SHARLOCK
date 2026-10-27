@@ -1,8 +1,11 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
+import HowToPlayDialog from '../../components/common/HowToPlayDialog.vue'
+import { useHowToPlay } from '../../composables/useHowToPlay.js'
 import BriefingPanel from './components/BriefingPanel.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
 import GameMenu from './components/GameMenu.vue'
+import HowToPlayScene from './components/HowToPlayScene.vue'
 import CommandReference from './components/CommandReference.vue'
 import IncidentBanner from './components/IncidentBanner.vue'
 import PausedPanel from './components/PausedPanel.vue'
@@ -11,11 +14,13 @@ import ScoreHud from './components/ScoreHud.vue'
 import ShiftDebrief from './components/ShiftDebrief.vue'
 import TerminalPanel from './components/TerminalPanel.vue'
 import { COMMAND_TEMPLATES, MAX_COMMAND_LENGTH } from './cliDefender.js'
+import { HOW_TO_PLAY } from './howToPlay.js'
 import { useCliDefender } from './composables/useCliDefender.js'
 import { useCliSound } from './composables/useCliSound.js'
 import './cli.css'
 
 const sound = useCliSound()
+const { open: howToOpen, show: showHowTo } = useHowToPlay('cli-cyber-defender')
 const flash = ref(null)
 const flashKey = ref(0)
 const shaking = ref(false)
@@ -153,6 +158,7 @@ watch([phase, paused], async ([next, isPaused]) => {
       :pending="phase === 'starting'"
       :error="error"
       @start="start"
+      @how-to-play="showHowTo"
     />
 
     <ShiftDebrief
@@ -242,5 +248,10 @@ watch([phase, paused], async ([next, isPaused]) => {
     >
       <p>Points from this game won't be saved.</p>
     </ConfirmDialog>
+    <HowToPlayDialog v-model:open="howToOpen" game-id="cli-cyber-defender" v-bind="HOW_TO_PLAY">
+      <template #scene="scene">
+        <HowToPlayScene v-if="howToOpen" :step="scene.step" />
+      </template>
+    </HowToPlayDialog>
   </div>
 </template>

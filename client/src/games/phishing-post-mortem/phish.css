@@ -14,6 +14,17 @@
   --game-good-soft: #e7f3ec;
   --game-bad: #9a3324;
   --game-bad-soft: #fbecea;
+  --game-howto-surface: var(--game-surface);
+  --game-howto-scene: var(--game-bg);
+  --game-howto-edge: var(--game-accent);
+  --game-howto-ink: var(--game-ink);
+  --game-howto-muted: var(--game-muted);
+  --game-howto-soft: var(--game-accent-soft);
+  --game-howto-bar: var(--game-bar);
+  --game-howto-bar-ink: var(--game-bar-ink);
+  --game-howto-bad: var(--game-bad);
+  --game-howto-bad-soft: var(--game-bad-soft);
+  --game-howto-font: var(--game-font);
   --game-font: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   font-family: var(--game-font);
   color: var(--game-ink);

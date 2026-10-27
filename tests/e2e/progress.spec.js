@@ -4,6 +4,8 @@ import { connectDatabase } from '../../server/src/config/database.js'
 import { assertSafeTestDatabaseUri } from '../../server/src/config/database-uri.js'
 import { createAuthService } from '../../server/src/modules/auth/service.js'
 import { parseRegistrationInput } from '../../server/src/modules/auth/policy.js'
+import { userModel } from '../../server/src/models/User.js'
+import { HOW_TO_PLAY_GAME_IDS } from '../../server/src/modules/profile/how-to-play.js'
 
 const gameNames = [
   'CLI Cyber Defender',
@@ -33,6 +35,10 @@ async function signedInContext(browser, baseURL, label) {
         password,
         avatarId: 'mint',
       }),
+    )
+    await userModel(database).updateOne(
+      { emailNormalized: email },
+      { $set: { howToPlayDismissed: [...HOW_TO_PLAY_GAME_IDS] } },
     )
   } finally {
     await database.close()

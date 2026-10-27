@@ -1,15 +1,21 @@
 <script setup>
 import { computed } from 'vue'
+import HowToPlayDialog from '../../components/common/HowToPlayDialog.vue'
+import { useHowToPlay } from '../../composables/useHowToPlay.js'
 import AttemptContextChooser from '../../features/attempts/components/AttemptContextChooser.vue'
 import ChatThread from './components/ChatThread.vue'
 import ConversationTabs from './components/ConversationTabs.vue'
 import DecisionBar from './components/DecisionBar.vue'
 import DebriefPanel from './components/DebriefPanel.vue'
 import MessageComposer from './components/MessageComposer.vue'
+import HowToPlayScene from './components/HowToPlayScene.vue'
 import ScenarioBrief from './components/ScenarioBrief.vue'
 import { useSocialEngineeringSession } from './composables/useSocialEngineeringSession.js'
+import { HOW_TO_PLAY } from './howToPlay.js'
 import { MAX_MESSAGE_LENGTH } from './simulator.js'
 import './sim.css'
+
+const { open: howToOpen, show: showHowTo } = useHowToPlay('social-engineering-simulator')
 
 const {
   status,
@@ -89,6 +95,9 @@ const fitsViewport = computed(() => inConversation.value || status.value === 'br
     </div>
 
     <div v-if="status === 'choosing'" class="soc-state soc-start">
+      <button type="button" class="soc-button soc-button-choice" @click="showHowTo">
+        How to play
+      </button>
       <AttemptContextChooser
         :disabled="pending"
         label="Save this call to"
@@ -189,5 +198,14 @@ const fitsViewport = computed(() => inConversation.value || status.value === 'br
         </div>
       </template>
     </div>
+    <HowToPlayDialog
+      v-model:open="howToOpen"
+      game-id="social-engineering-simulator"
+      v-bind="HOW_TO_PLAY"
+    >
+      <template #scene="scene">
+        <HowToPlayScene v-if="howToOpen" :step="scene.step" :reduced-motion="scene.reducedMotion" />
+      </template>
+    </HowToPlayDialog>
   </div>
 </template>
