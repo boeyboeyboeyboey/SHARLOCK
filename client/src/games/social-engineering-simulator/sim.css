@@ -1,5 +1,5 @@
-/* every rule is scoped to .soc-game; it follows the hub's pixel look (Pixelify Sans, square
-   controls, dark borders, hard shadows) using the shared town tokens */
+/* every rule is scoped to .soc-game; it follows the hub's pixel look (pixelify sans headings,
+   dotgothic16 body, square controls, dark borders, hard shadows) using the shared town tokens */
 .soc-game {
   --game-bg: #dfead6;
   --game-surface: #fff8df;
@@ -20,7 +20,8 @@
   --game-warn-soft: #fbf1dc;
   --game-bad: #9a3324;
   --game-bad-soft: #fbecea;
-  --game-font: var(--font-pixel);
+  --game-font: var(--font-body);
+  --game-heading-font: var(--font-pixel);
   --game-howto-surface: var(--game-surface);
   --game-howto-scene: var(--game-bg);
   --game-howto-edge: var(--game-edge);
@@ -39,6 +40,10 @@
   font-family: var(--game-font);
   color: var(--game-ink);
   line-height: 1.35;
+}
+
+.soc-game :where(h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6) {
+  font-family: var(--game-heading-font);
 }
 
 .soc-game *,

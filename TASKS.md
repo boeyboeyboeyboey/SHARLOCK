@@ -386,6 +386,13 @@ No active implementation task.
 - **Docs:** Clearance module README file table, README.md Clearance paragraph.
 - **Next action:** Boey reviews; notify Russell once merged.
 
+**FONT-07 — Social Engineering body font** · Status: **Review** · Contributor: **Boey** (owner Eric; owner agreement: "Yup ok you can go ahead to make any changes you want, just let us know once done and work in a separate branch for git rollback in event of anything"; `llm/` untouched) · Branch: `font-07-social-body-font` (cut from `origin/main` at `8ea6f0b`, 28 October 2026, upstream unset) · Approved by Boey on 28 October 2026 (overnight batch 7).
+
+- **Change:** `sim.css` sets `--game-font: var(--font-body)` (DotGothic16) and a game-local `--game-heading-font: var(--font-pixel)` for headings inside `.soc-game`; the plain numeral font on scores and counters is unchanged. `game-palette.test.js` now asserts the body/heading split instead of the pixel body font.
+- **Docs:** DESIGN.md game-theme paragraph and typography bullet updated for both Social (FONT-07) and Clearance (FONT-06), kept in this one branch because both sit on the same long DESIGN.md lines; FONT-04 also edits the typography bullet, so merging both needs a two-sided keep of that line. Social module README has no font text.
+- **Verified (28 October 2026):** `vitest run client/src/games/__tests__/game-palette.test.js client/src/games/social-engineering-simulator` 106/106; `tests/e2e/social-engineering-simulator.spec.js` 4 passed, exit 0; prettier clean. Not visually inspected.
+- **Next action:** Boey reviews; notify Eric once merged.
+
 **BOARD-01 — Class leaderboards** · Status: **Review** · Contributor: **Boey** · Branch: `board-01-class-leaderboards` (cut from `origin/main` at `9e6c3a1`, 27 October 2026, upstream unset). Plan approved by Boey on 27 October 2026. Spec: [BOARD-01](#board-01--cohort-leaderboards).
 
 - **Collision check (27 October 2026):** no leaderboard code on `main`, in local or remote branch names, or in the `admin-01-b-admin-controls` (Codex admin-controls) worktree. Existing references are only the `/leaderboard` ComingSoon placeholder (`client/src/router/index.js`), nav links (`Navbar.vue:34`, `PortalLayout.vue:30`), the pixel-wipe label, docs mentions, and an empty `server/src/modules/leaderboards/.gitkeep`. Remote branch contents, PRs and teammates' machines were not inspected.
