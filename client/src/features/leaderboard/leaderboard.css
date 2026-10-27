@@ -32,6 +32,10 @@
   min-width: 0;
 }
 
+.leaderboard .leaderboard__filter > span {
+  font-weight: 700;
+}
+
 .leaderboard .leaderboard__filter select {
   min-height: 48px;
   max-width: 100%;
@@ -46,6 +50,10 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+.leaderboard .leaderboard__filter:has(.leaderboard__game-tabs) {
+  flex: 3 1 320px;
 }
 
 .leaderboard .leaderboard__tabs button {
