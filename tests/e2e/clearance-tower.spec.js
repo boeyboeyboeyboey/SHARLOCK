@@ -328,3 +328,41 @@ test('a class student saves a climb and appears on the class leaderboard', async
     await context.close()
   }
 })
+
+test('the how to play guide opens once, then follows the saved dismissal', async ({
+  page,
+  baseURL,
+}) => {
+  const origin = new URL(baseURL).origin
+  const csrf = await page.request.get(new URL('/api/auth/csrf', baseURL).href, {
+    headers: { Origin: origin },
+  })
+  const { csrfToken } = await csrf.json()
+  const undismiss = await page.request.put(
+    new URL('/api/me/how-to-play/clearance-tower', baseURL).href,
+    { headers: { Origin: origin, 'X-CSRF-Token': csrfToken }, data: { dismissed: false } },
+  )
+  expect(undismiss.ok()).toBe(true)
+
+  await page.goto('/games/clearance-tower')
+  const guide = page.getByRole('dialog', { name: /^How to play/ })
+  await expect(guide).toBeVisible()
+  const pause = guide.getByRole('button', { name: 'Pause animation' })
+  await expect(pause).toHaveAttribute('aria-pressed')
+  await expect(guide.getByText('Step 1 of 4')).toBeVisible()
+  await guide.getByRole('button', { name: 'Next' }).click()
+  await expect(guide.getByText('Step 2 of 4')).toBeVisible()
+
+  await guide.getByLabel("Don't show again").check()
+  await guide.getByRole('button', { name: 'Start playing' }).click()
+  await expect(guide).toBeHidden()
+
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Start a climb' })).toBeVisible()
+  await expect(guide).toBeHidden()
+  await page.getByRole('button', { name: 'How to play' }).click()
+  await expect(guide).toBeVisible()
+  await expect(guide.getByLabel("Don't show again")).toBeChecked()
+  await page.keyboard.press('Escape')
+  await expect(guide).toBeHidden()
+})

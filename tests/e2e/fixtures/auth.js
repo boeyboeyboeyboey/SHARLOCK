@@ -4,6 +4,8 @@ import { connectDatabase } from '../../../server/src/config/database.js'
 import { assertSafeTestDatabaseUri } from '../../../server/src/config/database-uri.js'
 import { createAuthService } from '../../../server/src/modules/auth/service.js'
 import { parseRegistrationInput } from '../../../server/src/modules/auth/policy.js'
+import { userModel } from '../../../server/src/models/User.js'
+import { HOW_TO_PLAY_GAME_IDS } from '../../../server/src/modules/profile/how-to-play.js'
 import { postFixtureLogin } from './sign-in.js'
 
 const test = base.extend({
@@ -31,6 +33,12 @@ const test = base.extend({
             password,
             avatarId: 'mint',
           }),
+        )
+
+        // hide every how to play dialog so existing specs never see it
+        await userModel(database).updateOne(
+          { emailNormalized: email },
+          { $set: { howToPlayDismissed: [...HOW_TO_PLAY_GAME_IDS] } },
         )
 
         context = await browser.newContext()

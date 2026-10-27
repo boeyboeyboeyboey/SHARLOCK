@@ -3,6 +3,7 @@ import { expect, test as base } from '@playwright/test'
 import { connectDatabase } from '../../../server/src/config/database.js'
 import { assertSafeTestDatabaseUri } from '../../../server/src/config/database-uri.js'
 import { userModel } from '../../../server/src/models/User.js'
+import { HOW_TO_PLAY_GAME_IDS } from '../../../server/src/modules/profile/how-to-play.js'
 import { hashPassword } from '../../../server/src/modules/auth/password.js'
 import { postFixtureLogin } from './sign-in.js'
 
@@ -62,6 +63,7 @@ const test = base.extend({
             authVersion: 1,
             instructorAssignmentRevision: 0,
             passwordChangedAt,
+            howToPlayDismissed: [...HOW_TO_PLAY_GAME_IDS],
           },
           {
             emailNormalized: student.email,
@@ -74,6 +76,7 @@ const test = base.extend({
             authVersion: 1,
             instructorAssignmentRevision: 0,
             passwordChangedAt,
+            howToPlayDismissed: [...HOW_TO_PLAY_GAME_IDS],
           },
         ])
 

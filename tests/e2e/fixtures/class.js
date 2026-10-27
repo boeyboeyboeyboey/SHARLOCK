@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto'
 import { connectDatabase } from '../../../server/src/config/database.js'
 import { assertSafeTestDatabaseUri } from '../../../server/src/config/database-uri.js'
 import { userModel } from '../../../server/src/models/User.js'
+import { HOW_TO_PLAY_GAME_IDS } from '../../../server/src/modules/profile/how-to-play.js'
 import { institutionModel } from '../../../server/src/models/Institution.js'
 import { cohortModel } from '../../../server/src/models/Cohort.js'
 import { membershipModel } from '../../../server/src/models/Membership.js'
@@ -41,6 +42,7 @@ export async function seedClass(suffix) {
       authVersion: 1,
       instructorAssignmentRevision: 0,
       passwordChangedAt,
+      howToPlayDismissed: [...HOW_TO_PLAY_GAME_IDS],
     })
     const [teacherDoc, docA, docB] = await User.create([
       await account(instructor, 'instructor'),
