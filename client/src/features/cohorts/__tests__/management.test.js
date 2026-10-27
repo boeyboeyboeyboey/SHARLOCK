@@ -154,7 +154,7 @@ describe('instructor class management', () => {
     expect(wrapper.get('dialog').text()).toContain('Deliver this reset link privately')
     await wrapper
       .findAll('button')
-      .find((button) => button.text() === 'Close and clear link')
+      .find((button) => button.text() === 'Close')
       .trigger('click')
     expect(wrapper.find('dialog').exists()).toBe(false)
     wrapper.unmount()

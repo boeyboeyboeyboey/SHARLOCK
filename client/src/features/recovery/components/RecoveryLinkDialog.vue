@@ -73,8 +73,7 @@ onBeforeUnmount(() => {
       <p class="recovery-eyebrow">PRIVATE STUDENT LINK</p>
       <h2 id="recovery-link-title">Deliver this reset link privately</h2>
       <p>
-        Share it with the student through a private school channel. It can be used once and
-        disappears from this page when closed.
+        Copy this link now. It won't be shown again; it still works once and expires in 30 minutes.
       </p>
       <label class="recovery-label" for="recovery-link-value">Reset link</label>
       <input
@@ -95,7 +94,7 @@ onBeforeUnmount(() => {
           Copy reset link
         </button>
         <button class="btn btn-secondary recovery-button" type="button" @click="closeDialog">
-          Close and clear link
+          Close
         </button>
       </div>
     </div>

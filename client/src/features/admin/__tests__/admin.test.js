@@ -615,7 +615,7 @@ describe('admin workspace', () => {
     expect(wrapper.get('dialog').text()).toContain('Deliver this reset link privately')
     await wrapper
       .findAll('button')
-      .find((button) => button.text() === 'Close and clear link')
+      .find((button) => button.text() === 'Close')
       .trigger('click')
     expect(wrapper.find('dialog').exists()).toBe(false)
     expect(wrapper.find('input#recovery-link-value').exists()).toBe(false)
