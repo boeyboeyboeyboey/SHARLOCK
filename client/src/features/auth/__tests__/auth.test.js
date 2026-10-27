@@ -366,6 +366,40 @@ describe('auth store', () => {
     expect(auth.requestError.message).not.toContain('private transport details')
   })
 
+  it('retries logout once with a fresh token after a stale security check', async () => {
+    authRequests.requestCsrfToken.mockResolvedValue('anonymous-token')
+    const auth = useAuthStore()
+    await registerAndVerify(auth)
+    authRequests.requestCsrfToken.mockResolvedValue('fresh-token')
+    authRequests.requestLogout
+      .mockRejectedValueOnce(rejectedAuth('CSRF_INVALID', 403))
+      .mockResolvedValueOnce(undefined)
+
+    await auth.logout()
+
+    expect(authRequests.requestLogout).toHaveBeenCalledTimes(2)
+    expect(authRequests.requestLogout).toHaveBeenLastCalledWith('fresh-token')
+    expect(auth.status).toBe('anonymous')
+    expect(auth.user).toBeNull()
+    expect(auth.requestError).toBeNull()
+    expect(auth.logoutPending).toBe(false)
+  })
+
+  it('stays signed in when the logout retry is also rejected', async () => {
+    authRequests.requestCsrfToken.mockResolvedValue('anonymous-token')
+    const auth = useAuthStore()
+    await registerAndVerify(auth)
+    authRequests.requestLogout.mockRejectedValue(rejectedAuth('CSRF_INVALID', 403))
+
+    await expect(auth.logout()).rejects.toMatchObject({ code: 'CSRF_INVALID' })
+
+    expect(authRequests.requestLogout).toHaveBeenCalledTimes(2)
+    expect(auth.status).toBe('authenticated')
+    expect(auth.user.username).toBe(account.username)
+    expect(auth.requestError.code).toBe('CSRF_INVALID')
+    expect(auth.logoutPending).toBe(false)
+  })
+
   it('invalidates identity after an authenticated restore returns 401', async () => {
     authRequests.requestCurrentUser.mockRejectedValue(rejectedAuth('AUTHENTICATION_REQUIRED', 401))
     const auth = useAuthStore()

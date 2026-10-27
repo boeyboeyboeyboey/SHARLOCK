@@ -153,6 +153,14 @@ No active implementation task.
 - **Merge (27 October 2026):** commit `3e80732` fast-forwarded into `main` with Boey's approval, together with this record update; no PR. The branch is pushed to `origin`. The dev-browser and 375 px checks were not done before the merge.
 - **Next action:** Boey checks the games and `/leaderboard` in a dev browser (desktop and 375 px), then acceptance; tell the four owners their games now save.
 
+**UI-09 — Sign-out lands on /login** · Status: **Review** · Contributor: **Boey** · Branch: `ui-09-signout-redirect`, approved by Boey on 27 October 2026 (lunch batch).
+
+- **Scope:** `auth.logout()` in `client/src/features/auth/store.js` only, plus tests and the auth README; server CSRF on logout is unchanged.
+- **Root cause:** a lapsed `sharlock.sid` cookie (or a sign-out in another tab) leaves a stale in-memory CSRF token; `POST /api/auth/logout` returned 403 `CSRF_INVALID`, so the sign-out stayed put with "Your security check expired".
+- **Fix:** on `CSRF_INVALID` the store refetches the token and retries logout once; success or 401 clears identity and the layout navigates to `/login`; a second failure keeps the identity and the error (a live session never looks signed out).
+- **Collision check:** auth module is Boey's; no other branch touches `store.js` logout.
+- **Checks:** client auth unit 68/68 pass; server auth integration 17 passed, 2 skipped (new case included); `tests/e2e/auth.spec.js` 6/6 pass (desktop and mobile, new lapsed-cookie sign-out test included); eslint and prettier clean on changed files. Not checked in a real dev browser.
+
 **BOARD-01 — Class leaderboards** · Status: **Review** · Contributor: **Boey** · Branch: `board-01-class-leaderboards` (cut from `origin/main` at `9e6c3a1`, 27 October 2026, upstream unset). Plan approved by Boey on 27 October 2026. Spec: [BOARD-01](#board-01--cohort-leaderboards).
 
 - **Collision check (27 October 2026):** no leaderboard code on `main`, in local or remote branch names, or in the `admin-01-b-admin-controls` (Codex admin-controls) worktree. Existing references are only the `/leaderboard` ComingSoon placeholder (`client/src/router/index.js`), nav links (`Navbar.vue:34`, `PortalLayout.vue:30`), the pixel-wipe label, docs mentions, and an empty `server/src/modules/leaderboards/.gitkeep`. Remote branch contents, PRs and teammates' machines were not inspected.

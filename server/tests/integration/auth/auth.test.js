@@ -134,6 +134,28 @@ afterAll(async () => {
 })
 
 describe('account and Mongo session HTTP contract', () => {
+  it('lets a fresh token sign out when the session cookie has lapsed', async () => {
+    const stale = await request(app)
+      .post('/api/auth/logout')
+      .set('Origin', baseAuthOptions.clientOrigin)
+      .set('X-CSRF-Token', 'stale-token')
+      .send({})
+      .expect(403)
+    expect(stale.body.error.code).toBe('CSRF_INVALID')
+
+    const agent = request.agent(app)
+    const fresh = await agent
+      .get('/api/auth/csrf')
+      .set('Origin', baseAuthOptions.clientOrigin)
+      .expect(200)
+    await agent
+      .post('/api/auth/logout')
+      .set('Origin', baseAuthOptions.clientOrigin)
+      .set('X-CSRF-Token', fresh.body.csrfToken)
+      .send({})
+      .expect(204)
+  })
+
   it('applies the new registration policy while keeping legacy passwords login-compatible', async () => {
     const agent = request.agent(app)
     const csrf = await agent
