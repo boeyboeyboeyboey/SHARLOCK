@@ -28,14 +28,6 @@ function invalid(fieldErrors) {
   )
 }
 
-export function rateLimited() {
-  return new ClearanceError(
-    'CLEAR_RATE_LIMITED',
-    'Too many requests. Wait a moment and try again.',
-    429,
-  )
-}
-
 function isPlainObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
