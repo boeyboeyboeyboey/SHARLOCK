@@ -1,5 +1,15 @@
 # Student password recovery
 
+## Presentation summary
+
+- What it is: student password recovery. Staff issue a one-time reset link for an eligible student; the student opens `/reset-password` to choose a new password.
+- Security concept: account recovery without enumeration or recoverable passwords. Staff attest that identity was verified outside the app; the token is random, expiring, single-use and stored only as a hash; a reset revokes sessions and requires normal sign-in. Course link: authentication and identity (06-authentication v2.pptx) in the [course reference index](../../../../TASKS.md#course-reference-index).
+- Using it: staff look up an active student by email (admin workspace) or pick the student in their assigned class, confirm identity was verified and deliver the link privately; the student sets a password and signs in.
+- Components: `RecoveryStudentLookup`, `RecoveryIssueForm`, `RecoveryLinkDialog` and the public `ResetPasswordForm`; `api.js` validates response shapes and same-origin reset URLs.
+- API and data: the client sends `{ identityVerified: true }` to issue and the token plus new password to reset; tokens live in memory, are cleared on close and never stored.
+- Status: see the REC-01-B record in [TASKS.md](../../../../TASKS.md).
+- Limits: pure students only (staff and dual-role targets excluded); no email delivery; emergency recovery is deferred; needs transaction-capable MongoDB.
+
 The recovery feature keeps staff lookup, issuance, public reset forms, and their styles inside this module. The admin workspace looks up an active student by exact email. A pure instructor can issue a link for an active student in the selected assigned class; admin-role accounts use the admin workspace instead. The server remains authoritative for role, class, membership, and account eligibility.
 
 Staff attest that they verified the student's identity through a school channel. The client sends only `{ identityVerified: true }` when issuing. It presents the one-time link in a dialog for private delivery, clears it when the dialog closes or its host page leaves, and never sends it to email or SMS.

@@ -1,5 +1,15 @@
 # Admin workspace
 
+## Presentation summary
+
+- What it is: the `/admin` workspace for administrators to create institutions and classes, provision instructors, assign them to classes, manage account status, read audit events and start student password recovery.
+- Security concept: role-based access control and least privilege with accountable administration. The route requires a freshly verified admin; the server re-checks role on every call, never accepts a submitted role, and writes metadata-only audit events. Course link: access control (07-access-control.pptx) and authentication (06-authentication v2.pptx) in the [course reference index](../../../../TASKS.md#course-reference-index).
+- Using it: sign in as an administrator, open Admin workspace, create an institution then a class, use "Provision an instructor", copy the one-time activation link from the dialog and deliver it privately, then "Save assignments" once the instructor has activated.
+- Components: `pages/AdminPage.vue` plus `InstitutionCohortForm`, `InstructorProvisionForm`, `AssignmentEditor`, `ActivationLinkDialog`, `AccountStatusPanel` and `AuditEventsPanel`; `api.js` wraps the admin endpoints.
+- Data: sends only `{ name, slug }`, `{ institutionId, name, term }`, `{ email, username, avatarId }` and `{ cohortIds, expectedRevision }`; edits use `expectedRevision` to reject stale writes. Activation links are shown once and cleared on close.
+- Status: see the ADMIN-01-A, REC-01-A and LOG-01-A records in [TASKS.md](../../../../TASKS.md).
+- Limits: needs transaction-capable MongoDB; existing users are never promoted; no student enrolment or learning dashboard here (see the cohorts and class-results modules); no demo fixtures.
+
 The `/admin` utility page replaces the earlier preview in place. It uses the shared admin API and the existing `PortalLayout`, pixel tokens, `PixelIcon`, and `AvatarPicker`; router registration, account guards, and the role-aware navigation entry are shared integration points.
 
 ## Administrator flow

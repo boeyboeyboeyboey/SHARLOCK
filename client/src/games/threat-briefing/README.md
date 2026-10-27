@@ -1,5 +1,15 @@
 # The Sharlock Times
 
+## Presentation summary
+
+- What it is: The Sharlock Times, a newspaper overlay of recent cybersecurity and technology stories plus an OWASP Top 10 reference, opened from the newsstand ("The daily briefing") in the hub or 2D town at `/games/threat-briefing`.
+- Security concept: situational awareness of real threats and web-application risk (OWASP Top 10), and safe handling of third-party content: external text is escaped, links are protocol-checked and there is no untrusted `v-html`. Course link: web security (11a, 12a decks) in the [course reference index](../../../../TASKS.md#course-reference-index).
+- Using it: click the newsstand, browse and search sections and pages, open the OWASP tab, and use Close or Esc to return. A mute control and retry cover the lo-fi loop.
+- Components: `NewsDialog.vue` (modal, URL state), `CyberNewsCentral.vue`, `NewsTabs.vue`, `OwaspTopTen.vue`, `NewsAudio.vue`; `useCyberNews.js` and `useNewsLocation.js`; `news.js` uses the shared `/api` client.
+- Data: reads `GET /api/news` only; it saves no scores, accounts or reading history.
+- Status: see the G-NEWS records in [TASKS.md](../../../../TASKS.md).
+- Limits: live stories need a Guardian key in the server environment; unscored; sound state is local and non-persistent.
+
 Cyber News Central retains catalog ID `threat-briefing` and `/games/threat-briefing`. Its paper reads live Guardian stories, without accounts, scores, reflections or saved reading history.
 
 **Status: completed and accepted by Boey on 19 September 2026**, including The Sharlock Times branding, OWASP reference and newspaper sound. The requested lo-fi MP3 replaces the mistakenly supplied WAV; task evidence is retained in the root TASKS.md.

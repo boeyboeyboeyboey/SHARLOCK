@@ -1,5 +1,15 @@
 # News service
 
+## Presentation summary
+
+- What it is: the public news reading service behind The Sharlock Times: `GET /api/news` returns a validated, cached edition of Guardian articles.
+- Security concept: safe use of an external API. Only an allowlisted upstream is called (no arbitrary URL proxying), requests and reads are bounded, the key stays server-side, article HTML is reduced to text, HTTP(S) links and line breaks, and errors are generic. Course link: web security (11a, 12a decks) and network security (09a) in the [course reference index](../../../../TASKS.md#course-reference-index).
+- Using it: add `GUARDIAN_API_KEY` to root `.env`, restart the backend and open the Times; no key is needed for the rest of the app.
+- Components: `router.js` (allowlisted query), `policy.js`, `service.js` (fresh/stale/expired, request coalescing, cooldown), `store.js`, `models.js`, `providers/guardian.js`, `inline.js`.
+- Data: MongoDB `NewsCache` and `NewsQuota` collections hold the edition cache and a persistent daily budget with pacing; it creates no users, attempts or scores.
+- Status: see the API-01 and G-NEWS records in [TASKS.md](../../../../TASKS.md).
+- Limits: the daily quota bounds live refreshes, so older cached stories may be labelled stale; one upstream provider.
+
 This feature belongs to G-NEWS / API-01. It is a public reading service; it does not create users, attempts, scores or learning records.
 
 ## Request and data flow
