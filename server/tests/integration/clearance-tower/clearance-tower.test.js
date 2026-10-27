@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { Types } from 'mongoose'
-import request from 'supertest'
 import { connectDatabase } from '../../../src/config/database.js'
 import { assertSafeTestDatabaseUri } from '../../../src/config/database-uri.js'
 import { loadEnvironment } from '../../../src/config/env.js'
@@ -9,7 +8,6 @@ import { initializeCohortStorage } from '../../../src/modules/cohorts/storage.js
 import { initializeAttemptStorage } from '../../../src/modules/attempts/storage.js'
 import { createProductionAttemptRegistry } from '../../../src/modules/attempts/production-registry.js'
 import { LEVELS } from '../../../src/modules/games/clearance-tower/levels.js'
-import { createClearanceService } from '../../../src/modules/games/clearance-tower/service.js'
 import { institutionModel } from '../../../src/models/Institution.js'
 import { cohortModel } from '../../../src/models/Cohort.js'
 import { membershipModel } from '../../../src/models/Membership.js'
@@ -135,26 +133,6 @@ async function cohortFor(student) {
   remember('memberships', membership._id)
   return cohort
 }
-
-describe('clearance tower levels route', () => {
-  it('lists the six level summaries without caching', async () => {
-    const list = await request(app).get(`${base}/levels`).expect(200)
-    expect(list.headers['cache-control']).toBe('no-store')
-    expect(list.body.levels.map((level) => level.id)).toEqual(LEVELS.map((level) => level.id))
-    await request(app).post(`${base}/runs`).send({ levelId: 'the-matrix' }).expect(404)
-  })
-
-  it('paces a client that floods the api', async () => {
-    const paced = createTestApp(database, auth, {
-      news: newsStub,
-      clearanceTower: { service: createClearanceService(), limit: 2 },
-    })
-    await request(paced).get(`${base}/levels`).expect(200)
-    await request(paced).get(`${base}/levels`).expect(200)
-    const limited = await request(paced).get(`${base}/levels`).expect(429)
-    expect(limited.body.error.code).toBe('CLEAR_RATE_LIMITED')
-  })
-})
 
 describe('saved clearance tower journey', () => {
   it('climbs all six levels and saves the summed score', async () => {

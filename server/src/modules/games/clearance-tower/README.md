@@ -14,8 +14,6 @@ Learning content follows CS440 `07-access-control.pptx`: discretionary control a
 | `scoring.js`  | Four score rows, stars, prediction review and the role-versus-matrix edit comparison.                                                                                     |
 | `policy.js`   | Constants, strict submission validation (unknown fields rejected) and `ClearanceError`.                                                                                   |
 | `ruleset.js`  | Registry entry for the shared attempt service: state schema, `submit-level` action, public state and summary. Registered in `attempts/production-registry.js`.            |
-| `service.js`  | Level summaries for `GET /levels` only.                                                                                                                                   |
-| `router.js`   | The levels route, courtesy request pacing, `Cache-Control: no-store` and the shared error shape.                                                                          |
 
 ## Saved attempts (`rulesetVersion: 'clear-2'`)
 
@@ -41,13 +39,13 @@ Play uses the shared attempt API (see `server/src/modules/attempts/README.md`): 
 
 ## Endpoint
 
-| Method and path                         | Response                                                                           |
-| --------------------------------------- | ---------------------------------------------------------------------------------- |
-| `GET /api/games/clearance-tower/levels` | `{ gameId, rulesetVersion, levels: [{ id, act, actTitle, model, title }] }` (open) |
+| Method and path                                                    | Response                                           |
+| ------------------------------------------------------------------ | -------------------------------------------------- |
+| None (`GET /api/games/clearance-tower/levels` removed in CLEAR-01) | Play and saving use the shared attempts API above. |
 
 Policy shapes: discretionary `{ grants: [{ subject, object, rights: ['r','w'] }] }` (up to 64); Bell–LaPadula `{ objectLabels: { [fileId]: { level, categories } } }` (one per file); role-based `{ roles: [{ id, name, permissions }], assignments: [{ agent, roleIds }] }` (up to 8 roles).
 
-Error codes: `CLEAR_INVALID_ACTION` (400), `CLEAR_LEVEL_SUBMITTED` (409), `CLEAR_RATE_LIMITED` (429) on the levels route, plus the shared `ATTEMPT_*` codes.
+Error codes: `CLEAR_INVALID_ACTION` (400), `CLEAR_LEVEL_SUBMITTED` (409), plus the shared `ATTEMPT_*` codes.
 
 ## Tests
 

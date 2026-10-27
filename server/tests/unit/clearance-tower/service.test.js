@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import { LEVELS, findLevel } from '../../../src/modules/games/clearance-tower/levels.js'
 import { parseSubmission } from '../../../src/modules/games/clearance-tower/policy.js'
 import { clearanceRuleset } from '../../../src/modules/games/clearance-tower/ruleset.js'
-import { createClearanceService } from '../../../src/modules/games/clearance-tower/service.js'
 import { predictionList, SOLUTIONS } from './solutions.js'
 
 function submission(levelId, overrides = {}) {
@@ -125,13 +124,6 @@ describe('clearance tower ruleset', () => {
       type: 'submit-level',
       payload: clearanceRuleset.validateAction('submit-level', submission(levelId)),
     })
-
-  it('lists six levels without saving anything', () => {
-    const listing = createClearanceService().listLevels()
-    expect(listing.levels).toHaveLength(6)
-    expect(listing.rulesetVersion).toBe('clear-2')
-    expect(listing).not.toHaveProperty('saved')
-  })
 
   it('scores each level to its known score through the ruleset', () => {
     for (const levelId of Object.keys(SOLUTIONS)) {

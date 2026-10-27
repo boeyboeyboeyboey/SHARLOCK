@@ -3,7 +3,6 @@ import express from 'express'
 import { createNewsRouter } from './modules/news/router.js'
 import { createSocialEngineeringRouter } from './modules/games/social-engineering-simulator/router.js'
 import { createCliDefenderRouter } from './modules/games/cli-cyber-defender/router.js'
-import { createClearanceRouter } from './modules/games/clearance-tower/router.js'
 import { createAuthRouter } from './modules/auth/router.js'
 import { createCohortRouter } from './modules/cohorts/router.js'
 import { createAuditRouter } from './modules/audit/router.js'
@@ -32,7 +31,6 @@ export function createApp(
     news = {},
     socialEngineering = {},
     cliDefender = {},
-    clearanceTower = {},
   } = {},
 ) {
   const app = express()
@@ -134,7 +132,6 @@ export function createApp(
       requireMutation: authRuntime.requireMutation,
     }),
   )
-  app.use('/api', createClearanceRouter(clearanceTower))
   app.use(notFound)
   app.use(handleError)
   app.locals.disposeAuth = () => {
