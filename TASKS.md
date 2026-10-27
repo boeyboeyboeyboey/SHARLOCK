@@ -360,6 +360,14 @@ No active implementation task.
 - **Checks (28 October 2026):** `node scripts/run-with-test-db.mjs e2e --replica-set tests/e2e/cli-cyber-defender.spec.js --project=mobile-chromium --project=desktop-chromium --workers=1` exit 0 (43 passed, 1 skipped); prettier check clean.
 - **Docs:** no docs impact beyond this record: test-only change. Notify Xin Lei when merged.
 
+**FONT-03 — Signed-in font QA** · Status: **Review** · Contributor: **Boey** · Branch: `font-03-signed-in-qa` (cut from `origin/main` at `8ea6f0b`, 28 October 2026, upstream unset) · Approved by Boey on 28 October 2026 (overnight batch 7).
+
+- **Scope:** visual QA of FONT-01 on signed-in pages, game headings and the hub HUD at 375 and 1440 px; fix only shared CSS issues.
+- **Method:** a throwaway Playwright spec (deleted, never committed) on the disposable test database captured the 2D town, profile, progress, classes, leaderboard, admin (Accounts, Audit), the five games and the 3D hub HUD, with a DOM audit of DotGothic16 text at weight 600 or more, headings outside game/utility roots, loaded font faces and Google Fonts requests.
+- **Findings:** browser-synthesised bold appears on the 2D town controls, progress labels, a few buttons, the active navbar link and the hub HUD game list; viewed at 375 px it is slightly heavier with every glyph distinct, not smeared. Every shared heading renders in Pixelify Sans. Shared pages load only self-hosted DotGothic16 400 and Pixelify Sans 400/700; the only Google Fonts requests come from the CLI and SQL games (FONT-04).
+- **Outcome:** no CSS change; `font-synthesis` stays unset. Docs impact: this record only (no visual rule changed).
+- **Not covered:** profile, classes, leaderboard and admin screenshots were audited by DOM only, not viewed; 3D hub at desktop only.
+
 **BOARD-01 — Class leaderboards** · Status: **Review** · Contributor: **Boey** · Branch: `board-01-class-leaderboards` (cut from `origin/main` at `9e6c3a1`, 27 October 2026, upstream unset). Plan approved by Boey on 27 October 2026. Spec: [BOARD-01](#board-01--cohort-leaderboards).
 
 - **Collision check (27 October 2026):** no leaderboard code on `main`, in local or remote branch names, or in the `admin-01-b-admin-controls` (Codex admin-controls) worktree. Existing references are only the `/leaderboard` ComingSoon placeholder (`client/src/router/index.js`), nav links (`Navbar.vue:34`, `PortalLayout.vue:30`), the pixel-wipe label, docs mentions, and an empty `server/src/modules/leaderboards/.gitkeep`. Remote branch contents, PRs and teammates' machines were not inspected.
