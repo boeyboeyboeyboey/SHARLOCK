@@ -12,6 +12,17 @@
   --game-red: #ff8a7a;
   --game-cyan: #7fdcff;
   --game-glow: rgba(78, 240, 138, 0.35);
+  --game-howto-surface: var(--game-panel);
+  --game-howto-scene: var(--game-bg);
+  --game-howto-edge: var(--game-green);
+  --game-howto-ink: var(--game-ink);
+  --game-howto-muted: var(--game-green-dim);
+  --game-howto-soft: var(--game-line);
+  --game-howto-bar: var(--game-green);
+  --game-howto-bar-ink: var(--game-bg);
+  --game-howto-bad: var(--game-red);
+  --game-howto-bad-soft: var(--game-panel);
+  --game-howto-font: var(--game-font);
   --game-font:
     'Azeret Mono', ui-monospace, 'Cascadia Mono', Consolas, 'Liberation Mono', 'Courier New',
     monospace;

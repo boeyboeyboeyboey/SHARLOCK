@@ -103,7 +103,13 @@ test('registers, restores, signs out, signs in, and stops a protected action aft
   await page.goto('/games/threat-briefing')
   await expect(page.getByRole('dialog', { name: 'The Sharlock Times' })).toBeVisible()
   await page.goto('/games/phishing-post-mortem')
-  await expect(page.getByRole('heading', { name: 'The Phishing Post-Mortem' })).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'The Phishing Post-Mortem', exact: true }),
+  ).toBeVisible()
+  const phishGuide = page.getByRole('dialog', { name: 'How to play: The Phishing Post-Mortem' })
+  await expect(phishGuide).toBeVisible()
+  await phishGuide.getByRole('button', { name: 'Start playing' }).click()
+  await expect(phishGuide).toBeHidden()
 
   // /profile hides the account box in the mobile menu, so sign out from a page that shows it
   await page.goto('/progress')
@@ -145,7 +151,12 @@ test('registers, restores, signs out, signs in, and stops a protected action aft
   await expect(page.locator('.town-player').getByText(username, { exact: true })).toBeVisible()
 
   await page.goto('/games/cli-cyber-defender')
-  await expect(page.getByRole('heading', { name: 'CLI Cyber Defender' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'CLI Cyber Defender', exact: true })).toBeVisible()
+  // a fresh account sees the guide on its first visit
+  const guide = page.getByRole('dialog', { name: 'How to play: CLI Cyber Defender' })
+  await expect(guide).toBeVisible()
+  await guide.getByRole('button', { name: 'Start playing' }).click()
+  await expect(guide).toBeHidden()
   await page.route('**/api/auth/me', (route) =>
     route.fulfill({
       status: 401,

@@ -6,9 +6,14 @@ import SavedAttemptResult from '../../features/attempts/components/SavedAttemptR
 import MockAdminLogin from './components/MockAdminLogin.vue'
 import QueryExplanation from './components/QueryExplanation.vue'
 import RepairSelector from './components/RepairSelector.vue'
+import HowToPlayScene from './components/HowToPlayScene.vue'
+import HowToPlayDialog from '../../components/common/HowToPlayDialog.vue'
+import { useHowToPlay } from '../../composables/useHowToPlay.js'
+import { HOW_TO_PLAY } from './howToPlay.js'
 import { useSqlInjection } from './useSqlInjection.js'
 import './sql.css'
 
+const { open: howToOpen, show: showHowTo } = useHowToPlay('sql-injection-arcade')
 const route = useRoute()
 const router = useRouter()
 const game = useSqlInjection()
@@ -76,6 +81,7 @@ onMounted(async () => {
           grammar is supported.
         </p>
       </div>
+      <button type="button" class="btn btn-outline-primary" @click="showHowTo">How to play</button>
       <AttemptContextChooser class="sql-briefing-start" :disabled="busy" @start="start" />
     </div>
     <div v-else-if="snapshot?.status === 'completed'" class="sql-scroll sql-result">
@@ -164,5 +170,10 @@ onMounted(async () => {
       This case has ended.
       <button class="btn btn-primary" @click="replay">Open another case</button>
     </p>
+    <HowToPlayDialog v-model:open="howToOpen" game-id="sql-injection-arcade" v-bind="HOW_TO_PLAY">
+      <template #scene="scene">
+        <HowToPlayScene v-if="howToOpen" :step="scene.step" :reduced-motion="scene.reducedMotion" />
+      </template>
+    </HowToPlayDialog>
   </div>
 </template>

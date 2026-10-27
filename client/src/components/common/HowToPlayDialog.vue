@@ -240,6 +240,12 @@ onBeforeUnmount(stopTimer)
   font-size: 1.1rem;
 }
 
+/* game sheets may colour headings globally, so headings follow the dialog ink */
+.howto-dialog h2,
+.howto-dialog h3 {
+  color: inherit;
+}
+
 .howto-step-text {
   min-height: 3.2em;
   margin: 0;

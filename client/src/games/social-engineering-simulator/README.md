@@ -6,6 +6,7 @@
 - Concept taught: social engineering and impersonation, and verifying a request through an independent channel (see the course reference index in TASKS.md).
 - Chooser: the first screen is labelled "Save this call to" with **Start the call** as its button.
 - How to play: choose where to save the run (personal practice or a class), read the brief, chat with the contact, optionally message a real colleague in a second tab, then choose "Refuse and end", "Verify through a known channel" or "Share the code".
+- Guide: a **How to play** button on the chooser (and a first-visit dialog until dismissed) opens a four-step guide with a code-built chat scene; text lives in `howToPlay.js`.
 - Saved results: the shared `AttemptContextChooser` runs before the briefing and its context is sent when the session starts. The server scores the run and saves it as an attempt, so class runs reach that class's leaderboard (untimed, practice best scores). The debrief shows "Result saved to your account." or the save error with "Try saving again", which asks the server to complete the same decision again.
 - Technical: `SocialEngineeringSimulator.vue` uses `composables/useSocialEngineeringSession.js` and `useVerifierChat.js`; `simulator.js` posts through the shared Axios client with a CSRF token on every request (see the [server module](../../../../server/src/modules/games/social-engineering-simulator/README.md)). Chat replies come from an LLM on the server.
 - Status: playable with saved results (SAVE-SOC); task status lives in TASKS.md.
@@ -17,5 +18,6 @@
 - `simulator.js`: API wrappers, decision list and limits.
 - `composables/`: session state and the real-colleague chat state.
 - `components/`: `ScenarioBrief`, `ConversationTabs`, `ChatThread`, `MessageComposer`, `DecisionBar`, `DebriefPanel`.
+- `howToPlay.js`, `components/HowToPlayScene.vue`: content and animated scene for the shared how-to-play dialog (themed with `--game-howto-*` in `sim.css`).
 - `sim.css`: game-scoped styles.
-- `__tests__/`: component, session and verifier tests; the browser journey is `tests/e2e/social-engineering-simulator.spec.js`.
+- `__tests__/`: component, session, verifier and how-to-play tests; the browser journey is `tests/e2e/social-engineering-simulator.spec.js`.

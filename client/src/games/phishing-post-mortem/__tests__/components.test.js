@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
+import { createPinia, setActivePinia } from 'pinia'
+import { useAuthStore } from '../../../features/auth/store.js'
 import PhishingPostMortem from '../PhishingPostMortem.vue'
 import EmailInspector from '../components/EmailInspector.vue'
 import InboxList from '../components/InboxList.vue'
@@ -45,6 +47,9 @@ const options = [
 ]
 
 async function mountPage(attemptId) {
+  const pinia = createPinia()
+  setActivePinia(pinia)
+  useAuthStore().user = { howToPlayDismissed: ['phishing-post-mortem'] }
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
@@ -54,7 +59,7 @@ async function mountPage(attemptId) {
   })
   await router.push({ path: '/games/phishing-post-mortem', query: { attempt: attemptId } })
   await router.isReady()
-  const wrapper = mount(PhishingPostMortem, { global: { plugins: [router] } })
+  const wrapper = mount(PhishingPostMortem, { global: { plugins: [router, pinia] } })
   await flushPromises()
   return wrapper
 }
@@ -126,7 +131,7 @@ describe('phishing case page', () => {
     expect(wrapper.get('[role="alert"]').text()).toContain('The verdict service is unavailable.')
     expect(wrapper.get('.sharmail-row').attributes('aria-current')).toBe('true')
     expect(wrapper.get('.sharmail-accuse').attributes('aria-pressed')).toBe('true')
-    expect(wrapper.findAll('input[type="checkbox"]')).toHaveLength(3)
+    expect(wrapper.findAll('.sharmail input[type="checkbox"]')).toHaveLength(3)
     const retryButton = wrapper
       .findAll('button')
       .find((button) => button.text() === 'Retry verdict')

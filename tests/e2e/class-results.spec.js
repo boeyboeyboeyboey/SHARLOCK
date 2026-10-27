@@ -8,6 +8,7 @@ import { cohortModel } from '../../server/src/models/Cohort.js'
 import { membershipModel } from '../../server/src/models/Membership.js'
 import { instructorAssignmentModel } from '../../server/src/models/InstructorAssignment.js'
 import { hashPassword } from '../../server/src/modules/auth/password.js'
+import { HOW_TO_PLAY_GAME_IDS } from '../../server/src/modules/profile/how-to-play.js'
 
 function identity(role, suffix) {
   return {
@@ -36,6 +37,7 @@ async function seedClass(suffix) {
       avatarId: 'mint',
       passwordHash: await hashPassword(who.password),
       globalRoles: [role],
+      howToPlayDismissed: [...HOW_TO_PLAY_GAME_IDS],
       accountStatus: 'active',
       authVersion: 1,
       instructorAssignmentRevision: 0,

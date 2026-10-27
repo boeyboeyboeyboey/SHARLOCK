@@ -209,7 +209,7 @@ pnpm test:e2e          # Playwright journeys on a phone and a desktop viewport
 
 ### Using the app
 
-Games open a **How to play** guide on your first visit. Tick "Don't show again" to hide it (saved to your account) and use the game's **How to play** button to reopen it. Clearance Tower has it now; the other scored games follow under HOW-01.
+Games open a **How to play** guide on your first visit. Tick "Don't show again" to hide it (saved to your account) and use the game's **How to play** button to reopen it. All five scored games have one (HOW-01, HOW-02).
 
 `/` shows the 3D Thames Wharf hub (Babylon.js; WebGPU when available, otherwise WebGL2). Sharlock walks between buildings and each building opens a game. Details for developers are in the [hub module README](client/src/features/hub/README.md).
 

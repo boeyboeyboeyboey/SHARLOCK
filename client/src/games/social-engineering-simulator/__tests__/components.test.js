@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createApp, h, nextTick, ref } from 'vue'
+import { createPinia, setActivePinia } from 'pinia'
+import { useAuthStore } from '../../../features/auth/store.js'
 import { sendVerifierMessage, startSession } from '../simulator.js'
 import ConversationTabs from '../components/ConversationTabs.vue'
 import Screen from '../SocialEngineeringSimulator.vue'
@@ -368,6 +370,20 @@ describe('composer restoreText', () => {
   })
 })
 
+// a user who dismissed the guide, so its dialog never intercepts the clicks below
+function dismissedPinia() {
+  const pinia = createPinia()
+  setActivePinia(pinia)
+  useAuthStore().user = { howToPlayDismissed: ['social-engineering-simulator'] }
+  HTMLDialogElement.prototype.showModal = function showModal() {
+    this.setAttribute('open', '')
+  }
+  HTMLDialogElement.prototype.close = function close() {
+    this.removeAttribute('open')
+  }
+  return pinia
+}
+
 // the screen is mounted with the app's own Vue (createApp) so its lifecycle hooks and
 // reactivity run against the same runtime as the composable
 describe('simulator screen with a colleague', () => {
@@ -383,6 +399,7 @@ describe('simulator screen with a colleague', () => {
     const el = document.createElement('div')
     document.body.append(el)
     const app = createApp(Screen)
+    app.use(dismissedPinia())
     // eslint-disable-next-line vue/one-component-per-file
     app.component('RouterLink', { render: () => h('a') })
     app.mount(el)
@@ -406,6 +423,7 @@ describe('simulator screen with a colleague', () => {
     const el = document.createElement('div')
     document.body.append(el)
     const app = createApp(Screen)
+    app.use(dismissedPinia())
     // eslint-disable-next-line vue/one-component-per-file
     app.component('RouterLink', { render: () => h('a') })
     app.mount(el)

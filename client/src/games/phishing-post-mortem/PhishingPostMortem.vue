@@ -1,17 +1,22 @@
 <script setup>
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import HowToPlayDialog from '../../components/common/HowToPlayDialog.vue'
+import { useHowToPlay } from '../../composables/useHowToPlay.js'
 import AttemptContextChooser from '../../features/attempts/components/AttemptContextChooser.vue'
 import SavedAttemptResult from '../../features/attempts/components/SavedAttemptResult.vue'
 import CaseDebrief from './components/CaseDebrief.vue'
 import EmailInspector from './components/EmailInspector.vue'
 import EvidenceTimeline from './components/EvidenceTimeline.vue'
+import HowToPlayScene from './components/HowToPlayScene.vue'
 import InboxList from './components/InboxList.vue'
 import SharmailShell from './components/SharmailShell.vue'
 import VerdictPanel from './components/VerdictPanel.vue'
 import { usePhishingCase } from './composables/usePhishingCase.js'
+import { HOW_TO_PLAY } from './howToPlay.js'
 import './phish.css'
 
+const { open: howToOpen, show: showHowTo } = useHowToPlay('phishing-post-mortem')
 const route = useRoute()
 const router = useRouter()
 const {
@@ -138,6 +143,7 @@ async function backToInbox() {
 
     <section v-if="!snapshot && !initializing" class="phish-state" aria-labelledby="phish-start">
       <h2 id="phish-start">Open a case</h2>
+      <button type="button" class="sharmail-inspect" @click="showHowTo">How to play</button>
       <p>
         The server picks the case. Your verdict is scored there and saved as a result of up to 100
         points.
@@ -242,5 +248,10 @@ async function backToInbox() {
         <button type="button" class="sharmail-submit" @click="save">Save result</button>
       </div>
     </component>
+    <HowToPlayDialog v-model:open="howToOpen" game-id="phishing-post-mortem" v-bind="HOW_TO_PLAY">
+      <template #scene="scene">
+        <HowToPlayScene v-if="howToOpen" :step="scene.step" :reduced-motion="scene.reducedMotion" />
+      </template>
+    </HowToPlayDialog>
   </div>
 </template>

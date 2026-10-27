@@ -8,6 +8,7 @@ Browser half of the `cli-cyber-defender` game (G-CLI), served at `/games/cli-cyb
 - **Concept taught:** incident triage and containment (firewall blocking, account security, host isolation) with CIA-triad and attack-stage tags in every debrief; nothing real is ever executed.
 - **Chooser:** the first screen is labelled "Save this run to" with **Start the run** as its button. The debrief shows "Next run: <destination> · <Timed|Practice>" and a **Change** button to pick another class or mode before **Play again**.
 - **How to play:** choose where to save the run (personal or a class), then **Start game** (10-15 seconds per challenge, pausable) or **Practice** (no timer, one hint per incident). Tap alert names or command templates on touch screens.
+- **How to play guide:** a shared `HowToPlayDialog` opens on the first visit and from the **How to play** button above the chooser, until the player ticks the dismiss box. It shows four steps beside a looping `DemoTerminal` and a caption per step, plus the learning point, rules and controls from `howToPlay.js`.
 - **Technical points:** `CliDefenderGame.vue` → `useCliDefender.js` → `cliDefender.js`. Runs need a signed-in session and CSRF (via the shared `writeAttempt`); the server owns the timing and score. The shared `AttemptContextChooser` supplies the run context.
 - **Saved runs:** a finished timed shift or a practice run is saved as an attempt on `/complete`; the debrief shows "Result saved to your account." or the save error with **Try saving again**. Timed class runs rank on the class Best board (Timed runs); practice counts toward the all-time view.
 - **Status and limits:** record in TASKS.md (SAVE-CLI). Runs live in server memory with a 10-minute idle expiry, so an abandoned run is never saved. Rankings are practice evidence, not validated mastery.
@@ -28,8 +29,9 @@ Browser half of the `cli-cyber-defender` game (G-CLI), served at `/games/cli-cyb
 
 | Component              | Props                                                                                                                                                                  | Emits                                             |
 | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
-| `BriefingPanel.vue`    | `{ pending, error }`; owns the context step and the Ready-to-play dialog                                                                                               | `start(mode, context)`                            |
+| `BriefingPanel.vue`    | `{ pending, error }`; owns the context step and the Ready-to-play dialog                                                                                               | `start(mode, context)`, `how-to-play`             |
 | `ReplayChoice.vue`     | `{ context, mode }`: debrief summary line, Change disclosure, class select and mode radios                                                                             | `change({ mode, context })`                       |
+| `HowToPlayScene.vue`   | `{ step }`: `DemoTerminal` plus a caption per guide step, mounted only while the guide is open                                                                         | —                                                 |
 | `DemoTerminal.vue`     | `{ typeMs }`: looping demo with demo-only incidents; pauses off-screen or in a hidden tab, still frame for reduced motion                                              | —                                                 |
 | `ConfirmDialog.vue`    | `{ open, id, title, confirmLabel, cancelLabel }`; native modal dialog, default slot for the message                                                                    | `confirm`, `cancel`                               |
 | `GameMenu.vue`         | `{ canPause, paused, canEnd, soundOn, soundUnavailable }`: in-game dropdown replacing Back to town                                                                     | `pause`, `resume`, `toggle-sound`, `end`, `leave` |
@@ -42,6 +44,16 @@ Browser half of the `cli-cyber-defender` game (G-CLI), served at `/games/cli-cyb
 | `PausedPanel.vue`      | `{ pending }`; focuses Resume game on mount                                                                                                                            | `resume`                                          |
 | `ShiftDebrief.vue`     | `{ result, saving }`                                                                                                                                                   | `replay`, `menu`, `retry-save`                    |
 | `CliIcon.vue`          | `{ name, size }`: original line icons drawn with `currentColor`, always decorative beside text                                                                         | —                                                 |
+
+## How to play guide
+
+| File                            | Role                                                                                                                      |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `howToPlay.js`                  | steps, learning point, rules and controls, taken from the briefing and the server scoring policy                          |
+| `components/HowToPlayScene.vue` | animated scene slot: reuses `DemoTerminal` and shows a caption for the current step                                       |
+| `CliDefenderGame.vue`           | `useHowToPlay('cli-cyber-defender')` and one `HowToPlayDialog` inside `.cli-game`, so `--game-howto-*` in `cli.css` apply |
+
+The dialog is shared (`components/common/HowToPlayDialog.vue`); the dismissed state is saved per account by the profile module.
 
 ## Design and accessibility
 
