@@ -16,7 +16,7 @@
 | --------------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------- |
 | `ClassResults`        | `cohortId`                                                                                      | none                                           |
 | `ResultsSummary`      | `games`, `activeStudents`                                                                       | none                                           |
-| `StudentResultsTable` | `students`, `games`, `page`, `pageSize`, `total`, `loading`, `selectedId`                       | `select`, `change-page`                        |
+| `StudentResultsTable` | `students`, `games`, `page`, `pageSize`, `total`, `loading`                                     | `select`, `change-page`                        |
 | `StudentAttempts`     | `student`, `attempts`, `page`, `pageSize`, `total`, `loading`, `error`, `gameId`, `gameOptions` | `close`, `change-page`, `change-game`, `retry` |
 
 `ClassManagementPage.vue` mounts `ClassResults` when `?view=results` is active (kept beside `?class=` by `history.replaceState`).
