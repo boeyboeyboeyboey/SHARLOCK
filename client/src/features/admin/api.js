@@ -13,6 +13,7 @@ const SAFE_MESSAGES = Object.freeze({
     'This account changed elsewhere. The list was refreshed; review its latest status.',
   ADMIN_INSTRUCTOR_ACTIVATION_REQUIRED:
     'Disabled instructors must receive a new activation link and complete activation before access is restored.',
+  ADMIN_PASSWORD_INVALID: 'Check your password and try again.',
   ADMIN_FORBIDDEN: 'You do not have permission to manage this workspace.',
   ADMIN_UNAVAILABLE: 'The workspace could not complete that change. Try again later.',
   AUTHENTICATION_REQUIRED: 'Your session ended. Sign in again to continue.',
@@ -23,8 +24,9 @@ const SAFE_MESSAGES = Object.freeze({
 })
 
 export class AdminApiError extends Error {
-  constructor({ code = 'REQUEST_FAILED', status = 0, message }) {
+  constructor({ code = 'REQUEST_FAILED', status = 0, message, fieldErrors }) {
     super(message)
+    this.fieldErrors = fieldErrors
     this.name = 'AdminApiError'
     this.code = code
     this.status = status
@@ -49,7 +51,19 @@ function toSafeAdminError(error) {
         : status === 0
           ? 'We could not reach Sharlock. Check your connection and try again.'
           : 'Sharlock could not complete that request. Review the details and try again.')
-  return new AdminApiError({ code, status, message })
+  const rawFields = error?.response?.data?.error?.fieldErrors
+  const fieldErrors = {}
+  if (rawFields && typeof rawFields === 'object') {
+    for (const field of ['confirmUsername', 'password', 'reasonCategory', 'reasonNote']) {
+      if (typeof rawFields[field] === 'string') fieldErrors[field] = rawFields[field].slice(0, 200)
+    }
+  }
+  return new AdminApiError({
+    code,
+    status,
+    message,
+    ...(Object.keys(fieldErrors).length ? { fieldErrors } : {}),
+  })
 }
 
 async function requestList(path, { page = 1, limit = 20, signal, institutionId } = {}) {
@@ -164,6 +178,10 @@ export function updateCohort(cohortId, input, signal) {
 
 export function updateAdminUser(userId, input, signal) {
   return requestMutation('patch', `/admin/users/${encodeURIComponent(userId)}`, input, signal)
+}
+
+export function deleteAdminUser(userId, input, signal) {
+  return requestMutation('post', `/admin/users/${encodeURIComponent(userId)}/delete`, input, signal)
 }
 
 export async function createInstructor(input, signal) {

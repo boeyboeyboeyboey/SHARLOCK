@@ -1,6 +1,7 @@
 <script setup>
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { AdminApiError, listAdminUsers, updateAdminUser } from '../api.js'
+import DeleteAccountDialog from './DeleteAccountDialog.vue'
 
 const PAGE_SIZE = 25
 const MAX_PAGE = 10_000
@@ -21,6 +22,9 @@ const loading = ref(false)
 const loadError = ref('')
 const rowErrors = ref(Object.create(null))
 const pendingUsers = ref(Object.create(null))
+const deleteTarget = ref(null)
+const statusMessage = ref('')
+let deleteTrigger = null
 let listController
 const mutationControllers = new Map()
 let disposed = false
@@ -130,6 +134,32 @@ function actionLabel(user) {
     return 'Reissue activation link'
   }
   return user.accountStatus === 'active' ? 'Disable account' : 'Enable account'
+}
+
+function canDelete(user) {
+  return roleFor(user) === 'student' && ['active', 'disabled'].includes(user.accountStatus)
+}
+
+function openDelete(user, event) {
+  deleteTrigger = event?.currentTarget || null
+  statusMessage.value = ''
+  deleteTarget.value = { id: user.id, username: user.username, revision: user.revision }
+}
+
+async function closeDelete() {
+  deleteTarget.value = null
+  await nextTick()
+  if (deleteTrigger?.isConnected) deleteTrigger.focus()
+  deleteTrigger = null
+}
+
+async function handleDeleted(outcome) {
+  deleteTarget.value = null
+  deleteTrigger = null
+  statusMessage.value =
+    outcome === 'anonymised' ? 'Account anonymised; saved results kept.' : 'Account deleted.'
+  await loadUsers(page.value)
+  if (users.value.length === 0 && page.value > 1) await loadUsers(page.value - 1)
 }
 
 function statusButtonClass(user) {
@@ -252,6 +282,7 @@ onBeforeUnmount(() => {
       </button>
     </form>
 
+    <p v-if="statusMessage" class="admin-workspace__empty" role="status">{{ statusMessage }}</p>
     <p v-if="loading && users.length === 0" class="admin-workspace__empty" role="status">
       Loading accounts…
     </p>
@@ -300,6 +331,16 @@ onBeforeUnmount(() => {
                     : actionLabel(user)
                 }}
               </button>
+              <button
+                v-if="canDelete(user)"
+                class="admin-workspace__text-button admin-workspace__text-button--danger"
+                type="button"
+                :disabled="loading || actionPending(user)"
+                :aria-label="`Delete account ${user.username}`"
+                @click="openDelete(user, $event)"
+              >
+                Delete account
+              </button>
               <p v-if="rowError(user)" class="admin-workspace__alert" role="alert">
                 {{ rowError(user) }}
               </p>
@@ -328,5 +369,11 @@ onBeforeUnmount(() => {
         Next accounts
       </button>
     </nav>
+    <DeleteAccountDialog
+      v-if="deleteTarget"
+      :account="deleteTarget"
+      @deleted="handleDeleted"
+      @close="closeDelete"
+    />
   </section>
 </template>

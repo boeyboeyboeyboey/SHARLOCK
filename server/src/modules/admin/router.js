@@ -122,6 +122,27 @@ export function createAdminRouter(
     },
   )
 
+  router.post(
+    '/admin/users/:userId/delete',
+    ...sessionMiddleware,
+    activationWrites.middleware,
+    ...mutationMiddleware,
+    async (request, response, next) => {
+      try {
+        response.json(
+          await service.deleteStudentAccount(
+            response.locals.authUser,
+            request.params.userId,
+            request.body,
+            request.query,
+          ),
+        )
+      } catch (error) {
+        next(error)
+      }
+    },
+  )
+
   router.get('/admin/institutions', ...sessionMiddleware, async (request, response, next) => {
     try {
       response.json(await service.listInstitutions(response.locals.authUser, request.query))

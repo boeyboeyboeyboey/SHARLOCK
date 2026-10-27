@@ -1,6 +1,6 @@
 import { createPermissionService } from '../../services/permissions.js'
 import { auditEventModel } from './model.js'
-import { AUDIT_RETENTION_MS, AuditError, parseAuditQuery, parseAuditRecord } from './policy.js'
+import { AuditError, auditRetentionMs, parseAuditQuery, parseAuditRecord } from './policy.js'
 
 function eventDto(event) {
   return {
@@ -12,6 +12,12 @@ function eventDto(event) {
     outcome: event.outcome,
     occurredAt: event.occurredAt.toISOString(),
     requestId: event.requestId,
+    ...(event.reasonCategory && {
+      targetRole: event.targetRole,
+      accountOutcome: event.accountOutcome,
+      reasonCategory: event.reasonCategory,
+      ...(event.reasonNote && { reasonNote: event.reasonNote }),
+    }),
   }
 }
 
@@ -26,7 +32,7 @@ export function createAuditService(database, { now = Date.now } = {}) {
     const event = {
       ...record,
       occurredAt,
-      expiresAt: new Date(occurredAt.getTime() + AUDIT_RETENTION_MS),
+      expiresAt: new Date(occurredAt.getTime() + auditRetentionMs(record.eventType)),
     }
     try {
       const [created] = await AuditEvent.create([event], session ? { session } : {})
@@ -49,7 +55,7 @@ export function createAuditService(database, { now = Date.now } = {}) {
     const [events, total] = await Promise.all([
       AuditEvent.find(filter)
         .select(
-          '_id eventType actorKind actorId targetId scopeCohortId outcome occurredAt requestId',
+          '_id eventType actorKind actorId targetId scopeCohortId outcome occurredAt requestId targetRole accountOutcome reasonCategory reasonNote',
         )
         .sort({ occurredAt: -1, _id: -1 })
         .skip(skip)

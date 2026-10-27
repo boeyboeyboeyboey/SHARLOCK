@@ -113,6 +113,9 @@
 
 .admin-workspace .admin-workspace__form input,
 .admin-workspace .admin-workspace__form select,
+.admin-workspace .admin-workspace__dialog-card input:not([type='checkbox']),
+.admin-workspace .admin-workspace__dialog-card select,
+.admin-workspace .admin-workspace__dialog-card textarea,
 .admin-workspace .admin-workspace__activation-url {
   width: 100%;
   min-width: 0;
@@ -461,6 +464,11 @@
 
 .admin-workspace .admin-workspace__audit-summary time {
   text-align: right;
+}
+
+.admin-workspace .admin-workspace__audit-note {
+  margin: 0.35rem 0 0;
+  overflow-wrap: anywhere;
 }
 
 .admin-workspace .admin-workspace__audit-outcome {

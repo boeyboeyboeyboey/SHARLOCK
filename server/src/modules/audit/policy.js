@@ -1,7 +1,22 @@
 const objectIdPattern = /^[a-f\d]{24}$/i
 const uuidPattern = /^[\da-f]{8}-[\da-f]{4}-[1-8][\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/i
 const utcTimestampPattern = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,3}))?Z$/
-export const AUDIT_RETENTION_MS = 90 * 24 * 60 * 60 * 1000
+const DAY_MS = 24 * 60 * 60 * 1000
+export const AUDIT_RETENTION_MS = 90 * DAY_MS
+export const AUDIT_QUERY_WINDOW_MS = 180 * DAY_MS
+// per-event retention; events not listed use the default
+const eventRetentionMs = Object.freeze({ 'admin.account.delete': 180 * DAY_MS })
+export function auditRetentionMs(eventType) {
+  return eventRetentionMs[eventType] ?? AUDIT_RETENTION_MS
+}
+export const accountDeleteReasonCategories = Object.freeze([
+  'wrong-name',
+  'duplicate',
+  'student-request',
+  'left-school',
+  'other',
+])
+const deleteEventFields = ['targetRole', 'accountOutcome', 'reasonCategory', 'reasonNote']
 const recordFields = [
   'eventType',
   'actorKind',
@@ -25,6 +40,7 @@ export const auditEventTypes = Object.freeze([
   'admin.administrator.activation.issue',
   'admin.user.disable',
   'admin.user.enable',
+  'admin.account.delete',
   'account.instructor.activate',
   'account.administrator.activate',
   'cohort.code.issue',
@@ -87,7 +103,9 @@ function parsePositiveInteger(value, maximum) {
 }
 
 export function parseAuditRecord(input) {
-  if (!isRecord(input) || !keysAreAllowed(input, recordFields)) throw invalidRequest()
+  const isDelete = isRecord(input) && input.eventType === 'admin.account.delete'
+  const allowed = isDelete ? [...recordFields, ...deleteEventFields] : recordFields
+  if (!isRecord(input) || !keysAreAllowed(input, allowed)) throw invalidRequest()
   if (!recordFields.every((field) => Object.hasOwn(input, field))) throw invalidRequest()
   if (!auditEventTypes.includes(input.eventType)) throw invalidRequest()
   if (!['user', 'operator'].includes(input.actorKind)) throw invalidRequest()
@@ -98,7 +116,7 @@ export function parseAuditRecord(input) {
   const actorId = parseObjectId(input.actorId, input.actorKind === 'operator')
   if (input.actorKind === 'operator' && actorId !== null) throw invalidRequest()
 
-  return {
+  const record = {
     eventType: input.eventType,
     actorKind: input.actorKind,
     actorId,
@@ -107,6 +125,26 @@ export function parseAuditRecord(input) {
     outcome: input.outcome,
     requestId: input.requestId.toLowerCase(),
   }
+  if (isDelete) Object.assign(record, parseDeleteDetails(input))
+  return record
+}
+
+// the one bounded free-text exception: an admin-entered note on account deletion only
+function parseDeleteDetails(input) {
+  if (input.targetRole !== 'student') throw invalidRequest()
+  if (!['deleted', 'anonymised'].includes(input.accountOutcome)) throw invalidRequest()
+  if (!accountDeleteReasonCategories.includes(input.reasonCategory)) throw invalidRequest()
+  const details = {
+    targetRole: input.targetRole,
+    accountOutcome: input.accountOutcome,
+    reasonCategory: input.reasonCategory,
+  }
+  if (Object.hasOwn(input, 'reasonNote') && input.reasonNote !== undefined) {
+    if (typeof input.reasonNote !== 'string') throw invalidRequest()
+    if (input.reasonNote.length < 10 || input.reasonNote.length > 500) throw invalidRequest()
+    details.reasonNote = input.reasonNote
+  }
+  return details
 }
 
 export function parseAuditQuery(query, now) {
@@ -123,7 +161,7 @@ export function parseAuditQuery(query, now) {
   const defaultFrom = new Date(currentTime.getTime() - AUDIT_RETENTION_MS)
   const from = Object.hasOwn(query, 'from') ? parseUtcTimestamp(query.from) : defaultFrom
   const to = Object.hasOwn(query, 'to') ? parseUtcTimestamp(query.to) : defaultTo
-  if (from > to || to > currentTime || to.getTime() - from.getTime() > AUDIT_RETENTION_MS) {
+  if (from > to || to > currentTime || to.getTime() - from.getTime() > AUDIT_QUERY_WINDOW_MS) {
     throw invalidRequest()
   }
 

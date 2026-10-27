@@ -1,10 +1,12 @@
 import { isAvatarId } from '../auth/avatars.js'
+import { accountDeleteReasonCategories } from '../audit/policy.js'
 import { normalizeEmailAddress, normalizeUsername, parseEmptyQuery } from '../auth/policy.js'
 
 const ADMIN_ERRORS = Object.freeze({
   ADMIN_INVALID_REQUEST: { status: 400, message: 'Check the request fields and try again.' },
   ADMIN_FORBIDDEN: { status: 403, message: 'This action is unavailable.' },
   ADMIN_NOT_FOUND: { status: 404, message: 'This account or class is unavailable.' },
+  ADMIN_PASSWORD_INVALID: { status: 403, message: 'Check your password and try again.' },
   ADMIN_CONFLICT: { status: 409, message: 'This change conflicts with existing records.' },
   ADMIN_STALE_ASSIGNMENTS: { status: 409, message: 'Refresh assignments before saving again.' },
   ADMIN_STALE_INSTITUTION: { status: 409, message: 'Refresh the institution before saving again.' },
@@ -32,6 +34,10 @@ const ERROR_FIELDS = new Set([
   'avatarId',
   'cohortIds',
   'expectedRevision',
+  'confirmUsername',
+  'password',
+  'reasonCategory',
+  'reasonNote',
   'status',
   'accountStatus',
   'role',
@@ -131,6 +137,44 @@ export function parseAccountStatusInput(input) {
   }
   return {
     accountStatus: input.accountStatus,
+    expectedRevision: parseExpectedRevision(input.expectedRevision),
+  }
+}
+
+export function parseAccountDeleteInput(input) {
+  if (!isRecord(input)) invalid()
+  const keys = Reflect.ownKeys(input)
+  const required = ['confirmUsername', 'password', 'reasonCategory', 'expectedRevision']
+  if (keys.some((key) => typeof key !== 'string' || ![...required, 'reasonNote'].includes(key))) {
+    invalid()
+  }
+  const missing = required.filter((field) => !Object.hasOwn(input, field))
+  if (missing.length) invalid(Object.fromEntries(missing.map((field) => [field, 'This field is required.'])))
+  if (typeof input.confirmUsername !== 'string' || !input.confirmUsername.trim() ||
+    input.confirmUsername.length > 64) {
+    invalid({ confirmUsername: 'Type the username to confirm.' })
+  }
+  if (typeof input.password !== 'string' || !input.password || input.password.length > 128) {
+    invalid({ password: 'Enter your password.' })
+  }
+  if (!accountDeleteReasonCategories.includes(input.reasonCategory)) {
+    invalid({ reasonCategory: 'Choose a reason.' })
+  }
+  let reasonNote
+  if (Object.hasOwn(input, 'reasonNote') && input.reasonNote !== undefined) {
+    if (typeof input.reasonNote !== 'string') invalid({ reasonNote: 'Enter a valid note.' })
+    reasonNote = input.reasonNote.trim()
+    if (reasonNote.length < 10 || reasonNote.length > 500) {
+      invalid({ reasonNote: 'Enter between 10 and 500 characters.' })
+    }
+  } else if (input.reasonCategory === 'other') {
+    invalid({ reasonNote: 'Add a note of 10 to 500 characters.' })
+  }
+  return {
+    confirmUsername: input.confirmUsername,
+    password: input.password,
+    reasonCategory: input.reasonCategory,
+    ...(reasonNote !== undefined && { reasonNote }),
     expectedRevision: parseExpectedRevision(input.expectedRevision),
   }
 }

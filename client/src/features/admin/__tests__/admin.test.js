@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { reactive } from 'vue'
 import AdminPage from '../pages/AdminPage.vue'
 import AccountStatusPanel from '../components/AccountStatusPanel.vue'
+import DeleteAccountDialog from '../components/DeleteAccountDialog.vue'
 import AuditEventsPanel from '../components/AuditEventsPanel.vue'
 import AssignmentEditor from '../components/AssignmentEditor.vue'
 import InstitutionCohortForm from '../components/InstitutionCohortForm.vue'
@@ -31,6 +32,7 @@ const mocks = vi.hoisted(() => {
     reissueInstructorActivation: vi.fn(),
     updateInstructorAssignments: vi.fn(),
     updateAdminUser: vi.fn(),
+    deleteAdminUser: vi.fn(),
     updateInstitution: vi.fn(),
     updateCohort: vi.fn(),
   }
@@ -138,6 +140,7 @@ describe('admin workspace', () => {
     expect(wrapper.get('#admin-audit-event-type').text()).toContain('Account disabled')
     expect(wrapper.get('#admin-audit-event-type').text()).toContain('Account enabled')
     expect(wrapper.get('#admin-audit-event-type').text()).toContain('Class updated')
+    expect(wrapper.get('#admin-audit-event-type').text()).toContain('Account deleted')
 
     const initialRequest = mocks.listAuditEvents.mock.calls[0][0]
     expect(initialRequest).toEqual(
@@ -729,9 +732,81 @@ describe('admin workspace', () => {
 
     expect(wrapper.findAll('tbody button').map((button) => button.text())).toEqual([
       'Disable account',
+      'Delete account',
       'Enable account',
+      'Delete account',
       'Reissue activation link',
     ])
+    wrapper.unmount()
+  })
+
+  it('requests the last 180 days when only account deletions are shown', async () => {
+    mocks.listAuditEvents.mockResolvedValue({ events: [], page: 1, total: 0 })
+    const wrapper = mount(AuditEventsPanel)
+    await flushPromises()
+    await wrapper.get('#admin-audit-event-type').setValue('admin.account.delete')
+    await wrapper.get('.admin-workspace__audit-filters').trigger('submit')
+    await flushPromises()
+
+    const request = mocks.listAuditEvents.mock.calls.at(-1)[0]
+    const days = (Date.now() - Date.parse(request.from)) / 86_400_000
+    expect(days).toBeGreaterThan(179)
+    expect(days).toBeLessThanOrEqual(180)
+    wrapper.unmount()
+  })
+
+  it('shows outcome, reason and note on account deletion rows', async () => {
+    mocks.listAuditEvents.mockResolvedValue({
+      events: [
+        {
+          eventType: 'admin.account.delete',
+          actorKind: 'user',
+          actorId: '111111111111111111111111',
+          targetId: '222222222222222222222222',
+          outcome: 'success',
+          occurredAt: '2026-10-17T12:00:00.000Z',
+          requestId: '33333333-3333-4333-8333-333333333333',
+          accountOutcome: 'anonymised',
+          reasonCategory: 'other',
+          reasonNote: 'Created by mistake',
+        },
+      ],
+      page: 1,
+      total: 1,
+    })
+    const wrapper = mount(AuditEventsPanel)
+    await flushPromises()
+
+    expect(wrapper.get('.admin-workspace__audit-list').text()).toContain('Account deleted')
+    expect(wrapper.get('.admin-workspace__audit-note').text()).toBe(
+      'Anonymised · Other: Created by mistake',
+    )
+    wrapper.unmount()
+  })
+
+  it('opens the delete dialog for students only and reports the outcome', async () => {
+    const student = {
+      id: 'student-id',
+      username: 'Casey_Student',
+      avatarId: 'mint',
+      globalRoles: ['student'],
+      accountStatus: 'active',
+      revision: 4,
+    }
+    mocks.listAdminUsers
+      .mockResolvedValueOnce({ users: [student], page: 1, total: 1 })
+      .mockResolvedValueOnce({ users: [], page: 1, total: 0 })
+    const wrapper = mount(AccountStatusPanel, { attachTo: document.body })
+    await flushPromises()
+
+    await wrapper.get('tbody button[aria-label="Delete account Casey_Student"]').trigger('click')
+    expect(document.body.querySelector('dialog')).not.toBeNull()
+    wrapper.findComponent(DeleteAccountDialog).vm.$emit('deleted', 'anonymised')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Account anonymised; saved results kept.')
+    expect(wrapper.findComponent(DeleteAccountDialog).exists()).toBe(false)
+    expect(mocks.listAdminUsers).toHaveBeenCalledTimes(2)
     wrapper.unmount()
   })
 
@@ -772,7 +847,7 @@ describe('admin workspace', () => {
       expect.any(AbortSignal),
     )
 
-    await wrapper.findAll('tbody button')[1].trigger('click')
+    await wrapper.findAll('tbody button')[2].trigger('click')
     expect(wrapper.emitted('reissue-activation')).toEqual([[disabledInstructor.id]])
     expect(mocks.updateAdminUser).toHaveBeenCalledTimes(1)
     wrapper.unmount()

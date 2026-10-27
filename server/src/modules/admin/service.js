@@ -5,9 +5,10 @@ import { instructorAssignmentModel } from '../../models/InstructorAssignment.js'
 import { institutionModel } from '../../models/Institution.js'
 import { userModel } from '../../models/User.js'
 import { createAuditService } from '../audit/service.js'
-import { hashPassword } from '../auth/password.js'
+import { hashPassword, verifyPassword } from '../auth/password.js'
 import { assertTransactionSupport } from './bootstrap.js'
 import { enrollmentCodeModel } from '../cohorts/enrollment-code-model.js'
+import { membershipModel } from '../../models/Membership.js'
 import { passwordResetModel } from '../recovery/model.js'
 import {
   AdminError,
@@ -17,6 +18,7 @@ import {
   assertEmptyAdminBody,
   parseAssignmentsInput,
   parseAccountStatusInput,
+  parseAccountDeleteInput,
   parseCohortInput,
   parseCohortUpdateInput,
   parseInstitutionInput,
@@ -126,6 +128,7 @@ export function createAdminService(
   const InstructorAssignment = instructorAssignmentModel(database)
   const EnrollmentCode = enrollmentCodeModel(database)
   const PasswordReset = passwordResetModel(database)
+  const Membership = membershipModel(database)
   const permissions = createPermissionService(database)
   const auditWriter = recordAuditEvent || createAuditService(database, { now }).recordAuditEvent
   let activationService = providedActivationService
@@ -143,7 +146,7 @@ export function createAdminService(
     if (!activeAdministrator) throw new AdminError('ADMIN_FORBIDDEN')
   }
 
-  async function recordAdminEvent(actor, eventType, targetId, session) {
+  async function recordAdminEvent(actor, eventType, targetId, session, details = {}) {
     await auditWriter(
       {
         eventType,
@@ -153,6 +156,7 @@ export function createAdminService(
         scopeCohortId: null,
         outcome: 'success',
         requestId: randomUUID(),
+        ...details,
       },
       { session },
     )
@@ -228,7 +232,7 @@ export function createAdminService(
       ...(role
         ? { globalRoles: [role] }
         : { $or: [{ globalRoles: ['student'] }, { globalRoles: ['instructor'] }] }),
-      ...(accountStatus ? { accountStatus } : {}),
+      accountStatus: accountStatus || { $ne: 'deleted' },
     }
     const skip = (page - 1) * limit
     const [users, total] = await Promise.all([
@@ -255,7 +259,7 @@ export function createAdminService(
         .select('_id username avatarId globalRoles accountStatus authVersion +recoveryRevision')
         .session(session)
         .lean()
-      if (!target || !['student', 'instructor'].some((role) =>
+      if (!target || target.accountStatus === 'deleted' || !['student', 'instructor'].some((role) =>
         target.globalRoles.length === 1 && target.globalRoles[0] === role,
       )) {
         throw new AdminError('ADMIN_NOT_FOUND')
@@ -310,6 +314,122 @@ export function createAdminService(
       )
       return { user: accountDto(updated) }
     })
+  }
+
+  async function deleteStudentAccount(actor, userId, input, query = {}) {
+    const currentActor = await requireAdmin(actor, 'admin:accounts:manage')
+    assertEmptyAdminQuery(query)
+    const targetId = objectId(parseAdminObjectId(userId, 'userId'))
+    const parsed = parseAccountDeleteInput(input)
+    if (currentActor.id === idString(targetId)) throw new AdminError('ADMIN_FORBIDDEN')
+    const adminAccount = await User.findById(objectId(currentActor.id))
+      .select('+passwordHash')
+      .lean()
+    let passwordMatches = false
+    try {
+      passwordMatches = Boolean(adminAccount) && (await verifyPassword(adminAccount.passwordHash, parsed.password))
+    } catch (error) {
+      if (error?.name === 'PasswordBusyError') throw new AdminError('ADMIN_UNAVAILABLE')
+      passwordMatches = false
+    }
+    if (!passwordMatches) throw new AdminError('ADMIN_PASSWORD_INVALID')
+
+    return withTransaction(
+      async (session, unusableHash) => {
+        await assertTransactionAdministrator(currentActor, session)
+        const target = await User.findById(targetId)
+          .select('_id username globalRoles accountStatus authVersion +recoveryRevision')
+          .session(session)
+          .lean()
+        if (!target || target.accountStatus === 'deleted') throw new AdminError('ADMIN_NOT_FOUND')
+        if (target.globalRoles.length !== 1 || target.globalRoles[0] !== 'student') {
+          throw new AdminError('ADMIN_FORBIDDEN')
+        }
+        if (parsed.confirmUsername.trim().toLowerCase() !== target.username.toLowerCase()) {
+          throw new AdminError('ADMIN_INVALID_REQUEST', {
+            confirmUsername: 'Type the username to confirm.',
+          })
+        }
+        const currentAuthVersion = target.authVersion ?? 0
+        if (currentAuthVersion !== parsed.expectedRevision) {
+          throw new AdminError('ADMIN_STALE_ACCOUNT')
+        }
+        const occurredAt = new Date(now())
+        if (!Number.isFinite(occurredAt.getTime())) throw new AdminError('ADMIN_UNAVAILABLE')
+        const hasAttempts = Boolean(
+          await database.db
+            .collection('game_attempts')
+            .findOne({ playerId: targetId }, { projection: { _id: 1 }, session }),
+        )
+        const guard = revisionConditions(
+          {
+            _id: targetId,
+            globalRoles: target.globalRoles,
+            accountStatus: target.accountStatus,
+          },
+          revisionFilter('authVersion', currentAuthVersion),
+          revisionFilter('recoveryRevision', target.recoveryRevision ?? 0),
+        )
+        if (hasAttempts) {
+          const anonymousName = `deleted-${randomBytes(4).toString('hex')}`
+          const updated = await User.findOneAndUpdate(
+            guard,
+            {
+              $set: {
+                username: anonymousName,
+                usernameNormalized: anonymousName,
+                emailNormalized: `deleted-${idString(targetId)}@invalid`,
+                passwordHash: unusableHash,
+                avatarId: 'mint',
+                howToPlayDismissed: [],
+                emailVerification: null,
+                accountStatus: 'deleted',
+              },
+              $inc: { authVersion: 1, recoveryRevision: 1 },
+            },
+            { session, new: true, runValidators: true },
+          ).lean()
+          if (!updated) throw new AdminError('ADMIN_STALE_ACCOUNT')
+          await Membership.updateMany(
+            { userId: targetId, status: { $ne: 'removed' } },
+            {
+              $set: {
+                status: 'removed',
+                decision: 'removed',
+                removedAt: occurredAt,
+                removedBy: objectId(currentActor.id),
+              },
+              $inc: { revision: 1, recoveryRevision: 1 },
+            },
+            { session },
+          )
+          await PasswordReset.updateMany(
+            { userId: targetId, consumedAt: null, revokedAt: null },
+            { $set: { revokedAt: occurredAt } },
+            { session },
+          )
+        } else {
+          const removed = await User.deleteOne(guard, { session })
+          if (removed.deletedCount !== 1) throw new AdminError('ADMIN_STALE_ACCOUNT')
+          await Membership.deleteMany({ userId: targetId }, { session })
+          await PasswordReset.deleteMany({ userId: targetId }, { session })
+        }
+        await database.db.collection('auth_sessions').deleteMany(
+          { 'session.userId': idString(targetId) },
+          { session },
+        )
+        const outcome = hasAttempts ? 'anonymised' : 'deleted'
+        await recordAdminEvent(currentActor, 'admin.account.delete', targetId, session, {
+          targetRole: 'student',
+          accountOutcome: outcome,
+          reasonCategory: parsed.reasonCategory,
+          ...(parsed.reasonNote !== undefined && { reasonNote: parsed.reasonNote }),
+        })
+        return { outcome }
+      },
+      // unusable hash is computed before the transaction opens
+      () => hashPassword(randomBytes(32).toString('hex')),
+    )
   }
 
   async function createInstitution(actor, input, query = {}) {
@@ -872,6 +992,7 @@ export function createAdminService(
   return Object.freeze({
     listUsers,
     updateUserStatus,
+    deleteStudentAccount,
     listInstitutions,
     createInstitution,
     updateInstitution,

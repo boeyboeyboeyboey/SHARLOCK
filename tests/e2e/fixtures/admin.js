@@ -85,6 +85,7 @@ const test = base.extend({
         await use({
           storageState: await context.storageState(),
           studentIdentity: student,
+          administratorIdentity: administrator,
         })
       } finally {
         await context?.close()
@@ -98,6 +99,9 @@ const test = base.extend({
   },
   studentIdentity: async ({ workerAdminState }, use) => {
     await use(workerAdminState.studentIdentity)
+  },
+  administratorIdentity: async ({ workerAdminState }, use) => {
+    await use(workerAdminState.administratorIdentity)
   },
 })
 

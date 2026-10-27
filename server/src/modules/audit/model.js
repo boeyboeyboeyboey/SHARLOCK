@@ -1,5 +1,5 @@
 import { Schema } from 'mongoose'
-import { auditEventTypes } from './policy.js'
+import { accountDeleteReasonCategories, auditEventTypes } from './policy.js'
 
 const auditEventSchema = new Schema(
   {
@@ -15,6 +15,10 @@ const auditEventSchema = new Schema(
     targetId: { type: Schema.Types.ObjectId, required: true },
     scopeCohortId: { type: Schema.Types.ObjectId, default: null },
     outcome: { type: String, enum: ['success', 'refused', 'failure'], required: true },
+    targetRole: { type: String, enum: ['student'] },
+    accountOutcome: { type: String, enum: ['deleted', 'anonymised'] },
+    reasonCategory: { type: String, enum: accountDeleteReasonCategories },
+    reasonNote: { type: String, minlength: 10, maxlength: 500 },
     occurredAt: { type: Date, required: true, immutable: true },
     expiresAt: { type: Date, required: true, immutable: true },
     requestId: { type: String, required: true },

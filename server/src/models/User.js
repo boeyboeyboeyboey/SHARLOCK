@@ -40,7 +40,7 @@ const userSchema = new Schema(
     },
     accountStatus: {
       type: String,
-      enum: ['active', 'disabled'],
+      enum: ['active', 'disabled', 'deleted'],
       required: true,
       default: 'active',
     },

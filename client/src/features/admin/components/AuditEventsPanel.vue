@@ -4,7 +4,9 @@ import { AdminApiError, listAuditEvents } from '../api.js'
 
 const PAGE_SIZE = 25
 const MAX_PAGE = 10_000
-const MAX_RANGE_MS = 90 * 24 * 60 * 60 * 1000
+const MAX_RANGE_MS = 180 * 24 * 60 * 60 * 1000
+const DELETE_EVENT = 'admin.account.delete'
+const DEFAULT_WINDOW_MS = 90 * 24 * 60 * 60 * 1000
 const EVENT_TYPES = [
   ['admin.bootstrap', 'Administrator setup'],
   ['admin.institution.create', 'Institution created'],
@@ -18,6 +20,7 @@ const EVENT_TYPES = [
   ['admin.administrator.activation.issue', 'Administrator activation link issued'],
   ['admin.user.disable', 'Account disabled'],
   ['admin.user.enable', 'Account enabled'],
+  [DELETE_EVENT, 'Account deleted'],
   ['account.instructor.activate', 'Instructor account activated'],
   ['account.administrator.activate', 'Administrator account activated'],
   ['cohort.code.issue', 'Class invitation issued'],
@@ -63,6 +66,23 @@ function displayEventType(eventType) {
   return EVENT_TYPES.find(([value]) => value === eventType)?.[1] || eventType
 }
 
+const REASON_LABELS = {
+  'wrong-name': 'Wrong name',
+  duplicate: 'Duplicate account',
+  'student-request': 'Student request',
+  'left-school': 'Left school',
+  other: 'Other',
+}
+
+function deleteSummary(event) {
+  if (event.eventType !== DELETE_EVENT) return ''
+  const parts = [
+    event.accountOutcome === 'anonymised' ? 'Anonymised' : 'Deleted',
+    REASON_LABELS[event.reasonCategory] || event.reasonCategory,
+  ]
+  return parts.filter(Boolean).join(' · ')
+}
+
 function toApiDate(value) {
   const date = new Date(value)
   if (!value || !Number.isFinite(date.getTime())) throw new Error('Enter a valid date range.')
@@ -73,15 +93,22 @@ function requestRange(filters) {
   const now = Date.now()
   const from = filters.from ? toApiDate(filters.from) : null
   const to = filters.to ? toApiDate(filters.to) : null
-  const fromTime = from?.getTime() ?? now - MAX_RANGE_MS
+  // delete rows live 180 days, so default to just under that window when only they are shown
+  const defaultWindow =
+    filters.eventType === DELETE_EVENT ? MAX_RANGE_MS - 60_000 : DEFAULT_WINDOW_MS
+  const fromTime = from?.getTime() ?? now - defaultWindow
   const toTime = to?.getTime() ?? now
   if (fromTime > toTime) throw new Error('The start date must be before the end date.')
   if (toTime > now) throw new Error('The end date cannot be in the future.')
   if (toTime - fromTime > MAX_RANGE_MS) {
-    throw new Error('Choose a date range of 90 days or less.')
+    throw new Error('Choose a date range of 180 days or less.')
   }
   return {
-    ...(from ? { from: from.toISOString() } : {}),
+    ...(from
+      ? { from: from.toISOString() }
+      : filters.eventType === DELETE_EVENT
+        ? { from: new Date(fromTime).toISOString() }
+        : {}),
     ...(to ? { to: to.toISOString() } : {}),
   }
 }
@@ -251,6 +278,10 @@ onBeforeUnmount(() => {
           <span class="admin-workspace__audit-outcome">{{ event.outcome }}</span>
           <time :datetime="event.occurredAt">{{ formatDate(event.occurredAt) }}</time>
         </div>
+        <p v-if="deleteSummary(event)" class="admin-workspace__audit-note">
+          {{ deleteSummary(event)
+          }}<template v-if="event.reasonNote">: {{ event.reasonNote }}</template>
+        </p>
         <details class="admin-workspace__audit-details">
           <summary>Show identifiers</summary>
           <dl>

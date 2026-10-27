@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { AuditError, parseAuditQuery, parseAuditRecord } from '../../../src/modules/audit/policy.js'
+import {
+  AUDIT_RETENTION_MS,
+  AuditError,
+  auditRetentionMs,
+  parseAuditQuery,
+  parseAuditRecord,
+} from '../../../src/modules/audit/policy.js'
 
 const now = Date.parse('2026-10-14T00:00:00.000Z')
 const userId = '0123456789abcdef01234567'
@@ -100,7 +106,7 @@ describe('audit query policy', () => {
     ['invalid calendar date', { from: '2026-02-30T00:00:00Z' }],
     ['non-UTC timestamp', { from: '2026-10-13T00:00:00+08:00' }],
     ['future date', { to: '2026-10-15T00:00:00Z' }],
-    ['window over 90 days', { from: '2026-07-15T23:59:59.999Z' }],
+    ['window over 180 days', { from: '2026-04-16T23:59:59.999Z' }],
     ['reversed window', { from: '2026-10-13T00:00:00Z', to: '2026-10-12T00:00:00Z' }],
     ['page above bound', { page: '10001' }],
     ['limit above bound', { limit: '51' }],
@@ -108,5 +114,56 @@ describe('audit query policy', () => {
     ['fractional page', { page: '1.5' }],
   ])('rejects %s', (_label, query) => {
     expect(() => parseAuditQuery(query, now)).toThrow(AuditError)
+  })
+})
+
+describe('audit retention and account-delete record', () => {
+  const day = 24 * 60 * 60 * 1000
+  const deleteRecord = (overrides = {}) =>
+    validRecord({
+      eventType: 'admin.account.delete',
+      targetRole: 'student',
+      accountOutcome: 'deleted',
+      reasonCategory: 'duplicate',
+      ...overrides,
+    })
+
+  it('keeps account-delete events 180 days and all others 90', () => {
+    expect(auditRetentionMs('admin.account.delete')).toBe(180 * day)
+    expect(auditRetentionMs('admin.user.disable')).toBe(AUDIT_RETENTION_MS)
+    expect(AUDIT_RETENTION_MS).toBe(90 * day)
+  })
+
+  it('accepts a window up to 180 days and defaults to 90', () => {
+    const wide = parseAuditQuery({ from: '2026-04-17T00:00:00.000Z' }, now)
+    expect(wide.to.getTime() - wide.from.getTime()).toBe(180 * day)
+    const fallback = parseAuditQuery({}, now)
+    expect(fallback.to.getTime() - fallback.from.getTime()).toBe(90 * day)
+  })
+
+  it('requires the delete details and bounds the only free-text field', () => {
+    expect(parseAuditRecord(deleteRecord()).accountOutcome).toBe('deleted')
+    expect(parseAuditRecord(deleteRecord({ reasonNote: 'x'.repeat(10) })).reasonNote).toHaveLength(
+      10,
+    )
+    for (const overrides of [
+      { reasonNote: 'short' },
+      { reasonNote: 'x'.repeat(501) },
+      { reasonNote: 5 },
+      { reasonCategory: 'bored' },
+      { accountOutcome: 'gone' },
+      { targetRole: 'admin' },
+    ]) {
+      expect(() => parseAuditRecord(deleteRecord(overrides))).toThrow(AuditError)
+    }
+    const missing = deleteRecord()
+    delete missing.reasonCategory
+    expect(() => parseAuditRecord(missing)).toThrow(AuditError)
+  })
+
+  it('rejects delete-only fields on other events', () => {
+    expect(() => parseAuditRecord(validRecord({ reasonNote: 'a note of ten chars' }))).toThrow(
+      AuditError,
+    )
   })
 })

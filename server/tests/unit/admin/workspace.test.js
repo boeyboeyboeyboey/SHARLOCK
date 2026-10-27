@@ -4,6 +4,7 @@ import {
   assertEmptyAdminBody,
   assertEmptyAdminQuery,
   parseAdminListQuery,
+  parseAccountDeleteInput,
   parseAccountStatusInput,
   parseAdminObjectId,
   parseAssignmentsInput,
@@ -194,5 +195,50 @@ describe('admin workspace policy', () => {
     expect(assertEmptyAdminQuery({})).toBeUndefined()
     expect(() => assertEmptyAdminQuery({ page: '1' })).toThrow(AdminError)
     expect(() => assertEmptyAdminQuery({ role: 'admin' })).toThrow(AdminError)
+  })
+})
+
+describe('account delete input', () => {
+  const valid = {
+    confirmUsername: 'learner-one',
+    password: 'Synthetic-Test-Password-2026',
+    reasonCategory: 'duplicate',
+    expectedRevision: 1,
+  }
+
+  it('accepts the exact object and trims the note', () => {
+    expect(parseAccountDeleteInput(valid)).toEqual(valid)
+    expect(
+      parseAccountDeleteInput({ ...valid, reasonCategory: 'other', reasonNote: '  ten chars ok  ' }),
+    ).toMatchObject({ reasonNote: 'ten chars ok' })
+  })
+
+  it.each([
+    ['extra field', { role: 'admin' }],
+    ['deleted status smuggled', { accountStatus: 'deleted' }],
+    ['unknown category', { reasonCategory: 'bored' }],
+    ['other without note', { reasonCategory: 'other' }],
+    ['short note', { reasonNote: 'too short' }],
+    ['long note', { reasonNote: 'x'.repeat(501) }],
+    ['non-string note', { reasonNote: 12 }],
+    ['empty password', { password: '' }],
+    ['long password', { password: 'p'.repeat(129) }],
+    ['blank username', { confirmUsername: '  ' }],
+    ['bad revision', { expectedRevision: -1 }],
+  ])('rejects %s', (_label, overrides) => {
+    expect(() => parseAccountDeleteInput({ ...valid, ...overrides })).toThrow(AdminError)
+  })
+
+  it('rejects missing required fields and non-objects', () => {
+    const { password: _omitted, ...withoutPassword } = valid
+    expect(() => parseAccountDeleteInput(withoutPassword)).toThrow(AdminError)
+    expect(() => parseAccountDeleteInput(null)).toThrow(AdminError)
+    expect(() => parseAccountDeleteInput([])).toThrow(AdminError)
+  })
+
+  it('still refuses deleted as a status transition', () => {
+    expect(() => parseAccountStatusInput({ accountStatus: 'deleted', expectedRevision: 1 })).toThrow(
+      AdminError,
+    )
   })
 })
