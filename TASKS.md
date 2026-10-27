@@ -153,6 +153,12 @@ No active implementation task.
 - **Merge (27 October 2026):** commit `3e80732` fast-forwarded into `main` with Boey's approval, together with this record update; no PR. The branch is pushed to `origin`. The dev-browser and 375 px checks were not done before the merge.
 - **Next action:** Boey checks the games and `/leaderboard` in a dev browser (desktop and 375 px), then acceptance; tell the four owners their games now save.
 
+**DOC-14 — Marker run guide, account walkthrough and presentation summaries** · Status: **Review** · Contributor: **Boey** · Branch: `doc-14-grader-guides` · Approved by Boey on 27 October 2026 (lunch batch). Documentation only.
+
+- **Scope:** README.md §2 "Quick start for markers" (the `MONGO_URI` and demo login are supplied privately with the submission, never in the repo; dev mailer prints verification codes in the server terminal; `pnpm db:local` fallback lacks transactions) and a 12-step "Account setup walkthrough" in "Using the app"; `## Presentation summary` added to the activation, admin, auth, cohorts, profile, recovery, threat-briefing and `server/src/modules/news` READMEs; new `client/src/features/about/README.md`.
+- **Collision check:** none of the eight READMEs had a presentation summary; `features/about/` had no README.
+- **Checks:** walkthrough button/heading labels checked against the Vue sources with `rg`; `prettier --check` on every changed Markdown file passed. Not run in a browser; Atlas Network Access and a marker DB user still need Boey's check. The walkthrough says "close the dialog" so it holds before and after UI-07.
+
 **BOARD-01 — Class leaderboards** · Status: **Review** · Contributor: **Boey** · Branch: `board-01-class-leaderboards` (cut from `origin/main` at `9e6c3a1`, 27 October 2026, upstream unset). Plan approved by Boey on 27 October 2026. Spec: [BOARD-01](#board-01--cohort-leaderboards).
 
 - **Collision check (27 October 2026):** no leaderboard code on `main`, in local or remote branch names, or in the `admin-01-b-admin-controls` (Codex admin-controls) worktree. Existing references are only the `/leaderboard` ComingSoon placeholder (`client/src/router/index.js`), nav links (`Navbar.vue:34`, `PortalLayout.vue:30`), the pixel-wipe label, docs mentions, and an empty `server/src/modules/leaderboards/.gitkeep`. Remote branch contents, PRs and teammates' machines were not inspected.

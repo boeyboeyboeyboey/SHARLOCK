@@ -134,6 +134,32 @@ Never claim a test, commit, push or working feature that did not occur.
 
 ## 2. Project Setup
 
+### Quick start for markers
+
+Use this path to run the submitted project exactly as demonstrated. The `MONGO_URI` is supplied privately with the submission; it is never in the repository.
+
+1. Install Node.js 24.12.0 (any 24.x from 24.12.0 works; `.nvmrc` and `package.json` `engines` pin `>=24.12.0 <25`).
+2. From the repository root:
+
+   ```sh
+   npm install --global pnpm@12.3.4
+   pnpm install --frozen-lockfile
+   pnpm setup:env
+   ```
+
+3. Open the new root `.env` in an editor (do not print it) and replace the value on the `MONGO_URI=` line with the connection string supplied with the submission. Leave every other line unchanged. Optional keys (`GUARDIAN_API_KEY`, `LLM_*`) are only needed for live Times stories and the Social Engineering Simulator's attacker chat, which shows "not configured" without them; the rest of the app works without them.
+4. Start the app:
+
+   ```sh
+   pnpm dev
+   ```
+
+5. Open **http://localhost:5173** (use `localhost`, not `127.0.0.1`). The API runs on port 3000.
+
+**Email verification codes.** No email is sent. When you register, the six-digit code is printed in the terminal running `pnpm dev`, on a line like `[mail:dev] Verification code for <email>: <code> (expires in <n> minutes)`. Type it into the "Check your email" screen. Instructor activation and password recovery use one-time links shown in the admin or instructor screens, not email. See [Using the app: accounts walkthrough](#account-setup-walkthrough).
+
+**No supplied URI?** Run `pnpm db:local` in a second terminal (it keeps a local MongoDB on 127.0.0.1:27018 and downloads a MongoDB 8.2.6 binary on first run), keep the `.env` default `MONGO_URI=mongodb://127.0.0.1:27018/sharlock_dev`, then run `pnpm dev` in the first terminal. This database is a single server without a replica set, so registration, sign-in, the 3D hub, the games and The Sharlock Times work, but the flows that need MongoDB transactions do not: joining a class, instructor activation, the admin workspace writes and `pnpm db:bootstrap-admin`. Use the supplied URI to review those.
+
 Requires Node.js 24 (24.12.0 or a later 24.x) and a MongoDB connection. Run from the repository root:
 
 ```sh
@@ -211,6 +237,31 @@ pnpm test:e2e          # Playwright journeys on a phone and a desktop viewport
 | Clearance Tower (`/games/clearance-tower`)                               | Design who may see what in an intelligence tower; a six-case climb saves up to 600 points.    | Playable, saved | [module README](client/src/games/clearance-tower/README.md)              |
 | SQL Injection Arcade (`/games/sql-injection-arcade`)                     | Solve a simulated login puzzle and learn how parameterized queries protect it.                | Playable, saved | [module README](client/src/games/sql-injection-arcade/README.md)         |
 | The daily briefing / Threat Briefing (`/games/threat-briefing`)          | Read The Sharlock Times for recent cybersecurity and technology stories; opens as an overlay. | Playable        | [module README](client/src/games/threat-briefing/README.md)              |
+
+<a id="account-setup-walkthrough"></a>
+
+**Account setup walkthrough** (every role; needs a transaction-capable MongoDB such as the supplied URI)
+
+Admin
+
+1. Sign in at `/login` with the demo administrator supplied privately with the submission (email or username, then password), then open `/admin` ("Admin workspace").
+2. On a fresh database with no administrator, run `pnpm db:bootstrap-admin` once in a private interactive terminal instead, answer the prompts and type the confirmations it asks for. It refuses to run when an administrator already exists.
+3. In "Institutions and classes", use "Create an institution" (`Create institution`), then select it and use "Create a class" (`Create class`).
+
+Instructor
+
+4. In the admin workspace open "Provision an instructor", enter the instructor's email and username, choose an avatar and press `Create instructor and activation link`.
+5. The "Activation link" dialog shows the link once. Press `Copy activation link`, deliver it privately, then close the dialog. The link works once and expires after 24 hours.
+6. The instructor opens the link (`/activate-account#token=...`), enters and confirms a new password under "Activate your account" and presses `Set password and activate account`. Activation does not sign them in: use `Go to sign in` and sign in normally.
+7. Back in the admin workspace, find the instructor under "Instructors", tick the classes to assign and press `Save assignments`.
+8. As the instructor, open `/instructor` ("Manage your classes"), pick the class and press `Generate code` under "Class invitation code". The code appears once; share it with students.
+
+Student
+
+9. Open `/register`, choose an avatar, enter email, username, password and confirmation, and press `Create account`.
+10. The "Check your email" screen appears. Copy the six-digit code from the server terminal (`[mail:dev] Verification code for ...`) into the boxes and press `Confirm code`.
+11. On `/join-class`, enter the class invitation code under "Class invitation code" and press `Join class` (or `Skip and explore Sharlock` for personal play only; a class can be joined later from `/classes`).
+12. The instructor (or an administrator) opens `/instructor`, finds the request under "Class access" and presses `Approve`. The student then sees the class under `/classes` ("Your classes") with active status.
 
 **Leaderboards** (`/leaderboard`, signed in): pick a class and a game; Best score ranks each student's best class score (labelled practice best scores; CLI Cyber Defender timed runs are the only competitive ruleset, shown as "Timed runs") and All-time ranks total points with plays. Only active students in the class are ranked; staff and personal practice are excluded. See the [leaderboard README](client/src/features/leaderboard/README.md).
 

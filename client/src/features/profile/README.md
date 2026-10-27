@@ -1,5 +1,15 @@
 # Profile editing
 
+## Presentation summary
+
+- What it is: the `/profile` page where a signed-in learner changes their username and preset avatar.
+- Security concept: input validation and preventing mass assignment. The client sends exactly `{ username, avatarId }`; the server validates, normalises and applies only those two fields, so email, role, membership and scores cannot be edited here. Course link: web security (11a, 12a decks) in the [course reference index](../../../../TASKS.md#course-reference-index).
+- Using it: open Profile, press "Edit profile", change the username or avatar, save; Cancel discards the draft.
+- Components: `ProfileEditor.vue` (draft values) reusing the shared `AvatarPicker`; `api.js` for `GET /me/profile` and `PATCH /me/profile` with a fresh CSRF token.
+- Data: after saving, the auth store refreshes the session so the navbar shows the new identity; nothing is stored in the browser.
+- Status: see the profile record in [TASKS.md](../../../../TASKS.md).
+- Limits: only username and six preset avatars; no email or password change here (password recovery is a separate feature); signed-out visitors see sign-in prompts.
+
 The existing `/profile` page lets a signed-in learner change only their username and one of the six preset avatars. `/progress` has its own page in `features/progress`. `ProfileEditor.vue` owns the temporary form values and reuses the existing `AvatarPicker` without changing its interface.
 
 `api.js` uses the shared credentialed Axios client, whose base URL already includes `/api`. It reads `GET /me/profile` and sends `PATCH /me/profile` with exactly `{ username, avatarId }`, obtaining a fresh CSRF token before the mutation. The server response is expected to contain exactly `{ username, avatarId }`. Only safe, known feedback is displayed.

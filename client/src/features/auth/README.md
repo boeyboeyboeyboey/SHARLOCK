@@ -1,5 +1,15 @@
 # Browser account journey
 
+## Presentation summary
+
+- What it is: the browser side of accounts: `/register` (with email verification), `/login`, session restoration, logout and the pixel page wipes.
+- Security concept: authentication and session management. Passwords are checked by the shared policy, sent once over the shared client, then cleared; the session is an HttpOnly server cookie, the CSRF token lives in memory only, and nothing sensitive reaches `localStorage`. Registration needs a six-digit email code before the first session. Course link: authentication and identity (06-authentication v2.pptx) and web security (11a, 12a decks) in the [course reference index](../../../../TASKS.md#course-reference-index).
+- Using it: open `/register`, pick an avatar, enter email, username and password, then type the code printed in the server terminal (no real email is sent); use `/login` afterwards.
+- Components: `LoginPage`/`RegisterPage`, `LoginForm`, `RegisterForm`, `VerifyEmailPanel`, `AvatarPicker`, `AccountSummary`, `SessionNotice`; `store.js` (Pinia auth state), `api.js`, `guards.js`, `validation.js`.
+- Data: the store keeps the safe user DTO and a memory-only CSRF token and pending verification; passwords are never stored.
+- Status: see the AUTH-01-A/B and AUTH-03 records in [TASKS.md](../../../../TASKS.md).
+- Limits: the verification code goes to the server terminal only; the E2E journey needs a replica-set test database; browser guards are UX controls, the server enforces access.
+
 AUTH-01-B connects the approved backend account foundation to the shared student website. Registration, login, refresh restoration, logout, browser navigation checks and real account identity use the existing pixel theme. COH-01 adds the [class enrollment continuation](../cohorts/README.md); saved game results and profile editing remain pending.
 
 ## Student flow
