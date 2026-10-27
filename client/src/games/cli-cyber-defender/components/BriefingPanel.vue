@@ -28,7 +28,12 @@ function startTimed() {
       <p class="cli-note">
         Timed games in a class count for its Best board. Practice counts toward all-time.
       </p>
-      <AttemptContextChooser :disabled="pending" @start="context = $event" />
+      <AttemptContextChooser
+        :disabled="pending"
+        label="Save this run to"
+        submit-label="Start the run"
+        @start="context = $event"
+      />
     </div>
     <template v-else>
       <p class="cli-role">

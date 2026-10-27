@@ -1,7 +1,11 @@
 <script setup>
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { listAttemptContexts, safeAttemptError } from '../api.js'
-defineProps({ disabled: Boolean })
+defineProps({
+  disabled: Boolean,
+  label: { type: String, default: 'Save this case to' },
+  submitLabel: { type: String, default: 'Open the case' },
+})
 const emit = defineEmits(['start'])
 const selected = ref('personal')
 const contexts = ref([])
@@ -40,7 +44,7 @@ onBeforeUnmount(() => controller.abort())
 </script>
 <template>
   <form @submit.prevent="start">
-    <label for="attempt-context">Save this case to</label>
+    <label for="attempt-context">{{ label }}</label>
     <select
       id="attempt-context"
       v-model="selected"
@@ -59,6 +63,6 @@ onBeforeUnmount(() => controller.abort())
     <p class="small">
       Class attempts appear on that class's leaderboard. Personal practice does not.
     </p>
-    <button class="btn btn-primary" :disabled="disabled || loading">Open the case</button>
+    <button class="btn btn-primary" :disabled="disabled || loading">{{ submitLabel }}</button>
   </form>
 </template>

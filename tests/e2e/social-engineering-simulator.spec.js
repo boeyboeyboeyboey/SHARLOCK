@@ -42,8 +42,8 @@ async function stubChatReplies(page) {
 test('personal start shows the briefing (chat replies stubbed)', async ({ page }) => {
   await stubChatReplies(page)
   await page.goto('/games/social-engineering-simulator')
-  await page.getByLabel('Save this case to').selectOption('personal')
-  await page.getByRole('button', { name: 'Open the case' }).click()
+  await page.getByLabel('Save this call to').selectOption('personal')
+  await page.getByRole('button', { name: 'Start the call' }).click()
   await expect(page.getByRole('button', { name: 'Begin the conversation' })).toBeVisible()
 })
 
@@ -56,8 +56,8 @@ test('a class student saves a refusal and appears on the class leaderboard (chat
   try {
     await stubChatReplies(page)
     await page.goto('/games/social-engineering-simulator')
-    await page.getByLabel('Save this case to').selectOption(seeded.classId)
-    await page.getByRole('button', { name: 'Open the case' }).click()
+    await page.getByLabel('Save this call to').selectOption(seeded.classId)
+    await page.getByRole('button', { name: 'Start the call' }).click()
     await page.getByRole('button', { name: 'Begin the conversation' }).click()
 
     await page.getByLabel('Your reply').fill('Who is asking, and why do you need the code?')

@@ -411,7 +411,7 @@ describe('simulator screen with a colleague', () => {
     app.mount(el)
     await flushPromises()
     expect(startSession).not.toHaveBeenCalled()
-    expect(el.textContent).toContain('Save this case to')
+    expect(el.textContent).toContain('Save this call to')
     el.querySelector('form button').click()
     await flushPromises()
     expect(startSession).toHaveBeenCalledWith({ kind: 'personal' }, expect.anything())
