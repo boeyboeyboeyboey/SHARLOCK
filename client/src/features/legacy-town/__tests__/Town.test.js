@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { defineGameCatalog, gameCatalog } from '../../../data/gameCatalog.js'
 import GameInfoCard from '../GameInfoCard.vue'
@@ -83,36 +83,52 @@ describe('town registration contract', () => {
 })
 
 describe('town audio', () => {
-  it('starts muted, plays only on request, pauses on mute, and stops on departure', async () => {
+  beforeEach(() => sessionStorage.clear())
+  it('starts on arrival, mutes on request, remembers it for the session, and stops on departure', async () => {
     const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue()
     const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
     const wrapper = mount(TownAudio)
     const audio = wrapper.get('audio').element
     expect(audio.getAttribute('src')).toBe('/audio/sharlock-bgm.mp3')
-    expect(audio.muted).toBe(true)
     expect(audio.loop).toBe(true)
-    expect(audio.autoplay).toBe(false)
-    expect(play).not.toHaveBeenCalled()
-    await wrapper.get('button').trigger('click')
     await flushPromises()
     expect(play).toHaveBeenCalledTimes(1)
     expect(audio.muted).toBe(false)
     expect(wrapper.get('button').attributes('aria-pressed')).toBe('true')
+    expect(wrapper.get('button').text()).toBe('Sound on')
     await wrapper.get('button').trigger('click')
     expect(audio.muted).toBe(true)
     expect(pause).toHaveBeenCalledTimes(1)
+    expect(sessionStorage.getItem('sharlock.musicMuted')).toBe('1')
     wrapper.unmount()
     expect(pause).toHaveBeenCalledTimes(2)
+    const again = mount(TownAudio)
+    await flushPromises()
+    expect(play).toHaveBeenCalledTimes(1)
+    expect(again.get('button').text()).toBe('Sound off')
+    again.unmount()
   })
-  it('suspends for the newspaper and only resumes a previously enabled soundtrack', async () => {
+  it('waits for the first interaction when autoplay is blocked', async () => {
+    const play = vi
+      .spyOn(HTMLMediaElement.prototype, 'play')
+      .mockRejectedValueOnce(new Error('blocked'))
+      .mockResolvedValue()
+    vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
+    const wrapper = mount(TownAudio)
+    await flushPromises()
+    expect(wrapper.get('button').text()).toBe('Sound off')
+    expect(wrapper.find('[role="status"]').exists()).toBe(false)
+    document.dispatchEvent(new Event('pointerdown', { bubbles: true }))
+    await flushPromises()
+    expect(play).toHaveBeenCalledTimes(2)
+    expect(wrapper.get('button').attributes('aria-pressed')).toBe('true')
+    wrapper.unmount()
+  })
+  it('suspends for the newspaper and resumes unless the listener muted it', async () => {
     const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue()
     vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
     const wrapper = mount(TownAudio)
     const audio = wrapper.get('audio').element
-    await wrapper.setProps({ suspended: true })
-    await wrapper.setProps({ suspended: false })
-    expect(play).not.toHaveBeenCalled()
-    await wrapper.get('button').trigger('click')
     await flushPromises()
     await wrapper.setProps({ suspended: true })
     expect(audio.muted).toBe(true)
@@ -121,9 +137,15 @@ describe('town audio', () => {
     await flushPromises()
     expect(play).toHaveBeenCalledTimes(2)
     expect(audio.muted).toBe(false)
+    await wrapper.get('button').trigger('click')
+    await wrapper.setProps({ suspended: true })
+    await wrapper.setProps({ suspended: false })
+    await flushPromises()
+    expect(play).toHaveBeenCalledTimes(2)
     wrapper.unmount()
   })
-  it('reports rejected playback and lets the user retry', async () => {
+  it('reports rejected playback from the button and lets the user retry', async () => {
+    sessionStorage.setItem('sharlock.musicMuted', '1')
     const play = vi
       .spyOn(HTMLMediaElement.prototype, 'play')
       .mockRejectedValueOnce(new Error('blocked'))
@@ -152,7 +174,7 @@ describe('town audio', () => {
     const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
     const wrapper = mount(TownAudio)
     const audio = wrapper.get('audio').element
-    await wrapper.get('button').trigger('click')
+    await flushPromises()
     expect(wrapper.get('button').element.disabled).toBe(true)
     wrapper.unmount()
     resolvePlay()

@@ -4,6 +4,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import HubScene from '../features/hub/HubScene.vue'
 import TownMap from '../features/legacy-town/TownMap.vue'
+import TownAudio from '../features/legacy-town/TownAudio.vue'
 import Hub3dWarning from '../features/legacy-town/Hub3dWarning.vue'
 import { GRAPHICS_OPTIONS, readGraphics, writeGraphics } from '../features/hub/graphics.js'
 import { writePerf } from '../features/hub/perfWatch.js'
@@ -165,6 +166,7 @@ function closeNewspaper() {
             </option>
           </select>
         </label>
+        <TownAudio :suspended="route.name === 'news'" />
         <RouterLink
           to="/profile"
           class="town-player hud-player"
@@ -234,6 +236,12 @@ function closeNewspaper() {
   gap: 8px;
 }
 .hud-toggle {
+  min-width: 44px;
+  padding: 4px 10px;
+  font-size: 14px;
+  box-shadow: 3px 3px 0 var(--town-edge);
+}
+.hud-row :deep(.sound-button) {
   min-width: 44px;
   padding: 4px 10px;
   font-size: 14px;

@@ -68,3 +68,7 @@ See `tests/e2e/portal.spec.js:6`.
 - The desktop destination list covers the right edge of selection views.
 - Minimap context blocks are approximate.
 - Not verified on real phones or low-end hardware.
+
+## Audio
+
+The hub has no audio code of its own. `Dashboard.vue` mounts `legacy-town/TownAudio.vue` (the shared landing-music control, `useLandingMusic.js`) in the HUD row slot. Music auto-starts with a first-interaction fallback, a mute lasts for the session only, and it is paused while the Times is open and disposed on leave. Reduced motion does not affect audio. See [legacy-town](../legacy-town/README.md#audio).

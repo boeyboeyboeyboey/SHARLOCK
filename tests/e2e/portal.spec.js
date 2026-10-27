@@ -167,30 +167,32 @@ test('keeps the camera bounded and supports keyboard panning', async ({ page }) 
   await expect.poll(offset).toBeLessThan(-100)
 })
 
-test('plays the repository soundtrack only after a click and stops on departure', async ({
+test('starts the soundtrack on arrival or the first interaction, remembers a mute for the session and stops on departure', async ({
   page,
 }) => {
   await page.goto('/dashboard')
   const audio = page.locator('audio')
-  expect(
-    await audio.evaluate((el) => ({
-      muted: el.muted,
-      paused: el.paused,
-      loop: el.loop,
-      autoplay: el.autoplay,
-    })),
-  ).toEqual({ muted: true, paused: true, loop: true, autoplay: false })
-  await page.getByRole('button', { name: 'Turn on town sound' }).click()
-  await expect(page.getByRole('button', { name: 'Mute town sound' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  )
+  expect(await audio.evaluate((el) => ({ loop: el.loop, autoplay: el.autoplay }))).toEqual({
+    loop: true,
+    autoplay: false,
+  })
+  // browsers may block audible autoplay; the first click anywhere then starts the music
+  const playing = page.getByRole('button', { name: 'Mute town sound' })
+  if (!(await playing.isVisible())) await page.mouse.click(1, 1)
+  await expect(playing).toHaveAttribute('aria-pressed', 'true')
   await expect.poll(() => audio.evaluate((el) => el.currentTime)).toBeGreaterThan(0)
   expect(await audio.evaluate((el) => el.muted || el.paused)).toBe(false)
-  await page.getByRole('button', { name: 'Mute town sound' }).click()
+  await playing.click()
   expect(await audio.evaluate((el) => el.muted && el.paused)).toBe(true)
+  expect(await page.evaluate(() => sessionStorage.getItem('sharlock.musicMuted'))).toBe('1')
+  await page.reload()
+  await expect(page.getByRole('button', { name: 'Turn on town sound' })).toBeVisible()
+  await page.mouse.click(1, 1)
+  expect(await audio.evaluate((el) => el.paused)).toBe(true)
+  await expect(page.getByRole('button', { name: 'Turn on town sound' })).toBeVisible()
   await page.getByRole('button', { name: 'Turn on town sound' }).click()
   await expect(page.getByRole('button', { name: 'Mute town sound' })).toBeVisible()
+  expect(await page.evaluate(() => sessionStorage.getItem('sharlock.musicMuted'))).toBeNull()
   const handle = await audio.elementHandle()
   await page.getByRole('link', { name: 'View your detective profile' }).click()
   await expect(page).toHaveURL(/\/profile$/)
@@ -199,7 +201,7 @@ test('plays the repository soundtrack only after a click and stops on departure'
   ).toBeVisible()
   expect(await handle.evaluate((el) => el.paused && el.muted)).toBe(true)
   await page.goto('/dashboard')
-  expect(await audio.evaluate((el) => el.muted && el.paused)).toBe(true)
+  await expect(page.locator('audio')).toHaveCount(1)
 })
 
 test('navigates to the profile and handles mobile focus and dismissal', async ({
@@ -288,7 +290,7 @@ test('fits supported breakpoints with readable pixel buildings and responsive br
     await expect(page.locator('.navbar-mascot')).toBeVisible()
     if (width < 768) await expect(page.locator('.brand-title')).toBeHidden()
     else await expect(page.locator('.brand-title')).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Turn on town sound' })).toBeVisible()
+    await expect(page.getByRole('button', { name: /^(Turn on|Mute) town sound$/ })).toBeVisible()
   }
 })
 
