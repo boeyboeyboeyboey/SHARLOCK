@@ -454,7 +454,6 @@ test('fits every supported width without page overflow', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Run', exact: true })).toBeVisible()
 })
 
-// last: seeding a class mid-file invalidates the shared worker session for later tests
 test('a class student saves a timed shift and appears on the timed leaderboard', async ({
   browser,
   baseURL,

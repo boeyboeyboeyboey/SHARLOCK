@@ -76,7 +76,9 @@ export async function seedClass(suffix) {
 
 export async function signedInPage(browser, baseURL, who) {
   const origin = new URL(baseURL).origin
-  const context = await browser.newContext()
+  // the test's browser applies the shared worker cookie by default; logging in over it would
+  // rotate and destroy that worker session
+  const context = await browser.newContext({ storageState: { cookies: [], origins: [] } })
   const csrf = await context.request.get(new URL('/api/auth/csrf', baseURL).href, {
     headers: { Origin: origin },
   })
