@@ -4,6 +4,7 @@ import Panzoom from '@panzoom/panzoom'
 import { TOWN_SIZE } from '../../data/gameCatalog.js'
 import PixelIcon from '../../components/town/PixelIcon.vue'
 import TownScenery from './TownScenery.vue'
+import TownBuildingArt from './TownBuildingArt.vue'
 import TownAudio from './TownAudio.vue'
 import GameInfoCard from './GameInfoCard.vue'
 
@@ -52,8 +53,10 @@ function placeCard() {
   left = Math.max(12, Math.min(left, bounds.width - width - 12))
   // the card may overlap the toolbar and controls, so clamp to the whole map panel
   const panel = frame.value.parentElement.getBoundingClientRect()
-  const minTop = panel.top - bounds.top + 12
-  const maxTop = panel.bottom - bounds.top - height - 12
+  // a card that fits stays inside the frame; only a taller one may spill over the panel
+  const fits = height + 24 <= bounds.height
+  const minTop = fits ? 12 : panel.top - bounds.top + 12
+  const maxTop = fits ? bounds.height - height - 12 : panel.bottom - bounds.top - height - 12
   const top = Math.max(minTop, Math.min(anchor.top - bounds.top, maxTop))
   cardStyle.value = { left: `${left}px`, top: `${top}px` }
 }
@@ -344,15 +347,8 @@ onBeforeUnmount(() => {
                 @focus="focusReveal(game)"
                 @click="selectBuilding($event, game)"
               >
-                <img
-                  class="building-sprite"
-                  :src="`/images/town/${game.building.type}.svg`"
-                  width="160"
-                  height="160"
-                  :alt="`2D pixel-art ${game.building.type} for ${game.name}`"
-                /><span class="building-name">{{ game.name }}</span
-                ><span class="building-hint">{{
-                  game.activation === 'direct' ? 'READ THE TIMES' : 'SELECT TO EXPLORE'
+                <TownBuildingArt :type="game.building.type" /><span class="building-name">{{
+                  game.name
                 }}</span>
               </button>
             </li>
