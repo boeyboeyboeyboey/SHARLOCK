@@ -7,6 +7,7 @@ import { cohortModel } from '../../../server/src/models/Cohort.js'
 import { membershipModel } from '../../../server/src/models/Membership.js'
 import { instructorAssignmentModel } from '../../../server/src/models/InstructorAssignment.js'
 import { hashPassword } from '../../../server/src/modules/auth/password.js'
+import { postFixtureLogin } from './sign-in.js'
 
 function identity(role, suffix) {
   return {
@@ -83,11 +84,14 @@ export async function signedInPage(browser, baseURL, who) {
     headers: { Origin: origin },
   })
   const { csrfToken } = await csrf.json()
-  const login = await context.request.post(new URL('/api/auth/login', baseURL).href, {
-    headers: { Origin: origin, 'X-CSRF-Token': csrfToken },
-    data: { email: who.email, password: who.password },
+  await postFixtureLogin(context.request, {
+    loginUrl: new URL('/api/auth/login', baseURL).href,
+    origin,
+    csrfToken,
+    email: who.email,
+    password: who.password,
+    message: 'Could not authenticate the class E2E session',
   })
-  if (!login.ok()) throw new Error('Could not authenticate the class E2E session.')
   const page = await context.newPage()
   await page.addInitScript(() => localStorage.setItem('sharlock.townMode', '2d'))
   await page.route(/fonts\.(googleapis|gstatic)\.com/, (route) =>

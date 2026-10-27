@@ -4,6 +4,7 @@ import { connectDatabase } from '../../../server/src/config/database.js'
 import { assertSafeTestDatabaseUri } from '../../../server/src/config/database-uri.js'
 import { createAuthService } from '../../../server/src/modules/auth/service.js'
 import { parseRegistrationInput } from '../../../server/src/modules/auth/policy.js'
+import { postFixtureLogin } from './sign-in.js'
 
 const test = base.extend({
   workerStorageState: [
@@ -38,11 +39,14 @@ const test = base.extend({
         })
         if (!csrfResponse.ok()) throw new Error('Could not initialize the E2E session.')
         const { csrfToken } = await csrfResponse.json()
-        const loginResponse = await context.request.post(new URL('/api/auth/login', baseURL).href, {
-          headers: { Origin: clientOrigin, 'X-CSRF-Token': csrfToken },
-          data: { email, password },
+        await postFixtureLogin(context.request, {
+          loginUrl: new URL('/api/auth/login', baseURL).href,
+          origin: clientOrigin,
+          csrfToken,
+          email,
+          password,
+          message: 'Could not authenticate the E2E session',
         })
-        if (!loginResponse.ok()) throw new Error('Could not authenticate the E2E session.')
 
         await use(await context.storageState())
       } finally {

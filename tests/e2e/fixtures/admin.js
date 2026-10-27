@@ -4,6 +4,7 @@ import { connectDatabase } from '../../../server/src/config/database.js'
 import { assertSafeTestDatabaseUri } from '../../../server/src/config/database-uri.js'
 import { userModel } from '../../../server/src/models/User.js'
 import { hashPassword } from '../../../server/src/modules/auth/password.js'
+import { postFixtureLogin } from './sign-in.js'
 
 function createIdentity(role, suffix) {
   const email = `e2e-${role}-${suffix}@example.test`
@@ -19,11 +20,14 @@ async function signInTestAccount(context, baseURL, identity) {
   })
   if (!csrfResponse.ok()) throw new Error('Could not initialize the E2E session.')
   const { csrfToken } = await csrfResponse.json()
-  const loginResponse = await context.request.post(new URL('/api/auth/login', baseURL).href, {
-    headers: { Origin: origin, 'X-CSRF-Token': csrfToken },
-    data: { email: identity.email, password: identity.password },
+  await postFixtureLogin(context.request, {
+    loginUrl: new URL('/api/auth/login', baseURL).href,
+    origin,
+    csrfToken,
+    email: identity.email,
+    password: identity.password,
+    message: 'Could not authenticate the E2E session',
   })
-  if (!loginResponse.ok()) throw new Error('Could not authenticate the E2E session.')
 }
 
 const test = base.extend({
