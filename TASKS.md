@@ -187,6 +187,11 @@ No active implementation task.
 - **Collision check:** `rg` for "Close and clear link", "Copy this link" and the old help text found no other recovery-dialog copy work; the dialog lives in `features/recovery/components/`, not `features/admin/components/`.
 - **Checks:** `pnpm exec vitest run --project client client/src/features/admin client/src/features/recovery client/src/features/cohorts/__tests__/management.test.js` 52 of 52 passed (7 files); `eslint` on changed files exit 0; `prettier --check` on changed files and TASKS.md passed. E2E not run.
 
+**INST-02 — Remove the unused class-results `selectedId` prop** · Status: **Review** · Contributor: **Boey** · Branch: `inst-02-unused-selected-prop` · Approved by Boey on 27 October 2026 (Round 1).
+
+- **Scope:** `client/src/features/class-results/StudentResultsTable.vue` drops the `selectedId` prop and its `aria-pressed` binding (the parent renders the table only when no student is selected, so it was always false); `client/src/features/class-results/README.md` props row.
+- **Checks:** `pnpm exec vitest run --project client client/src/features/class-results` 11/11 passed; eslint and `prettier --check` on changed files passed.
+
 **BOARD-01 — Class leaderboards** · Status: **Review** · Contributor: **Boey** · Branch: `board-01-class-leaderboards` (cut from `origin/main` at `9e6c3a1`, 27 October 2026, upstream unset). Plan approved by Boey on 27 October 2026. Spec: [BOARD-01](#board-01--cohort-leaderboards).
 
 - **Collision check (27 October 2026):** no leaderboard code on `main`, in local or remote branch names, or in the `admin-01-b-admin-controls` (Codex admin-controls) worktree. Existing references are only the `/leaderboard` ComingSoon placeholder (`client/src/router/index.js`), nav links (`Navbar.vue:34`, `PortalLayout.vue:30`), the pixel-wipe label, docs mentions, and an empty `server/src/modules/leaderboards/.gitkeep`. Remote branch contents, PRs and teammates' machines were not inspected.

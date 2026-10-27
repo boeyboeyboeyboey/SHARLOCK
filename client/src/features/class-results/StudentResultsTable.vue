@@ -10,7 +10,6 @@ const props = defineProps({
   pageSize: { type: Number, default: 50 },
   total: { type: Number, default: 0 },
   loading: { type: Boolean, default: false },
-  selectedId: { type: String, default: '' },
 })
 const emit = defineEmits(['select', 'change-page'])
 
@@ -57,7 +56,6 @@ function bestPercent(student, gameId) {
                     class="class-results__student-button"
                     type="button"
                     :data-student-id="student.id"
-                    :aria-pressed="selectedId === student.id"
                     @click="emit('select', student)"
                   >
                     {{ student.username }}
