@@ -261,7 +261,7 @@ describe('account and Mongo session HTTP contract', () => {
     const registration = await confirmEmail(agent, pending.body.csrfToken, validRegistration.email)
     expect(Object.keys(registration.body).sort()).toEqual(['csrfToken', 'user'])
     expect(Object.keys(registration.body.user).sort()).toEqual(
-      ['avatarId', 'email', 'globalRoles', 'id', 'username'].sort(),
+      ['avatarId', 'email', 'globalRoles', 'howToPlayDismissed', 'id', 'username'].sort(),
     )
     expect(registration.body.user).toMatchObject({
       email: 'student@example.test',

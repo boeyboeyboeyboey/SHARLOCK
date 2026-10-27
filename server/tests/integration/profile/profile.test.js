@@ -176,3 +176,82 @@ describe('profile API', () => {
     })
   })
 })
+
+describe('how to play dismissal API', () => {
+  function putDismissed(account, gameId, body, { token, origin } = {}) {
+    return account.agent
+      .put(`/api/me/how-to-play/${gameId}`)
+      .set('Origin', origin || authOptions.clientOrigin)
+      .set('X-CSRF-Token', token || account.csrfToken)
+      .send(body)
+  }
+
+  it('starts empty, dismisses, repeats idempotently and restores per account', async () => {
+    const account = await registerTestStudent(app)
+    const other = await registerTestStudent(app)
+    expect(account.user.howToPlayDismissed).toEqual([])
+
+    const first = await putDismissed(account, 'clearance-tower', { dismissed: true }).expect(200)
+    expect(first.body).toEqual({ howToPlayDismissed: ['clearance-tower'] })
+    expect(first.headers['cache-control']).toContain('no-store')
+    await putDismissed(account, 'clearance-tower', { dismissed: true }).expect(200)
+    const second = await putDismissed(account, 'cli-cyber-defender', { dismissed: true }).expect(
+      200,
+    )
+    expect(second.body.howToPlayDismissed.sort()).toEqual(['clearance-tower', 'cli-cyber-defender'])
+
+    const me = await account.agent.get('/api/auth/me').expect(200)
+    expect(me.body.user.howToPlayDismissed.sort()).toEqual([
+      'clearance-tower',
+      'cli-cyber-defender',
+    ])
+    const otherMe = await other.agent.get('/api/auth/me').expect(200)
+    expect(otherMe.body.user.howToPlayDismissed).toEqual([])
+
+    const removed = await putDismissed(account, 'clearance-tower', { dismissed: false }).expect(200)
+    expect(removed.body).toEqual({ howToPlayDismissed: ['cli-cyber-defender'] })
+    await putDismissed(account, 'clearance-tower', { dismissed: false }).expect(200)
+    expect((await userModel(database).findById(account.user.id).lean()).howToPlayDismissed).toEqual(
+      ['cli-cyber-defender'],
+    )
+  })
+
+  it('rejects unknown games and bodies that are not exactly { dismissed: boolean }', async () => {
+    const account = await registerTestStudent(app)
+    const unknown = await putDismissed(account, 'threat-briefing', { dismissed: true }).expect(400)
+    expect(unknown.body.error.code).toBe('VALIDATION_ERROR')
+    await putDismissed(account, 'clearance-tower', { dismissed: true, role: 'admin' }).expect(400)
+    await putDismissed(account, 'clearance-tower', { dismissed: 'yes' }).expect(400)
+    await putDismissed(account, 'clearance-tower', {}).expect(400)
+    const stored = await userModel(database).findById(account.user.id).lean()
+    expect(stored.howToPlayDismissed ?? []).toEqual([])
+  })
+
+  it('requires a session, CSRF token and expected origin', async () => {
+    const account = await registerTestStudent(app)
+    await request(app)
+      .put('/api/me/how-to-play/clearance-tower')
+      .send({ dismissed: true })
+      .expect(401)
+    await account.agent
+      .put('/api/me/how-to-play/clearance-tower')
+      .set('Origin', authOptions.clientOrigin)
+      .send({ dismissed: true })
+      .expect(403)
+    await putDismissed(
+      account,
+      'clearance-tower',
+      { dismissed: true },
+      { origin: 'http://untrusted.example' },
+    ).expect(403)
+  })
+
+  it('does not change the profile PATCH allowlist', async () => {
+    const account = await registerTestStudent(app)
+    await patchProfile(account, {
+      username: 'New_Name',
+      avatarId: 'mint',
+      howToPlayDismissed: ['clearance-tower'],
+    }).expect(400)
+  })
+})

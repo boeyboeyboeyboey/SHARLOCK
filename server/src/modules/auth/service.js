@@ -16,6 +16,7 @@ export function serializeUser(user) {
     username: user.username,
     avatarId: user.avatarId,
     globalRoles: [...user.globalRoles],
+    howToPlayDismissed: [...(user.howToPlayDismissed ?? [])],
   }
 }
 

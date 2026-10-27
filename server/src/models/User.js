@@ -1,5 +1,6 @@
 import { Schema } from 'mongoose'
 import { avatarPresets } from '../modules/auth/avatars.js'
+import { HOW_TO_PLAY_GAME_IDS } from '../modules/profile/how-to-play.js'
 
 // present only while an email address awaits verification. Accounts without it, including every
 // account created before verification existed, count as verified.
@@ -31,6 +32,11 @@ const userSchema = new Schema(
       enum: ['student', 'instructor', 'admin'],
       required: true,
       default: ['student'],
+    },
+    howToPlayDismissed: {
+      type: [String],
+      enum: HOW_TO_PLAY_GAME_IDS,
+      default: [],
     },
     accountStatus: {
       type: String,

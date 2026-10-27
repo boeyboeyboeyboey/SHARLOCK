@@ -12,6 +12,7 @@ import {
   SafeAuthError,
   toSafeAuthError,
 } from './api.js'
+import { setHowToPlayDismissed as requestHowToPlayDismissed } from '../profile/api.js'
 
 const DELIVERY_STATES = ['sent', 'failed', 'recent']
 const CODE_PATTERN = /^\d{6}$/
@@ -39,18 +40,27 @@ function userDto(value) {
     throw new SafeAuthError({ message: 'Sharlock returned an incomplete account. Try again.' })
   }
 
-  const { id, email, username, avatarId, globalRoles } = value
+  const { id, email, username, avatarId, globalRoles, howToPlayDismissed = [] } = value
   if (
     typeof id !== 'string' ||
     typeof email !== 'string' ||
     typeof username !== 'string' ||
     typeof avatarId !== 'string' ||
-    !Array.isArray(globalRoles)
+    !Array.isArray(globalRoles) ||
+    !Array.isArray(howToPlayDismissed) ||
+    howToPlayDismissed.some((gameId) => typeof gameId !== 'string')
   ) {
     throw new SafeAuthError({ message: 'Sharlock returned an incomplete account. Try again.' })
   }
 
-  return Object.freeze({ id, email, username, avatarId, globalRoles: [...globalRoles] })
+  return Object.freeze({
+    id,
+    email,
+    username,
+    avatarId,
+    globalRoles: [...globalRoles],
+    howToPlayDismissed: [...howToPlayDismissed],
+  })
 }
 
 export const useAuthStore = defineStore('auth', () => {
@@ -371,6 +381,28 @@ export const useAuthStore = defineStore('auth', () => {
     clearIdentity('anonymous')
   }
 
+  // optimistic: the dialog hides at once, the server list replaces it, a failure restores it
+  async function setHowToPlayDismissed(gameId, dismissed) {
+    const current = user.value
+    if (status.value !== 'authenticated' || !current) return
+    const previous = current.howToPlayDismissed
+    const optimistic = dismissed
+      ? [...new Set([...previous, gameId])]
+      : previous.filter((id) => id !== gameId)
+    user.value = Object.freeze({ ...current, howToPlayDismissed: optimistic })
+    try {
+      const saved = await requestHowToPlayDismissed(gameId, dismissed)
+      if (user.value?.id === current.id) {
+        user.value = Object.freeze({ ...user.value, howToPlayDismissed: [...saved] })
+      }
+    } catch (error) {
+      if (user.value?.id === current.id) {
+        user.value = Object.freeze({ ...user.value, howToPlayDismissed: previous })
+      }
+      throw error
+    }
+  }
+
   return {
     status,
     user,
@@ -386,5 +418,6 @@ export const useAuthStore = defineStore('auth', () => {
     cancelVerification,
     logout,
     invalidateSession,
+    setHowToPlayDismissed,
   }
 })

@@ -69,5 +69,17 @@ export function createProfileService(database) {
     }
   }
 
-  return Object.freeze({ getProfile, updateProfile })
+  async function setHowToPlayDismissed(actor, { gameId, dismissed }) {
+    const user = await User.findOneAndUpdate(
+      currentAccountFilter(actor),
+      dismissed
+        ? { $addToSet: { howToPlayDismissed: gameId } }
+        : { $pull: { howToPlayDismissed: gameId } },
+      { returnDocument: 'after', projection: 'howToPlayDismissed' },
+    ).lean()
+    if (!user) throw accountUnavailable()
+    return { howToPlayDismissed: [...(user.howToPlayDismissed ?? [])] }
+  }
+
+  return Object.freeze({ getProfile, updateProfile, setHowToPlayDismissed })
 }

@@ -1,6 +1,11 @@
 import { Router } from 'express'
 import { AuthError } from '../auth/policy.js'
-import { ProfileError, parseProfileQuery, parseProfileUpdateInput } from './policy.js'
+import {
+  ProfileError,
+  parseHowToPlayInput,
+  parseProfileQuery,
+  parseProfileUpdateInput,
+} from './policy.js'
 import { createProfileService } from './service.js'
 
 function requireMiddlewareArray(middleware, name) {
@@ -78,6 +83,22 @@ export function createProfileRouter(database, { requireSession, requireMutation 
         parseProfileQuery(request.query)
         const input = parseProfileUpdateInput(request.body)
         response.json(await service.updateProfile(requestActor(request, response), input))
+      } catch (error) {
+        next(error)
+      }
+    },
+  )
+
+  router.put(
+    '/me/how-to-play/:gameId',
+    ...sessionMiddleware,
+    ...mutationMiddleware,
+    async (request, response, next) => {
+      try {
+        parseProfileQuery(request.query)
+        const input = parseHowToPlayInput(request.params.gameId, request.body)
+        response.set('Cache-Control', 'no-store')
+        response.json(await service.setHowToPlayDismissed(requestActor(request, response), input))
       } catch (error) {
         next(error)
       }

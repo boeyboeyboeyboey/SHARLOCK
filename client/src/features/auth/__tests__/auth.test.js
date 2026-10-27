@@ -93,6 +93,7 @@ describe('auth store', () => {
       username: account.username,
       avatarId: account.avatarId,
       globalRoles: ['student'],
+      howToPlayDismissed: [],
     })
     expect(restored[1]).toEqual(restored[0])
     expect(auth.user).toEqual(restored[0])
