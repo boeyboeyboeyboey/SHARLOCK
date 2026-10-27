@@ -162,6 +162,54 @@ test('registers, restores, signs out, signs in, and stops a protected action aft
   expect(protectedRunPosts).toBe(0)
 })
 
+test('signing out with a lapsed session cookie still lands on the sign-in page', async ({
+  page,
+  context,
+}, testInfo) => {
+  const suffix = `${Date.now().toString(36)}${testInfo.workerIndex}x`
+  const email = `auth-${suffix}@example.test`
+
+  await page.addInitScript(() => localStorage.setItem('sharlock.townMode', '2d'))
+  await page.goto('/register')
+  await page.getByLabel('Email address').fill(email)
+  await page.getByLabel('Username').fill(`Case_${suffix}`)
+  await page.getByLabel('Password', { exact: true }).fill(PASSWORD)
+  await page.getByLabel('Confirm password').fill(PASSWORD)
+  await page.locator('input[name="avatarId"][value="mint"]').check()
+  await page.getByRole('button', { name: 'Create account' }).click()
+  await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible()
+  await page.getByLabel('Digit 1 of 6').click()
+  await page.keyboard.type(await readVerificationCode(email))
+  await page.getByRole('button', { name: 'Confirm code' }).click()
+  await expect(page).toHaveURL('/join-class?onboarding=1')
+  await page.getByRole('button', { name: 'Skip and explore Sharlock' }).click()
+  await expect(page).toHaveURL('/')
+
+  await page.goto('/progress')
+  await context.clearCookies({ name: 'sharlock.sid' })
+
+  const desktopSignOut = page.getByRole('banner').getByRole('button', { name: 'Sign out' })
+  await expect
+    .poll(
+      async () =>
+        (await desktopSignOut.isVisible()) ||
+        (await page.getByRole('button', { name: 'Open navigation and profile' }).isVisible()),
+    )
+    .toBe(true)
+  if (await desktopSignOut.isVisible()) {
+    await desktopSignOut.click()
+  } else {
+    await page.getByRole('button', { name: 'Open navigation and profile' }).click()
+    await page
+      .getByRole('dialog', { name: 'Your detective desk' })
+      .getByRole('button', { name: 'Sign out' })
+      .click()
+  }
+  await expect(page).toHaveURL(/\/login/)
+  await expect(page.getByRole('heading', { name: 'Sign in to Sharlock' })).toBeVisible()
+  await expect(page.getByText('Your security check expired')).toHaveCount(0)
+})
+
 test('signs in with a mixed-case username instead of the email', async ({
   page,
   browser,

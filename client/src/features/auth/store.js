@@ -331,7 +331,15 @@ export const useAuthStore = defineStore('auth', () => {
 
     try {
       const token = csrfToken.value || (await getCsrf(operation))
-      await requestLogout(token)
+      try {
+        await requestLogout(token)
+      } catch (error) {
+        // a lapsed session cookie makes the cached token stale: refetch once and retry
+        const rejected = toSafeAuthError(error)
+        if (rejected.status !== 403 || rejected.code !== 'CSRF_INVALID') throw error
+        if (generation !== operation) throw error
+        await requestLogout(await getCsrf(operation, { force: true }))
+      }
       if (generation === operation) {
         clearIdentity('anonymous')
         requestError.value = null
