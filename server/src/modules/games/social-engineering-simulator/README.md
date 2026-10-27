@@ -106,7 +106,7 @@ and it ends the whole run as compromised.
 ## Two LLM roles and the real-colleague chat
 
 Implemented on branch `g-soc-real-colleague` (15 October 2026) and merged to `main` via
-PR #3 (c46dfba). It is unsaved. Full design: `docs/superpowers/specs/2026-10-15-soc-real-colleague-verification-design.md`.
+PR #3 (c46dfba). Saving was added later (SAVE-SOC, see [Saved attempts](#saved-attempts-save-soc)). Full design: `docs/superpowers/specs/2026-10-15-soc-real-colleague-verification-design.md`.
 
 - **Two chats.** The existing pressure chat stays. A second chat lets the player message the
   real colleague (`verifiers.js`: one colleague per persona, four in all, with server-owned

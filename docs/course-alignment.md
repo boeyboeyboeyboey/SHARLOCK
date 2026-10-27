@@ -58,5 +58,5 @@ Not adopting: coverage tooling (neither the slides nor the rubric require it) an
 
 - Describe three levels: Vitest unit and component tests, API integration tests against a real disposable MongoDB, and Playwright end-to-end journeys.
 - Say what the tools are and why: Vitest and Vue Test Utils (taught in Week 10), supertest for the API, Playwright on a phone-sized and a desktop viewport.
-- Quote approximate counts and say they are approximate: about 49 client test files, about 50 server unit files, about 22 integration files and about 16 E2E specs, each run on two viewports.
+- Quote approximate counts and say they are approximate: about 57 client test files, about 54 server unit files, about 25 integration files and about 20 E2E specs, each run on two viewports.
 - Mention the repeatability measures: each run creates and removes its own `_test` database, `pnpm test:e2e` starts its own API and client, and specs use role, label or `data-testid` selectors with auto-waiting instead of fixed sleeps.

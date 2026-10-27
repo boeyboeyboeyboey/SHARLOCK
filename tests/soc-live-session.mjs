@@ -1,10 +1,10 @@
-// manual live rehearsal for the social-engineering simulator backend.
+// manual live rehearsal for the social-engineering simulator backend
 // drives the real service against the configured llms (root .env or server/.env), no http,
 // no mongo, nothing persisted. run from the repo root:
 //   node tests/soc-live-session.mjs [--scenario <id>]
 //
 // the bad actor is gemini (LLM_API_KEY). the colleague is the ollama endpoint
-// (LLM_COLLEAGUE_BASE_URL); without it the round has no colleague to ask.
+// (LLM_COLLEAGUE_BASE_URL); without it the round has no colleague to ask
 //
 // in the chat: type a message to reply to the requester. commands:
 //   /ask <text>  message the real colleague (the independent check)
