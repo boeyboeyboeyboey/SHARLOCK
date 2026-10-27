@@ -13,6 +13,15 @@ import { createApp } from './app.js'
 import { loadEnvironment } from './config/env.js'
 import { connectDatabase } from './config/database.js'
 
+const E2E_ATTEMPT_LIMITS = Object.freeze({
+  startUser: 1000,
+  startIp: 10000,
+  actionUser: 5000,
+  actionIp: 20000,
+  readUser: 5000,
+  readIp: 20000,
+})
+
 let database
 let server
 let app
@@ -103,6 +112,8 @@ try {
     socialEngineering: {
       service: createSocialEngineeringService({ adapter: attacker, verifierAdapter: colleague }),
     },
+    // every browser test shares one loopback address, so only the e2e server lifts attempt limits
+    ...(config.nodeEnv === 'test' && { attempts: { limits: E2E_ATTEMPT_LIMITS } }),
   })
   server = app.listen(config.port, '127.0.0.1')
   server.on('listening', () =>
