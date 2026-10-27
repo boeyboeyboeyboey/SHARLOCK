@@ -30,7 +30,45 @@ export async function readAttempt(id, signal) {
   return (await api.get(`/attempts/${encodeURIComponent(id)}`, { signal })).data
 }
 
-export async function writeAttempt(path, body, signal) {
-  const token = await requestCsrfToken()
+// token lives in module memory only, never in browser storage
+let csrfToken = null
+let csrfRequest = null
+
+function getCsrf() {
+  if (csrfToken) return Promise.resolve(csrfToken)
+  if (!csrfRequest) {
+    const request = requestCsrfToken()
+      .then((token) => {
+        if (csrfRequest === request) csrfToken = token
+        return token
+      })
+      .finally(() => {
+        if (csrfRequest === request) csrfRequest = null
+      })
+    csrfRequest = request
+  }
+  return csrfRequest
+}
+
+function clearCsrf() {
+  csrfToken = null
+  csrfRequest = null
+}
+
+async function post(path, body, signal) {
+  const token = await getCsrf()
   return (await api.post(path, body, { signal, headers: { 'X-CSRF-Token': token } })).data
+}
+
+// csrf runs before the attempt handlers, so a rejected write never executed and one retry is safe
+export async function writeAttempt(path, body, signal) {
+  try {
+    return await post(path, body, signal)
+  } catch (error) {
+    const status = error?.response?.status
+    if (status === 401) clearCsrf()
+    if (status !== 403 || error.response.data?.error?.code !== 'CSRF_INVALID') throw error
+    clearCsrf()
+    return post(path, body, signal)
+  }
 }
