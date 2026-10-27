@@ -241,6 +241,19 @@ afterAll(async () => {
 })
 
 describe('saved attempt API', () => {
+  it('applies injected start limits per ip and answers 429 once they are spent', async () => {
+    app = createTestApp(
+      database,
+      { ...baseAuthOptions, now: testNow() },
+      { attempts: { registry, now: testNow(), limits: { startIp: 1 } } },
+    )
+    const first = await createStudent()
+    const second = await createStudent()
+    await createAttempt(first)
+    const limited = await startRequest(second).expect(429)
+    expect(limited.headers['ratelimit-policy']).toMatch(/^1;w=900/)
+  })
+
   it('requires a live session and mutation checks, rejects extra fields, and returns only public state', async () => {
     const student = await createStudent()
     const anonymous = request(app)

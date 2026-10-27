@@ -107,45 +107,56 @@ function createHandler(callback) {
   }
 }
 
+// per-ip starts allow a whole class behind one school address; per-user limits still bound abuse
+export const DEFAULT_ATTEMPT_LIMITS = Object.freeze({
+  startUser: 30,
+  startIp: 300,
+  actionUser: 120,
+  actionIp: 240,
+  readUser: 240,
+  readIp: 480,
+})
+
 export function createAttemptRouter(
   database,
-  { requireSession, requireMutation, now, registry = createAttemptRegistry() } = {},
+  { requireSession, requireMutation, now, registry = createAttemptRegistry(), limits = {} } = {},
 ) {
+  const limit = { ...DEFAULT_ATTEMPT_LIMITS, ...limits }
   const sessionMiddleware = requireMiddlewareArray(requireSession, 'session')
   const mutationMiddleware = requireMiddlewareArray(requireMutation, 'mutation')
   const service = createAttemptService(database, { registry, now })
   const router = Router()
   const startUser = createLimiter({
     windowMs: 15 * 60 * 1000,
-    limit: 30,
+    limit: limit.startUser,
     retryAfterSeconds: 900,
     perUser: true,
   })
   const startIp = createLimiter({
     windowMs: 15 * 60 * 1000,
-    limit: 60,
+    limit: limit.startIp,
     retryAfterSeconds: 900,
   })
   const actionUser = createLimiter({
     windowMs: 60 * 1000,
-    limit: 120,
+    limit: limit.actionUser,
     retryAfterSeconds: 60,
     perUser: true,
   })
   const actionIp = createLimiter({
     windowMs: 60 * 1000,
-    limit: 240,
+    limit: limit.actionIp,
     retryAfterSeconds: 60,
   })
   const readUser = createLimiter({
     windowMs: 60 * 1000,
-    limit: 240,
+    limit: limit.readUser,
     retryAfterSeconds: 60,
     perUser: true,
   })
   const readIp = createLimiter({
     windowMs: 60 * 1000,
-    limit: 480,
+    limit: limit.readIp,
     retryAfterSeconds: 60,
   })
   const noStore = (_request, response, next) => {
