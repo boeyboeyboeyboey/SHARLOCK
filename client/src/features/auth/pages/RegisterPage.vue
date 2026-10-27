@@ -139,6 +139,9 @@ async function resendCode() {
         Already have an account?
         <RouterLink to="/login">Sign in</RouterLink>
       </p>
+      <p v-if="!signedIn && !verifying" class="auth-field-hint">
+        Instructor? Ask your administrator for an activation link.
+      </p>
     </section>
     <aside class="auth-aside">
       <PixelIcon name="shield" :size="30" aria-hidden="true" />

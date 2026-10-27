@@ -655,6 +655,7 @@ describe('auth forms and account summary', () => {
     const login = mount(LoginPage, { global: { plugins: [createPinia(), loginRouter] } })
     expect(login.get('h1').text()).toBe('Sign in to Sharlock')
     expect(login.get('form').exists()).toBe(true)
+    expect(login.text()).toContain('Instructor? Ask your administrator for an activation link.')
     login.unmount()
 
     const registerRouter = createRouter({
@@ -667,6 +668,7 @@ describe('auth forms and account summary', () => {
     })
     expect(register.get('h1').text()).toBe('Create a student account')
     expect(register.findAll('input[name="avatarId"]')).toHaveLength(6)
+    expect(register.text()).toContain('Instructor? Ask your administrator for an activation link.')
     register.unmount()
   })
 })

@@ -162,6 +162,9 @@ async function checkSession() {
         New to Sharlock?
         <RouterLink to="/register">Create a student account</RouterLink>
       </p>
+      <p v-if="!signedIn && !verifying" class="auth-field-hint">
+        Instructor? Ask your administrator for an activation link.
+      </p>
     </section>
     <aside class="auth-aside">
       <PixelIcon name="lock" :size="30" aria-hidden="true" />
