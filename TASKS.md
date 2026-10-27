@@ -372,6 +372,13 @@ No active implementation task.
 - **Outcome:** no CSS change; `font-synthesis` stays unset. Docs impact: this record only (no visual rule changed).
 - **Not covered:** profile, classes, leaderboard and admin screenshots were audited by DOM only, not viewed; 3D hub at desktop only.
 
+**FONT-04 — Self-host the CLI and SQL game fonts** · Status: **Review** · Contributor: **Boey** (CLI owner Xin Lei, SQL owner Keane; owner agreement: "Yup ok you can go ahead to make any changes you want, just let us know once done and work in a separate branch for git rollback in event of anything") · Branch: `font-04-game-fonts-self-host` (cut from `origin/main` at `8ea6f0b`, 28 October 2026, upstream unset) · Approved by Boey on 28 October 2026 (overnight batch 7; one combined branch to avoid a lockfile conflict between two font branches).
+
+- **Change:** `client/package.json` adds `@fontsource/silkscreen` 5.3.0 and `@fontsource/azeret-mono` 5.3.0 (exact pins, OFL-1.1, free); `cli.css` and `sql.css` replace their runtime Google Fonts `@import url(...)` with `@fontsource` latin and latin-ext 400/700 imports. Family names, fallbacks and every rule are unchanged.
+- **Verified (28 October 2026):** `pnpm --filter @sharlock/client build` exit 0 (Silkscreen/Azeret woff2 5-7 kB each); `tests/e2e/cli-cyber-defender.spec.js` 43 passed / 1 skipped, exit 0; `tests/e2e/sql-injection-arcade.spec.js` 9 passed / 1 skipped, exit 0; prettier clean on changed files. No test asserted the Google import.
+- **Docs:** CLI and SQL module READMEs, DESIGN.md typography, CREDITS.md. README §2 unchanged (`pnpm install --frozen-lockfile` covers the new packages).
+- **Next action:** Boey reviews; notify Xin Lei and Keane once merged.
+
 **BOARD-01 — Class leaderboards** · Status: **Review** · Contributor: **Boey** · Branch: `board-01-class-leaderboards` (cut from `origin/main` at `9e6c3a1`, 27 October 2026, upstream unset). Plan approved by Boey on 27 October 2026. Spec: [BOARD-01](#board-01--cohort-leaderboards).
 
 - **Collision check (27 October 2026):** no leaderboard code on `main`, in local or remote branch names, or in the `admin-01-b-admin-controls` (Codex admin-controls) worktree. Existing references are only the `/leaderboard` ComingSoon placeholder (`client/src/router/index.js`), nav links (`Navbar.vue:34`, `PortalLayout.vue:30`), the pixel-wipe label, docs mentions, and an empty `server/src/modules/leaderboards/.gitkeep`. Remote branch contents, PRs and teammates' machines were not inspected.
