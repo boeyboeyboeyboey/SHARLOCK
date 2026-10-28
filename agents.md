@@ -122,7 +122,7 @@ The server creates attempts, selects player/context/ruleset, checks actions and 
 
 - CLI commands operate on fictional state only; never execute a shell or change a real host/network.
 - Social-engineering chat uses synthetic training codes, server-owned prompts, bounded transcripts and no tools/account access. Prompt text is not a security boundary; the server determines outcomes. Keep real secrets out of prompts/logs.
-- Phishing email/link content is inert synthetic text. The server compares the selected ID against the private answer key.
+- Phishing email/link content is inert synthetic text with no clickable links. The server generates each round from a private seed and checks the report/trust call and selected part against the private answer.
 - SQL-injection puzzles use a bounded teaching parser and never execute vulnerable database queries or grant real administrator access.
 - Regex evaluation runs within bounded workers with termination deadlines, not unbounded `.test()` loops on the UI/server event loop. Explain false positives and limitations.
 - News uses an allowlisted upstream, bounded requests and labeled caching. Escape external text, avoid untrusted `v-html`, validate link protocols and do not proxy arbitrary URLs.

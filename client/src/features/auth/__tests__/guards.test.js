@@ -136,7 +136,7 @@ describe('browser activity request boundary', () => {
     expect(adapter).not.toHaveBeenCalled()
     expect(onExpired).not.toHaveBeenCalled()
     await client.get('/news')
-    await client.post('/games/phishing-post-mortem/verdict', { caseId: 'case' })
+    await client.post('/games/phishing-post-mortem/attempts', { context: { kind: 'personal' } })
     expect(adapter).toHaveBeenCalledTimes(2)
   })
 

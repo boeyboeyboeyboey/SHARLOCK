@@ -1,17 +1,10 @@
 import { test, expect } from './fixtures/auth.js'
-import { readFileSync } from 'node:fs'
 import { randomBytes } from 'node:crypto'
-import { fileURLToPath } from 'node:url'
 import { seedClass, signedInPage } from './fixtures/class.js'
 
-const MODULE = '../../server/src/modules/games/phishing-post-mortem'
-const load = (relativePath) =>
-  JSON.parse(readFileSync(fileURLToPath(new URL(relativePath, import.meta.url)), 'utf8'))
-const CASES = ['case-01', 'case-02'].map((id) => ({
-  id,
-  content: load(`${MODULE}/cases/${id}.public.json`),
-  answers: load(`${MODULE}/cases/answers/${id}.answers.json`),
-}))
+const ACTIONS = /\/api\/attempts\/[^/]+\/actions$/
+const START = /\/api\/games\/phishing-post-mortem\/attempts$/
+const ANSWER_FIELDS = ['tellPartIds', 'verdict', 'explanation', 'seed']
 
 test.beforeEach(async ({ page }) => {
   // these specs exercise the 2D pixel town
@@ -21,254 +14,185 @@ test.beforeEach(async ({ page }) => {
   )
 })
 
-// the server picks the case, so the spec reads the served title to find its answer key
-async function startCase(page, contextOption = 'personal') {
-  await page.getByLabel('Save this case to').selectOption(contextOption)
-  await page.getByRole('button', { name: 'Open the case' }).click()
-  await expect(page).toHaveURL(/attempt=/)
-  await expect(page.locator('.sharmail-briefing h2')).toBeVisible()
-  const title = await page.locator('.sharmail-briefing h2').textContent()
-  const active = CASES.find((entry) => entry.content.title === title.trim())
-  expect(active, 'served case should be one of the authored cases').toBeTruthy()
-  return active
-}
+const reportButton = (page) => page.getByRole('button', { name: 'Report', exact: true })
+const trustButton = (page) => page.getByRole('button', { name: 'Trust', exact: true })
+const nextButton = (page) => page.getByRole('button', { name: /^(Next email|See results)$/ })
+const partButtons = (page) =>
+  page.getByRole('button', {
+    name: /^Report (sender|reply-to|link|attachment|QR code|request|message text):/,
+  })
+const runComplete = (page) => page.getByRole('heading', { name: 'Run complete' })
 
-async function openCase(page) {
+async function startRun(page, contextOption = 'personal') {
   await page.goto('/games/phishing-post-mortem')
   await expect(page.getByRole('heading', { name: 'The Phishing Post-Mortem' })).toBeVisible()
-  return startCase(page)
+  await page.getByLabel('Save this run to').selectOption(contextOption)
+  await page.getByRole('button', { name: 'Start run' }).click()
+  await expect(page).toHaveURL(/attempt=/)
+  await expect(reportButton(page)).toBeVisible()
 }
 
-async function solve(page, active, isMobile) {
-  const patientZero = active.content.emails.find(
-    (email) => email.id === active.answers.patientZeroId,
+// one call on the current email; resolves with the action response body
+async function call(page, how) {
+  const responded = page.waitForResponse(
+    (response) => ACTIONS.test(response.url()) && response.request().method() === 'POST',
   )
-  await openMessage(page, patientZero, isMobile)
-  await page.getByRole('button', { name: 'Accuse this message' }).click()
-  await openEvidence(page)
-  for (const evidenceId of active.answers.evidenceIds) {
-    const option = active.content.evidenceOptions.find((entry) => entry.id === evidenceId)
-    await page.getByRole('checkbox', { name: option.label }).check()
+  if (how === 'report') {
+    await reportButton(page).click()
+    await expect(page.getByText('Tap what gave it away', { exact: true })).toBeVisible()
+    await partButtons(page).first().click()
+  } else {
+    await trustButton(page).click()
   }
-  await page.getByRole('button', { name: 'Submit final verdict' }).click()
+  const response = await responded
+  expect(response.status()).toBe(200)
+  return response.json()
 }
 
-// the clue checkboxes live in a panel opened from the docked verdict bar
-async function openEvidence(page) {
-  const toggle = page.getByRole('button', { name: /^Evidence \d\/2$/ })
-  if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click()
-}
-
-async function openMessage(page, email, isMobile) {
-  if (isMobile) await page.getByRole('button', { name: 'Back to inbox' }).click()
-  await page.locator(`.sharmail-row[data-email-id="${email.id}"]`).click()
-  await expect(page.getByRole('heading', { name: email.subject, exact: true })).toBeVisible()
-}
-
-test('solves a case end to end and scores the full hundred', async ({ page }, testInfo) => {
-  const isMobile = testInfo.project.name === 'mobile-chromium'
-  const active = await openCase(page)
-  const patientZero = active.content.emails.find(
-    (email) => email.id === active.answers.patientZeroId,
-  )
-
-  await openMessage(page, patientZero, isMobile)
-  await expect(page.getByText(patientZero.senderAddress, { exact: false })).toBeVisible()
-  await page.getByRole('button', { name: 'Accuse this message' }).click()
-  await expect(page.getByRole('button', { name: 'Accused as Patient Zero' })).toBeVisible()
-
-  await openEvidence(page)
-  for (const evidenceId of active.answers.evidenceIds) {
-    const option = active.content.evidenceOptions.find((entry) => entry.id === evidenceId)
-    await page.getByRole('checkbox', { name: option.label }).check()
+async function playPractice(page, rounds) {
+  for (let round = 0; round < rounds; round += 1) {
+    await call(page, round % 2 === 0 ? 'trust' : 'report')
+    await expect(nextButton(page)).toBeVisible()
+    if (round === 11) await expect(page.getByRole('button', { name: 'See results' })).toBeVisible()
+    await nextButton(page).click()
   }
-  await page.getByRole('button', { name: 'Submit final verdict' }).click()
+}
 
-  await expect(page.getByRole('heading', { name: '100 / 100 points' })).toBeVisible()
-  await expect(page.getByText('Verdict upheld')).toBeVisible()
+test('a personal practice run plays 12 emails, shows the debrief and saves', async ({ page }) => {
+  await startRun(page)
+  await expect(page.getByText('Email 1 of 12')).toBeVisible()
+  await expect(page.getByRole('timer')).toHaveCount(0)
+
+  await call(page, 'report')
+  await expect(page.getByText(/Your call was (right|wrong)/)).toBeVisible()
+  await expect(nextButton(page)).toBeFocused()
+  await nextButton(page).click()
+  await expect(page.getByText('Email 2 of 12')).toBeVisible()
+  await call(page, 'trust')
+  await nextButton(page).click()
+
+  await playPractice(page, 10)
+  await expect(runComplete(page)).toBeVisible()
+  await expect(page.getByText('All 12 emails checked')).toBeVisible()
   await expect(page.getByText('Result saved to your account.')).toBeVisible()
-  await expect(page.getByText(active.answers.chain[0], { exact: false })).toBeVisible()
-
-  // finished cases stay readable: reopen Patient Zero from the inbox, then return to the debrief
-  await openMessage(page, patientZero, isMobile)
-  await expect(page.getByText('This was Patient Zero')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Accuse this message' })).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'Submit final verdict' })).toHaveCount(0)
-  await page.getByRole('button', { name: 'Back to debrief' }).click()
-  await expect(page.getByRole('heading', { name: '100 / 100 points' })).toBeVisible()
-})
-
-test('a wrong verdict scores nothing and still reveals the chain', async ({ page }, testInfo) => {
-  const isMobile = testInfo.project.name === 'mobile-chromium'
-  const active = await openCase(page)
-  const decoy = active.content.emails.find((email) => email.id !== active.answers.patientZeroId)
-
-  await openMessage(page, decoy, isMobile)
-  await page.getByRole('button', { name: 'Accuse this message' }).click()
-  const [first, second] = active.content.evidenceOptions
-  await openEvidence(page)
-  await page.getByRole('checkbox', { name: first.label }).check()
-  await page.getByRole('checkbox', { name: second.label }).check()
-  await page.getByRole('button', { name: 'Submit final verdict' }).click()
-
-  await expect(page.getByRole('heading', { name: '0 / 100 points' })).toBeVisible()
-  await expect(page.getByText('Verdict overturned')).toBeVisible()
-  await expect(page.getByText(active.answers.summary, { exact: false })).toBeVisible()
-})
-
-test('never sends the answer key to the browser before a verdict', async ({ page }) => {
-  const payloads = []
-  page.on('response', async (response) => {
-    const url = response.url()
-    if (url.includes('/api/games/phishing-post-mortem/attempts') || url.includes('/api/attempts/'))
-      payloads.push(await response.text())
-  })
-  const active = await openCase(page)
-  expect(payloads).not.toHaveLength(0)
-  for (const payload of payloads) {
-    expect(payload).not.toContain('patientZeroId')
-    expect(payload).not.toContain(active.answers.summary)
-    expect(payload).not.toContain('evidenceNotes')
-  }
-  const rendered = await page.content()
-  expect(rendered).not.toContain(active.answers.summary)
-})
-
-test('link destinations are inert and only shown on request', async ({ page }, testInfo) => {
-  const isMobile = testInfo.project.name === 'mobile-chromium'
-  const active = await openCase(page)
-  const withLink = active.content.emails.find((email) => email.links.length > 0)
-  const link = withLink.links[0]
-
-  await openMessage(page, withLink, isMobile)
-  await expect(page.getByText(link.destination, { exact: false })).toHaveCount(0)
-  await page.getByRole('button', { name: 'Inspect destination' }).first().click()
-  await expect(page.getByText(link.destination, { exact: false })).toBeVisible()
-  await expect(page).toHaveURL(/\/games\/phishing-post-mortem\?attempt=/)
-  await expect(page.locator('.sharmail-links a')).toHaveCount(0)
-})
-
-test('play again returns to the chooser for a fresh server-picked case', async ({
-  page,
-}, testInfo) => {
-  const isMobile = testInfo.project.name === 'mobile-chromium'
-  const active = await openCase(page)
-  await solve(page, active, isMobile)
-  await expect(page.getByRole('heading', { name: '100 / 100 points' })).toBeVisible()
+  await expect(page.getByText('Case closed')).toBeVisible()
 
   await page.getByRole('button', { name: 'Play again' }).click()
   await expect(page).not.toHaveURL(/attempt=/)
-  await expect(page.getByLabel('Save this case to')).toBeVisible()
-  await startCase(page)
+  await expect(page.getByRole('heading', { name: 'Start a run' })).toBeVisible()
 })
 
-test('resumes a saved attempt from its address', async ({ page }, testInfo) => {
-  const isMobile = testInfo.project.name === 'mobile-chromium'
-  const active = await openCase(page)
-  await solve(page, active, isMobile)
-  await expect(page.getByText('Result saved to your account.')).toBeVisible()
-  await page.reload()
-  await expect(page.getByRole('heading', { name: '100 / 100 points' })).toBeVisible()
-  await expect(page.getByText('Result saved to your account.')).toBeVisible()
-})
+test('a class run is timed and ends on the third mistake, then ranks on the class board', async ({
+  browser,
+  baseURL,
+}) => {
+  const seeded = await seedClass(randomBytes(4).toString('hex'))
+  const { context, page } = await signedInPage(browser, baseURL, seeded.studentA)
+  try {
+    await page.addInitScript(() => localStorage.setItem('sharlock.townMode', '2d'))
+    await startRun(page, seeded.classId)
+    await expect(page.getByRole('timer')).toBeVisible()
+    await expect(page.getByText('Mistakes 0 of 3')).toBeVisible()
 
-test('the inbox panes follow the responsive layout and return focus to the message row', async ({
-  page,
-}, testInfo) => {
-  const isMobile = testInfo.project.name === 'mobile-chromium'
-  const active = await openCase(page)
-  const target = active.content.emails[3]
-  const inbox = page.locator('.sharmail-pane-list')
-  const reading = page.locator('.sharmail-pane-reading')
+    // trusting every email hits three mistakes long before three minutes pass
+    let mistakes = 0
+    for (let step = 0; step < 60 && mistakes < 3; step += 1) {
+      const body = await call(page, 'trust')
+      mistakes = body.publicState.mistakes
+    }
+    expect(mistakes).toBe(3)
+    await expect(runComplete(page)).toBeVisible()
+    await expect(page.getByText('Ended on the third mistake')).toBeVisible()
+    await expect(page.getByText('Result saved to your account.')).toBeVisible()
 
-  await expect(reading).toBeVisible()
-  if (isMobile) await expect(inbox).toBeHidden()
-  else await expect(inbox).toBeVisible()
-
-  if (isMobile) {
-    await page.getByRole('button', { name: 'Back to inbox' }).click()
-    await expect(page.getByRole('heading', { name: 'Inbox' })).toBeVisible()
-    await expect(inbox).toBeVisible()
-    await expect(reading).toBeHidden()
-  }
-
-  const row = page.locator(`.sharmail-row[data-email-id="${target.id}"]`)
-  await row.click()
-  await expect(page.getByRole('heading', { name: target.subject, exact: true })).toBeVisible()
-  await expect(reading).toBeVisible()
-  if (isMobile) {
-    await expect(inbox).toBeHidden()
-    await page.getByRole('button', { name: 'Back to inbox' }).click()
-    await expect(row).toBeFocused()
-  } else {
-    await expect(inbox).toBeVisible()
+    await page.goto('/leaderboard')
+    await expect(
+      page.getByRole('heading', { level: 2, name: /The Phishing Post-Mortem/ }),
+    ).toBeVisible()
+    await expect(page.getByText('Timed runs')).toBeVisible()
+    const own = page.getByRole('row', { name: new RegExp(seeded.studentA.username) })
+    await expect(own).toHaveCount(1)
+    await expect(own).toContainText('(you)')
+  } finally {
+    await context.close()
   }
 })
 
-test('the inbox walks with the arrow keys', async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== 'desktop-chromium', 'keyboard walking is checked on desktop')
-  await openCase(page)
-  const rows = page.locator('.sharmail-row')
-  await rows.first().focus()
-  await page.keyboard.press('ArrowDown')
-  await expect(rows.nth(1)).toBeFocused()
-  await page.keyboard.press('ArrowUp')
-  await expect(rows.first()).toBeFocused()
-  await page.keyboard.press('Enter')
-  await expect(page.locator('.sharmail-reading')).toBeVisible()
-})
-
-test('recovers from a rejected verdict without losing the case', async ({ page }, testInfo) => {
-  const isMobile = testInfo.project.name === 'mobile-chromium'
-  const active = await openCase(page)
-  const patientZero = active.content.emails.find(
-    (email) => email.id === active.answers.patientZeroId,
+test('never sends the answer key or seed before a call and shows no links', async ({ page }) => {
+  const started = page.waitForResponse(
+    (response) => START.test(response.url()) && response.request().method() === 'POST',
   )
-  let rejectFirstSubmission = true
+  await startRun(page)
+  const text = await (await started).text()
+  const state = JSON.parse(text).publicState
+  expect(state.last).toBeNull()
+  for (const field of ANSWER_FIELDS) expect(Object.keys(state.current)).not.toContain(field)
+  expect(text).not.toMatch(/\b[0-9a-f]{32}\b/)
+  await expect(page.getByRole('article').getByRole('link')).toHaveCount(0)
+})
 
-  await page.route('**/api/attempts/*/actions', async (route) => {
-    if (rejectFirstSubmission) {
-      rejectFirstSubmission = false
+test('reporting moves focus to the first part and Escape cancels', async ({ page }) => {
+  await startRun(page)
+  await reportButton(page).click()
+  await expect(partButtons(page).first()).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(partButtons(page)).toHaveCount(0)
+  await expect(reportButton(page)).toBeFocused()
+})
+
+test('a reload mid-run resumes the same attempt', async ({ page }) => {
+  await startRun(page)
+  await call(page, 'trust')
+  await nextButton(page).click()
+  await expect(page.getByText('Email 2 of 12')).toBeVisible()
+  await page.reload()
+  await expect(page).toHaveURL(/attempt=/)
+  await expect(page.getByText('Email 2 of 12')).toBeVisible()
+  await expect(page.getByText('Start a run')).toHaveCount(0)
+})
+
+test('recovers from a rejected call without losing the run', async ({ page }) => {
+  await startRun(page)
+  let rejectFirst = true
+  await page.route(ACTIONS, async (route) => {
+    if (rejectFirst) {
+      rejectFirst = false
       await route.fulfill({
         status: 503,
         contentType: 'application/json',
-        body: JSON.stringify({
-          error: { message: 'The verdict service is unavailable. Try again.' },
-        }),
+        body: JSON.stringify({ error: { message: 'The service is unavailable. Try again.' } }),
       })
       return
     }
     await route.continue()
   })
-
-  await openMessage(page, patientZero, isMobile)
-  await page.getByRole('button', { name: 'Accuse this message' }).click()
-  await openEvidence(page)
-  for (const evidenceId of active.answers.evidenceIds) {
-    const option = active.content.evidenceOptions.find((entry) => entry.id === evidenceId)
-    await page.getByRole('checkbox', { name: option.label }).check()
-  }
-  await page.getByRole('button', { name: 'Submit final verdict' }).click()
-
-  await expect(page.getByRole('alert')).toContainText('Retry to check the same request.')
-  await expect(page.locator('.sharmail-row[aria-current="true"]')).toHaveAttribute(
-    'data-email-id',
-    patientZero.id,
-  )
-  await page.getByRole('button', { name: 'Retry verdict' }).click()
-  await expect(page.getByRole('heading', { name: '100 / 100 points' })).toBeVisible()
-  await expect(page.getByText('Result saved to your account.')).toBeVisible()
+  await trustButton(page).click()
+  await expect(page.getByRole('alert')).toBeVisible()
+  await page.getByRole('button', { name: 'Retry' }).click()
+  await expect(nextButton(page)).toBeVisible()
 })
 
-test('fits every supported width without a horizontal page scrollbar', async ({ page }) => {
-  await openCase(page)
-  for (const width of [375, 576, 768, 992, 1200, 1440]) {
-    await page.setViewportSize({ width, height: 900 })
-    const overflow = await page.evaluate(
+test('opens How to play from the start screen', async ({ page }) => {
+  await page.goto('/games/phishing-post-mortem')
+  await page.getByRole('button', { name: 'How to play' }).click()
+  const guide = page.getByRole('dialog', { name: 'How to play: The Phishing Post-Mortem' })
+  await expect(guide).toBeVisible()
+  await guide.getByRole('button', { name: 'Start playing' }).click()
+  await expect(guide).toBeHidden()
+})
+
+test('fits a 375px screen without a horizontal scrollbar mid-run', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 700 })
+  await startRun(page)
+  await reportButton(page).click()
+  const overflow = () =>
+    page.evaluate(
       () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
     )
-    expect(overflow, `no horizontal overflow at ${width}px`).toBe(false)
-  }
+  expect(await overflow(), 'no horizontal overflow while picking').toBe(false)
+  await page.keyboard.press('Escape')
+  await call(page, 'trust')
+  expect(await overflow(), 'no horizontal overflow on feedback').toBe(false)
 })
 
 test('enters from the town and returns to it', async ({ page }) => {
@@ -323,30 +247,4 @@ test('keeps the shared town styles after leaving the game', async ({ page }) => 
       }),
     )
     .toEqual(bodyStyle)
-})
-
-test('a class student saves a solved case and appears on the class leaderboard', async ({
-  browser,
-  baseURL,
-}, testInfo) => {
-  const isMobile = testInfo.project.name === 'mobile-chromium'
-  const seeded = await seedClass(randomBytes(4).toString('hex'))
-  const { context, page } = await signedInPage(browser, baseURL, seeded.studentA)
-  try {
-    await page.goto('/games/phishing-post-mortem')
-    const active = await startCase(page, seeded.classId)
-    await solve(page, active, isMobile)
-    await expect(page.getByRole('heading', { name: '100 / 100 points' })).toBeVisible()
-    await expect(page.getByText('Result saved to your account.')).toBeVisible()
-
-    await page.goto('/leaderboard')
-    await expect(
-      page.getByRole('heading', { level: 2, name: /The Phishing Post-Mortem/ }),
-    ).toBeVisible()
-    const own = page.getByRole('row', { name: new RegExp(seeded.studentA.username) })
-    await expect(own).toHaveCount(1)
-    await expect(own).toContainText('(you)')
-  } finally {
-    await context.close()
-  }
 })

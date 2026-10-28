@@ -1,51 +1,44 @@
-# Phishing Post-Mortem - SHARMAIL client module
+# Phishing Post-Mortem - client module
 
 ## Presentation summary
 
-- What: a SHARMAIL inbox of twenty synthetic messages where the player finds Patient Zero, the one email that caused the compromise, and backs the verdict with exactly two clues.
-- Concept: tracing a credential theft through lookalike domains, reply-to mismatches and proxy logs (course reference index, phishing and web security decks).
-- How to play: choose where to save the case, read and inspect messages (link destinations stay inert until inspected), accuse one message, pick two clues, submit once.
-- How to play guide: the shared `HowToPlayDialog` opens on the first visit and from the **How to play** button above the chooser, until the player ticks the dismiss box. Four steps beside a code-built mini inbox scene, plus the learning point, rules and controls from `howToPlay.js`.
-- Technical: `useAttempt('phishing-post-mortem')` runs the server attempt; the server picks the case, scores the `submit-verdict` action and holds the answer key, and the client completes the attempt right after the verdict.
-- Saved: a verdict is worth up to 100 points and is saved as a completed attempt; class attempts appear on the class leaderboard, personal practice does not. `?attempt=` resumes a saved result with its debrief.
-- Status: playable and saved (see TASKS.md). Limits: two authored cases, one verdict per attempt, scores record this exercise rather than validated mastery.
+- What: a triage run of single synthetic emails. Each round the player presses **Report** (a phish) or **Trust** (genuine), then taps the part that gave a phish away: sender, reply-to, link, attachment or QR code, or the request line.
+- Concept: spotting phishing from lookalike domains, display-name spoofing, reply-to and link mismatches, link-less payment-change requests, and not distrusting genuine urgent email. The CS440 decks touch this only briefly: `1-basics.pptx` slide 25 lists phishers among threat sources and says they run phishing schemes to steal identities or information; `12a-web-security-partII.pptx` slide 6 shows a CSRF attack starting from a link in an email; `06-authentication v2.pptx` slide 19 says passwords can be guessed via social engineering. The learning objective is a team design, not course content.
+- How to play: choose a context. A class run lasts 3:00 and ends at time-up, the third mistake or 60 rounds; personal practice is 12 untimed emails with an explanation after each. Correct calls score 10, 20 or 30 by difficulty, +10 for the right part, with a streak multiplier of x2 from 3 and x3 from 6.
+- Email mix: about 60% of emails are genuine. Each of 20 shared scenarios (password expiry, vendor invoice, parcel delivery and others) can arrive as genuine or phish with the same subject and sender, so only the tell differs; about half of genuine emails add a safe-route line (for example, call the number on file) that phish never carry.
+- How to play guide: the shared `HowToPlayDialog` opens on the first visit and from the **How to play** button, with a code-drawn replay preview (cursor trusts one email, reports the next and taps the sender; one static frame under reduced motion), two steps (Play, Modes) and a one-line learn note from `howToPlay.js`.
+- Look and motion: desk background, paper card, email slide-in, Reported/Trusted stamp, pulsing tell, draining timer bar (amber at 30 s, red at 10 s), score count-up, x2/x3 badge pop, mistake shake and staggered debrief. All of it is off under `prefers-reduced-motion`.
+- Technical: `useTriageRun` wraps `useAttempt('phishing-post-mortem')`; the server generates each email from a 128-bit seed, holds the answers and scores every `triage-call`. Rulesets `phish-3` (current) and the earlier `phish-2` inbox ruleset (read-only here, shown as a score summary).
+- Saved: completed class runs appear on the class leaderboard as "Timed runs"; personal practice is saved but not ranked. `?attempt=` reopens a saved result with its debrief.
+- Status: Review (see the PHISH-01 record in TASKS.md). Limits: email content is synthetic templates with `.example` domains and no live links; the revised look, motion and the timed stamp badge at 375 px are not yet checked by eye; the countdown is shown by the browser while the server enforces the deadline; a closed tab leaves an expired run unsaved until the attempt is reopened; scores record this exercise, not validated mastery.
 
 ## Files
 
-| File                              | Responsibility                                                                                                                                                                                               |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `PhishingPostMortem.vue`          | Route entry, context chooser, saved result wrapper, pane focus handling, error and retry states.                                                                                                             |
-| `components/SharmailShell.vue`    | SHARMAIL chrome: wordmark, mailbox name, folder rail.                                                                                                                                                        |
-| `components/InboxList.vue`        | Message rows, unread state, arrow-key walking. Emits `select-email`.                                                                                                                                         |
-| `components/EmailInspector.vue`   | Headers, body and inert link inspection. Emits `inspect-link`.                                                                                                                                               |
-| `components/EvidenceTimeline.vue` | The security log.                                                                                                                                                                                            |
-| `components/VerdictPanel.vue`     | Verdict bar docked under the mail client (shell `footer` slot), outside any message: accused message, an Evidence toggle that opens the two-clue list, submit. Emits `update-evidence` and `submit-verdict`. |
-| `components/CaseDebrief.vue`      | Score, evidence chain, clue review, decoy explanations. Emits `replay`.                                                                                                                                      |
-| `composables/usePhishingCase.js`  | Module state: the attempt (via `useAttempt`), selection, accusation, clues, verdict submit and save.                                                                                                         |     |
-| `phishing.js`                     | Date and initials helpers.                                                                                                                                                                                   |
-| `howToPlay.js`                    | Guide content: steps, learning point, rules and controls.                                                                                                                                                    |
-| `components/HowToPlayScene.vue`   | Mini inbox animation driven by the guide step, mounted only while the guide is open; static under reduced motion.                                                                                            |
-| `phish.css`                       | Every style, scoped under `.phish-game`.                                                                                                                                                                     |
+| File                             | Responsibility                                                                                                                                  |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PhishingPostMortem.vue`         | Route entry, context chooser, saved-result wrapper, Report/Trust controls, part picking, feedback hold in practice, error and retry states.     |
+| `useTriageRun.js`                | Module state: the attempt (via `useAttempt`), countdown, previous email, run-over detection, completion with brief retry, `report` and `trust`. |
+| `components/TriageEmailCard.vue` | The email with tappable parts. Props `email`, `picking`, `disabled`; emits `select-part` and `cancel-pick` (Escape).                            |
+| `components/TriageStatusBar.vue` | Countdown (`role="timer"`), score, streak multiplier, mistakes and email number; announces 1 minute, 30 s and 10 s warnings.                    |
+| `components/RoundFeedback.vue`   | Outcome of the previous round with the explanation. Emits `next` in practice; announced politely in timed runs.                                 |
+| `components/TriageDebrief.vue`   | End-of-run totals, end reason and per-email review.                                                                                             |
+| `components/triageLabels.js`     | Display names for email types and parts.                                                                                                        |
+| `howToPlay.js`                   | Guide content: two steps (Play, Modes) and a one-line learn note.                                                                               |
+| `components/HowToPlayScene.vue`  | Looping 9 s CSS-only replay preview, mounted only while the guide is open; static Report frame under reduced motion.                            |
+| `phish.css`                      | Every style, scoped under `.phish-game`.                                                                                                        |
 
 ## State ownership
 
-`usePhishingCase()` wraps `useAttempt` and owns the inbox state around it. Two ideas are deliberately separate:
-
-- `selectedEmailId` is the message being **read**.
-- `accusedEmailId` is the message being **accused**.
-
-Opening a message never accuses it; only the Accuse button does. `canSubmit` needs an accusation plus exactly two clues. The case is `snapshot.publicState.case`; the verdict and debrief appear in `publicState.verdict` only after the server scores the action. Inbox state resets whenever the attempt id changes.
+`useTriageRun()` owns everything outside the shared attempt: the countdown (`secondsLeft`, read from the snapshot's `deadlineAt` every 250 ms), the previous email kept for feedback, and `needsCompletion`, true when the server has no current email or the clock reached zero. All scoring state (score, streak, mistakes, current email, last outcome) comes from `snapshot.publicState`; the browser never computes a score. The part being picked (`picking`) and the practice feedback hold are local to `PhishingPostMortem.vue`.
 
 ## Saved attempts
 
-A chooser (`AttemptContextChooser`) starts the attempt and the route keeps `?attempt=<id>`. Submitting sends `submit-verdict` and then completes the attempt automatically; a failed verdict or save keeps the form and shows Retry verdict or Retry save, and a verdict that is judged but unsaved offers Save result. A completed attempt renders inside `SavedAttemptResult` with the inbox still readable. Play again returns to the chooser and the server picks the next case.
+A chooser (`AttemptContextChooser`) starts the attempt and the route keeps `?attempt=<id>`. Each call sends `triage-call` with `{ roundId, call, partId? }`. When time runs out, the third mistake lands or practice finishes, the composable completes the attempt, retrying briefly because the browser clock can run ahead of the server. A failed save shows Retry. Reopening an expired unfinished run completes and saves it. A completed attempt renders inside `SavedAttemptResult`. Attempts saved under `phish-2` show only a score summary with Play again.
 
 ## Design boundary
 
-This module uses the DESIGN.md game exception: a desktop mail-client look with a system font stack, the town's green and cream accents and its own controls, rather than the hub's pixel scheme. Realism is the point - a spoofed display name only teaches if the inbox looks like an inbox.
-
-Every rule in `phish.css` sits under `.phish-game`, and the palette is defined as `--game-*` variables on that wrapper. Nothing touches `:root`, `html`, `body`, `.portal-shell`, the navbar or another module. SHARMAIL is an original fictional mail client; it deliberately borrows no real product's branding, wordmark or icons. The town building, its metadata card, the shared navbar and every shared page keep the hub pixel scheme.
+This module uses the DESIGN.md game exception: a system font stack, the town's green and cream and its own controls (tokens in DESIGN.md), rather than the hub's pixel scheme. Every rule in `phish.css` sits under `.phish-game`, with the palette defined as `--game-*` variables on that wrapper. The desk background, paper card and stamp are part of this game-local style and never change shared pages. Nothing touches `:root`, `html`, `body`, `.portal-shell`, the navbar or another module. The town building, its metadata card, the shared navbar and every shared page keep the hub pixel scheme.
 
 ## Accessibility
 
-The reading pane and the list are side by side from 992px and swap below it, where Back to inbox returns focus to the row the reader came from. Rows are buttons with `aria-current`, and Arrow Up and Arrow Down walk them. Link destinations are revealed by a button with `aria-expanded`; no anchor is rendered, so inspecting can never navigate. Controls are at least 44px, focus is always visible, and verdict states carry text as well as colour. There is no animation.
+Parts of the email are buttons reached with Tab; Enter or Space selects, Escape cancels picking. Controls are at least 44px, the card is full width at 375px, and focus is always visible. Outcomes carry text as well as colour. The clock is a `role="timer"`, with polite screen-reader announcements at 1 minute, 30 seconds and 10 seconds, and round outcomes are announced in timed runs. Reduced motion turns off all motion: the desk background, email slide-in, stamp, tell pulse, timer drain, score count-up, multiplier pop, mistake shake, debrief stagger and the guide scene. The draining timer bar is a `role="progressbar"`; the Reported/Trusted stamp is decorative, and the outcome is also given in the feedback text.

@@ -35,7 +35,7 @@ Row shapes (`isSelf` marks the caller; `me` is the caller's row on any page, or 
 
 A board reads at most 20000 completed attempts (`MAX_BOARD_ATTEMPTS`) and 2000 roster members, with explicit projections. Responses are built field by field: user ids, emails, attempt ids and rosters are never returned.
 
-Games feeding boards (SAVE-01, see [TASKS.md](../../../../TASKS.md)): all five saved games. CLI Cyber Defender timed runs are the only competitive ruleset (standard-mode, class-context, student attempts); CLI practice counts in the all-time view only. SQL, Clearance, Phishing and Social are practice-only, so their `best` boards are practice best scores.
+Games feeding boards (SAVE-01, see [TASKS.md](../../../../TASKS.md)): all five saved games. CLI Cyber Defender timed runs and Phishing Post-Mortem `phish-3` timed runs (PHISH-01) are the competitive rulesets (standard-mode, class-context, student attempts); CLI and Phishing practice count in the all-time view only. SQL, Clearance and Social are practice-only, so their `best` boards are practice best scores. Phishing results saved under the earlier `phish-2` ruleset are not competitive.
 
 Files: `policy.js` (query parsing), `rank.js` (pure ranking), `service.js` (access and queries), `router.js` (limits and errors).
 

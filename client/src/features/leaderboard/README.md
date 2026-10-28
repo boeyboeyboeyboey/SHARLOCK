@@ -8,7 +8,7 @@
 - Components: `LeaderboardPage.vue` (container: class list by role, games, board, stale-response handling, pager, states), `LeaderboardFilters.vue` (class select plus game tablist with roving tabindex; arrows/Home/End move focus, Enter/Space/click selects; both tab rows point `aria-controls` at the one `#leaderboard-panel`), `LeaderboardTable.vue`.
 - API (`api.js`): `GET /cohorts/:cohortId/leaderboard/games` and `GET /cohorts/:cohortId/leaderboard?gameId=&view=&page=`. Classes come from the existing `listMemberships` (students) or `listManagedCohorts` (instructors, admins). Nothing is stored client-side.
 - Status: see the BOARD-01 record in [TASKS.md](../../../../TASKS.md).
-- Limits: all five games (SQL Injection Arcade, Clearance Tower, Phishing Post-Mortem, CLI Cyber Defender, Social Engineering Simulator) feed boards. CLI timed runs are the only competitive ruleset ("Timed runs" best board); every other game shows "Practice best scores". There is no ruleset selector; the server uses the newest completed ruleset. Rankings are performance evidence, not validated mastery.
+- Limits: all five games (SQL Injection Arcade, Clearance Tower, Phishing Post-Mortem, CLI Cyber Defender, Social Engineering Simulator) feed boards. CLI timed runs and Phishing Post-Mortem timed class runs (PHISH-01, `phish-3`) are the competitive rulesets ("Timed runs" best board); every other game shows "Practice best scores". There is no ruleset selector; the server uses the newest completed ruleset. Rankings are performance evidence, not validated mastery.
 
 ## Components
 

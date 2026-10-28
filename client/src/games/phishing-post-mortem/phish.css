@@ -14,6 +14,11 @@
   --game-good-soft: #e7f3ec;
   --game-bad: #9a3324;
   --game-bad-soft: #fbecea;
+  --game-warn: #f0c24b;
+  --game-warn-ink: #3a2a00;
+  --game-desk: #cfd8bf;
+  --game-desk-deep: #b6c4a4;
+  --game-paper: #fffef9;
   --game-howto-surface: var(--game-surface);
   --game-howto-scene: var(--game-bg);
   --game-howto-edge: var(--game-accent);
@@ -58,12 +63,6 @@
   letter-spacing: -0.01em;
 }
 
-:where(.phish-game) .phish-strap {
-  max-width: 62ch;
-  margin: 0;
-  color: var(--game-muted);
-}
-
 :where(.phish-game) .phish-state {
   padding: 1.5rem;
   background: var(--game-surface);
@@ -82,236 +81,6 @@
   font-weight: 600;
 }
 
-/* mail client chrome */
-:where(.phish-game) .sharmail {
-  overflow: hidden;
-  background: var(--game-surface);
-  border: 1px solid var(--game-line-strong);
-  border-radius: 8px;
-}
-
-:where(.phish-game) .sharmail-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem 1rem;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.75rem 1rem;
-  color: var(--game-bar-ink);
-  background: var(--game-bar);
-}
-
-:where(.phish-game) .sharmail-brand {
-  display: inline-flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-:where(.phish-game) .sharmail-mark {
-  width: 24px;
-  height: 24px;
-}
-
-:where(.phish-game) .sharmail-wordmark {
-  font-size: 1.05rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-}
-
-:where(.phish-game) .sharmail-mailbox {
-  font-size: 0.95rem;
-  opacity: 0.92;
-}
-
-:where(.phish-game) .sharmail-body-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-}
-
-:where(.phish-game) .sharmail-rail {
-  display: none;
-  padding: 1rem 0.75rem;
-  background: var(--game-bg);
-  border-right: 1px solid var(--game-line);
-}
-
-:where(.phish-game) .sharmail-rail-title {
-  margin: 0 0 0.5rem;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--game-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-:where(.phish-game) .sharmail-rail ul {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-:where(.phish-game) .sharmail-rail li {
-  display: flex;
-  justify-content: space-between;
-  padding: 0.5rem 0.6rem;
-  font-size: 0.95rem;
-  color: var(--game-muted);
-  border-radius: 4px;
-}
-
-:where(.phish-game) .sharmail-rail li.is-active {
-  font-weight: 700;
-  color: var(--game-accent);
-  background: var(--game-accent-soft);
-}
-
-:where(.phish-game) .sharmail-count {
-  font-variant-numeric: tabular-nums;
-}
-
-:where(.phish-game) .sharmail-rail-case {
-  margin: 1rem 0 0;
-  padding-top: 0.75rem;
-  font-size: 0.85rem;
-  color: var(--game-muted);
-  border-top: 1px solid var(--game-line);
-}
-
-:where(.phish-game) .sharmail-panes {
-  display: grid;
-  grid-template-columns: 1fr;
-  min-width: 0;
-}
-
-:where(.phish-game) .sharmail-pane {
-  min-width: 0;
-  padding: 1rem;
-}
-
-:where(.phish-game) .sharmail-pane.is-mobile-hidden {
-  display: none;
-}
-
-:where(.phish-game) .sharmail-pane-list {
-  border-bottom: 1px solid var(--game-line);
-}
-
-:where(.phish-game) .sharmail-pane-head h2 {
-  margin: 0;
-  font-size: 1.15rem;
-  font-weight: 700;
-}
-
-:where(.phish-game) .sharmail-pane-head p {
-  margin: 0.15rem 0 0.75rem;
-  font-size: 0.85rem;
-  color: var(--game-muted);
-}
-
-/* message list */
-:where(.phish-game) .sharmail-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  border-top: 1px solid var(--game-line);
-}
-
-:where(.phish-game) .sharmail-row {
-  display: flex;
-  gap: 0.7rem;
-  align-items: flex-start;
-  width: 100%;
-  min-height: 44px;
-  padding: 0.7rem 0.5rem;
-  text-align: left;
-  background: transparent;
-  border: 0;
-  border-bottom: 1px solid var(--game-line);
-  border-left: 3px solid transparent;
-  cursor: pointer;
-}
-
-:where(.phish-game) .sharmail-row:hover {
-  background: var(--game-bg);
-}
-
-:where(.phish-game) .sharmail-row.is-open {
-  background: var(--game-accent-soft);
-  border-left-color: var(--game-accent);
-}
-
-:where(.phish-game) .sharmail-avatar {
-  display: grid;
-  flex: 0 0 auto;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--game-muted);
-  background: var(--game-bg);
-  border: 1px solid var(--game-line-strong);
-  border-radius: 50%;
-}
-
-:where(.phish-game) .sharmail-row-text {
-  display: block;
-  min-width: 0;
-  flex: 1 1 auto;
-}
-
-:where(.phish-game) .sharmail-row-top {
-  display: flex;
-  gap: 0.5rem;
-  align-items: baseline;
-  justify-content: space-between;
-}
-
-:where(.phish-game) .sharmail-sender {
-  overflow: hidden;
-  font-size: 0.95rem;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-:where(.phish-game) .sharmail-row.is-unread .sharmail-sender,
-:where(.phish-game) .sharmail-row.is-unread .sharmail-subject {
-  font-weight: 700;
-}
-
-:where(.phish-game) .sharmail-when {
-  flex: 0 0 auto;
-  font-size: 0.75rem;
-  color: var(--game-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-:where(.phish-game) .sharmail-subject {
-  display: block;
-  overflow: hidden;
-  font-size: 0.9rem;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-:where(.phish-game) .sharmail-preview {
-  display: -webkit-box;
-  overflow: hidden;
-  font-size: 0.82rem;
-  color: var(--game-muted);
-  -webkit-line-clamp: 1;
-  -webkit-box-orient: vertical;
-}
-
-:where(.phish-game) .sharmail-unread-dot {
-  flex: 0 0 auto;
-  width: 8px;
-  height: 8px;
-  margin-top: 0.5rem;
-  background: var(--game-accent);
-  border-radius: 50%;
-}
-
 :where(.phish-game) .visually-hidden {
   position: absolute;
   width: 1px;
@@ -319,427 +88,6 @@
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
-}
-
-/* reading pane */
-:where(.phish-game) .sharmail-back {
-  min-height: 44px;
-  margin-bottom: 0.75rem;
-  padding: 0.5rem 0.9rem;
-  font: inherit;
-  font-weight: 600;
-  color: var(--game-accent);
-  background: var(--game-surface);
-  border: 1px solid var(--game-line-strong);
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-:where(.phish-game) .sharmail-briefing h2 {
-  margin: 0 0 0.5rem;
-  font-size: 1.2rem;
-}
-
-:where(.phish-game) .sharmail-briefing p {
-  max-width: 68ch;
-}
-
-:where(.phish-game) .sharmail-briefing-hint {
-  color: var(--game-muted);
-  font-size: 0.9rem;
-}
-
-:where(.phish-game) .sharmail-reading-subject {
-  margin: 0 0 0.75rem;
-  font-size: 1.25rem;
-  font-weight: 700;
-}
-
-:where(.phish-game) .sharmail-headers {
-  margin: 0 0 1rem;
-  padding: 0.75rem;
-  background: var(--game-bg);
-  border: 1px solid var(--game-line);
-  border-radius: 4px;
-}
-
-:where(.phish-game) .sharmail-headers > div {
-  display: grid;
-  grid-template-columns: 6.5rem 1fr;
-  gap: 0.5rem;
-  padding: 0.2rem 0;
-}
-
-:where(.phish-game) .sharmail-headers dt {
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--game-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-:where(.phish-game) .sharmail-headers dd {
-  margin: 0;
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-:where(.phish-game) .sharmail-display-name {
-  font-weight: 600;
-}
-
-:where(.phish-game) .sharmail-address {
-  font-family: ui-monospace, 'SFMono-Regular', 'Cascadia Mono', Menlo, Consolas, monospace;
-  font-size: 0.85rem;
-  color: var(--game-muted);
-}
-
-:where(.phish-game) .sharmail-body p {
-  max-width: 68ch;
-}
-
-:where(.phish-game) .sharmail-links {
-  margin-top: 1rem;
-  padding: 0.85rem;
-  background: var(--game-bg);
-  border: 1px solid var(--game-line);
-  border-radius: 4px;
-}
-
-:where(.phish-game) .sharmail-links h4 {
-  margin: 0 0 0.35rem;
-  font-size: 0.95rem;
-}
-
-:where(.phish-game) .sharmail-links-note {
-  margin: 0 0 0.75rem;
-  font-size: 0.85rem;
-  color: var(--game-muted);
-}
-
-:where(.phish-game) .sharmail-links ul {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-:where(.phish-game) .sharmail-links li + li {
-  margin-top: 0.85rem;
-  padding-top: 0.85rem;
-  border-top: 1px solid var(--game-line);
-}
-
-:where(.phish-game) .sharmail-link-label {
-  display: block;
-  margin-bottom: 0.4rem;
-  color: var(--game-accent);
-  text-decoration: underline;
-  overflow-wrap: anywhere;
-}
-
-:where(.phish-game) .sharmail-inspect {
-  min-height: 44px;
-  padding: 0.5rem 0.85rem;
-  font: inherit;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--game-ink);
-  background: var(--game-surface);
-  border: 1px solid var(--game-line-strong);
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-:where(.phish-game) .sharmail-destination {
-  margin: 0.5rem 0 0;
-  overflow-wrap: anywhere;
-}
-
-:where(.phish-game) .sharmail-destination code {
-  font-size: 0.85rem;
-  color: var(--game-bad);
-}
-
-:where(.phish-game) .sharmail-accuse-row {
-  margin: 1rem 0;
-}
-
-:where(.phish-game) .sharmail-accuse {
-  min-height: 44px;
-  padding: 0.6rem 1rem;
-  font: inherit;
-  font-weight: 600;
-  color: var(--game-ink);
-  background: var(--game-surface);
-  border: 2px solid var(--game-line-strong);
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-:where(.phish-game) .sharmail-accuse.is-accused {
-  color: var(--game-good);
-  background: var(--game-good-soft);
-  border-color: var(--game-good);
-}
-
-/* security log and verdict */
-:where(.phish-game) .sharmail-timeline,
-:where(.phish-game) .sharmail-verdict {
-  margin-top: 1.25rem;
-  padding: 1rem;
-  background: var(--game-bg);
-  border: 1px solid var(--game-line);
-  border-radius: 6px;
-}
-
-:where(.phish-game) .sharmail-timeline h3,
-:where(.phish-game) .sharmail-verdict h3 {
-  margin: 0 0 0.75rem;
-  font-size: 1.05rem;
-}
-
-:where(.phish-game) .sharmail-timeline ol {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-:where(.phish-game) .sharmail-timeline li {
-  display: grid;
-  gap: 0.15rem;
-  padding: 0.6rem 0;
-  border-top: 1px solid var(--game-line);
-}
-
-:where(.phish-game) .sharmail-timeline-time {
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--game-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-:where(.phish-game) .sharmail-timeline-label {
-  font-weight: 600;
-}
-
-:where(.phish-game) .sharmail-timeline-detail {
-  font-size: 0.9rem;
-  color: var(--game-muted);
-}
-
-:where(.phish-game) .sharmail-verdict-target {
-  display: grid;
-  gap: 0.2rem;
-  margin: 0 0 1rem;
-}
-
-:where(.phish-game) .sharmail-verdict-label {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--game-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-:where(.phish-game) .sharmail-evidence {
-  margin: 0 0 1rem;
-  padding: 0;
-  border: 0;
-}
-
-:where(.phish-game) .sharmail-evidence legend {
-  margin-bottom: 0.5rem;
-  padding: 0;
-  font-size: 0.9rem;
-  font-weight: 700;
-}
-
-:where(.phish-game) .sharmail-evidence-option {
-  display: flex;
-  gap: 0.6rem;
-  align-items: flex-start;
-  min-height: 44px;
-  padding: 0.5rem;
-  background: var(--game-surface);
-  border: 1px solid var(--game-line);
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-:where(.phish-game) .sharmail-evidence-option + .sharmail-evidence-option {
-  margin-top: 0.4rem;
-}
-
-:where(.phish-game) .sharmail-evidence-option input {
-  width: 20px;
-  height: 20px;
-  margin-top: 0.15rem;
-  flex: 0 0 auto;
-  accent-color: var(--game-accent);
-}
-
-:where(.phish-game) .sharmail-evidence-option input:disabled + span {
-  color: var(--game-muted);
-}
-
-:where(.phish-game) .sharmail-evidence-hint {
-  margin: 0.5rem 0 0;
-  font-size: 0.85rem;
-  color: var(--game-muted);
-}
-
-:where(.phish-game) .sharmail-submit {
-  min-height: 44px;
-  padding: 0.7rem 1.2rem;
-  font: inherit;
-  font-weight: 700;
-  color: #ffffff;
-  background: var(--game-accent);
-  border: 1px solid var(--game-accent);
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-:where(.phish-game) .sharmail-submit:disabled {
-  color: var(--game-muted);
-  background: var(--game-line);
-  border-color: var(--game-line-strong);
-  cursor: not-allowed;
-}
-
-:where(.phish-game) .sharmail-verdict-note {
-  margin: 0.75rem 0 0;
-  font-size: 0.85rem;
-  color: var(--game-muted);
-}
-
-/* debrief */
-:where(.phish-game) .sharmail-debrief h3 {
-  margin: 1.5rem 0 0.5rem;
-  font-size: 1.05rem;
-}
-
-:where(.phish-game) .sharmail-debrief-head {
-  padding: 1rem;
-  border: 1px solid var(--game-line-strong);
-  border-radius: 6px;
-}
-
-:where(.phish-game) .sharmail-debrief-head.is-correct {
-  background: var(--game-good-soft);
-  border-color: var(--game-good);
-}
-
-:where(.phish-game) .sharmail-debrief-head.is-missed {
-  background: var(--game-bad-soft);
-  border-color: var(--game-bad);
-}
-
-:where(.phish-game) .sharmail-debrief-eyebrow {
-  margin: 0;
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-:where(.phish-game) .sharmail-debrief-head h2 {
-  margin: 0.25rem 0 0.5rem;
-  font-size: 1.6rem;
-  font-variant-numeric: tabular-nums;
-}
-
-:where(.phish-game) .sharmail-debrief-summary,
-:where(.phish-game) .sharmail-debrief p {
-  max-width: 68ch;
-}
-
-:where(.phish-game) .sharmail-debrief-patient {
-  display: grid;
-  gap: 0.2rem;
-  padding: 0.75rem;
-  background: var(--game-bg);
-  border-left: 3px solid var(--game-accent);
-}
-
-:where(.phish-game) .sharmail-chain {
-  margin: 0;
-  padding-left: 1.25rem;
-}
-
-:where(.phish-game) .sharmail-chain li {
-  margin-bottom: 0.5rem;
-  max-width: 68ch;
-}
-
-:where(.phish-game) .sharmail-evidence-review,
-:where(.phish-game) .sharmail-decoys {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-:where(.phish-game) .sharmail-evidence-review li,
-:where(.phish-game) .sharmail-decoys li {
-  padding: 0.75rem;
-  background: var(--game-surface);
-  border: 1px solid var(--game-line);
-  border-left: 3px solid var(--game-line-strong);
-  border-radius: 4px;
-}
-
-:where(.phish-game) .sharmail-evidence-review li + li,
-:where(.phish-game) .sharmail-decoys li + li {
-  margin-top: 0.5rem;
-}
-
-:where(.phish-game) .sharmail-evidence-review li.is-correct {
-  border-left-color: var(--game-good);
-}
-
-:where(.phish-game) .sharmail-evidence-verdict {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  margin: 0 0 0.35rem;
-}
-
-:where(.phish-game) .sharmail-tag {
-  padding: 0.15rem 0.5rem;
-  font-size: 0.75rem;
-  font-weight: 700;
-  border: 1px solid var(--game-line-strong);
-  border-radius: 3px;
-}
-
-:where(.phish-game) .sharmail-evidence-review li.is-correct .sharmail-tag {
-  color: var(--game-good);
-  background: var(--game-good-soft);
-  border-color: var(--game-good);
-}
-
-:where(.phish-game) .sharmail-tag.is-chosen {
-  color: var(--game-accent);
-  background: var(--game-accent-soft);
-  border-color: var(--game-accent);
-}
-
-:where(.phish-game) .sharmail-evidence-claim {
-  margin: 0 0 0.25rem;
-  font-weight: 600;
-}
-
-:where(.phish-game) .sharmail-evidence-note,
-:where(.phish-game) .sharmail-decoys p {
-  margin: 0;
-  font-size: 0.9rem;
-  color: var(--game-muted);
-}
-
-:where(.phish-game) .sharmail-decoy-subject {
-  margin: 0 0 0.25rem;
-  font-weight: 600;
-  color: var(--game-ink);
 }
 
 /* focus is always visible, whatever the control */
@@ -751,239 +99,664 @@
   outline-offset: 2px;
 }
 
-@media (min-width: 768px) {
-  :where(.phish-game) .sharmail-body-grid {
-    grid-template-columns: 190px 1fr;
-  }
-
-  :where(.phish-game) .sharmail-rail {
-    display: block;
-  }
+/* triage run components */
+.phish-game .triage-card {
+  background: var(--game-surface);
+  border: 1px solid var(--game-line-strong);
+  border-radius: 8px;
+  overflow-wrap: anywhere;
 }
 
-@media (min-width: 992px) {
-  :where(.phish-game) .sharmail-panes {
-    grid-template-columns: minmax(280px, 330px) 1fr;
-  }
-
-  :where(.phish-game) .sharmail-pane-list {
-    max-height: 70vh;
-    overflow-y: auto;
-    border-right: 1px solid var(--game-line);
-    border-bottom: 0;
-  }
-
-  /* both panes are visible side by side, so the narrow-screen swap stops applying */
-  :where(.phish-game) .sharmail-pane.is-mobile-hidden {
-    display: block;
-  }
-
-  :where(.phish-game) .sharmail-back {
-    display: none;
-  }
+.phish-game .triage-card-head {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--game-line);
 }
 
-/* laptop-height windows with both panes side by side: the mail client fills the window and each
-   pane scrolls inside itself instead of the page */
-@media (min-width: 992px) and (min-height: 600px) {
-  .phish-game.is-fitted {
-    display: flex;
-    flex-direction: column;
-    height: calc(100dvh - var(--shell-chrome));
-    min-height: 480px;
-  }
-
-  .phish-game.is-fitted .phish-intro {
-    display: flex;
-    flex: none;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 0 1rem;
-    margin-bottom: 0.4rem;
-  }
-
-  .phish-game.is-fitted .phish-back {
-    min-height: 44px;
-    margin-block: -0.5rem;
-    padding: 0;
-  }
-
-  .phish-game.is-fitted h1 {
-    margin: 0;
-    font-size: 1.25rem;
-  }
-
-  .phish-game.is-fitted .phish-strap {
-    flex-basis: 100%;
-    max-width: none;
-    font-size: 0.85rem;
-    line-height: 1.35;
-  }
-
-  .phish-game.is-fitted .sharmail {
-    display: flex;
-    flex: 1 1 auto;
-    flex-direction: column;
-    min-height: 0;
-  }
-
-  .phish-game.is-fitted .sharmail-bar {
-    flex: none;
-    padding: 0.4rem 1rem;
-  }
-
-  .phish-game.is-fitted .sharmail-body-grid {
-    flex: 1 1 auto;
-    grid-template-rows: minmax(0, 1fr);
-    min-height: 0;
-  }
-
-  .phish-game.is-fitted .sharmail-rail {
-    overflow-y: auto;
-  }
-
-  .phish-game.is-fitted .sharmail-panes {
-    grid-template-rows: minmax(0, 1fr);
-    min-height: 0;
-  }
-
-  /* positioned so the absolutely placed visually-hidden spans scroll with the pane instead of
-     stretching the page */
-  .phish-game.is-fitted .sharmail-pane-list,
-  .phish-game.is-fitted .sharmail-pane-reading {
-    position: relative;
-    max-height: none;
-    min-height: 0;
-    overflow-y: auto;
-  }
+.phish-game .triage-headers {
+  margin: 0 0 0.5rem;
 }
 
-/* verdict bar docked under the mail client, so it stays put whichever message is open */
-.phish-game .sharmail-verdict {
-  position: relative;
+.phish-game .triage-headers > div {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem 1rem;
-  margin: 0;
-  padding: 0.6rem 1rem;
-  background: var(--game-bg);
-  border: 0;
-  border-top: 1px solid var(--game-line-strong);
-  border-radius: 0;
+  gap: 0.25rem 0.75rem;
+  margin-bottom: 0.25rem;
 }
 
-.phish-game .sharmail-verdict-target {
-  flex: 1 1 14rem;
+.phish-game .triage-headers dt {
+  min-width: 4.5rem;
+  font-weight: 600;
+  color: var(--game-muted);
+}
+
+.phish-game .triage-headers dd {
+  flex: 1 1 12rem;
   min-width: 0;
   margin: 0;
 }
 
-.phish-game .sharmail-verdict-target strong,
-.phish-game .sharmail-verdict-target em {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* the instruction line wraps so it is never cut off on a phone */
-.phish-game .sharmail-verdict-target em {
-  overflow: visible;
-  text-overflow: clip;
-  white-space: normal;
-}
-
-.phish-game .sharmail-verdict-status {
+.phish-game .triage-subject {
   margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.phish-game .triage-card-body {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem 1rem;
+}
+
+.phish-game .triage-part {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0.25rem 0.5rem;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+}
+
+.phish-game .triage-part.is-pickable {
+  min-height: 44px;
+  cursor: pointer;
+  background: var(--game-bg);
+  border-color: var(--game-line-strong);
+}
+
+.phish-game .triage-part.is-pickable:hover:not(:disabled) {
+  border-color: var(--game-accent);
+}
+
+.phish-game .triage-part.is-selected {
+  background: var(--game-accent-soft);
+  border-color: var(--game-accent);
+}
+
+.phish-game .triage-part.is-tell {
+  background: var(--game-bad-soft);
+  border-color: var(--game-bad);
+}
+
+.phish-game .triage-tell-mark {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--game-bad);
+}
+
+.phish-game .triage-address,
+.phish-game .triage-destination {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9rem;
+}
+
+.phish-game .triage-destination {
+  display: block;
+  color: var(--game-muted);
+}
+
+.phish-game .triage-link-label {
+  display: block;
+  font-weight: 600;
+  color: var(--game-accent);
+  text-decoration: underline;
+}
+
+.phish-game .triage-file {
+  display: inline-block;
+  padding: 0.25rem 0.6rem;
+  font-weight: 600;
+  background: var(--game-accent-soft);
+  border: 1px solid var(--game-line-strong);
+  border-radius: 999px;
+}
+
+.phish-game .triage-part-qr {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.phish-game .triage-qr {
+  display: grid;
+  flex: none;
+  grid-template-columns: repeat(9, 8px);
+  gap: 1px;
+  padding: 6px;
+  background: var(--game-surface);
+  border: 1px solid var(--game-line-strong);
+}
+
+.phish-game .triage-qr-cell {
+  width: 8px;
+  height: 8px;
+}
+
+.phish-game .triage-qr-cell.is-filled {
+  background: var(--game-ink);
+}
+
+.phish-game .triage-qr-text {
+  min-width: 0;
+}
+
+.phish-game .triage-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.25rem;
+  padding: 0.5rem 0.75rem;
+  font-weight: 600;
+  color: var(--game-bar-ink);
+  background: var(--game-bar);
+  border-radius: 8px;
+}
+
+.phish-game .triage-clock {
+  font-size: 1.4rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.phish-game .triage-status.is-urgent {
+  color: #fff;
+  background: var(--game-bad);
+}
+
+.phish-game .triage-status.is-urgent .triage-clock {
+  animation: triage-pulse 1s ease-in-out infinite;
+}
+
+.phish-game .triage-pips {
+  display: inline-flex;
+  gap: 0.25rem;
+  margin-right: 0.35rem;
+}
+
+.phish-game .triage-pip {
+  width: 0.75rem;
+  height: 0.75rem;
+  background: transparent;
+  border: 2px solid currentcolor;
+  border-radius: 50%;
+}
+
+.phish-game .triage-pip.is-spent {
+  background: currentcolor;
+}
+
+@keyframes triage-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .phish-game .triage-status.is-urgent .triage-clock {
+    animation: none;
+  }
+}
+
+.phish-game .triage-strip {
+  margin: 0.5rem 0;
+  padding: 0.5rem 0.75rem;
+  font-weight: 600;
+  border: 1px solid var(--game-line-strong);
+  border-radius: 8px;
+}
+
+.phish-game .triage-strip.is-correct,
+.phish-game .triage-feedback.is-correct,
+.phish-game .triage-review li.is-correct {
+  color: var(--game-good);
+  background: var(--game-good-soft);
+}
+
+.phish-game .triage-strip.is-mistake,
+.phish-game .triage-feedback.is-mistake,
+.phish-game .triage-review li.is-mistake {
+  color: var(--game-bad);
+  background: var(--game-bad-soft);
+}
+
+.phish-game .triage-feedback {
+  display: grid;
+  gap: 0.5rem;
+  padding: 1rem;
+  border: 1px solid var(--game-line-strong);
+  border-radius: 8px;
+}
+
+.phish-game .triage-feedback > *,
+.phish-game .triage-review p {
+  margin: 0;
+}
+
+.phish-game .triage-feedback p,
+.phish-game .triage-review li p {
+  color: var(--game-ink);
+}
+
+.phish-game .triage-type {
+  font-weight: 700;
+}
+
+.phish-game .triage-next {
+  min-height: 44px;
+  padding: 0.5rem 1.25rem;
+  font: inherit;
+  font-weight: 700;
+  color: #fff;
+  background: var(--game-accent);
+  border: 0;
+  border-radius: 8px;
+}
+
+.phish-game .triage-debrief {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.phish-game .triage-debrief h2,
+.phish-game .triage-debrief p {
+  margin: 0;
+}
+
+.phish-game .triage-totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 2rem;
+  margin: 0;
+}
+
+.phish-game .triage-totals dt {
   font-size: 0.85rem;
   color: var(--game-muted);
 }
 
-.phish-game .sharmail-evidence-toggle {
+.phish-game .triage-totals dd {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.phish-game .triage-review {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  overflow-wrap: anywhere;
+  list-style-position: inside;
+}
+
+.phish-game .triage-review li {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--game-line-strong);
+  border-radius: 8px;
+}
+
+.phish-game .triage-review-subject {
+  font-weight: 700;
+}
+
+.phish-game .triage-secondary {
   min-height: 44px;
-  padding: 0.6rem 1rem;
+  padding: 0.5rem 1.25rem;
   font: inherit;
   font-weight: 700;
   color: var(--game-accent);
   background: var(--game-surface);
-  border: 1px solid var(--game-accent);
-  border-radius: 4px;
-  cursor: pointer;
+  border: 2px solid var(--game-accent);
+  border-radius: 8px;
 }
 
-.phish-game .sharmail-evidence-toggle[aria-expanded='true'] {
-  background: var(--game-accent-soft);
+.phish-game .phish-mode-line {
+  max-width: 62ch;
+  margin: 0.75rem 0;
+  color: var(--game-muted);
 }
 
-/* the clue list opens upward over the panes, so the bar itself never moves */
-.phish-game .sharmail-verdict .sharmail-evidence {
-  position: absolute;
-  right: 0;
-  bottom: 100%;
-  left: 0;
-  z-index: 5;
-  max-height: calc(100dvh - 330px);
-  margin: 0;
-  padding: 0.75rem 1rem;
-  overflow-y: auto;
-  background: var(--game-surface);
-  border-top: 1px solid var(--game-line-strong);
-  box-shadow: 0 -6px 14px rgba(31, 41, 51, 0.12);
+.phish-game .phish-earlier-score {
+  font-size: 1.25rem;
+  font-weight: 700;
 }
 
-.phish-game .sharmail-evidence-grid {
+.phish-game .triage-run {
   display: grid;
-  gap: 0.4rem;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 44rem;
 }
 
-.phish-game .sharmail-evidence-grid .sharmail-evidence-option + .sharmail-evidence-option {
-  margin-top: 0;
+.phish-game .triage-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
 }
 
-@media (min-width: 700px) {
-  .phish-game .sharmail-evidence-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+.phish-game .triage-report,
+.phish-game .triage-trust {
+  min-height: 52px;
+  padding: 0.5rem 1rem;
+  font: inherit;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #fff;
+  border: 2px solid transparent;
+  border-radius: 8px;
 }
 
-@media (min-width: 992px) and (min-height: 600px) {
-  .phish-game.is-fitted .sharmail-verdict {
-    flex: none;
-  }
+.phish-game .triage-report {
+  background: var(--game-bad);
+  border-color: var(--game-bad);
 }
 
-/* a finished case stays readable: reopened messages carry a bar back to the debrief */
-.phish-game .sharmail-review-bar {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  align-items: center;
-  margin-bottom: 0.75rem;
-  text-align: center;
-  padding: 0.5rem 0.75rem;
-  background: var(--game-bad-soft);
-  border: 1px solid var(--game-bad);
-  border-radius: 6px;
+.phish-game .triage-trust {
+  background: var(--game-good);
+  border-color: var(--game-good);
 }
 
-.phish-game .sharmail-review-note {
-  margin: 0;
-  font-size: 0.9rem;
+.phish-game .triage-report:disabled,
+.phish-game .triage-trust:disabled {
+  opacity: 0.55;
 }
 
-.phish-game .sharmail-review-tags {
+.phish-game .triage-pick-bar {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
-  justify-content: center;
-  margin: 0;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
 }
 
-.phish-game .sharmail-review-bar .sharmail-tag {
-  color: var(--game-ink);
-  white-space: nowrap;
+.phish-game .triage-pick-bar p {
+  margin: 0;
+  font-weight: 700;
+}
+
+.phish-game .triage-live {
+  min-height: 2.5rem;
+}
+
+/* desk scene, motion and scorecard */
+.phish-game .triage-desk {
+  position: relative;
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 7px,
+      color-mix(in srgb, var(--game-accent) 7%, transparent) 7px 8px
+    ),
+    linear-gradient(160deg, var(--game-desk), var(--game-desk-deep));
+  border: 1px solid var(--game-line-strong);
+  border-radius: 12px;
+  overflow: clip;
+  box-shadow: inset 0 2px 6px color-mix(in srgb, var(--game-ink) 14%, transparent);
+}
+
+.phish-game .triage-desk > * {
+  min-width: 0;
+}
+
+.phish-game .triage-card {
+  background: var(--game-paper);
+  box-shadow: 0 3px 8px color-mix(in srgb, var(--game-ink) 20%, transparent);
+}
+
+.phish-game .triage-card-strip {
+  display: flex;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  background: var(--game-accent);
+  border-radius: 7px 7px 0 0;
+}
+
+.phish-game .triage-strip-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  background: var(--game-accent-soft);
+  border-radius: 50%;
+}
+
+.phish-game .triage-desk > .triage-card {
+  animation: triage-arrive 320ms ease-out;
+}
+
+.phish-game .triage-pick-bar {
+  padding: 0.5rem 0.75rem;
   background: var(--game-surface);
-  border-width: 2px;
-  border-color: var(--game-bad);
+  border: 1px solid var(--game-line-strong);
+  border-radius: 8px;
+}
+
+.phish-game .triage-desk.is-shaking .triage-live {
+  animation: triage-shake 400ms ease-in-out;
+}
+
+.phish-game .triage-feedback {
+  position: relative;
+  background: var(--game-paper);
+}
+
+.phish-game .triage-feedback.is-mistake {
+  animation: triage-shake 400ms ease-in-out;
+}
+
+.phish-game .triage-stamp {
+  display: inline-block;
+  padding: 0.2rem 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: color-mix(in srgb, var(--game-surface) 88%, transparent);
+  border: 3px solid currentcolor;
+  border-radius: 6px;
+  transform: rotate(-8deg);
+}
+
+.phish-game .triage-stamp.is-report {
+  color: var(--game-bad);
+}
+
+.phish-game .triage-stamp.is-trust {
+  color: var(--game-good);
+}
+
+.phish-game .triage-stamp-land {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  animation: triage-stamp-land 350ms cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+
+.phish-game .triage-stamp-float {
+  position: absolute;
+  top: 50%;
+  right: 0.6rem;
+  z-index: 3;
+  padding: 0.05rem 0.5rem;
+  font-size: 0.8rem;
+  pointer-events: none;
+  animation: triage-stamp-float 450ms ease-out both;
+}
+
+.phish-game .triage-part.is-tell {
+  animation: triage-tell 900ms ease-out 1;
+}
+
+.phish-game .triage-timer {
+  display: flex;
+  flex: 1 1 12rem;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.phish-game .triage-drain {
+  flex: 1;
+  height: 0.7rem;
+  overflow: hidden;
+  background: rgb(0 0 0 / 0.2);
+  border-radius: 999px;
+}
+
+.phish-game .triage-drain-fill {
+  display: block;
+  height: 100%;
+  background: currentcolor;
+  border-radius: 999px;
+  transition: width 1s linear;
+}
+
+.phish-game .triage-status.is-warning {
+  color: var(--game-warn-ink);
+  background: var(--game-warn);
+}
+
+.phish-game .triage-mult {
+  display: inline-block;
+  padding: 0 0.4rem;
+  color: var(--game-bar);
+  background: var(--game-bar-ink);
+  border-radius: 999px;
+  animation: triage-pop 400ms cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+
+.phish-game .triage-status.is-warning .triage-mult {
+  color: var(--game-warn);
+}
+
+.phish-game .triage-status.is-urgent .triage-mult {
+  color: var(--game-bad);
+  background: #fff;
+}
+
+.phish-game .triage-pip.is-flash {
+  animation: triage-pop 600ms ease-out;
+}
+
+.phish-game .triage-totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: 0.75rem;
+}
+
+.phish-game .triage-totals > div {
+  padding: 0.6rem 0.9rem;
+  background: var(--game-paper);
+  border: 1px solid var(--game-line-strong);
+  border-top: 4px solid var(--game-accent);
+  border-radius: 8px;
+}
+
+.phish-game .triage-totals dd {
+  font-size: 1.6rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.phish-game .triage-review li {
+  animation: triage-row-in 320ms ease-out both;
+  animation-delay: calc(min(var(--i, 0), 10) * 60ms);
+}
+
+@keyframes triage-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(14px) rotate(-0.6deg);
+  }
+}
+
+@keyframes triage-shake {
+  20%,
+  60% {
+    transform: translateX(-6px);
+  }
+  40%,
+  80% {
+    transform: translateX(6px);
+  }
+}
+
+@keyframes triage-stamp-land {
+  from {
+    opacity: 0;
+    transform: scale(2) rotate(-24deg);
+  }
+}
+
+@keyframes triage-stamp-float {
+  0% {
+    opacity: 0;
+    transform: translateY(-50%) scale(2) rotate(-24deg);
+  }
+  30%,
+  75% {
+    opacity: 1;
+    transform: translateY(-50%) scale(1) rotate(-8deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-50%) scale(1) rotate(-8deg);
+  }
+}
+
+@keyframes triage-tell {
+  0%,
+  60% {
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--game-bad) 45%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+@keyframes triage-pop {
+  50% {
+    transform: scale(1.4);
+  }
+}
+
+@keyframes triage-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .phish-game .triage-desk > .triage-card,
+  .phish-game .triage-desk.is-shaking .triage-live,
+  .phish-game .triage-feedback.is-mistake,
+  .phish-game .triage-stamp-land,
+  .phish-game .triage-part.is-tell,
+  .phish-game .triage-mult,
+  .phish-game .triage-pip.is-flash,
+  .phish-game .triage-review li {
+    animation: none;
+  }
+
+  .phish-game .triage-stamp-float {
+    display: none;
+  }
+
+  .phish-game .triage-drain-fill {
+    transition: none;
+  }
+}
+
+.phish-game .triage-live {
+  position: relative;
+}
+
+.phish-game .triage-live .triage-strip {
+  padding-right: 6.5rem;
 }

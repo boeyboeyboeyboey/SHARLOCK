@@ -10,7 +10,10 @@ import { createProductionAttemptRegistry } from '../../../src/modules/attempts/p
 import { institutionModel } from '../../../src/models/Institution.js'
 import { cohortModel } from '../../../src/models/Cohort.js'
 import { membershipModel } from '../../../src/models/Membership.js'
-import { readAnswers, readCase } from '../../unit/phishing-post-mortem/fixtures.js'
+import {
+  caseDatasetVersion,
+  caseEmailIds,
+} from '../../../src/modules/games/phishing-post-mortem/service.js'
 import {
   createTestApp,
   disposeTestAuthApps,
@@ -122,117 +125,231 @@ async function cohortFor(student) {
   return cohort
 }
 
-const verdictAction = (snapshot, payload) => ({
+const PART_IDS = /^p[0-9a-z]{4}$/
+const ACTION_FIELDS_FORBIDDEN = ['verdict', 'type', 'tellPartIds', 'explanation', 'seed']
+
+const triageAction = (snapshot, payload) => ({
   actionId: randomUUID(),
   expectedRevision: snapshot.revision,
-  type: 'submit-verdict',
+  type: 'triage-call',
   payload,
 })
-const perfect = (caseId) => {
-  const answers = readAnswers(caseId)
-  return { selectedEmailId: answers.patientZeroId, evidenceIds: answers.evidenceIds }
+const trustCurrent = (snapshot) => ({
+  roundId: snapshot.publicState.current.roundId,
+  call: 'trust',
+})
+const completeBody = (snapshot) => ({
+  actionId: randomUUID(),
+  expectedRevision: snapshot.revision,
+})
+
+async function play(student, snapshot, payload) {
+  const path = `/api/attempts/${snapshot.attemptId}/actions`
+  return (await post(student, path, triageAction(snapshot, payload)).expect(200)).body
 }
 
-describe('saved phishing post-mortem journey', () => {
-  it('starts a personal attempt without the answer key and saves a perfect verdict', async () => {
+async function startPersonal(student) {
+  return (await post(student, attemptsPath, { context: { kind: 'personal' } }).expect(201)).body
+}
+
+async function startClass(student) {
+  const cohort = await cohortFor(student)
+  const cohortId = String(cohort._id)
+  const start = await post(student, attemptsPath, {
+    context: { kind: 'cohort', cohortId },
+  }).expect(201)
+  return { cohortId, start: start.body }
+}
+
+describe('saved phishing triage journey', () => {
+  it('starts personal practice without the answer key or seed', async () => {
     const student = await registerStudent(app)
-    const start = await post(student, attemptsPath, { context: { kind: 'personal' } }).expect(201)
-    expect(start.body).toMatchObject({
+    const start = await startPersonal(student)
+    expect(start).toMatchObject({
       gameId: 'phishing-post-mortem',
-      rulesetVersion: 'phish-2',
-      maxScore: 100,
+      rulesetVersion: 'phish-3',
       mode: 'practice',
+      deadlineAt: null,
     })
-    const { caseId } = start.body.publicState.case
-    const answers = readAnswers(caseId)
-    const content = readCase(caseId)
-    expect(start.body.publicState.verdict).toBeNull()
-    expect(start.body.publicState.case.emails).toHaveLength(content.emails.length)
-    const hidden = JSON.stringify(start.body)
-    expect(hidden).not.toContain('patientZeroId')
-    expect(hidden).not.toContain(answers.summary)
-    for (const step of answers.chain) expect(hidden).not.toContain(step)
-
-    const path = `/api/attempts/${start.body.attemptId}`
-    await post(student, `${path}/complete`, {
-      actionId: randomUUID(),
-      expectedRevision: start.body.revision,
-    }).expect(409)
-
-    const sent = verdictAction(start.body, perfect(caseId))
-    const played = await post(student, `${path}/actions`, sent).expect(200)
-    expect(played.body.publicState.verdict).toMatchObject({ score: 100 })
-    expect(played.body.publicState.verdict.debrief.chain.length).toBeGreaterThanOrEqual(5)
-    // replaying the same action returns the recorded outcome
-    expect((await post(student, `${path}/actions`, sent).expect(200)).body).toEqual(played.body)
-
-    const again = verdictAction(played.body, perfect(caseId))
-    const rejected = await post(student, `${path}/actions`, again).expect(409)
-    expect(rejected.body.error.code).toBe('PHISH_VERDICT_SUBMITTED')
-
-    const done = await post(student, `${path}/complete`, {
-      actionId: randomUUID(),
-      expectedRevision: played.body.revision,
-    }).expect(200)
-    expect(done.body).toMatchObject({ score: 100, status: 'completed', persisted: true })
-    expect((await student.agent.get(path).expect(200)).body).toEqual(done.body)
+    const { current } = start.publicState
+    expect(current.roundId).toBeTruthy()
+    expect(current.parts.length).toBeGreaterThan(0)
+    expect(start.publicState.last).toBeNull()
+    expect(start.publicState).toMatchObject({ totalRounds: 12, maxMistakes: null })
+    const serialized = JSON.stringify(start)
+    for (const field of ACTION_FIELDS_FORBIDDEN) expect(serialized).not.toContain(`"${field}"`)
+    expect(serialized).not.toMatch(/"[0-9a-f]{32}"/)
+    for (const key of Object.keys(current)) expect(ACTION_FIELDS_FORBIDDEN).not.toContain(key)
   })
 
-  it('rejects client supplied scoring fields and unknown selections', async () => {
+  it('validates the call payload', async () => {
     const student = await registerStudent(app)
-    const start = await post(student, attemptsPath, { context: { kind: 'personal' } }).expect(201)
-    const path = `/api/attempts/${start.body.attemptId}/actions`
-    const good = perfect(start.body.publicState.case.caseId)
-    await post(student, path, verdictAction(start.body, { ...good, score: 100 })).expect(400)
-    await post(student, path, verdictAction(start.body, { ...good, caseId: 'case-02' })).expect(400)
+    const start = await startPersonal(student)
+    const path = `/api/attempts/${start.attemptId}/actions`
+    const { roundId, parts } = start.publicState.current
+    const bad = [
+      { roundId, call: 'trust', extra: 1 },
+      { roundId, call: 'report' },
+      { roundId, call: 'trust', partId: parts[0].id },
+      { roundId, call: 'report', partId: 'zzzzz' },
+      { roundId, call: 'report', partId: parts[0].id, score: 100 },
+      { roundId, call: 'maybe' },
+      { call: 'trust' },
+    ]
+    for (const payload of bad) await post(student, path, triageAction(start, payload)).expect(400)
+    const wrongType = { ...triageAction(start, { roundId, call: 'trust' }), type: 'submit-verdict' }
+    await post(student, path, wrongType).expect(400)
+    // an unknown but well formed part is rejected by the server, not scored
+    expect(PART_IDS.test('pzz99')).toBe(true)
     await post(
       student,
       path,
-      verdictAction(start.body, { ...good, selectedEmailId: 'zz99' }),
+      triageAction(start, { roundId, call: 'report', partId: 'pzz99' }),
     ).expect(400)
-    const wrongType = { ...verdictAction(start.body, good), type: 'reveal' }
-    await post(student, path, wrongType).expect(400)
+  })
+
+  it('refuses a stale round id', async () => {
+    const student = await registerStudent(app)
+    const start = await startPersonal(student)
+    const first = trustCurrent(start)
+    const played = await play(student, start, first)
+    const path = `/api/attempts/${start.attemptId}/actions`
+    const stale = await post(student, path, triageAction(played, first)).expect(409)
+    expect(stale.body.error.code).toBe('PHISH_STALE_ROUND')
+  })
+
+  it('completes a 12 round practice run, saves it and keeps it off the leaderboard', async () => {
+    const student = await registerStudent(app)
+    const cohort = await cohortFor(student)
+    const start = await startPersonal(student)
+    const path = `/api/attempts/${start.attemptId}`
+    let snapshot = start
+    await post(student, `${path}/complete`, completeBody(snapshot)).expect(409)
+    for (let round = 0; round < 12; round += 1) {
+      snapshot = await play(student, snapshot, trustCurrent(snapshot))
+      expect(snapshot.publicState.last).toMatchObject({ roundId: expect.any(String) })
+      expect(typeof snapshot.publicState.last.explanation).toBe('string')
+    }
+    expect(snapshot.publicState.current).toBeNull()
+    const sent = triageAction(snapshot, trustCurrent(start))
+    await post(student, `${path}/actions`, sent).expect(409)
+
+    const done = await post(student, `${path}/complete`, completeBody(snapshot)).expect(200)
+    expect(done.body).toMatchObject({ status: 'completed', persisted: true, mode: 'practice' })
+    expect(done.body.publicState.review).toHaveLength(12)
+    expect((await student.agent.get(path).expect(200)).body).toEqual(done.body)
+
+    const board = await student.agent
+      .get(`/api/cohorts/${cohort._id}/leaderboard?gameId=phishing-post-mortem&view=best`)
+      .set('Origin', origin)
+      .expect(200)
+    expect(board.body.rows).toEqual([])
+  })
+
+  it('starts a class run as a timed ranked attempt', async () => {
+    const student = await registerStudent(app)
+    const { start } = await startClass(student)
+    expect(start).toMatchObject({
+      mode: 'standard',
+      rulesetVersion: 'phish-3',
+    })
+    const stored = await database.db
+      .collection('game_attempts')
+      .findOne({ _id: new Types.ObjectId(start.attemptId) })
+    expect(stored.competitiveEligible).toBe(true)
+    const seconds = (new Date(start.deadlineAt) - new Date(start.startedAt)) / 1000
+    expect(seconds).toBeGreaterThan(178)
+    expect(seconds).toBeLessThan(182)
+    expect(start.publicState).toMatchObject({ totalRounds: null, maxMistakes: 3 })
+  })
+
+  it('ends a class run on the third mistake and ranks it on the timed board', async () => {
+    const student = await registerStudent(app)
+    const { cohortId, start } = await startClass(student)
+    const path = `/api/attempts/${start.attemptId}`
+    let snapshot = start
+    for (let guard = 0; guard < 60 && snapshot.publicState.mistakes < 3; guard += 1) {
+      snapshot = await play(student, snapshot, trustCurrent(snapshot))
+    }
+    expect(snapshot.publicState.mistakes).toBe(3)
+    expect(snapshot.publicState.current).toBeNull()
+    expect(snapshot.publicState.last.correct).toBe(false)
+    await post(
+      student,
+      `${path}/actions`,
+      triageAction(snapshot, { roundId: 'abcdef', call: 'trust' }),
+    ).expect(409)
+
+    const done = await post(student, `${path}/complete`, completeBody(snapshot)).expect(200)
+    expect(done.body).toMatchObject({ status: 'completed', persisted: true })
+
+    const board = await student.agent
+      .get(`/api/cohorts/${cohortId}/leaderboard?gameId=phishing-post-mortem&view=best`)
+      .set('Origin', origin)
+      .expect(200)
+    expect(board.body).toMatchObject({ gameId: 'phishing-post-mortem', competitive: true })
+    expect(board.body.rows).toHaveLength(1)
+    expect(board.body.rows[0]).toMatchObject({
+      username: student.user.username,
+      rank: 1,
+      score: done.body.score,
+    })
+  })
+
+  it('refuses actions after the deadline, then still completes', async () => {
+    const student = await registerStudent(app)
+    const { start } = await startClass(student)
+    const path = `/api/attempts/${start.attemptId}`
+    const past = Date.now() - 1000
+    await database.db
+      .collection('game_attempts')
+      .updateOne(
+        { _id: new Types.ObjectId(start.attemptId) },
+        { $set: { startedAt: new Date(past - 180000), deadlineAt: new Date(past) } },
+      )
+    const late = await post(
+      student,
+      `${path}/actions`,
+      triageAction(start, trustCurrent(start)),
+    ).expect(409)
+    expect(late.body.error.code).toBe('ATTEMPT_DEADLINE_PASSED')
+    const done = await post(student, `${path}/complete`, completeBody(start)).expect(200)
+    expect(done.body).toMatchObject({ status: 'completed', persisted: true })
   })
 
   it('hides another player attempt', async () => {
     const student = await registerStudent(app)
-    const start = await post(student, attemptsPath, { context: { kind: 'personal' } }).expect(201)
-    const path = `/api/attempts/${start.body.attemptId}`
+    const start = await startPersonal(student)
+    const path = `/api/attempts/${start.attemptId}`
     const other = await registerStudent(app)
     await other.agent.get(path).expect(404)
-    await post(
-      other,
-      `${path}/actions`,
-      verdictAction(start.body, perfect(start.body.publicState.case.caseId)),
-    ).expect(404)
+    await post(other, `${path}/actions`, triageAction(start, trustCurrent(start))).expect(404)
   })
 
-  it('saves a class attempt onto the cohort leaderboard', async () => {
+  it('still reads an unfinished phish-2 attempt', async () => {
     const student = await registerStudent(app)
-    const cohort = await cohortFor(student)
-    const cohortId = String(cohort._id)
-    const start = await post(student, attemptsPath, {
-      context: { kind: 'cohort', cohortId },
-    }).expect(201)
-    const path = `/api/attempts/${start.body.attemptId}`
-    const played = await post(
-      student,
-      `${path}/actions`,
-      verdictAction(start.body, perfect(start.body.publicState.case.caseId)),
-    ).expect(200)
-    await post(student, `${path}/complete`, {
-      actionId: randomUUID(),
-      expectedRevision: played.body.revision,
-    }).expect(200)
-
-    const board = await student.agent
-      .get(`/api/cohorts/${cohortId}/leaderboard?gameId=phishing-post-mortem`)
-      .set('Origin', origin)
-      .expect(200)
-    expect(board.body).toMatchObject({ gameId: 'phishing-post-mortem', competitive: false })
-    expect(board.body.rows.map((row) => [row.username, row.score, row.maxScore])).toEqual([
-      [student.user.username, 100, 100],
-    ])
+    const start = await startPersonal(student)
+    const caseId = 'case-01'
+    const collection = database.db.collection('game_attempts')
+    const raw = await collection.findOne({ _id: new Types.ObjectId(start.attemptId) })
+    const legacyId = new Types.ObjectId()
+    await collection.insertOne({
+      ...raw,
+      _id: legacyId,
+      rulesetVersion: 'phish-2',
+      rulesetKey: 'phishing-post-mortem@phish-2',
+      maxScore: 100,
+      state: {
+        caseId,
+        datasetVersion: caseDatasetVersion(caseId),
+        emailOrder: caseEmailIds(caseId),
+        verdict: null,
+      },
+    })
+    const read = await student.agent.get(`/api/attempts/${legacyId}`).expect(200)
+    expect(read.body).toMatchObject({ rulesetVersion: 'phish-2', status: 'active' })
+    expect(read.body.publicState.case.caseId).toBe(caseId)
+    expect(read.body.publicState.verdict).toBeNull()
   })
 
   it('no longer serves the interim stateless routes', async () => {

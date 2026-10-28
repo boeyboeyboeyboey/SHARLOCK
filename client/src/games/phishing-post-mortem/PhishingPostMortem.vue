@@ -1,253 +1,295 @@
 <script setup>
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import HowToPlayDialog from '../../components/common/HowToPlayDialog.vue'
 import { useHowToPlay } from '../../composables/useHowToPlay.js'
 import AttemptContextChooser from '../../features/attempts/components/AttemptContextChooser.vue'
 import SavedAttemptResult from '../../features/attempts/components/SavedAttemptResult.vue'
-import CaseDebrief from './components/CaseDebrief.vue'
-import EmailInspector from './components/EmailInspector.vue'
-import EvidenceTimeline from './components/EvidenceTimeline.vue'
 import HowToPlayScene from './components/HowToPlayScene.vue'
-import InboxList from './components/InboxList.vue'
-import SharmailShell from './components/SharmailShell.vue'
-import VerdictPanel from './components/VerdictPanel.vue'
-import { usePhishingCase } from './composables/usePhishingCase.js'
+import RoundFeedback from './components/RoundFeedback.vue'
+import TriageDebrief from './components/TriageDebrief.vue'
+import TriageEmailCard from './components/TriageEmailCard.vue'
+import TriageStatusBar from './components/TriageStatusBar.vue'
 import { HOW_TO_PLAY } from './howToPlay.js'
+import { useTriageRun } from './useTriageRun.js'
 import './phish.css'
+
+const MAX_ROUNDS = 60
 
 const { open: howToOpen, show: showHowTo } = useHowToPlay('phishing-post-mortem')
 const route = useRoute()
 const router = useRouter()
 const {
   snapshot,
-  caseFile,
-  emails,
   busy,
   error,
   retryable,
+  finishing,
+  timed,
   completed,
-  unsaved,
-  result,
-  selectedEmailId,
-  selectedEmail,
-  accusedEmailId,
-  accusedEmail,
-  selectedEvidenceIds,
-  pane,
-  reviewing,
+  legacy,
+  current,
+  last,
+  previousEmail,
+  review,
+  score,
+  streak,
+  mistakes,
+  roundsPlayed,
+  totalRounds,
+  maxMistakes,
+  secondsLeft,
+  needsCompletion,
+  canAct,
   start,
-  load,
-  submit,
-  save,
+  resume,
+  report,
+  trust,
   retry,
   resetGame,
-  selectEmail,
-  accuse,
-  inspectLink,
-  setEvidence,
-  showInbox,
-  backToDebrief,
-} = usePhishingCase()
-
-const readingPane = ref(null)
-const unread = computed(() => emails.value.filter((email) => !email.read).length)
+} = useTriageRun()
 
 const initializing = ref(true)
+const picking = ref(false)
+const reportButton = ref(null)
+// practice shows the explanation until Next, so this remembers the last round already read
+const readRound = ref(null)
+
+const locked = computed(() => busy.value || finishing.value || !canAct.value)
+const runOver = computed(() => needsCompletion.value || completed.value)
+const holdFeedback = computed(
+  () => !timed.value && Boolean(last.value) && readRound.value !== last.value.roundId,
+)
+const showResult = computed(() => completed.value && !holdFeedback.value)
+const canRetry = computed(() => retryable.value || needsCompletion.value)
+const endReason = computed(() => {
+  if (timed.value && mistakes.value >= (maxMistakes.value ?? 3)) return 'mistakes'
+  if (!timed.value) return 'rounds'
+  return roundsPlayed.value >= MAX_ROUNDS ? 'cap' : 'time'
+})
 
 onMounted(async () => {
-  if (typeof route.query.attempt === 'string') await load(route.query.attempt)
+  if (typeof route.query.attempt === 'string') {
+    await resume(route.query.attempt)
+    // a finished run opens on its debrief, not on the last explanation
+    if (completed.value) readRound.value = last.value?.roundId ?? null
+  }
   initializing.value = false
 })
 
+watch(
+  () => current.value?.roundId,
+  () => {
+    picking.value = false
+  },
+)
+
+// brief stamp and shake after each timed call, never blocks input
+const STAMP_MS = 450
+const stamp = ref(null)
+const shaking = ref(false)
+let stampTimer = null
+let shakeTimer = null
+
+function callOf(item) {
+  if (item.call === 'report' || item.call === 'trust') return item.call
+  return (item.verdict === 'phish') === item.correct ? 'report' : 'trust'
+}
+
+watch(
+  () => last.value?.roundId,
+  (roundId) => {
+    if (!roundId || !timed.value) return
+    clearTimeout(stampTimer)
+    clearTimeout(shakeTimer)
+    stamp.value = { key: roundId, call: callOf(last.value) }
+    stampTimer = setTimeout(() => {
+      stamp.value = null
+    }, STAMP_MS)
+    shaking.value = false
+    if (!last.value.correct) {
+      nextTick(() => {
+        shaking.value = true
+        shakeTimer = setTimeout(() => {
+          shaking.value = false
+        }, STAMP_MS)
+      })
+    }
+  },
+)
+
+onBeforeUnmount(() => {
+  clearTimeout(stampTimer)
+  clearTimeout(shakeTimer)
+})
+
 async function begin(context) {
+  readRound.value = null
   if (await start(context)) await router.replace({ query: { attempt: snapshot.value.attemptId } })
 }
 
-// replay returns to the chooser, and the server picks the next case
+// replay returns to the chooser, and the server picks the next run
 async function replay() {
   await router.replace({ query: {} })
+  picking.value = false
+  readRound.value = null
   resetGame()
 }
 
-// the reading pane scrolls inside the page, so a new message or the debrief starts at the top
-watch([selectedEmailId, result, reviewing], async () => {
+async function focusReport() {
   await nextTick()
-  readingPane.value?.scrollTo({ top: 0 })
-})
-
-// the narrow layout swaps panes, so focus has to follow the reader in both directions
-async function openMessage(id) {
-  selectEmail(id)
-  await nextTick()
-  readingPane.value?.focus({ preventScroll: true })
+  reportButton.value?.focus({ preventScroll: true })
 }
 
-const isPatientZero = computed(
-  () => reviewing.value && result.value?.debrief?.patientZero?.id === selectedEmailId.value,
-)
-const wasAccused = computed(
-  () => reviewing.value && result.value?.result?.selectedEmailId === selectedEmailId.value,
-)
-
-async function returnToDebrief() {
-  backToDebrief()
-  await nextTick()
-  document.getElementById('phish-debrief-heading')?.focus({ preventScroll: true })
+function startPicking() {
+  if (locked.value) return
+  picking.value = true
 }
 
-async function backToInbox() {
-  const previous = selectedEmailId.value
-  showInbox()
-  await nextTick()
-  document
-    .querySelector(`.sharmail-row[data-email-id="${previous}"]`)
-    ?.focus({ preventScroll: true })
+async function cancelPicking() {
+  picking.value = false
+  await focusReport()
+}
+
+async function pickPart(partId) {
+  await report(partId)
+  picking.value = false
+  await focusReport()
+}
+
+async function callTrust() {
+  await trust()
+  await focusReport()
+}
+
+async function nextEmail() {
+  readRound.value = last.value?.roundId ?? null
+  await focusReport()
 }
 </script>
 
 <template>
-  <div class="phish-game is-fitted">
+  <div class="phish-game">
     <div class="phish-intro">
       <RouterLink to="/" class="phish-back back-link">Back to town</RouterLink>
       <h1 tabindex="-1">The Phishing Post-Mortem</h1>
-      <p class="phish-strap">
-        Several of these messages are hostile. Only one of them caused the compromise. Find it, and
-        prove it with two pieces of evidence.
-      </p>
     </div>
 
-    <p v-if="busy && !caseFile" class="phish-state" role="status">Opening the case file...</p>
+    <p v-if="busy && !snapshot" class="phish-state" role="status">Loading your run...</p>
+
+    <p v-if="finishing" class="phish-state" role="status">Saving your run…</p>
 
     <div v-if="error" class="phish-state phish-error" role="alert">
       <p>{{ error }}</p>
-      <button
-        v-if="retryable"
-        type="button"
-        class="sharmail-submit"
-        :disabled="busy"
-        @click="retry"
-      >
-        {{ unsaved ? 'Retry save' : 'Retry verdict' }}
-      </button>
-      <button
-        v-else-if="snapshot"
-        type="button"
-        class="sharmail-inspect"
-        :disabled="busy"
-        @click="load(snapshot.attemptId)"
-      >
-        Reload case
+      <button v-if="canRetry" type="button" class="triage-next" :disabled="busy" @click="retry">
+        Retry
       </button>
     </div>
 
     <section v-if="!snapshot && !initializing" class="phish-state" aria-labelledby="phish-start">
-      <h2 id="phish-start">Open a case</h2>
-      <button type="button" class="sharmail-inspect" @click="showHowTo">How to play</button>
-      <p>
-        The server picks the case. Your verdict is scored there and saved as a result of up to 100
-        points.
+      <h2 id="phish-start">Start a run</h2>
+      <button type="button" class="triage-secondary" @click="showHowTo">How to play</button>
+      <p class="phish-mode-line">
+        Class: a 3-minute timed run for your class leaderboard. Personal: 12 emails, untimed
+        practice.
       </p>
-      <AttemptContextChooser :disabled="busy" @start="begin" />
+      <AttemptContextChooser
+        :disabled="busy"
+        label="Save this run to"
+        submit-label="Start run"
+        @start="begin"
+      />
+    </section>
+
+    <section v-else-if="snapshot && legacy" class="phish-state" aria-labelledby="phish-earlier">
+      <h2 id="phish-earlier">Earlier inbox investigation</h2>
+      <p class="phish-earlier-score">{{ snapshot.score }} / {{ snapshot.maxScore }}</p>
+      <button type="button" class="triage-next" @click="replay">Play again</button>
     </section>
 
     <component
-      :is="completed ? SavedAttemptResult : 'div'"
-      v-else-if="caseFile"
-      v-bind="completed ? { attempt: snapshot, onReplay: replay } : {}"
+      :is="showResult ? SavedAttemptResult : 'div'"
+      v-else-if="snapshot"
+      v-bind="showResult ? { attempt: snapshot, onReplay: replay } : {}"
     >
-      <SharmailShell :mailbox="caseFile.organisation" :case-title="caseFile.title" :unread="unread">
-        <section
-          class="sharmail-pane sharmail-pane-list"
-          :class="{ 'is-mobile-hidden': pane === 'message' }"
-          aria-label="Inbox"
-        >
-          <header class="sharmail-pane-head">
-            <h2>Inbox</h2>
-            <p>{{ emails.length }} messages &middot; {{ unread }} unread</p>
-          </header>
-          <InboxList
-            :emails="emails"
-            :selected-email-id="selectedEmailId"
-            @select-email="openMessage"
+      <TriageDebrief
+        v-if="showResult"
+        :review="review ?? []"
+        :score="score"
+        :mistakes="mistakes"
+        :rounds-played="roundsPlayed"
+        :timed="timed"
+        :end-reason="endReason"
+      />
+
+      <div v-else class="triage-run">
+        <TriageStatusBar
+          :timed="timed"
+          :seconds-left="secondsLeft ?? 0"
+          :score="score"
+          :streak="streak"
+          :mistakes="mistakes"
+          :max-mistakes="maxMistakes ?? 3"
+          :rounds-played="roundsPlayed"
+          :total-rounds="totalRounds ?? 12"
+        />
+
+        <div class="triage-desk" :class="{ 'is-shaking': shaking }">
+          <div v-if="timed" class="triage-live" aria-live="polite">
+            <span
+              v-if="stamp"
+              :key="stamp.key"
+              class="triage-stamp triage-stamp-float"
+              :class="stamp.call === 'report' ? 'is-report' : 'is-trust'"
+              aria-hidden="true"
+            >
+              {{ stamp.call === 'report' ? 'Reported' : 'Trusted' }}
+            </span>
+            <RoundFeedback v-if="last" :key="last.roundId" :last="last" :timed="true" />
+          </div>
+
+          <RoundFeedback
+            v-if="holdFeedback"
+            :key="last.roundId"
+            :last="last"
+            :email="previousEmail"
+            :run-over="runOver"
+            @next="nextEmail"
           />
-        </section>
 
-        <section
-          ref="readingPane"
-          class="sharmail-pane sharmail-pane-reading"
-          :class="{ 'is-mobile-hidden': pane === 'inbox' }"
-          tabindex="0"
-          aria-label="Reading pane"
-        >
-          <button type="button" class="sharmail-back" @click="backToInbox">Back to inbox</button>
+          <template v-else-if="current">
+            <TriageEmailCard
+              :key="current.roundId"
+              :email="current"
+              :picking="picking"
+              :disabled="locked"
+              @select-part="pickPart"
+              @cancel-pick="cancelPicking"
+            />
 
-          <CaseDebrief v-if="result && !reviewing" :result="result" />
-
-          <template v-else>
-            <div v-if="reviewing" class="sharmail-review-bar">
-              <button type="button" class="sharmail-inspect" @click="returnToDebrief">
-                Back to debrief
+            <div v-if="picking" class="triage-pick-bar">
+              <p>Tap what gave it away</p>
+              <button type="button" class="triage-secondary" @click="cancelPicking">Cancel</button>
+            </div>
+            <div v-else class="triage-controls">
+              <button
+                ref="reportButton"
+                type="button"
+                class="triage-report"
+                :disabled="locked"
+                @click="startPicking"
+              >
+                Report
               </button>
-              <p class="sharmail-review-note">Case closed. This message is read-only.</p>
-              <p v-if="isPatientZero || wasAccused" class="sharmail-review-tags" role="status">
-                <span v-if="isPatientZero" class="sharmail-tag">This was Patient Zero</span>
-                <span v-if="wasAccused" class="sharmail-tag is-chosen"
-                  >You accused this message</span
-                >
-              </p>
+              <button type="button" class="triage-trust" :disabled="locked" @click="callTrust">
+                Trust
+              </button>
             </div>
-
-            <div v-if="!selectedEmail" class="sharmail-briefing">
-              <h2>{{ caseFile.title }}</h2>
-              <p>{{ caseFile.briefing }}</p>
-              <p class="sharmail-briefing-hint">
-                Open a message to inspect its sender, reply-to address and where its links really
-                point. Times are shown in {{ caseFile.timezoneLabel }}.
-              </p>
-            </div>
-
-            <template v-else>
-              <EmailInspector :email="selectedEmail" @inspect-link="inspectLink" />
-              <div v-if="!reviewing" class="sharmail-accuse-row">
-                <button
-                  type="button"
-                  class="sharmail-accuse"
-                  :class="{ 'is-accused': accusedEmailId === selectedEmail.id }"
-                  :aria-pressed="accusedEmailId === selectedEmail.id"
-                  @click="accuse(selectedEmail.id)"
-                >
-                  {{
-                    accusedEmailId === selectedEmail.id
-                      ? 'Accused as Patient Zero'
-                      : 'Accuse this message'
-                  }}
-                </button>
-              </div>
-            </template>
-
-            <EvidenceTimeline :events="caseFile.timeline" />
           </template>
-        </section>
-
-        <template #footer>
-          <VerdictPanel
-            v-if="!result"
-            :selected-email-id="accusedEmailId"
-            :selected-subject="accusedEmail?.subject ?? ''"
-            :evidence-options="caseFile.evidenceOptions"
-            :selected-evidence-ids="selectedEvidenceIds"
-            :disabled="busy"
-            @update-evidence="setEvidence"
-            @submit-verdict="submit"
-          />
-        </template>
-      </SharmailShell>
-
-      <div v-if="unsaved && !error && !busy" class="phish-state">
-        <button type="button" class="sharmail-submit" @click="save">Save result</button>
+        </div>
       </div>
     </component>
+
     <HowToPlayDialog v-model:open="howToOpen" game-id="phishing-post-mortem" v-bind="HOW_TO_PLAY">
       <template #scene="scene">
         <HowToPlayScene v-if="howToOpen" :step="scene.step" :reduced-motion="scene.reducedMotion" />

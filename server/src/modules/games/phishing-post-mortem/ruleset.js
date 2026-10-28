@@ -54,6 +54,7 @@ export function createPhishingRuleset({ pick = randomInt } = {}) {
     topicTags: ['phishing-analysis', 'incident-response', 'lookalike-domains'],
     maxScore: MAX_SCORE,
     maxActions: 2,
+    current: false,
     competitive: false,
     stateSchema,
     createState() {
