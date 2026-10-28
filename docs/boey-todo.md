@@ -157,7 +157,7 @@ Every item still needs Boey's OK before work (plan + Docs impact line first; sep
 - [ ] Manual: fresh incognito Chrome + Safari load of `/` (3D and 2D): music starts on load or on first click; Sound off sticks for the tab session; Times pauses/resumes it
 - [ ] Manual: 2D town at 375px after the capybara resize; walk cycle and reduced-motion still frame; 3D HUD row with the new sound button at 375px
 - [ ] TOWN-01 polish ideas: more capybara variety (hats/colours like the mockup), a gull crosses the east bridge tower in still frames, bridge towers clipped at the top edge
-- [ ] ADMIN-04 gap: leaderboard best/all-time ranking test with a real scored attempt for an anonymised student (currently relies on the `active`-only filter)
+- [x] (done 28 Oct: E2E-06 on `e2e-06-test-gaps`) ADMIN-04 gap: leaderboard best/all-time ranking test with a real scored attempt for an anonymised student (currently relies on the `active`-only filter)
 - [ ] `client/src/views/Dashboard.vue` already fails prettier on main (lines ~33-35, ~99); fix in a format-only change with OK
 - [ ] Notify owners after merge: Xin Lei (FONT-04 CLI fonts self-hosted), Keane (FONT-04 SQL Silkscreen self-hosted), Russell (FONT-06 Clearance body font), Eric (FONT-07 Social body font), Athithya (taking over his phishing items, see D0); team: AUDIO-01 rule change in agents.md §8, TOWN-01 new 2D town and catalog placements, ADMIN-04 delete account
 - [ ] Full E2E on `batch-7-integration` `bc545d7`: 225 passed / 3 failed / 22 skipped; the 3 (mobile `auth.spec.js:26`, `:184` offcanvas never shows; desktop `clearance-tower.spec.js:333` How to play still visible) all pass alone. Baseline `8ea6f0b` was all green, so if the mobile auth offcanvas flake repeats, check AUDIO-01's capture-phase gesture listeners and TOWN-01 first
@@ -174,3 +174,5 @@ Every item still needs Boey's OK before work (plan + Docs impact line first; sep
 - [x] (done 28 Oct: AUDIO-03 `7df310e`, merged into main `ec83214`) 3D hub ambience: Freesound 530210 (AlexLane, CC0) 75 s loop in `client/public/audio/hub-ambience.mp3`, hub Sound button, shared session mute; hub E2E 23 passed / 1 skipped, news E2E 16 passed
 - [ ] Manual (Boey): listen to the hub loop seam and loudness (-18 LUFS vs 2D music -11.7 LUFS) and check the hub Sound button in the HUD row at 375px
 - [ ] Unused CC0 sound kept locally in `.local-handover/audio-sources/`: Freesound 561815 "Genaral Habour Ambience" (Kinoton). Ideas: positional dock layer in the hub (needs an agents.md §8 change, one sound source on `/`), a game backdrop with owner agreement, or the ship horn as a one-off cue
+
+- [x] (done 28 Oct: E2E-06) `portal.spec.js` mobile drawer single-tap risk: both opens now retry until `show`

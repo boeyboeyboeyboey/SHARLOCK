@@ -343,6 +343,43 @@ describe('class leaderboard API', () => {
     expect(response.body.rows.map((row) => row.username)).toEqual([ann.user.username])
   })
 
+  // the admin delete path needs a transaction, so only a replica-set run can reach it
+  const itWithReplicaSet = it.skipIf(process.env.SHARLOCK_TEST_REPLICA_SET !== '1')
+
+  itWithReplicaSet('drops an anonymised student and keeps their attempt', async () => {
+    const { cohortId, ann, bob } = await setupClass()
+    const annAttempt = await completeOne(ann, inClass(cohortId), true)
+    await completeOne(bob, inClass(cohortId), false)
+    const administrator = await createStaff(['admin'])
+    const annUser = await database.db
+      .collection('users')
+      .findOne({ _id: new Types.ObjectId(ann.user.id) }, { projection: { authVersion: 1 } })
+    const deleted = await administrator.agent
+      .post(`/api/admin/users/${ann.user.id}/delete`)
+      .set('Origin', origin)
+      .set('X-CSRF-Token', administrator.csrfToken)
+      .send({
+        confirmUsername: ann.user.username,
+        password: 'Synthetic-Test-Password-2026',
+        reasonCategory: 'duplicate',
+        expectedRevision: annUser.authVersion,
+      })
+      .expect(200)
+    expect(deleted.body).toEqual({ outcome: 'anonymised' })
+    const best = await board(bob, cohortId, q()).expect(200)
+    const allTime = await board(bob, cohortId, q('&view=all-time')).expect(200)
+    for (const response of [best, allTime]) {
+      expect(response.body.rows.map((row) => [row.rank, row.username])).toEqual([
+        [1, bob.user.username],
+      ])
+      expect(JSON.stringify(response.body)).not.toMatch(/"username":"deleted-/)
+    }
+    const kept = await database.db
+      .collection('game_attempts')
+      .countDocuments({ _id: new Types.ObjectId(annAttempt.attemptId) })
+    expect(kept).toBe(1)
+  })
+
   it('excludes staff, dual-role and personal attempts', async () => {
     const { cohortId, ann } = await setupClass()
     const instructor = await createStaff(['instructor'])

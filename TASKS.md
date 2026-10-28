@@ -464,6 +464,13 @@ No active implementation task.
 - **Not verified:** real browser autoplay policy; the loop seam and loudness by ear.
 - **Next action:** Boey listens to the hub loop and the shared mute, then decides on merge; no merge without his OK.
 
+**E2E-06 — Mobile drawer retry in portal.spec and anonymised-student leaderboard test** · Status: **Review** · Contributor: **Boey** · Branch: `e2e-06-test-gaps` (cut from `origin/main` at `389a6e1`, 28 October 2026, upstream unset) · Approved by Boey on 28 October 2026. Test-only.
+
+- **Change:** `tests/e2e/portal.spec.js` (mobile focus/dismissal test) retries both drawer opens until Bootstrap adds `show`, clicking only while the drawer is hidden (same pattern as E2E-05 in `auth.spec.js`, kept inline). `server/tests/integration/leaderboards/leaderboards.test.js` adds "drops an anonymised student and keeps their attempt": two students finish scored class attempts, an administrator anonymises one through `POST /api/admin/users/:id/delete` (ADMIN-04), and the best and all-time boards then rank only the other student at 1 with no `deleted-` username, while the attempt document is kept. It runs only with `--replica-set` (the delete path needs a transaction), like `delete-account.test.js`.
+- **Verification (28 Oct 2026):** `tests/e2e/portal.spec.js` 20 passed exit 0; leaderboards integration with `--replica-set` 13 passed exit 0, plain run 12 passed / 1 skipped exit 0; eslint on both files exit 0; prettier clean on the leaderboards file (`portal.spec.js` already failed prettier on main).
+- **Docs:** no module or README impact (test-only); this record.
+- **Next action:** Boey decides on merge.
+
 **BOARD-01 — Class leaderboards** · Status: **Review** · Contributor: **Boey** · Branch: `board-01-class-leaderboards` (cut from `origin/main` at `9e6c3a1`, 27 October 2026, upstream unset). Plan approved by Boey on 27 October 2026. Spec: [BOARD-01](#board-01--cohort-leaderboards).
 
 - **Collision check (27 October 2026):** no leaderboard code on `main`, in local or remote branch names, or in the `admin-01-b-admin-controls` (Codex admin-controls) worktree. Existing references are only the `/leaderboard` ComingSoon placeholder (`client/src/router/index.js`), nav links (`Navbar.vue:34`, `PortalLayout.vue:30`), the pixel-wipe label, docs mentions, and an empty `server/src/modules/leaderboards/.gitkeep`. Remote branch contents, PRs and teammates' machines were not inspected.
