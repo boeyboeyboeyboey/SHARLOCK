@@ -167,9 +167,7 @@ test('returns to the door of the building that was entered', async ({ page }) =>
     .poll(() => page.evaluate(() => window.__hub.state.nearDoor), slow)
     .toBe('cli-cyber-defender')
   await page.evaluate(() => window.__hub.debug.walkTo(0, 20))
-  await expect
-    .poll(() => page.evaluate(() => window.__hub.state.selected), slow)
-    .toBeNull()
+  await expect.poll(() => page.evaluate(() => window.__hub.state.selected), slow).toBeNull()
   await expect(page.getByTestId('dest-cli-cyber-defender')).toHaveAttribute('aria-pressed', 'false')
 
   // a fresh visit starts at the usual spot
@@ -272,7 +270,9 @@ test('switches between the 3D wharf and the 2D town and remembers the choice', a
   await expect(toggle).toHaveText('2D map')
 })
 
-test('rebuilds the hub at the low tier from the Graphics setting and remembers it', async ({ page }) => {
+test('rebuilds the hub at the low tier from the Graphics setting and remembers it', async ({
+  page,
+}) => {
   await page.goto('/')
   await hubReady(page)
   const graphics = page.getByTestId('hub-graphics')
@@ -282,7 +282,11 @@ test('rebuilds the hub at the low tier from the Graphics setting and remembers i
 
   await graphics.focus()
   await graphics.selectOption('low')
-  await page.waitForFunction(() => window.__hub?.state.tier === 'low' && window.__hub.state.ready, null, slow)
+  await page.waitForFunction(
+    () => window.__hub?.state.tier === 'low' && window.__hub.state.ready,
+    null,
+    slow,
+  )
   expect(await page.evaluate(() => localStorage.getItem('sharlock.graphics'))).toBe('low')
   expect(await page.evaluate(() => window.__hub.state.look.mirror)).toBe(false)
   await expect(page.locator('canvas.hub-canvas')).toHaveCount(1)
@@ -311,7 +315,9 @@ test('turns the camera with Q and brings it back with the reset button and R', a
 
   // the software renderer is slow, so keep the key down until the camera has visibly turned
   await page.keyboard.down('KeyQ')
-  await expect.poll(async () => Math.abs((await cameraAlpha(page)) - start), slow).toBeGreaterThan(0.15)
+  await expect
+    .poll(async () => Math.abs((await cameraAlpha(page)) - start), slow)
+    .toBeGreaterThan(0.15)
   await page.keyboard.up('KeyQ')
   await expect.poll(() => offBehind(page), slow).toBeGreaterThan(0.1)
 
@@ -342,7 +348,9 @@ test('minimap selects a destination and follows the player', async ({ page }, te
       () =>
         page.evaluate(() => {
           const dot = document.querySelector('[data-testid="hub-minimap"] .m-dot')
-          return dot ? [Math.round(dot.getAttribute('cx')), Math.round(dot.getAttribute('cy'))] : null
+          return dot
+            ? [Math.round(dot.getAttribute('cx')), Math.round(dot.getAttribute('cy'))]
+            : null
         }),
       slow,
     )
@@ -366,8 +374,13 @@ test('minimap selects a destination and follows the player', async ({ page }, te
   if (compact) await expect(map).toBeHidden()
 })
 
-test('the mobile map opens from the Map button and closes with Escape', async ({ page }, testInfo) => {
-  test.skip(!testInfo.project.name.endsWith('mobile-chromium'), 'the compact map only exists on phones')
+test('the mobile map opens from the Map button and closes with Escape', async ({
+  page,
+}, testInfo) => {
+  test.skip(
+    !testInfo.project.name.endsWith('mobile-chromium'),
+    'the compact map only exists on phones',
+  )
   await page.goto('/')
   await hubReady(page)
   const map = page.getByTestId('hub-minimap')
@@ -393,11 +406,15 @@ test('the mobile map opens from the Map button and closes with Escape', async ({
   await toggle.click()
   await page.getByTestId('hub-map-close').click()
   await expect(map).toBeHidden()
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  )
   expect(overflow).toBeLessThanOrEqual(0)
 })
 
-test('Space jumps once: leaves the ground, lands again and cannot double jump', async ({ page }) => {
+test('Space jumps once: leaves the ground, lands again and cannot double jump', async ({
+  page,
+}) => {
   await page.goto('/')
   await hubReady(page)
   await page.evaluate(() => document.activeElement?.blur())

@@ -508,6 +508,15 @@ No active implementation task.
 - **Docs:** no docs impact (formatting only).
 - **Next action:** merged into `main` by Athithya with Boey's OK (28 October 2026, `Merge branch 'fmt-01-dashboard-prettier'`); Boey accepts or reopens.
 
+**FMT-02 — Prettier format of the hub E2E specs** · Status: **Review** · Contributor: **Athithya** (done for Boey) · Branch: `fmt-02-hub-specs-prettier` (cut from `origin/main` at `35406c2`, 28 October 2026, upstream unset) · Approved by Athithya for Boey on 28 October 2026.
+
+- **Problem:** `tests/e2e/hub.spec.js` and `tests/e2e/hub-auto.spec.js` (Boey's hub specs) failed `prettier --check` on `main`, noted under FMT-01.
+- **Change (format only):** `prettier --write` on those two files; line wrapping and trailing commas only, no test logic or text change (checked by comparing both files with whitespace and commas stripped).
+- **Verified (28 October 2026, Athithya's Mac):** `prettier --check` clean and eslint exit 0 on both files; `playwright test --list` loads them (38 tests in 2 files). The hub E2E was not run (formatting cannot change behaviour).
+- **Not in scope:** `prettier --check .` still reports 79 other files on `main` (mostly `client/src/features/`, owned by several contributors); making `format:check` pass needs its own task with owner agreement.
+- **Docs:** no docs impact (formatting only); this record.
+- **Next action:** Boey reviews; merge only with his OK.
+
 **BOARD-01 — Class leaderboards** · Status: **Review** · Contributor: **Boey** · Branch: `board-01-class-leaderboards` (cut from `origin/main` at `9e6c3a1`, 27 October 2026, upstream unset). Plan approved by Boey on 27 October 2026. Spec: [BOARD-01](#board-01--cohort-leaderboards).
 
 - **Collision check (27 October 2026):** no leaderboard code on `main`, in local or remote branch names, or in the `admin-01-b-admin-controls` (Codex admin-controls) worktree. Existing references are only the `/leaderboard` ComingSoon placeholder (`client/src/router/index.js`), nav links (`Navbar.vue:34`, `PortalLayout.vue:30`), the pixel-wipe label, docs mentions, and an empty `server/src/modules/leaderboards/.gitkeep`. Remote branch contents, PRs and teammates' machines were not inspected.
