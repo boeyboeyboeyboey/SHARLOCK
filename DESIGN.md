@@ -150,14 +150,14 @@ On `/` the music plays only in the 2D town, at half volume (AUDIO-02), and tries
 
 The six activities are already registered. Keep their identities and placements when an implementation is explicitly authorized; a generic preview is existing work under the kickoff collision rules. These are shared town surfaces using the existing sprites, tokens, metadata card and camera.
 
-| Feature                                   | Catalog ID / route suffix      | Building  | Position   | Readiness                  |
-| ----------------------------------------- | ------------------------------ | --------- | ---------- | -------------------------- |
-| CLI Cyber Defender                        | `cli-cyber-defender`           | cottage   | (112, 112) | Playable, unsaved (Review) |
-| The Phishing Post-Mortem                  | `phishing-post-mortem`         | library   | (480, 64)  | Playable, saved (Review)   |
-| SQL Injection Arcade                      | `sql-injection-arcade`         | hut       | (832, 128) | Saved practice             |
-| Cyber News Central / The daily briefing   | `threat-briefing`              | newsstand | (144, 480) | Accepted                   |
-| LLM Social Engineering Simulator          | `social-engineering-simulator` | office    | (432, 520) | Playable, unsaved (Review) |
-| Clearance Tower (replaced Regex Defender) | `clearance-tower`              | shed      | (720, 496) | Playable, unsaved (Review) |
+| Feature                                   | Catalog ID / route suffix      | Building  | Position   | Readiness                |
+| ----------------------------------------- | ------------------------------ | --------- | ---------- | ------------------------ |
+| CLI Cyber Defender                        | `cli-cyber-defender`           | cottage   | (112, 112) | Playable, saved (Review) |
+| The Phishing Post-Mortem                  | `phishing-post-mortem`         | library   | (480, 64)  | Playable, saved (Review) |
+| SQL Injection Arcade                      | `sql-injection-arcade`         | hut       | (832, 128) | Saved practice           |
+| Cyber News Central / The daily briefing   | `threat-briefing`              | newsstand | (144, 480) | Accepted                 |
+| LLM Social Engineering Simulator          | `social-engineering-simulator` | office    | (432, 520) | Playable, saved (Review) |
+| Clearance Tower (replaced Regex Defender) | `clearance-tower`              | shed      | (720, 496) | Playable, saved (Review) |
 
 All routes use `/games/<catalog-id>`. The four retired illustrative URLs redirect: `integrity-detective` → `cli-cyber-defender`, `mini-ctf` → `sql-injection-arcade`, `access-control` → `social-engineering-simulator`, `red-blue` → `clearance-tower`; the former `regex-defender` URL also redirects to `clearance-tower`. They do not add entries or buildings.
 
