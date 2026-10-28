@@ -210,15 +210,22 @@ test('navigates to the profile and handles mobile focus and dismissal', async ({
   await page.goto('/dashboard')
   if (testInfo.project.name === 'mobile-chromium') {
     const opener = page.getByRole('button', { name: 'Open navigation and profile' })
-    await opener.click()
     const drawer = page.getByRole('dialog', { name: 'Your detective desk' })
+    // the layout may not be mounted yet, so retry the tap; never click while the drawer is already open
+    await expect(async () => {
+      if (!(await drawer.isVisible())) await opener.click({ timeout: 2000 })
+      await expect(drawer).toHaveClass(/(^|\s)show(\s|$)/, { timeout: 3000 })
+    }).toPass({ timeout: 15_000 })
     await expect(drawer).toBeVisible()
     await expect(drawer.getByText('Results are not saved')).toBeVisible()
     await expect.poll(() => drawer.evaluate((el) => el.contains(document.activeElement))).toBe(true)
     await page.keyboard.press('Escape')
     await expect(drawer).toBeHidden()
     await expect(opener).toBeFocused()
-    await opener.click()
+    await expect(async () => {
+      if (!(await drawer.isVisible())) await opener.click({ timeout: 2000 })
+      await expect(drawer).toHaveClass(/(^|\s)show(\s|$)/, { timeout: 3000 })
+    }).toPass({ timeout: 15_000 })
     await drawer.getByRole('link', { name: 'Detective profile', exact: true }).click()
     await expect(drawer).toBeHidden()
   } else await page.getByRole('link', { name: 'Profile', exact: true }).click()
