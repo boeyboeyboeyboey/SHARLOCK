@@ -1,7 +1,8 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 export const MUSIC_MUTED_KEY = 'sharlock.musicMuted'
-const GESTURES = ['pointerdown', 'keydown', 'touchstart']
+export const MUSIC_VOLUME = 0.5
+const GESTURES =['pointerdown', 'keydown', 'touchstart']
 
 function readMuted() {
   try {
@@ -58,6 +59,8 @@ export function useLandingMusic(audio, suspended = () => false) {
     starting.value = true
     const request = ++generation
     audio.value.muted = false
+    // half of the original maximum volume
+    audio.value.volume = MUSIC_VOLUME
     try {
       // play is called synchronously inside the gesture; state follows only once it resolves
       await audio.value.play()

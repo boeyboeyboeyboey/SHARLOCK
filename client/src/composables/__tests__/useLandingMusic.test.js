@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
-import { MUSIC_MUTED_KEY, useLandingMusic } from '../useLandingMusic.js'
+import { MUSIC_MUTED_KEY, MUSIC_VOLUME, useLandingMusic } from '../useLandingMusic.js'
 
 let api
 const hold = ref(false)
@@ -30,6 +30,16 @@ describe('useLandingMusic', () => {
     expect(play).toHaveBeenCalledTimes(1)
     expect(api.isMuted.value).toBe(false)
     expect(wrapper.get('audio').element.muted).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('caps the music at half volume', async () => {
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue()
+    vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
+    const wrapper = mount(Host)
+    await flushPromises()
+    expect(MUSIC_VOLUME).toBeLessThanOrEqual(0.5)
+    expect(wrapper.get('audio').element.volume).toBe(MUSIC_VOLUME)
     wrapper.unmount()
   })
 
