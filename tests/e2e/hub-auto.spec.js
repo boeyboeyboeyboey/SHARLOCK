@@ -8,6 +8,7 @@ const shots =
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('sharlock.hubWatchManual', '1'))
+  await page.addInitScript(() => localStorage.setItem('sharlock.loreIntroSeen', '1'))
   await page.route(/fonts\.(googleapis|gstatic)\.com/, (route) =>
     route.fulfill({ contentType: 'text/css', body: '' }),
   )

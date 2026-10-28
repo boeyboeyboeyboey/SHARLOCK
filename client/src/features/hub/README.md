@@ -3,7 +3,7 @@
 ## Presentation summary
 
 - What it is: a 3D Thames Wharf landing page on `/` where the player walks Sharlock, a capybara detective, between six buildings; each building opens a game or the news. This is a navigation feature, not a security lesson, so it needs no course citations.
-- How to use it: walk (WASD, arrows or the touch joystick), orbit and zoom, use the minimap or destination list, press Enter at a building to open it, jump (Space or the Jump button), or switch to the 2D map.
+- How to use it: walk (WASD, arrows or the touch joystick), orbit and zoom, use the minimap or destination list, press Enter at a building to open it, jump (Space or the Jump button), replay the lore intro, or switch to the 2D map. The lore intro plays once on first visit; Enter or a click advances a card, and Space or Esc skips the whole intro.
 - Technical: Babylon.js 9 with WebGPU falling back to WebGL2; Havok character physics; a procedural capybara rig with a seeded idle state machine; automatic graphics tiers with a 2D fallback; DOM twins of the scene for accessibility.
 - Status: Review for see the HUB-01 to HUB-04 records in [TASKS.md](../../../../TASKS.md) (HUB-04 is the Sharlock character pass with idles and jump).
 - Known limits: see Known gaps below. Not verified on real phones or low-end hardware.
@@ -34,7 +34,7 @@ Players' controls and settings are described in the root README under "Using the
 
 ## Storage keys
 
-- localStorage: `sharlock.graphics`, `sharlock.townMode` (explicit choice only, never an automatic fallback), `sharlock.hubPerf`, `sharlock.autoNoticeDismissed`.
+- localStorage: `sharlock.graphics`, `sharlock.townMode` (explicit choice only, never an automatic fallback), `sharlock.hubPerf`, `sharlock.autoNoticeDismissed`, `sharlock.loreIntroSeen` (`'1'` once the lore intro finishes or is skipped).
 - sessionStorage: `sharlock.hubReturn` (building to restore after returning from a game).
 
 ## Dev-only hooks (`import.meta.env.DEV` only)
@@ -44,9 +44,25 @@ Players' controls and settings are described in the root README under "Using the
 - `window.__hub`: `state`, `select`, `enter`, `back`, `resetCamera`, `pauseInput`, `debug.{position,doors,walkTo,simulateFps,jump,airborne}`.
 - A status line shows engine, fps and draw calls.
 
+## Lore intro
+
+- Plays once on first entry to the 3D hub on `/`: five serif title cards fade in and out on black ("London, 1880." to "The city is counting on you."), then the black fades up on Sharlock at the wharf. About 27 s.
+- The overlay covers the whole browser window, including the navbar and hub HUD. It is rendered to `<body>` with `position: fixed`; it does not use the browser Fullscreen API.
+- Hold per card is the longer of 1.5 s and 0.32 s per word, with 0.4 s fades. Enter or a click advances one card. Space or Esc skips the whole intro. A faint bottom-right button reads "Press Space to skip" (or "Tap to skip" on touch screens), with accessible name "Skip intro". The hub loads behind it.
+- Audio: plays `/audio/lore-intro.mp3` at volume 0.5. A small top-right sound toggle ("Mute intro sound" / "Turn on intro sound") shares the session-only `sharlock.musicMuted` key with the town and hub music; unmuted is never stored. If the browser blocks autoplay, the intro opens on "Click or press Enter to begin"; that click starts the sound and card 1. The audio fades out (0.8 s on finish, 0.3 s on skip) before the hub ambience starts, so only one sound plays at a time. A missing or failed file runs silent.
+- If the scene is not ready at the end, the last card shows "Loading the wharf…" until it is.
+- Reduced motion: no fades and no auto-advance. Plain cards with Continue; Space still skips.
+- Seen state: localStorage `sharlock.loreIntroSeen` = `'1'`, per browser, set on finish or skip. The **Replay intro** button is a small icon-only button (Phosphor film-slate icon from `@phosphor-icons/vue`), with accessible name and tooltip "Replay intro", beside **Reset camera** in the hub HUD.
+- Hub input and the hub ambience (`HubAmbience.vue`) stay paused while it plays. The ambience starts when the intro audio has faded out, unless muted.
+- 2D mode and the no-WebGL fallback never show it.
+- Accessibility: `role="dialog"`, `aria-modal`, card text in an `aria-live` region, focus trapped and returned to the hub. Card text is white `#fff` on black `#000` (21:1). The name "Sharlock Holmes" on card 4 is warm gold `#E8C468` (about 12:1 on black), in the same font and size.
+- Font: Libre Baskerville 400 via `@fontsource/libre-baskerville` 5.3.0 (SIL OFL 1.1), pinned exact. It is imported only by `intro/LoreIntro.vue`, a deliberate exception to the shared pixel fonts, confined to the intro.
+- Files: `client/src/features/hub/intro/` (`loreCards.js`: card text and hold timing; `useLoreIntro.js`: seen state and playing flag; `LoreIntro.vue`: the overlay). `HubScene.vue` mounts it; `HubAmbience.vue` holds the audio pause.
+
 ## Testing
 
-- Unit: `client/src/features/hub/__tests__/`, including `idle.test.js` and `jump.test.js`.
+- Unit: `client/src/features/hub/__tests__/`, including `idle.test.js`, `jump.test.js` and the lore tests (`loreCards.test.js`, `useLoreIntro.test.js`, `LoreIntro.test.js`).
+- Lore intro: every hub E2E spec must pre-set `sharlock.loreIntroSeen` to `'1'` in its init script, or the intro blocks the hub. `tests/e2e/lore-intro.spec.js` covers the intro journey.
 - E2E: `tests/e2e/hub.spec.js` and `tests/e2e/hub-auto.spec.js`. `hub.spec.js` covers the jump. Hub specs force 3D with `sharlock.hubForce3d=1` and `sharlock.hubWatchManual=1` (see `hub.spec.js` near line 44), because headless Chromium renders in software.
 - E2E waits are condition-based (`expect`, `expect.poll`, `waitForFunction`); never use `waitForTimeout`.
 - Any other E2E spec that touches the town must force 2D mode:

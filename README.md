@@ -174,7 +174,7 @@ pnpm setup:env
 pnpm dev
 ```
 
-This serves the client on http://localhost:5173 and the API on port 3000. Run `pnpm install --frozen-lockfile` again after every pull; the 3D hub added `@babylonjs/core` 9.31.0 and `@babylonjs/havok` 1.3.14.
+This serves the client on http://localhost:5173 and the API on port 3000. Run `pnpm install --frozen-lockfile` again after every pull; the 3D hub added `@babylonjs/core` 9.31.0 and `@babylonjs/havok` 1.3.14, and the lore intro adds `@fontsource/libre-baskerville` 5.3.0.
 
 For live Times stories, privately add `GUARDIAN_API_KEY` from [Guardian Open Platform](https://open-platform.theguardian.com/access/) to root `.env` and restart the backend. The OWASP Top 10 reference and the rest of the app remain usable without a key. Never put it in frontend configuration or chat.
 
@@ -217,6 +217,7 @@ Games open a **How to play** guide on your first visit. Tick "Don't show again" 
 
 - Keyboard: WASD or arrow keys walk; Space jumps; hold Q or E to rotate the camera; R resets the camera behind Sharlock; Esc deselects the building. Keys are ignored while you type in an input.
 - Mouse: click the ground to walk there; drag to orbit; scroll to zoom. A destination list button walks Sharlock to that building, and on arrival "Enter <building>" opens it. "Reset camera" is a button. On desktop the minimap (bottom right) travels to a building when you click its pin.
+- Lore intro (first visit, or the **Replay intro** film-slate icon beside "Reset camera"): Enter or a click advances a card; Space or Esc skips the whole intro, as does the faint bottom-right "Press Space to skip" button (or "Tap to skip" on touch screens). The top-right sound toggle mutes the intro for the browser session, shared with the hub and town music. If the browser blocks autoplay, click or press Enter to begin. With reduced motion, use **Continue** to advance.
 - Touch (phones and tablets): the joystick at the top right walks, and the "Jump" button next to the joystick jumps; drag to orbit; pinch to zoom. The "Map" button opens a full-screen map (Esc closes it) whose pins travel to a building.
 - Standing still for a while, Sharlock looks around, sits down and yawns.
 - Staff reach their areas from the header (768px and up) or the sidebar: admins see an **Admin** button and instructors an **Instructor** button; students see neither.

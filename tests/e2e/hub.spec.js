@@ -45,6 +45,7 @@ test.beforeEach(async ({ page }) => {
     localStorage.setItem('sharlock.hubForce3d', '1')
     // software rendering is slow by nature, so the runtime watch only reacts to simulated fps
     localStorage.setItem('sharlock.hubWatchManual', '1')
+    localStorage.setItem('sharlock.loreIntroSeen', '1')
   })
   await page.route(/fonts\.(googleapis|gstatic)\.com/, (route) =>
     route.fulfill({ contentType: 'text/css', body: '' }),
