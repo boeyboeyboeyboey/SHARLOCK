@@ -434,6 +434,15 @@ No active implementation task.
 - **Second revision (28 October 2026, Boey):** How to play is two steps with a code-drawn looping replay preview (cursor clicks Trust, then Report and taps the sender; static frame under reduced motion); in-game Trust is green `#1c6b47` and Report red `#9a3324`, white text. Verified: `pnpm test:unit` 125 files, 1440/1440; `tests/e2e/phishing-post-mortem.spec.js` 20/20 (one selector made exact); `pnpm build` exit 0. Not visually checked: preview timing and fit at 375 px.
 - **Next action:** Boey reviews in the browser; merge only with his OK; tell Athithya.
 
+**AUDIO-02 — 2D-only landing music at half volume** · Status: **Review** · Contributor: **Boey** · Branch: `audio-02-2d-music-half-volume` (cut from `origin/main` at `bc545d7`, 28 October 2026, upstream unset) · Boey's decision on 28 October 2026 with team permission; amends AUDIO-01 and agents.md §8.
+
+- **Behaviour:** `/audio/sharlock-bgm.mp3` plays only in the 2D town, at volume 0.5, with the existing start rules, visible Sound control and session-only mute (`sharlock.musicMuted`). The 3D hub has no sound for now; a recorded ambience file is to be chosen (Boey, 28 October 2026). The coded ambience was removed.
+- **Change:** `useLandingMusic.js` (volume cap `MUSIC_VOLUME` 0.5); `Dashboard.vue` mounts no hub audio; `useHubAmbience.js`, `HubAmbience.vue` and their test deleted; `useLandingMusic.test.js` volume assertion; `tests/e2e/hub.spec.js` mode-switch assertions (hub: 0 `<audio>`, no hub sound control; 2D: 1 `<audio>`).
+- **Verified (28 October 2026):** `pnpm exec vitest run client/src/features/hub client/src/features/legacy-town client/src/composables client/src/views` exit 0 (12 files, 114 tests); `node scripts/run-with-test-db.mjs e2e --replica-set tests/e2e/hub.spec.js --project=hub-desktop-chromium --workers=1` exit 0 (11 passed); eslint on touched JS exit 0.
+- **Not verified:** real browser autoplay policy; 2D town loudness by ear.
+- **Docs:** agents.md §8, hub and legacy-town READMEs (Audio), README "Using the app", DESIGN.md audio lines.
+- **Next action:** Boey listens in the hub and the 2D town and tunes gains if needed; merge only with his OK.
+
 **BOARD-01 — Class leaderboards** · Status: **Review** · Contributor: **Boey** · Branch: `board-01-class-leaderboards` (cut from `origin/main` at `9e6c3a1`, 27 October 2026, upstream unset). Plan approved by Boey on 27 October 2026. Spec: [BOARD-01](#board-01--cohort-leaderboards).
 
 - **Collision check (27 October 2026):** no leaderboard code on `main`, in local or remote branch names, or in the `admin-01-b-admin-controls` (Codex admin-controls) worktree. Existing references are only the `/leaderboard` ComingSoon placeholder (`client/src/router/index.js`), nav links (`Navbar.vue:34`, `PortalLayout.vue:30`), the pixel-wipe label, docs mentions, and an empty `server/src/modules/leaderboards/.gitkeep`. Remote branch contents, PRs and teammates' machines were not inspected.
