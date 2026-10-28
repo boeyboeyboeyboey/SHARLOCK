@@ -1,6 +1,6 @@
 # Shared saved attempts and results
 
-GAME-01-A is the server foundation for saved gameplay. It is not a migration of Phishing, CLI or Social. Normal startup now registers the separately approved G-SQL `sql-1` practice adapter; Phishing, CLI, Social and Clearance retain their unsaved endpoints and labels. The sample game used by integration tests lives only under `server/tests/integration/attempts/`; no HTTP field, environment switch or startup import enables it in the normal app.
+GAME-01-A is the server foundation for saved gameplay. It is not a migration of Phishing, CLI or Social. Normal startup now registers the separately approved G-SQL `sql-1` practice adapter (since SQL-02, `sql-2` is current and `sql-1` stays registered with `current: false`); Phishing, CLI, Social and Clearance retain their unsaved endpoints and labels. The sample game used by integration tests lives only under `server/tests/integration/attempts/`; no HTTP field, environment switch or startup import enables it in the normal app.
 
 ## Request and storage flow
 

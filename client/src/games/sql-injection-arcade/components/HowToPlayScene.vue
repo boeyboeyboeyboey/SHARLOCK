@@ -4,23 +4,22 @@ const props = defineProps({
   reducedMotion: { type: Boolean, default: false },
 })
 
-const REPAIRS = ['Remove spaces', 'Hide the query', 'Parameterized query']
+const REPAIRS = ['Block the word UNION', 'Hide the errors', 'Parameterized query']
 </script>
 
 <template>
   <div class="scene" :class="[`is-step-${props.step}`, { 'is-static': props.reducedMotion }]">
     <div class="scene-left">
       <div class="scene-login">
-        <span class="scene-field">username: <b>fictional' OR 1=1 --</b></span>
-        <span class="scene-field">password: <b>fictional</b></span>
-        <span class="scene-button">Test payload</span>
+        <span class="scene-field">search: <b>zz' UNION SELECT user, pass FROM staff --</b></span>
+        <span class="scene-button">Run the query</span>
       </div>
       <pre
         class="scene-query"
-      ><code>WHERE username = '<mark class="scene-quote">'</mark> OR 1=1 --'</code></pre>
+      ><code>WHERE name LIKE '%<mark class="scene-quote">zz'</mark> UNION SELECT ...</code></pre>
     </div>
     <div class="scene-right">
-      <p class="scene-count">3 / 5 tests</p>
+      <p class="scene-count">Tries left 2 of 3 · Lives 3 · 2:41</p>
       <ul class="scene-repairs">
         <li
           v-for="(repair, index) in REPAIRS"

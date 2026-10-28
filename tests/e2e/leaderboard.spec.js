@@ -9,6 +9,7 @@ import { membershipModel } from '../../server/src/models/Membership.js'
 import { instructorAssignmentModel } from '../../server/src/models/InstructorAssignment.js'
 import { hashPassword } from '../../server/src/modules/auth/password.js'
 import { HOW_TO_PLAY_GAME_IDS } from '../../server/src/modules/profile/how-to-play.js'
+import { playSqlRun } from './fixtures/sql.js'
 
 function identity(role, suffix) {
   return {
@@ -97,20 +98,6 @@ async function signedInPage(browser, baseURL, who) {
   return { context, page }
 }
 
-// plays one full G-SQL run, saving it to the given context option
-async function playSqlRun(page, contextOption) {
-  await page.goto('/games/sql-injection-arcade')
-  await page.getByLabel('Save this case to').selectOption(contextOption)
-  await page.getByRole('button', { name: 'Open the case' }).click()
-  await expect(page).toHaveURL(/attempt=/)
-  await page.getByLabel('Fictional username', { exact: true }).fill("' OR 1=1 --")
-  await page.getByRole('button', { name: 'Test payload', exact: true }).click()
-  await expect(page.getByRole('group', { name: 'Seal the breach' })).toBeVisible()
-  await page.getByRole('radio', { name: 'Bind input as parameters in a prepared query' }).check()
-  await page.getByRole('button', { name: 'Confirm repair' }).click()
-  await expect(page.getByText('Result saved to your account.', { exact: true })).toBeVisible()
-}
-
 // seeds a class where student A has one saved class-context run
 async function seedPlayedClass(browser, baseURL) {
   const seeded = await seedClass(randomBytes(4).toString('hex'))
@@ -135,7 +122,7 @@ test('student sees their own row on the practice and all-time boards', async ({
     await expect(
       page.getByRole('heading', { level: 2, name: /SQL Injection Arcade/ }),
     ).toBeVisible()
-    await expect(page.getByRole('table', { name: 'Practice best scores' })).toBeVisible()
+    await expect(page.getByRole('table', { name: 'Timed runs' })).toBeVisible()
 
     const own = page.getByRole('row', { name: new RegExp(seeded.studentA.username) })
     await expect(own).toHaveCount(1)
@@ -180,7 +167,7 @@ test('instructor sees a class board without a self marker', async ({ browser, ba
     await expect(page.getByRole('combobox', { name: 'Class', exact: true })).toHaveValue(
       seeded.classId,
     )
-    await expect(page.getByRole('table', { name: 'Practice best scores' })).toBeVisible()
+    await expect(page.getByRole('table', { name: 'Timed runs' })).toBeVisible()
 
     const row = page.getByRole('row', { name: new RegExp(seeded.studentA.username) })
     await expect(row).toHaveCount(1)

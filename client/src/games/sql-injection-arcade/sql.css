@@ -358,12 +358,6 @@
   font: inherit;
   margin-top: 4px;
 }
-.sql-game .sql-clue {
-  padding: 8px;
-  border-left: 3px solid var(--game-amber);
-  font-size: 14px;
-  margin-top: 8px;
-}
 .sql-game .sql-repair-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -510,25 +504,6 @@
     position: relative;
     padding: 3px;
   }
-  .sql-game .sql-controls > .sql-hint {
-    position: absolute;
-    right: 14px;
-    bottom: 12px;
-    margin: 0;
-  }
-  .sql-game .sql-controls:has(.sql-hint) .sql-form-submit {
-    padding-right: 150px;
-  }
-  .sql-game .sql-clue {
-    position: absolute;
-    right: 14px;
-    bottom: 62px;
-    width: min(440px, calc(100% - 28px));
-    background: var(--game-paper);
-    border: 2px solid var(--game-amber);
-    z-index: 1;
-    padding: 12px;
-  }
 }
 @media (max-width: 767px), (max-height: 599px) {
   .sql-game {
@@ -575,4 +550,97 @@
   .sql-game .btn {
     transition: none;
   }
+}
+
+.sql-game .sql-hud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  width: 100%;
+}
+.sql-game .sql-hud li {
+  color: var(--game-muted);
+  font-size: 14px;
+}
+.sql-game .sql-hud strong {
+  color: var(--game-amber);
+}
+.sql-game .sql-case-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+}
+.sql-game .sql-result-region:empty {
+  display: none;
+}
+.sql-game .sql-result-body {
+  border-left: 3px solid var(--game-blue);
+  padding-left: 10px;
+}
+.sql-game .sql-result-body h3 {
+  font-family: var(--game-display);
+  font-size: 1.1rem;
+  color: var(--game-blue);
+  margin: 0 0 6px;
+}
+.sql-game .sql-outcome {
+  color: var(--game-amber);
+  font-weight: 700;
+}
+.sql-game .sql-leak,
+.sql-game .sql-review {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 10px;
+  font-size: 14px;
+}
+.sql-game .sql-leak caption,
+.sql-game .sql-review caption {
+  caption-side: top;
+  text-align: left;
+  color: var(--game-muted);
+  padding-bottom: 4px;
+}
+.sql-game .sql-leak th,
+.sql-game .sql-leak td,
+.sql-game .sql-review th,
+.sql-game .sql-review td {
+  border: 1px solid var(--game-edge);
+  padding: 4px 8px;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.sql-game .sql-leak th,
+.sql-game .sql-review th {
+  background: #163652;
+  color: var(--game-blue);
+}
+.sql-game .sql-case-form fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.sql-game .sql-hint-box {
+  margin-top: 4px;
+}
+.sql-game .sql-hint-text {
+  padding: 8px;
+  border-left: 3px solid var(--game-amber);
+}
+.sql-game .sql-tag {
+  display: inline-block;
+  padding: 0 6px;
+  margin-right: 6px;
+  border: 1px solid var(--game-amber);
+  color: var(--game-amber);
+  font-size: 12px;
+}
+.sql-game .sql-blind-answer .sql-form-submit {
+  gap: 8px;
 }

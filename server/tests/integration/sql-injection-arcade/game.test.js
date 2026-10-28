@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import request from 'supertest'
+import { Types } from 'mongoose'
 import { connectDatabase } from '../../../src/config/database.js'
 import { assertSafeTestDatabaseUri } from '../../../src/config/database-uri.js'
 import { loadEnvironment } from '../../../src/config/env.js'
@@ -16,6 +17,9 @@ import {
   initializeTestAuth,
   registerTestStudent,
 } from '../auth/helpers.js'
+
+import { generateCase } from '../../../src/modules/games/sql-injection-arcade/generator/index.js'
+import { solutionFor } from '../../unit/sql-injection-arcade/helpers.js'
 
 let database, app, auth, origin
 beforeAll(async () => {
@@ -46,6 +50,29 @@ function post(student, path, body) {
 function action(snapshot, type, payload) {
   return { actionId: randomUUID(), expectedRevision: snapshot.revision, type, payload }
 }
+// the stored seed is the determinism seam: tests rebuild each private case from it
+async function seedOf(attemptId) {
+  const document = await database.db
+    .collection('game_attempts')
+    .findOne({ _id: new Types.ObjectId(attemptId) })
+  return document.state.seed
+}
+const caseId = (snapshot) => snapshot.publicState.current.caseId
+async function solveCurrent(student, snapshot, seed) {
+  const index = snapshot.publicState.casesClosed
+  const c = generateCase({ seed, index })
+  let latest = snapshot
+  for (const step of solutionFor(c)) {
+    latest = (
+      await post(
+        student,
+        `/api/attempts/${snapshot.attemptId}/actions`,
+        action(latest, step.type, step.payload),
+      ).expect(200)
+    ).body
+  }
+  return latest
+}
 async function classFor(student, status = 'active') {
   const institution = await institutionModel(database).create({
     name: 'SQL Test School',
@@ -66,30 +93,38 @@ async function classFor(student, status = 'active') {
   return { cohort, membership }
 }
 
-describe('saved SQL journey', () => {
-  it('saves a solved/repaired result, retries once, rejects races and never stores raw inputs', async () => {
+describe('saved SQL run', () => {
+  it('starts practice without answers, plays a full run, completes once and keeps raw input out', async () => {
     const student = await registerTestStudent(app)
     const start = await post(student, gamePath, { context: { kind: 'personal' } }).expect(201)
-    const id = start.body.attemptId
-    const path = `/api/attempts/${id}`
-    const payload = action(start.body, 'test-payload', {
-      username: "' OR 1=1 --",
-      password: 'private-fictional-input',
+    expect(start.body).toMatchObject({
+      rulesetVersion: 'sql-2',
+      mode: 'practice',
+      deadlineAt: null,
+      persisted: true,
     })
-    const solved = await post(student, `${path}/actions`, payload).expect(200)
-    expect(solved.body.score).toBe(80)
-    expect((await post(student, `${path}/actions`, payload).expect(200)).body).toEqual(solved.body)
-    await post(student, `${path}/actions`, { ...payload, actionId: randomUUID() }).expect(409)
-    await post(student, `${path}/complete`, {
-      actionId: randomUUID(),
-      expectedRevision: solved.body.revision,
-    }).expect(409)
-    const repaired = await post(
-      student,
-      `${path}/actions`,
-      action(solved.body, 'select-repair', { optionId: 'bind' }),
-    ).expect(200)
-    const finish = { actionId: randomUUID(), expectedRevision: repaired.body.revision }
+    expect(start.body.publicState).toMatchObject({
+      totalCases: 12,
+      lives: null,
+      current: { number: 1 },
+    })
+    const id = start.body.attemptId
+    const seed = await seedOf(id)
+    const text = JSON.stringify(start.body)
+    expect(text).not.toContain(seed)
+    for (const forbidden of ['"model"', '"correctId"', '"answer"', '"seed"', '"private"'])
+      expect(text).not.toContain(forbidden)
+    let snapshot = start.body
+    let expected = 0
+    for (let slot = 0; slot < 15; slot += 1) {
+      const c = generateCase({ seed, index: slot })
+      expected += c.private.kind === 'repair' ? 10 : c.private.tier * 10 + 10
+      snapshot = await solveCurrent(student, snapshot, seed)
+    }
+    expect(snapshot.score).toBe(expected)
+    expect(snapshot.publicState.current).toBeNull()
+    const path = `/api/attempts/${id}`
+    const finish = { actionId: randomUUID(), expectedRevision: snapshot.revision }
     const results = await Promise.all([
       post(student, `${path}/complete`, finish),
       post(student, `${path}/complete`, finish),
@@ -97,22 +132,120 @@ describe('saved SQL journey', () => {
     expect(results.map((result) => result.status)).toEqual([200, 200])
     expect(results[0].body).toEqual(results[1].body)
     expect(results[0].body).toMatchObject({
-      score: 100,
       status: 'completed',
-      persisted: true,
       mode: 'practice',
+      score: expected,
     })
+    expect(results[0].body.publicState.review).toHaveLength(15)
     expect((await student.agent.get(path).expect(200)).body).toEqual(results[0].body)
-    const document = await database.db.collection('game_attempts').findOne({
-      gameId: 'sql-injection-arcade',
-      playerId: new (await import('mongoose')).Types.ObjectId(student.user.id),
-    })
-    expect(JSON.stringify(document)).not.toContain('private-fictional-input')
-    expect(JSON.stringify(document)).not.toContain("' OR 1=1 --")
+    const document = await database.db
+      .collection('game_attempts')
+      .findOne({ _id: new Types.ObjectId(id) })
     expect(document.competitiveEligible).toBe(false)
+    expect(JSON.stringify(document)).not.toContain("' OR 1=1--")
+    await post(
+      student,
+      `${path}/actions`,
+      action(results[0].body, 'hint', { caseId: 'abcdef' }),
+    ).expect(409)
+  })
+
+  it('marks a hinted case assisted and rejects stale, malformed and out-of-phase actions', async () => {
+    const student = await registerTestStudent(app)
+    const start = (await post(student, gamePath, { context: { kind: 'personal' } }).expect(201))
+      .body
+    const path = `/api/attempts/${start.attemptId}/actions`
+    const hinted = await post(
+      student,
+      path,
+      action(start, 'hint', { caseId: caseId(start) }),
+    ).expect(200)
+    expect(hinted.body.publicState.current).toMatchObject({ assisted: true })
+    expect(hinted.body.publicState.current.hint).toBeTruthy()
+    await post(student, path, action(hinted.body, 'hint', { caseId: caseId(start) })).expect(409)
+    await post(
+      student,
+      path,
+      action(hinted.body, 'attempt', { caseId: 'zzzzzz', inputs: ['x'] }),
+    ).expect(409)
+    await post(
+      student,
+      path,
+      action(hinted.body, 'attempt', { caseId: caseId(start), inputs: ['x'], score: 5 }),
+    ).expect(400)
+    await post(
+      student,
+      path,
+      action(hinted.body, 'answer', { caseId: caseId(start), value: 'yes' }),
+    ).expect(409)
+    const seed = await seedOf(start.attemptId)
+    const solved = await solveCurrent(student, hinted.body, seed)
+    const c = generateCase({ seed, index: 0 })
+    expect(solved.score).toBe(c.private.tier * 10)
+    expect(solved.publicState.last).toMatchObject({ solved: true, closed: true })
+    expect(solved.publicState.last.explanation).toBeTruthy()
+  })
+
+  it('runs a timed ranked class attempt and enforces the deadline', async () => {
+    const student = await registerTestStudent(app)
+    const { cohort } = await classFor(student)
+    const start = (
+      await post(student, gamePath, {
+        context: { kind: 'cohort', cohortId: String(cohort._id) },
+      }).expect(201)
+    ).body
+    expect(start).toMatchObject({ mode: 'standard' })
+    expect(start.publicState).toMatchObject({ maxLives: 3, lives: 3, totalCases: null })
+    expect(new Date(start.deadlineAt).getTime() - new Date(start.startedAt).getTime()).toBe(180000)
+    const id = start.attemptId
+    const path = `/api/attempts/${id}`
+    await post(student, `${path}/actions`, action(start, 'hint', { caseId: caseId(start) })).expect(
+      409,
+    )
+    const seed = await seedOf(id)
+    const solved = await solveCurrent(student, start, seed)
+    expect(solved.score).toBeGreaterThan(0)
+    await post(student, `${path}/complete`, {
+      actionId: randomUUID(),
+      expectedRevision: solved.revision,
+    }).expect(409)
+    await database.db.collection('game_attempts').updateOne(
+      { _id: new Types.ObjectId(id) },
+      {
+        $set: {
+          startedAt: new Date(Date.now() - 200000),
+          deadlineAt: new Date(Date.now() - 1000),
+        },
+      },
+    )
+    const late = generateCase({ seed, index: 1 })
+    const step = solutionFor(late)[0]
+    const refused = await post(student, `${path}/actions`, action(solved, step.type, step.payload))
+    expect(refused.status).toBeGreaterThanOrEqual(400)
+    const done = await post(student, `${path}/complete`, {
+      actionId: randomUUID(),
+      expectedRevision: solved.revision,
+    }).expect(200)
+    expect(done.body).toMatchObject({ status: 'completed', mode: 'standard', score: solved.score })
+    const document = await database.db
+      .collection('game_attempts')
+      .findOne({ _id: new Types.ObjectId(id) })
+    expect(document.competitiveEligible).toBe(true)
+  })
+
+  it('hides attempts from other accounts', async () => {
+    const student = await registerTestStudent(app)
+    const start = (await post(student, gamePath, { context: { kind: 'personal' } }).expect(201))
+      .body
+    const path = `/api/attempts/${start.attemptId}`
     const other = await registerTestStudent(app)
     await other.agent.get(path).expect(404)
-    await post(other, `${path}/complete`, finish).expect(404)
+    await post(other, `${path}/actions`, action(start, 'hint', { caseId: caseId(start) })).expect(
+      404,
+    )
+    await post(other, `${path}/complete`, { actionId: randomUUID(), expectedRevision: 0 }).expect(
+      404,
+    )
   })
 
   it('offers only eligible contexts and rechecks pending/removed class access', async () => {
@@ -138,7 +271,7 @@ describe('saved SQL journey', () => {
     await post(
       student,
       `/api/attempts/${start.body.attemptId}/actions`,
-      action(start.body, 'test-payload', { username: '', password: '' }),
+      action(start.body, 'hint', { caseId: 'abcdef' }),
     ).expect(404)
     const other = await registerTestStudent(app)
     await post(other, gamePath, {

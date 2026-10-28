@@ -9,6 +9,7 @@ import { membershipModel } from '../../server/src/models/Membership.js'
 import { instructorAssignmentModel } from '../../server/src/models/InstructorAssignment.js'
 import { hashPassword } from '../../server/src/modules/auth/password.js'
 import { HOW_TO_PLAY_GAME_IDS } from '../../server/src/modules/profile/how-to-play.js'
+import { playSqlRun } from './fixtures/sql.js'
 
 function identity(role, suffix) {
   return {
@@ -90,20 +91,6 @@ async function signedInPage(browser, baseURL, who) {
     route.fulfill({ contentType: 'text/css', body: '' }),
   )
   return { context, page }
-}
-
-// plays one full G-SQL run, saving it to the given context option
-async function playSqlRun(page, contextOption) {
-  await page.goto('/games/sql-injection-arcade')
-  await page.getByLabel('Save this case to').selectOption(contextOption)
-  await page.getByRole('button', { name: 'Open the case' }).click()
-  await expect(page).toHaveURL(/attempt=/)
-  await page.getByLabel('Fictional username', { exact: true }).fill("' OR 1=1 --")
-  await page.getByRole('button', { name: 'Test payload', exact: true }).click()
-  await expect(page.getByRole('group', { name: 'Seal the breach' })).toBeVisible()
-  await page.getByRole('radio', { name: 'Bind input as parameters in a prepared query' }).check()
-  await page.getByRole('button', { name: 'Confirm repair' }).click()
-  await expect(page.getByText('Result saved to your account.', { exact: true })).toBeVisible()
 }
 
 test('instructor sees only class-context results and can drill into a student', async ({
