@@ -205,6 +205,56 @@ test('returns to the door of the building that was entered', async ({ page }) =>
   expect(Math.hypot(fresh.x - door.x, fresh.z - door.z)).toBeGreaterThan(8)
 })
 
+test('announces picks, moves focus to Enter and restores it after a game', async ({ page }) => {
+  await page.goto('/')
+  await hubReady(page)
+  const status = page.getByTestId('hub-status')
+  const dest = page.getByTestId('dest-cli-cyber-defender')
+
+  await dest.click()
+  await expect(status).toHaveText('CLI Cyber Defender selected')
+  await expect(page.getByTestId('enter')).toBeFocused()
+  await expect(status).toHaveText('Arrived at CLI Cyber Defender. Press Enter to go in', slow)
+
+  // Escape from the Enter button drops the pick and returns focus to its list button
+  await page.keyboard.press('Escape')
+  await expect(status).toHaveText('Selection cleared')
+  await expect(dest).toBeFocused()
+
+  // a fresh load starts away from the door; picking the building you stand at is not what this checks
+  await page.reload()
+  await hubReady(page)
+  await dest.click()
+  await page.getByTestId('enter').click()
+  await expect(page).toHaveURL(/\/games\/cli-cyber-defender$/, slow)
+  await page.goBack()
+  await expect(page).toHaveURL('/')
+  await hubReady(page)
+  await expect(dest).toBeFocused()
+})
+
+test('the key legend toggles with aria-expanded and closes on Escape without dropping a pick', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await hubReady(page)
+  const keys = page.getByTestId('hub-keys')
+  const list = page.getByTestId('hub-keys-list')
+  await expect(keys).toHaveAttribute('aria-expanded', 'false')
+  await expect(list).toBeHidden()
+
+  await keys.click()
+  await expect(keys).toHaveAttribute('aria-expanded', 'true')
+  await expect(list).toBeVisible()
+  await expect(list).toContainText('Enter go in')
+
+  await page.getByTestId('dest-cli-cyber-defender').click()
+  await keys.focus()
+  await page.keyboard.press('Escape')
+  await expect(keys).toHaveAttribute('aria-expanded', 'false')
+  await expect(page.getByTestId('dest-cli-cyber-defender')).toHaveAttribute('aria-pressed', 'true')
+})
+
 test('fills the window below the navbar without sideways scroll', async ({ page }) => {
   await page.goto('/')
   await hubReady(page)

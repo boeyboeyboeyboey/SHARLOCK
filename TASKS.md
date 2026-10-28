@@ -140,6 +140,18 @@ No active implementation task.
 
 ## Review
 
+**HUB-06 — Hub keyboard and screen-reader pass** · Status: **Review** · Contributor: **Boey** · Branch: `hub-06-hub-a11y` (cut from `hub-05-destination-drop` at `d56f562`, 29 October 2026, upstream unset; both edit `HubScene.vue`) · Plan approved by Boey on 29 October 2026 (overnight batch). Destinations stay toggle buttons (Boey, 29 Oct).
+
+- **Announcements:** the `hub-status` live region (`role="status"`, always `aria-live="polite"`, visually hidden while empty) says "<Game> selected", "Arrived at <Game>. Press Enter to go in", "Entering <Game>" and "Selection cleared" (explore mode only); each clears after 5 s, and load/failure text keeps priority. Logic in `announce.js` (`announceChange`). The dev engine/fps text moved to its own `hub-stats` line so the region no longer needs `aria-live="off"` in dev.
+- **Focus:** a pick from the list or minimap focuses Enter when focus was on that control and Enter is enabled; Esc (or re-pick) from Enter returns focus to that destination's button; on return from a game focus goes to that destination once the hub is ready, if focus is on the body or the h1. `focusDestination` is still exposed, so `Dashboard.vue` is untouched.
+- **Keys legend:** `KeyLegend.vue`, "Keys" button (`data-testid="hub-keys"`, `aria-expanded`, `aria-controls`) under Reset camera and Replay intro, closed by default; Esc closes it first without dropping a pick.
+- **Camera:** the Customs House clip was not reproduced (arcade selection at 1000×650 and 28 Q/E orbit samples at the door, none inside a blocker; the spring arm pulls in to radius 1-2 against the facade). No scene change.
+- **Found, not fixed:** picking the destination you already stand at (after Esc) drops the pick a frame later, because the re-pick route leaves the door ring and the steer-away check deselects. HUB-05 follow-up in `scenes/shared/doors.js`; the E2E reloads before re-picking to avoid it.
+- **Affected paths:** `client/src/features/hub/` (`HubScene.vue`; new `announce.js`, `KeyLegend.vue`, `__tests__/announce.test.js`, `__tests__/KeyLegend.test.js`; README), `tests/e2e/hub.spec.js`.
+- **Collision check (29 Oct 2026):** Boey's own hub module; no other branch or record touches hub announcements, focus or a key legend.
+- **Docs impact:** hub README ("Keyboard and screen reader (HUB-06)"), README "Using the app" (3D controls), DESIGN.md (3D hub landing, Keys control), this record.
+- **Verification (29 Oct 2026):** vitest `client/src/features/hub` 14 files 116/116; eslint on the hub folder and `hub.spec.js` clean; E2E `hub.spec.js` 30 passed, 1 failed on a cold first run ("lists every game", mobile, `__hub.debug` null) that passed on targeted rerun; `hub-auto.spec.js` 10 passed. Not verified: a real screen reader, Safari (a clicked button is not focused there, so focus-to-Enter may not fire), the original camera clip.
+
 **HUB-05 — 3D destination pick drops before Enter** · Status: **Review** · Contributor: **Boey** · Branch: `hub-05-destination-drop` (cut from `origin/main` at `c070ac8`, 29 October 2026, upstream unset) · Plan approved by Boey on 29 October 2026 (overnight batch with CLI-03, SQL-02, HUB-06).
 
 - **Bug:** a list or minimap pick flew to the building, then dropped back to free roam and the game could not be entered (Boey, 29 Oct, from the west promenade).

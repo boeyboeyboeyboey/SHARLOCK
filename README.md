@@ -215,7 +215,8 @@ Games open a **How to play** guide on your first visit. Tick "Don't show again" 
 
 **3D controls**
 
-- Keyboard: WASD or arrow keys walk; Space jumps; hold Q or E to rotate the camera; R resets the camera behind Sharlock; Esc deselects the building. Keys are ignored while you type in an input.
+- Keyboard: WASD or arrow keys walk; Space jumps; hold Q or E to rotate the camera; R resets the camera behind Sharlock; Esc deselects the building (or first closes the **Keys** legend). Keys are ignored while you type in an input. The **Keys** button under "Reset camera" lists these keys.
+- Screen readers and keyboard: picking a destination announces it and moves focus to "Enter <building>"; arriving and entering are announced too. Esc from Enter puts focus back on that destination, as does returning from a game.
 - Mouse: click the ground to walk there; drag to orbit; scroll to zoom. A destination list button walks Sharlock to that building, and on arrival "Enter <building>" opens it. "Reset camera" is a button. On desktop the minimap (bottom right) travels to a building when you click its pin.
 - Lore intro (first visit, or the **Replay intro** film-slate icon beside "Reset camera"): Enter or a click advances a card; Space or Esc skips the whole intro, as does the faint bottom-right "Press Space to skip" button (or "Tap to skip" on touch screens). The top-right sound toggle mutes the intro for the browser session, shared with the hub and town music. If the browser blocks autoplay, click or press Enter to begin. With reduced motion, use **Continue** to advance.
 - Touch (phones and tablets): the joystick at the top right walks, and the "Jump" button next to the joystick jumps; drag to orbit; pinch to zoom. The "Map" button opens a full-screen map (Esc closes it) whose pins travel to a building.
