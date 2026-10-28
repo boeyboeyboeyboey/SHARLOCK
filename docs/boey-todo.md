@@ -2,7 +2,7 @@
 
 Owner: **Boey**. This is Boey's own working list, kept in the repo so Boey's Claude sessions on other accounts can read it. It is not authoritative: [TASKS.md](../TASKS.md) is the only record of task status, approvals and ownership (agents.md §10), and TASKS.md wins wherever the two disagree. Teammates: please don't edit it or read its items as assignments. Paths under `.local-handover/` are Boey's local files and are not in the repo.
 
-Every item still needs Boey's OK before work (plan + Docs impact line first; separate branch per change). Last updated 28 Oct 2026.
+Every item still needs Boey's OK before work (plan + Docs impact line first; separate branch per change). Last updated 29 Oct 2026.
 
 ## Waiting on
 
@@ -65,6 +65,7 @@ Every item still needs Boey's OK before work (plan + Docs impact line first; sep
 
 ## F. Hub / 3D / 2D / design backlog (ex HUB-TODO; each own plan + OK). HUB-01 itself is done (on main), dropped
 
+- [ ] **BUG (Boey, 29 Oct; fix first, own plan + OK): 3D destination click flies to the building, then drops back out and the game can't be selected/entered.** Reproduced with Sharlock on the wharf promenade by the lamp posts, between the dock and the CLI/Tower row (minimap blue dot just above CLI); happens for every game in the right-hand destination list. Unknown whether it is position-specific. Start by reproducing with `window.__hub` state logged (mode, selected, player position/velocity) across the fly-in; suspects: something reads as player movement or input after the fly (Havok jitter near a lamp post, joystick/keys) and deselects, the Escape/deselect path, or the follow camera reclaiming control. Add an E2E regression in `hub.spec.js` once the cause is known
 - [ ] (mostly done in HUB-02/03, checked 27 Oct: lazy engine chunk, destination list before 3D, Auto/High/Medium/Low + fps auto-downgrade to 2D, WebGL2/software-renderer 2D fallback, webp plates ~1 MB; left: real phone / low-end measurement (manual), half-res plates) Accessibility and device reach (do first; not measured on real phone/low-end laptop; first load ~10.6 MB plates + ~2 MB Havok wasm + Babylon):
   - [x] (done HUB-02) list/map usable before 3D (lazy-load hub chunk)
   - [x] (webp done; half-res not done, low value at ~1 MB) WebP plates (~4x smaller), half-res on compact
