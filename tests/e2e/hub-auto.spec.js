@@ -32,7 +32,10 @@ test('picks the 2D map automatically and remembers a dismissed notice', async ({
   const notice = page.getByTestId('town-mode-notice')
   await expect(page.getByRole('region', { name: 'Interactive town map' })).toBeVisible()
   await expect(notice).toContainText('may not run the 3D wharf smoothly')
-  await expect(notice.getByRole('link', { name: 'Why?' })).toHaveAttribute('href', '/about#graphics')
+  await expect(notice.getByRole('link', { name: 'Why?' })).toHaveAttribute(
+    'href',
+    '/about#graphics',
+  )
   expect(await stored(page, 'sharlock.townMode')).toBeNull()
   await page.screenshot({ path: `${shots}/hub02-notice.png` })
 
@@ -76,7 +79,9 @@ test('asks before trying 3D and persists a confirmed choice', async ({ page }) =
 
 test('explains the modes on the About page', async ({ page }) => {
   await page.goto('/about#graphics')
-  await expect(page.locator('#graphics').getByRole('heading', { name: '3D and 2D modes' })).toBeVisible()
+  await expect(
+    page.locator('#graphics').getByRole('heading', { name: '3D and 2D modes' }),
+  ).toBeVisible()
 })
 
 // the runtime watch: 3D starts through the dev override, then simulated frame rates drive it
@@ -101,14 +106,22 @@ test.describe('runtime performance watch', () => {
     await ready(page, 'desktop')
     await simulate(page, 15)
     await ready(page, 'compact')
-    expect(JSON.parse(await stored(page, 'sharlock.hubPerf'))).toMatchObject({ tier: 'compact', struggled: true })
+    expect(JSON.parse(await stored(page, 'sharlock.hubPerf'))).toMatchObject({
+      tier: 'compact',
+      struggled: true,
+    })
     await simulate(page, 15)
     await ready(page, 'low')
     await simulate(page, 10)
     await expect(page.getByRole('region', { name: 'Interactive town map' })).toBeVisible()
-    await expect(page.getByTestId('town-mode-notice')).toContainText('struggling to run the 3D wharf')
+    await expect(page.getByTestId('town-mode-notice')).toContainText(
+      'struggling to run the 3D wharf',
+    )
     expect(await stored(page, 'sharlock.townMode')).toBeNull()
-    expect(JSON.parse(await stored(page, 'sharlock.hubPerf'))).toMatchObject({ tier: 'low', twoD: true })
+    expect(JSON.parse(await stored(page, 'sharlock.hubPerf'))).toMatchObject({
+      tier: 'low',
+      twoD: true,
+    })
 
     await page.reload()
     await expect(page.getByRole('region', { name: 'Interactive town map' })).toBeVisible()
@@ -120,7 +133,10 @@ test.describe('runtime performance watch', () => {
   test('a remembered tier is the starting tier on Auto', async ({ page }) => {
     await page.addInitScript(() => {
       if (!localStorage.getItem('sharlock.hubPerf'))
-        localStorage.setItem('sharlock.hubPerf', JSON.stringify({ tier: 'compact', struggled: true }))
+        localStorage.setItem(
+          'sharlock.hubPerf',
+          JSON.stringify({ tier: 'compact', struggled: true }),
+        )
     })
     await page.goto('/')
     await ready(page, 'compact')
@@ -151,9 +167,15 @@ test.describe('runtime performance watch', () => {
     await expect(page.locator('canvas.hub-canvas')).toHaveCount(1)
     expect(await stored(page, 'sharlock.hubPerf')).toBeNull()
 
-    await page.evaluate(() => localStorage.setItem('sharlock.hubPerf', '{"tier":"low","struggled":true}'))
+    await page.evaluate(() =>
+      localStorage.setItem('sharlock.hubPerf', '{"tier":"low","struggled":true}'),
+    )
     await page.getByTestId('hub-graphics').selectOption('auto')
-    await page.waitForFunction(() => window.__hub?.state.ready === true && window.__hub.state.tier !== 'low', null, slow)
+    await page.waitForFunction(
+      () => window.__hub?.state.ready === true && window.__hub.state.tier !== 'low',
+      null,
+      slow,
+    )
     expect(await stored(page, 'sharlock.hubPerf')).toBeNull()
   })
 })
