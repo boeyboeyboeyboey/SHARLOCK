@@ -73,10 +73,11 @@ DESIGN.md ("Verification and credits") records that Pixelify Sans (headings and 
 
 ## Audio
 
-| Asset                                                          | Source as recorded                                                                                                            |
-| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `client/public/audio/sharlock-bgm.mp3` (town soundtrack)       | Contributor-provided; source and permission pending (DESIGN.md: creator and licence not supplied)                             |
-| `client/public/audio/Lo-fi_8-bit_coffee_s_1-1789752418868.mp3` | Supplied by Boey, audio unchanged apart from the filename; original creator and licence not recorded (threat-briefing README) |
+| Asset                                                          | Source as recorded                                                                                                                                                                                                              |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `client/public/audio/sharlock-bgm.mp3` (town soundtrack)       | Contributor-provided; source and permission pending (DESIGN.md: creator and licence not supplied)                                                                                                                               |
+| `client/public/audio/Lo-fi_8-bit_coffee_s_1-1789752418868.mp3` | Supplied by Boey, audio unchanged apart from the filename; original creator and licence not recorded (threat-briefing README)                                                                                                   |
+| `client/public/audio/hub-ambience.mp3` (3D hub ambience)       | AlexLane, [Freesound 530210 "Pea Point, New Brunswick, Seaside ambience"](https://freesound.org/people/AlexLane/sounds/530210/), CC0 1.0. Excerpted (75 s), crossfaded loop join, high-passed, loudness-normalised, re-encoded. |
 
 ## Data and content sources
 

@@ -436,7 +436,7 @@ No active implementation task.
 
 **AUDIO-02 — 2D-only landing music at half volume** · Status: **Review** · Contributor: **Boey** · Branch: `audio-02-2d-music-half-volume` (cut from `origin/main` at `bc545d7`, 28 October 2026, upstream unset) · Boey's decision on 28 October 2026 with team permission; amends AUDIO-01 and agents.md §8.
 
-- **Behaviour:** `/audio/sharlock-bgm.mp3` plays only in the 2D town, at volume 0.5, with the existing start rules, visible Sound control and session-only mute (`sharlock.musicMuted`). The 3D hub has no sound for now; a recorded ambience file is to be chosen (Boey, 28 October 2026). The coded ambience was removed.
+- **Behaviour:** `/audio/sharlock-bgm.mp3` plays only in the 2D town, at volume 0.5, with the existing start rules, visible Sound control and session-only mute (`sharlock.musicMuted`). The 3D hub has no sound for now; a recorded ambience file is to be chosen (Boey, 28 October 2026). The coded ambience was removed. The hub ambience loop is AUDIO-03.
 - **Change:** `useLandingMusic.js` (volume cap `MUSIC_VOLUME` 0.5); `Dashboard.vue` mounts no hub audio; `useHubAmbience.js`, `HubAmbience.vue` and their test deleted; `useLandingMusic.test.js` volume assertion; `tests/e2e/hub.spec.js` mode-switch assertions (hub: 0 `<audio>`, no hub sound control; 2D: 1 `<audio>`).
 - **Verified (28 October 2026):** `pnpm exec vitest run client/src/features/hub client/src/features/legacy-town client/src/composables client/src/views` exit 0 (12 files, 114 tests); `node scripts/run-with-test-db.mjs e2e --replica-set tests/e2e/hub.spec.js --project=hub-desktop-chromium --workers=1` exit 0 (11 passed); eslint on touched JS exit 0.
 - **Not verified:** real browser autoplay policy; 2D town loudness by ear.
@@ -452,6 +452,17 @@ No active implementation task.
 - **Not verified:** a full E2E run under load. `tests/e2e/portal.spec.js` (~213-222) opens the drawer with a single tap and has the same risk (unchanged).
 - **Docs:** no docs impact (test-only change).
 - **Next action:** confirm in the next full E2E run.
+
+**AUDIO-03 — 3D hub ambience loop** · Status: **Review** · Contributor: **Boey** · Branch: `audio-03-hub-ambience` (cut from `origin/main` at `e5e5a4c`, 28 October 2026, upstream unset) · Approved by Boey on 28 October 2026; amends AUDIO-02 and agents.md §8 for the hub only.
+
+- **Behaviour:** the 3D hub on `/` plays `/audio/hub-ambience.mp3` through `HubAmbience.vue`, reusing `useLandingMusic.js` unchanged (autoplay attempt, one-time pointer/key/touch fallback, volume 0.5, session-only mute `sharlock.musicMuted` shared with the 2D town, cleanup on leave). A Sound on/off button (`Mute hub sound` / `Turn on hub sound`) sits in the hub HUD row between Graphics and the profile link. It pauses while the Times (`news` route) is open and resumes on close unless muted. The 2D town keeps `sharlock-bgm.mp3`; only one is mounted, so `/` has one sound source at a time.
+- **Change:** `client/public/audio/hub-ambience.mp3` (new); `client/src/features/hub/HubAmbience.vue` (new); `client/src/views/Dashboard.vue` (mounts `HubAmbience` with `:suspended="route.name === 'news'"`); `tests/e2e/hub.spec.js` (mode-switch assertions: hub `<audio>` src `/audio/hub-ambience.mp3` with a visible hub Sound button; 2D `<audio>` src `/audio/sharlock-bgm.mp3` with no hub Sound button). `client/src/features/hub/__tests__/HubAmbience.test.js` (new, 4 tests).
+- **Asset:** Freesound sound 530210 "Pea Point, New Brunswick, Seaside ambience" by AlexLane, CC0 1.0, https://freesound.org/people/AlexLane/sounds/530210/. 75 s excerpt (source 0:20-1:38), 3 s equal-power crossfade baked in at the loop join, 70 Hz high-pass, normalised to about -18 LUFS (peak -1.4 dBFS), stereo MP3 96 kbps 44.1 kHz, 0.90 MB. Original WAVs kept locally (gitignored) in `.local-handover/audio-sources/`. Unused candidate kept there: Freesound 561815 "Genaral Habour Ambience" by Kinoton (CC0).
+- **Collision check:** after AUDIO-02 no hub audio existed (no ambience file, no `hub-ambience` reference under `client/src/features/hub/`); `HubAmbience.vue` is new.
+- **Docs:** agents.md §8; hub and legacy-town READMEs (Audio); README "Using the app"; DESIGN.md audio lines; CREDITS.md audio table.
+- **Verification (28 Oct 2026):** vitest `HubAmbience.test.js` + `Town.test.js` + `useLandingMusic.test.js` 29/29 exit 0; eslint on the four changed code files exit 0; `pnpm build` exit 0; `tests/e2e/hub.spec.js` 23 passed / 1 skipped exit 0; `tests/e2e/news.spec.js` 16 passed exit 0. Prettier: no new failures on added lines (`Dashboard.vue` and `hub.spec.js` already failed on main).
+- **Not verified:** real browser autoplay policy; the loop seam and loudness by ear.
+- **Next action:** Boey listens to the hub loop and the shared mute, then decides on merge; no merge without his OK.
 
 **BOARD-01 — Class leaderboards** · Status: **Review** · Contributor: **Boey** · Branch: `board-01-class-leaderboards` (cut from `origin/main` at `9e6c3a1`, 27 October 2026, upstream unset). Plan approved by Boey on 27 October 2026. Spec: [BOARD-01](#board-01--cohort-leaderboards).
 
