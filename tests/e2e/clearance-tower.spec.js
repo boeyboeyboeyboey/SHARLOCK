@@ -354,7 +354,14 @@ test('the how to play guide opens once, then follows the saved dismissal', async
   await guide.getByRole('button', { name: 'Next' }).click()
   await expect(guide.getByText('Step 2 of 4')).toBeVisible()
 
+  // the dismissal saves in the background, so wait for it before the reload reads it back
+  const saved = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/api/me/how-to-play/clearance-tower') &&
+      response.request().method() === 'PUT',
+  )
   await guide.getByLabel("Don't show again").check()
+  expect((await saved).ok()).toBe(true)
   await guide.getByRole('button', { name: 'Start playing' }).click()
   await expect(guide).toBeHidden()
 

@@ -453,6 +453,16 @@ No active implementation task.
 - **Docs:** no docs impact (test-only change).
 - **Next action:** confirm in the next full E2E run.
 
+**E2E-07 — Clearance how-to-play dismissal settle** · Status: **Review** · Contributor: **Athithya** (done for Boey) · Branch: `e2e-06-clearance-howto-settle` (cut from `origin/main` at `389a6e1`, rebased onto `51dda6f`, 28 October 2026, upstream unset; first recorded as E2E-06, renamed because Boey's `e2e-06-test-gaps` record uses that ID; branch name kept) · Approved by Boey's todo list and Athithya on 28 October 2026; test-only edit to Russell's spec under the owner agreement quoted in `docs/boey-todo.md` §D.
+
+- **Problem:** `tests/e2e/clearance-tower.spec.js` "the how to play guide opens once, then follows the saved dismissal" was flaky: it reloads straight after ticking "Don't show again", while `HowToPlayDialog.vue` saves the dismissal in the background (`PUT /api/me/how-to-play/clearance-tower`), so the reload could read the old list and reopen the guide.
+- **Change (test only):** the test waits for that PUT response and checks it is OK before clicking Start playing and reloading. No other spec ticks "Don't show again".
+- **Verified (28 October 2026, cloud copy):** prettier and eslint clean on the spec; `playwright test --list` loads it (28 tests).
+- **Verified on Athithya's Mac (28 October 2026):** `pnpm test:e2e tests/e2e/clearance-tower.spec.js --workers=1 --repeat-each=5` all passed (130 reported passed, as relayed by Athithya).
+- **Not verified:** a full E2E run under load.
+- **Docs:** no docs impact (test-only change).
+- **Next action:** Boey reviews; merge only with his OK.
+
 **AUDIO-03 — 3D hub ambience loop** · Status: **Review** · Contributor: **Boey** · Branch: `audio-03-hub-ambience` (cut from `origin/main` at `e5e5a4c`, 28 October 2026, upstream unset) · Approved by Boey on 28 October 2026; amends AUDIO-02 and agents.md §8 for the hub only.
 
 - **Behaviour:** the 3D hub on `/` plays `/audio/hub-ambience.mp3` through `HubAmbience.vue`, reusing `useLandingMusic.js` unchanged (autoplay attempt, one-time pointer/key/touch fallback, volume 0.5, session-only mute `sharlock.musicMuted` shared with the 2D town, cleanup on leave). A Sound on/off button (`Mute hub sound` / `Turn on hub sound`) sits in the hub HUD row between Graphics and the profile link. It pauses while the Times (`news` route) is open and resumes on close unless muted. The 2D town keeps `sharlock-bgm.mp3`; only one is mounted, so `/` has one sound source at a time.
