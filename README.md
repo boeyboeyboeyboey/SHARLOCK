@@ -227,7 +227,7 @@ Games open a **How to play** guide on your first visit. Tick "Don't show again" 
 - Drag or swipe to pan; pinch or Ctrl/Cmd + wheel to zoom (a plain wheel pans); arrow keys pan; + and - zoom; 0 resets. On-screen zoom and Reset view buttons do the same.
 - Hover or focus a building for its card; Esc dismisses the card.
 - The town is a wharf with the newsstand on the pier, a cobbled street to a fountain plaza and generic capybaras and gulls going about their day; the animation stops when your system asks for reduced motion.
-- in the 2D map, background music (at half volume) tries to start on arrival; the 3D wharf has no sound for now. If the browser blocks either, it starts on your first click, key press or tap. The Sound on/off button (map toolbar in 2D) mutes it, and a mute is remembered only until you close the tab.
+- on the 2D map, background music (at half volume) tries to start on arrival; on the 3D wharf, a seaside ambience loop does the same. If the browser blocks either, it starts on your first click, key press or tap. The Sound on/off button (map toolbar in 2D, HUD row in 3D) mutes whichever is playing, the mute is shared by both, and it is remembered only until you close the tab.
 
 **Graphics** (Auto, High, Medium or Low; remembered). Auto checks the device: no WebGL2 or a software renderer selects 2D; save-data, 2 GB of memory or less, or 2 CPU cores or fewer selects Low. It then watches the frame rate, stepping quality down and finally to 2D, unless you explicitly chose 3D. An automatic-2D notice offers "Try 3D anyway" with a warning.
 

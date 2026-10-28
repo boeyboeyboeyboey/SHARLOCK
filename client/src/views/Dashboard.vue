@@ -3,6 +3,7 @@ defineOptions({ name: 'SharlockDashboard' })
 import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import HubScene from '../features/hub/HubScene.vue'
+import HubAmbience from '../features/hub/HubAmbience.vue'
 import TownMap from '../features/legacy-town/TownMap.vue'
 import Hub3dWarning from '../features/legacy-town/Hub3dWarning.vue'
 import { GRAPHICS_OPTIONS, readGraphics, writeGraphics } from '../features/hub/graphics.js'
@@ -165,6 +166,7 @@ function closeNewspaper() {
             </option>
           </select>
         </label>
+        <HubAmbience :suspended="route.name === 'news'" />
         <RouterLink
           to="/profile"
           class="town-player hud-player"
