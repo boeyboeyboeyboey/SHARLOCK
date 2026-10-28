@@ -2,8 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import HubAmbience from '../HubAmbience.vue'
 import { MUSIC_MUTED_KEY } from '../../../composables/useLandingMusic.js'
+import { _resetLoreIntroForTests, useLoreIntro } from '../intro/useLoreIntro.js'
 
-afterEach(() => vi.restoreAllMocks())
+afterEach(() => {
+  vi.restoreAllMocks()
+  _resetLoreIntroForTests()
+})
 
 describe('hub ambience', () => {
   beforeEach(() => sessionStorage.clear())
@@ -65,6 +69,22 @@ describe('hub ambience', () => {
     await flushPromises()
     expect(play).toHaveBeenCalledTimes(2)
     expect(audio.muted).toBe(false)
+    expect(wrapper.get('button').element.disabled).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('holds the ambience while the lore intro plays and starts it after', async () => {
+    const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue()
+    vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
+    const lore = useLoreIntro()
+    lore.start()
+    const wrapper = mount(HubAmbience)
+    await flushPromises()
+    expect(play).not.toHaveBeenCalled()
+    expect(wrapper.get('button').element.disabled).toBe(true)
+    lore.finish()
+    await flushPromises()
+    expect(play).toHaveBeenCalledTimes(1)
     expect(wrapper.get('button').element.disabled).toBe(false)
     wrapper.unmount()
   })

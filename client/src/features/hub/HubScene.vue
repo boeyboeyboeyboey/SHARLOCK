@@ -2,6 +2,9 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { GRAPHICS_TO_TIER } from './scenes/shared/quality.js'
 import HubMinimap from './HubMinimap.vue'
+import { PhFilmSlate } from '@phosphor-icons/vue'
+import LoreIntro from './intro/LoreIntro.vue'
+import { useLoreIntro } from './intro/useLoreIntro.js'
 import { decidePerf, perfRecord, writePerf } from './perfWatch.js'
 
 const props = defineProps({
@@ -37,6 +40,21 @@ const view = reactive({
 })
 let hub = null
 let gone = false
+
+const lore = useLoreIntro()
+const introPlaying = lore.playing
+// the intro covers the hub, so its input is paused the same way as for the Times
+const paused = computed(() => props.inputPaused || introPlaying.value)
+const motionQuery = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null
+const reducedMotion = ref(Boolean(motionQuery?.matches))
+const onMotionChange = (event) => {
+  reducedMotion.value = event.matches
+}
+
+function onIntroDone() {
+  lore.finish()
+  nextTick(() => stage.value?.querySelector('canvas')?.focus())
+}
 
 const selectedGame = computed(() => props.games.find((game) => game.id === view.selected) ?? null)
 // while the hub loads or after it fails, the buttons still lead somewhere
@@ -82,7 +100,7 @@ function samplePlayer() {
 }
 
 function onEscape() {
-  if (props.inputPaused || view.mode !== 'explore' || !view.selected) return
+  if (paused.value || view.mode !== 'explore' || !view.selected) return
   choose(view.selected)
 }
 
@@ -175,7 +193,7 @@ async function mountHub(resume = null) {
     },
   })
   hub = next
-  if (props.inputPaused) pauseFromProp(true)
+  if (paused.value) pauseFromProp(true)
   if (view.selected) next.select(view.selected)
   next.ready.catch(() => {
     if (!gone && mine === generation) view.failed = true
@@ -193,18 +211,21 @@ function rebuildHub() {
 }
 
 onMounted(() => {
+  motionQuery?.addEventListener?.('change', onMotionChange)
+  if (!lore.hasSeen()) lore.start()
   mapTimer = setInterval(samplePlayer, 100)
   mountHub()
 })
 
 onBeforeUnmount(() => {
+  motionQuery?.removeEventListener?.('change', onMotionChange)
   gone = true
   clearInterval(mapTimer)
   hub?.dispose()
   hub = null
 })
 
-watch(() => props.inputPaused, pauseFromProp)
+watch(paused, pauseFromProp)
 watch(() => props.quality, () => {
   watchedTier = null
   view.lowering = false
@@ -252,10 +273,22 @@ defineExpose({
         data-testid="hub-reset-camera"
         aria-label="Reset camera behind Sharlock"
         title="Reset camera (R)"
-        :disabled="inputPaused || view.mode !== 'explore'"
+        :disabled="paused || view.mode !== 'explore'"
         @click="hub?.resetCamera()"
       >
         Reset camera
+      </button>
+      <button
+        v-if="view.ready"
+        type="button"
+        class="btn btn-secondary btn-sm hub-replay"
+        data-testid="hub-replay-intro"
+        aria-label="Replay intro"
+        title="Replay intro"
+        :disabled="paused"
+        @click="lore.replay()"
+      >
+        <PhFilmSlate :size="18" aria-hidden="true" />
       </button>
     </div>
     <div class="hub-dock">
@@ -286,7 +319,7 @@ defineExpose({
       </button>
     </div>
     <HubMinimap
-      v-if="view.ready && !inputPaused"
+      v-if="view.ready && !paused"
       :games="games"
       :player="view.player"
       :selected="view.selected"
@@ -294,6 +327,12 @@ defineExpose({
     />
     <div ref="pad" class="hub-joystick" aria-hidden="true"><div ref="knob" class="hub-joystick-knob"></div></div>
     <button ref="jumpBtn" type="button" class="hub-jump" data-testid="hub-jump">Jump</button>
+    <LoreIntro
+      v-if="introPlaying"
+      :reduced-motion="reducedMotion"
+      :ready="view.ready"
+      @done="onIntroDone"
+    />
   </section>
 </template>
 
@@ -353,6 +392,11 @@ defineExpose({
   border: 2px solid var(--town-edge);
   background: var(--town-paper);
   font-size: 13px;
+}
+.hub-replay {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
 }
 .hub-status[hidden] {
   display: none;

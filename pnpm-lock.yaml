@@ -169,6 +169,9 @@ importers:
       '@fontsource/dotgothic16':
         specifier: 5.3.1
         version: 5.3.1
+      '@fontsource/libre-baskerville':
+        specifier: 5.3.0
+        version: 5.3.0
       '@fontsource/pixelify-sans':
         specifier: 5.3.0
         version: 5.3.0
@@ -382,6 +385,9 @@ packages:
 
   '@fontsource/dotgothic16@5.3.1':
     resolution: {integrity: sha512-alvxJchrFDFohce0s8YfHsFiRm2zUM+FrwEeWtLyc14WIl3heSG1/8BPD7Sm001YuVPL1bU14UmM5P2KO5/gnQ==}
+
+  '@fontsource/libre-baskerville@5.3.0':
+    resolution: {integrity: sha512-IA6OLq36/JWMX70Fha15sri2qWsijFh7hgdDXCRZHjKUHtWarLQoiGilvm7iMqm7HiYFEv9acF3+IuRHO9kUiA==}
 
   '@fontsource/pixelify-sans@5.3.0':
     resolution: {integrity: sha512-4RCe9nXbi7wUu5+H0FNX1sgPZ2kJ1MmY1uTkEfvQIzzqhoS8zGKJaJfdK8oreE0OU+5gM+NdurFi3H3FJRBvyw==}
@@ -2347,6 +2353,8 @@ snapshots:
   '@fontsource/azeret-mono@5.3.0': {}
 
   '@fontsource/dotgothic16@5.3.1': {}
+
+  '@fontsource/libre-baskerville@5.3.0': {}
 
   '@fontsource/pixelify-sans@5.3.0': {}
 
