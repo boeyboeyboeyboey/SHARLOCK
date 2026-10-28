@@ -43,6 +43,7 @@ describe('audit record policy', () => {
     'admin.cohort.update',
     'admin.administrator.provision',
     'admin.administrator.activation.issue',
+    'admin.administrator.cancel',
     'account.administrator.activate',
   ])('accepts the %s event type', (eventType) => {
     expect(parseAuditRecord(validRecord({ eventType })).eventType).toBe(eventType)

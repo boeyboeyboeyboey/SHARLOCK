@@ -30,6 +30,9 @@ const mocks = vi.hoisted(() => {
     createInstructor: vi.fn(),
     createAdministrator: vi.fn(),
     reissueInstructorActivation: vi.fn(),
+    listPendingAdministrators: vi.fn(),
+    reissueAdministratorActivation: vi.fn(),
+    cancelPendingAdministrator: vi.fn(),
     updateInstructorAssignments: vi.fn(),
     updateAdminUser: vi.fn(),
     deleteAdminUser: vi.fn(),
@@ -97,6 +100,7 @@ function setDefaultLists({ instructorRows = [], institutionRows = [institution] 
     total: instructorRows.length,
   })
   mocks.listAuditEvents.mockResolvedValue({ events: [], page: 1, total: 0 })
+  mocks.listPendingAdministrators.mockResolvedValue({ administrators: [], page: 1, total: 0 })
   mocks.listAdminUsers.mockResolvedValue({ users: [], page: 1, total: 0 })
 }
 
@@ -600,6 +604,110 @@ describe('admin workspace', () => {
     expect(wrapper.text()).toContain('The administrator could not be created')
     expect(wrapper.find('dialog').exists()).toBe(false)
     wrapper.unmount()
+  })
+
+  describe('pending administrators', () => {
+    const pendingRow = {
+      id: '444444444444444444444444',
+      username: 'Synthetic_Pending',
+      email: 'pending@example.test',
+      provisionedAt: '2026-10-20T00:00:00.000Z',
+      linkExpiresAt: '2026-10-30T00:00:00.000Z',
+      linkStatus: 'pending',
+    }
+    const withPending = (rows = [pendingRow]) =>
+      mocks.listPendingAdministrators.mockResolvedValue({
+        administrators: rows,
+        page: 1,
+        total: rows.length,
+      })
+    const button = (wrapper, label) => wrapper.get(`button[aria-label="${label}"]`)
+
+    it('lists a pending administrator with its link status', async () => {
+      withPending([
+        pendingRow,
+        { ...pendingRow, id: 'p2', username: 'Old_One', linkStatus: 'expired' },
+      ])
+      const wrapper = mount(AdminPage)
+      await flushPromises()
+      expect(wrapper.text()).toContain('Synthetic_Pending')
+      expect(wrapper.text()).toContain('pending@example.test')
+      expect(wrapper.text()).toContain('Link expires')
+      expect(wrapper.text()).toContain('Link expired')
+      wrapper.unmount()
+    })
+
+    it('shows the empty state', async () => {
+      const wrapper = mount(AdminPage)
+      await flushPromises()
+      expect(wrapper.text()).toContain('No pending administrators')
+      wrapper.unmount()
+    })
+
+    it('reissues a link and shows the one-time dialog', async () => {
+      withPending()
+      const activationUrl = `http://localhost:5174/activate-account#token=${'F'.repeat(43)}`
+      mocks.reissueAdministratorActivation.mockResolvedValueOnce({
+        activationUrl,
+        expiresAt: '2026-10-16T00:00:00.000Z',
+      })
+      const wrapper = mount(AdminPage)
+      await flushPromises()
+      await button(wrapper, 'Reissue link for Synthetic_Pending').trigger('click')
+      await flushPromises()
+      expect(mocks.reissueAdministratorActivation).toHaveBeenCalledWith(
+        pendingRow.id,
+        expect.any(AbortSignal),
+      )
+      expect(wrapper.get('#admin-activation-link').element.value).toBe(activationUrl)
+      wrapper.unmount()
+    })
+
+    it('cancels after confirmation and refreshes the list', async () => {
+      withPending()
+      mocks.cancelPendingAdministrator.mockResolvedValueOnce({ outcome: 'cancelled' })
+      const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+      const wrapper = mount(AdminPage)
+      await flushPromises()
+      mocks.listPendingAdministrators.mockClear()
+      await button(wrapper, 'Cancel Synthetic_Pending').trigger('click')
+      await flushPromises()
+      expect(confirm).toHaveBeenCalledWith(expect.stringContaining('Synthetic_Pending'))
+      expect(mocks.cancelPendingAdministrator).toHaveBeenCalledWith(
+        pendingRow.id,
+        expect.any(AbortSignal),
+      )
+      expect(mocks.listPendingAdministrators).toHaveBeenCalled()
+      confirm.mockRestore()
+      wrapper.unmount()
+    })
+
+    it('does nothing when the cancel confirmation is declined', async () => {
+      withPending()
+      const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+      const wrapper = mount(AdminPage)
+      await flushPromises()
+      await button(wrapper, 'Cancel Synthetic_Pending').trigger('click')
+      await flushPromises()
+      expect(mocks.cancelPendingAdministrator).not.toHaveBeenCalled()
+      confirm.mockRestore()
+      wrapper.unmount()
+    })
+
+    it('explains a 404 on cancel and refreshes', async () => {
+      withPending()
+      mocks.cancelPendingAdministrator.mockRejectedValueOnce(
+        new mocks.AdminApiError('ADMIN_NOT_FOUND', 'not found', 404),
+      )
+      const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+      const wrapper = mount(AdminPage)
+      await flushPromises()
+      await button(wrapper, 'Cancel Synthetic_Pending').trigger('click')
+      await flushPromises()
+      expect(wrapper.text()).toContain('This administrator is no longer pending')
+      confirm.mockRestore()
+      wrapper.unmount()
+    })
   })
 
   it('preserves a stale assignment draft until the administrator reloads it manually', async () => {

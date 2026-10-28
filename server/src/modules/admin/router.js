@@ -287,6 +287,62 @@ export function createAdminRouter(
     },
   )
 
+  router.get(
+    '/admin/administrators/pending',
+    ...sessionMiddleware,
+    async (request, response, next) => {
+      try {
+        response.json(
+          await service.listPendingAdministrators(response.locals.authUser, request.query),
+        )
+      } catch (error) {
+        next(error)
+      }
+    },
+  )
+
+  router.post(
+    '/admin/administrators/:userId/activation',
+    ...sessionMiddleware,
+    activationWrites.middleware,
+    ...mutationMiddleware,
+    async (request, response, next) => {
+      try {
+        response.json(
+          await service.reissueAdministratorActivation(
+            response.locals.authUser,
+            request.params.userId,
+            request.body,
+            request.query,
+          ),
+        )
+      } catch (error) {
+        next(error)
+      }
+    },
+  )
+
+  router.post(
+    '/admin/administrators/:userId/delete',
+    ...sessionMiddleware,
+    activationWrites.middleware,
+    ...mutationMiddleware,
+    async (request, response, next) => {
+      try {
+        response.json(
+          await service.cancelPendingAdministrator(
+            response.locals.authUser,
+            request.params.userId,
+            request.body,
+            request.query,
+          ),
+        )
+      } catch (error) {
+        next(error)
+      }
+    },
+  )
+
   router.post(
     '/admin/instructors/:userId/activation',
     ...sessionMiddleware,

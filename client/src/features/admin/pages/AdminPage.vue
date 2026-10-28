@@ -8,11 +8,13 @@ import AssignmentEditor from '../components/AssignmentEditor.vue'
 import AuditEventsPanel from '../components/AuditEventsPanel.vue'
 import InstitutionCohortForm from '../components/InstitutionCohortForm.vue'
 import InstructorProvisionForm from '../components/InstructorProvisionForm.vue'
+import PendingAdministratorsPanel from '../components/PendingAdministratorsPanel.vue'
 import RecoveryIssueForm from '../../recovery/components/RecoveryIssueForm.vue'
 import RecoveryLinkDialog from '../../recovery/components/RecoveryLinkDialog.vue'
 import RecoveryStudentLookup from '../../recovery/components/RecoveryStudentLookup.vue'
 import {
   AdminApiError,
+  cancelPendingAdministrator,
   createCohort,
   createInstitution,
   createAdministrator,
@@ -20,6 +22,8 @@ import {
   listCohorts,
   listInstitutions,
   listInstructors,
+  listPendingAdministrators,
+  reissueAdministratorActivation,
   reissueInstructorActivation,
   updateCohort,
   updateInstitution,
@@ -107,6 +111,11 @@ const instructorForm = ref(null)
 const administratorForm = ref(null)
 const pendingAdministrator = ref(false)
 const administratorError = ref('')
+const pendingAdministrators = ref([])
+const loadingPendingAdministrators = ref(false)
+const pendingAdministratorsError = ref('')
+const pendingAdministratorAction = ref(false)
+const pendingAdministratorActionError = ref('')
 const controllers = new Map()
 let disposed = false
 
@@ -219,6 +228,31 @@ async function loadInstructors(page = instructorPage.value) {
     notice.value = safeMessage(error, 'Instructors could not be loaded. Refresh and try again.')
   } finally {
     if (controllers.get('instructors') === controller) loadingInstructors.value = false
+  }
+}
+
+async function loadPendingAdministrators() {
+  const controller = startRequest('pending-administrators')
+  loadingPendingAdministrators.value = true
+  try {
+    const response = await listPendingAdministrators({
+      page: 1,
+      limit: PAGE_SIZE,
+      signal: controller.signal,
+    })
+    if (!isCurrentRequest('pending-administrators', controller)) return
+    pendingAdministrators.value = rowsFor(response, 'administrators')
+    pendingAdministratorsError.value = ''
+  } catch (error) {
+    if (!isCurrentRequest('pending-administrators', controller)) return
+    pendingAdministratorsError.value = safeMessage(
+      error,
+      'Pending administrators could not be loaded. Refresh and try again.',
+    )
+  } finally {
+    if (controllers.get('pending-administrators') === controller) {
+      loadingPendingAdministrators.value = false
+    }
   }
 }
 
@@ -379,6 +413,7 @@ async function provisionAdministrator(input) {
       expiresAt: result.expiresAt,
     }
     administratorForm.value?.resetForm()
+    await loadPendingAdministrators()
   } catch (error) {
     if (!disposed && !controller.signal.aborted) {
       administratorError.value = safeMessage(
@@ -483,6 +518,55 @@ async function reissueActivation(instructorId) {
   }
 }
 
+async function reissuePendingAdministrator(userId) {
+  // one action at a time, so a second reissue cannot revoke the link being shown
+  if (loadingPendingAdministrators.value || pendingAdministratorAction.value) return
+  pendingAdministratorAction.value = true
+  pendingAdministratorActionError.value = ''
+  const controller = startRequest(`reissue-admin-${userId}`)
+  try {
+    const result = await reissueAdministratorActivation(userId, controller.signal)
+    if (disposed) return
+    activationLink.value = result
+  } catch (error) {
+    if (!disposed && !controller.signal.aborted) {
+      pendingAdministratorActionError.value =
+        error instanceof AdminApiError && error.status === 404
+          ? 'This administrator is no longer pending'
+          : safeMessage(error, 'A new activation link could not be prepared. Try again later.')
+    }
+  } finally {
+    pendingAdministratorAction.value = false
+  }
+  if (disposed) return
+  await loadPendingAdministrators()
+}
+
+async function cancelPending(item) {
+  if (loadingPendingAdministrators.value || pendingAdministratorAction.value) return
+  const confirmed = window.confirm(
+    `Cancel the pending administrator ${item.username}? Their activation link will stop working.`,
+  )
+  if (!confirmed) return
+  pendingAdministratorAction.value = true
+  pendingAdministratorActionError.value = ''
+  const controller = startRequest(`cancel-admin-${item.id}`)
+  try {
+    await cancelPendingAdministrator(item.id, controller.signal)
+  } catch (error) {
+    if (!disposed && !controller.signal.aborted) {
+      pendingAdministratorActionError.value =
+        error instanceof AdminApiError && error.status === 404
+          ? 'This administrator is no longer pending'
+          : safeMessage(error, 'The administrator could not be cancelled. Try again later.')
+    }
+  } finally {
+    pendingAdministratorAction.value = false
+  }
+  if (disposed) return
+  await loadPendingAdministrators()
+}
+
 async function saveAssignments({ instructorId, input }) {
   if (pendingAssignments.value[instructorId]) return
   assignmentErrors.value = { ...assignmentErrors.value, [instructorId]: '' }
@@ -520,6 +604,7 @@ watch(selectedInstitutionId, (institutionId) => {
 onMounted(() => {
   loadInstitutions(1)
   loadInstructors(1)
+  loadPendingAdministrators()
 })
 
 onBeforeUnmount(() => {
@@ -620,6 +705,14 @@ onBeforeUnmount(() => {
         :pending="pendingAdministrator"
         :error="administratorError"
         @provision="provisionAdministrator"
+      />
+
+      <PendingAdministratorsPanel
+        :items="pendingAdministrators"
+        :loading="loadingPendingAdministrators || pendingAdministratorAction"
+        :error="pendingAdministratorActionError || pendingAdministratorsError"
+        @reissue="reissuePendingAdministrator"
+        @cancel="cancelPending"
       />
 
       <section class="admin-workspace__panel" aria-labelledby="instructors-title">

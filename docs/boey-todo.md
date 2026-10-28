@@ -134,7 +134,7 @@ Every item still needs Boey's OK before work (plan + Docs impact line first; sep
 - [ ] Notify owners (Boey): Xin Lei (HOW-02 CLI guide, E2E-03 CLI "Keep playing" stay fix), Athithya (Phishing guide), Eric (Social guide), Keane (SQL guide + first SQL client test), Russell (HOW-01 Clearance guide); team: hub specs now run in `hub-*-chromium` projects
 - [x] (addressed 28 Oct by E2E-05 `8ead87d`; first full run without the flake on `e5e5a4c`) Last full-run flake: `tests/e2e/auth.spec.js:17` mobile clicks "Sign out" in the detective desk while the offcanvas is still animating/closing (element not stable, then not visible). Same fix as E2E-03 gave `:165`: wait for the dialog to be visible (and settled) before clicking. Test-only, small
 - [ ] Not visually checked: Social guide scene after its accuracy fix; How to play step-dot row at 375px in all five games
-- [ ] ADMIN-03 limit: a lost admin activation link cannot be reissued (reissue is instructor-only); documented in the admin README. Optional follow-up: admin reissue
+- [x] (done 28 Oct: ADMIN-05 reissue and cancel for pending administrators) ADMIN-03 limit: a lost admin activation link cannot be reissued (reissue is instructor-only); documented in the admin README. Optional follow-up: admin reissue
 
 ## K. Batch 6 follow-ups (28 Oct)
 
