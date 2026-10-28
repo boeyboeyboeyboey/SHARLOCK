@@ -828,6 +828,117 @@ export function createAdminService(
     )
   }
 
+  async function findPendingAdministrator(id, session) {
+    const target = await User.findOne({
+      _id: objectId(id),
+      globalRoles: ['admin'],
+      accountStatus: 'disabled',
+    })
+      .select('_id')
+      .session(session)
+      .lean()
+    if (!target) return null
+    const activated = await PasswordReset.exists({
+      userId: target._id,
+      purpose: 'activation',
+      consumedAt: { $ne: null },
+    }).session(session)
+    return activated ? null : target
+  }
+
+  async function listPendingAdministrators(actor, query) {
+    await requireAdmin(actor, 'admin:instructors:manage')
+    const { page, limit } = parseAdminListQuery(query)
+    const skip = (page - 1) * limit
+    // pending means never activated: no consumed activation token
+    const activatedIds = await PasswordReset.distinct('userId', {
+      purpose: 'activation',
+      consumedAt: { $ne: null },
+    })
+    const filter = {
+      globalRoles: ['admin'],
+      accountStatus: 'disabled',
+      _id: { $nin: activatedIds },
+    }
+    const [rows, total] = await Promise.all([
+      User.find(filter)
+        .select('_id emailNormalized username createdAt')
+        .sort({ _id: 1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      User.countDocuments(filter),
+    ])
+    const ids = rows.map(({ _id }) => _id)
+    const tokens = ids.length
+      ? await PasswordReset.find({
+          userId: { $in: ids },
+          purpose: 'activation',
+          consumedAt: null,
+          revokedAt: null,
+        })
+          .select('userId expiresAt')
+          .lean()
+      : []
+    const latestExpiry = new Map()
+    for (const { userId, expiresAt } of tokens) {
+      const key = idString(userId)
+      const current = latestExpiry.get(key)
+      if (!current || expiresAt > current) latestExpiry.set(key, expiresAt)
+    }
+    const nowMs = now()
+    return {
+      administrators: rows.map((row) => {
+        const expiresAt = latestExpiry.get(idString(row._id)) ?? null
+        return {
+          id: idString(row._id),
+          username: row.username,
+          email: row.emailNormalized,
+          provisionedAt: (row.createdAt ?? row._id.getTimestamp()).toISOString(),
+          linkExpiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
+          linkStatus: expiresAt && new Date(expiresAt).getTime() > nowMs ? 'pending' : 'expired',
+        }
+      }),
+      page,
+      total,
+    }
+  }
+
+  async function reissueAdministratorActivation(actor, userId, input, query = {}) {
+    const currentActor = await requireAdmin(actor, 'admin:instructors:manage')
+    assertEmptyAdminQuery(query)
+    assertEmptyAdminBody(input)
+    const id = parseAdminObjectId(userId)
+    return withTransaction(async (session) => {
+      await assertTransactionAdministrator(currentActor, session)
+      if (!(await findPendingAdministrator(id, session))) throw new AdminError('ADMIN_NOT_FOUND')
+      return issueActivation({ userId: id, actorId: currentActor.id }, { session })
+    })
+  }
+
+  async function cancelPendingAdministrator(actor, userId, input, query = {}) {
+    const currentActor = await requireAdmin(actor, 'admin:instructors:manage')
+    assertEmptyAdminQuery(query)
+    assertEmptyAdminBody(input)
+    const id = parseAdminObjectId(userId)
+    return withTransaction(async (session) => {
+      await assertTransactionAdministrator(currentActor, session)
+      const target = await findPendingAdministrator(id, session)
+      if (!target) throw new AdminError('ADMIN_NOT_FOUND')
+      const removed = await User.deleteOne(
+        { _id: target._id, globalRoles: ['admin'], accountStatus: 'disabled' },
+        { session },
+      )
+      if (removed.deletedCount !== 1) throw new AdminError('ADMIN_NOT_FOUND')
+      await PasswordReset.deleteMany({ userId: target._id }, { session })
+      await database.db
+        .collection('auth_sessions')
+        .deleteMany({ 'session.userId': idString(target._id) }, { session })
+      await recordAdminEvent(currentActor, 'admin.administrator.cancel', target._id, session)
+      return { outcome: 'cancelled' }
+    })
+  }
+
   async function reissueActivation(actor, userId, input, query = {}) {
     const currentActor = await requireAdmin(actor, 'admin:instructors:manage')
     assertEmptyAdminQuery(query)
@@ -1003,6 +1114,9 @@ export function createAdminService(
     provisionInstructor,
     provisionAdministrator,
     reissueActivation,
+    listPendingAdministrators,
+    reissueAdministratorActivation,
+    cancelPendingAdministrator,
     setAssignments,
   })
 }

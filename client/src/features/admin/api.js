@@ -130,6 +130,10 @@ export function listInstructors(options) {
   return requestList('/admin/instructors', options)
 }
 
+export function listPendingAdministrators(options) {
+  return requestList('/admin/administrators/pending', options)
+}
+
 export async function listAdminUsers({ page = 1, limit = 25, role, accountStatus, signal } = {}) {
   try {
     const params = { page, limit }
@@ -202,6 +206,25 @@ export async function reissueInstructorActivation(instructorId, signal) {
     signal,
   )
   return validateActivationResult(result)
+}
+
+export async function reissueAdministratorActivation(userId, signal) {
+  const result = await requestMutation(
+    'post',
+    `/admin/administrators/${encodeURIComponent(userId)}/activation`,
+    undefined,
+    signal,
+  )
+  return validateActivationResult(result)
+}
+
+export function cancelPendingAdministrator(userId, signal) {
+  return requestMutation(
+    'post',
+    `/admin/administrators/${encodeURIComponent(userId)}/delete`,
+    undefined,
+    signal,
+  )
 }
 
 export function updateInstructorAssignments(instructorId, input, signal) {

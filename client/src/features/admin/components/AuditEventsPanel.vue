@@ -18,6 +18,7 @@ const EVENT_TYPES = [
   ['admin.instructor.assignments.update', 'Instructor class assignments changed'],
   ['admin.administrator.provision', 'Administrator account created'],
   ['admin.administrator.activation.issue', 'Administrator activation link issued'],
+  ['admin.administrator.cancel', 'Pending administrator cancelled'],
   ['admin.user.disable', 'Account disabled'],
   ['admin.user.enable', 'Account enabled'],
   [DELETE_EVENT, 'Account deleted'],

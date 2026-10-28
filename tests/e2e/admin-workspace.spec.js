@@ -462,3 +462,122 @@ test('admin provisions another administrator through a one-time activation link'
   await page.getByRole('button', { name: 'Close', exact: true }).click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
 })
+
+function isolatedContextOptions(testInfo) {
+  return {
+    storageState: { cookies: [], origins: [] },
+    viewport: testInfo.project.use.viewport,
+    isMobile: testInfo.project.use.isMobile,
+    hasTouch: testInfo.project.use.hasTouch,
+  }
+}
+
+async function readActivationLink(page) {
+  const linkField = page.getByLabel('Activation link', { exact: true })
+  await expect(linkField).toBeVisible()
+  await expect
+    .poll(async () =>
+      /^https?:\/\/[^/]+\/activate-account#token=[A-Za-z\d_-]{43}$/.test(
+        await linkField.inputValue(),
+      ),
+    )
+    .toBe(true)
+  return linkField.inputValue()
+}
+
+async function provisionPendingAdministrator(page, suffix) {
+  const username = `e2e-p-${suffix}`
+  await page.goto('/admin')
+  await expect(page.getByRole('heading', { name: 'Admin workspace' })).toBeVisible()
+  await openTab(page, 'Instructors')
+  await page.getByLabel('Administrator email').fill(`e2e-pending-${suffix}@example.test`)
+  await page.getByLabel('Administrator username').fill(username)
+  await page.getByRole('button', { name: 'Create administrator and activation link' }).click()
+  const activationUrl = await readActivationLink(page)
+  await page.getByRole('button', { name: 'Close', exact: true }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  return { username, activationUrl }
+}
+
+test('admin reissues a pending administrator link and the activated account leaves the pending list', async ({
+  page,
+  browser,
+}, testInfo) => {
+  const origin = new URL(testInfo.project.use.baseURL).origin
+  const suffix = randomBytes(6).toString('hex')
+  const password = `Administrator-${randomBytes(12).toString('hex')}Aa!`
+  const { username } = await provisionPendingAdministrator(page, suffix)
+
+  const pending = page.getByRole('region', { name: 'Pending administrators' })
+  await expect(pending.getByRole('button', { name: `Reissue link for ${username}` })).toBeVisible()
+  await pending.getByRole('button', { name: `Reissue link for ${username}` }).click()
+  const reissuedUrl = await readActivationLink(page)
+  await page.getByRole('button', { name: 'Close', exact: true }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+
+  const activationContext = await browser.newContext(isolatedContextOptions(testInfo))
+  try {
+    const activationPage = await activationContext.newPage()
+    await activationPage.goto(reissuedUrl)
+    await expect(
+      activationPage.getByRole('heading', { name: 'Activate your account' }),
+    ).toBeVisible()
+    await expect(activationPage).toHaveURL(`${origin}/activate-account`)
+    await activationPage.getByLabel('New password').fill(password)
+    await activationPage.getByLabel('Confirm password').fill(password)
+    await activationPage.getByRole('button', { name: 'Set password and activate account' }).click()
+    await expect(
+      activationPage.getByText('Your password is set. Sign in normally to continue.'),
+    ).toBeVisible()
+    await activationPage.getByRole('link', { name: 'Continue to sign in' }).click()
+    await activationPage.getByLabel('Email or username').fill(username)
+    await activationPage.getByLabel('Password', { exact: true }).fill(password)
+    await activationPage.getByRole('button', { name: 'Sign in' }).click()
+    await expect(activationPage).toHaveURL(`${origin}/`)
+  } finally {
+    await activationContext.close()
+  }
+
+  // wait for the pending list request so the absence check cannot pass before the list loads
+  const listed = page.waitForResponse(
+    (response) =>
+      response.request().method() === 'GET' &&
+      new URL(response.url()).pathname === '/api/admin/administrators/pending',
+  )
+  await page.goto('/admin')
+  await openTab(page, 'Instructors')
+  expect((await listed).ok()).toBe(true)
+  await expect(pending.getByRole('button', { name: `Reissue link for ${username}` })).toHaveCount(0)
+})
+
+test('admin cancels a pending administrator and its activation link stops working', async ({
+  page,
+  browser,
+}, testInfo) => {
+  const suffix = randomBytes(6).toString('hex')
+  const { username, activationUrl } = await provisionPendingAdministrator(page, suffix)
+
+  const pending = page.getByRole('region', { name: 'Pending administrators' })
+  await expect(pending.getByRole('button', { name: `Cancel ${username}` })).toBeVisible()
+  page.once('dialog', (dialog) => dialog.accept())
+  await pending.getByRole('button', { name: `Cancel ${username}` }).click()
+  await expect(pending.getByRole('button', { name: `Cancel ${username}` })).toHaveCount(0)
+
+  const activationContext = await browser.newContext(isolatedContextOptions(testInfo))
+  try {
+    const activationPage = await activationContext.newPage()
+    await activationPage.goto(activationUrl)
+    await expect(
+      activationPage.getByRole('heading', { name: 'Activate your account' }),
+    ).toBeVisible()
+    const password = `Administrator-${randomBytes(12).toString('hex')}Aa!`
+    await activationPage.getByLabel('New password').fill(password)
+    await activationPage.getByLabel('Confirm password').fill(password)
+    await activationPage.getByRole('button', { name: 'Set password and activate account' }).click()
+    await expect(
+      activationPage.getByRole('heading', { name: 'This activation link is unavailable' }),
+    ).toBeVisible()
+  } finally {
+    await activationContext.close()
+  }
+})

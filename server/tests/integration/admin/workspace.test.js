@@ -295,6 +295,130 @@ describe.skipIf(process.env.SHARLOCK_TEST_REPLICA_SET !== '1')('admin workspace 
       .expect(404)
   })
 
+  describe('pending administrators', () => {
+    const tokenOf = (url) => new URLSearchParams(new URL(url).hash.slice(1)).get('token')
+
+    async function provisionPending() {
+      const suffix = randomUUID().replaceAll('-', '').slice(0, 10)
+      const created = await admin.agent
+        .post('/api/admin/administrators')
+        .set('Origin', origin)
+        .set('X-CSRF-Token', admin.csrfToken)
+        .send({
+          email: `pending-${suffix}@example.test`,
+          username: `pending-${suffix}`,
+          avatarId: 'mint',
+        })
+        .expect(201)
+      owned.users.add(created.body.administrator.id)
+      return created.body
+    }
+
+    const act = (who, id, action, headers = {}) =>
+      who.agent
+        .post(`/api/admin/administrators/${id}/${action}`)
+        .set('Origin', origin)
+        .set('X-CSRF-Token', who.csrfToken)
+        .set(headers)
+        .send({})
+
+    async function activate(token) {
+      const visitor = request.agent(app)
+      const csrf = await visitor.get('/api/auth/csrf').expect(200)
+      return visitor
+        .post('/api/auth/activate-account')
+        .set('Origin', origin)
+        .set('X-CSRF-Token', csrf.body.csrfToken)
+        .send({ token, password })
+    }
+
+    const listPending = () =>
+      admin.agent.get('/api/admin/administrators/pending').set('Origin', origin)
+
+    it('lists only never-activated administrators with safe fields', async () => {
+      await createActiveInstructor()
+      const pending = await provisionPending()
+      const listed = await listPending().expect(200)
+      expect(listed.body.administrators).toEqual([
+        {
+          id: pending.administrator.id,
+          username: pending.administrator.username,
+          email: pending.administrator.email,
+          provisionedAt: expect.any(String),
+          linkExpiresAt: pending.expiresAt,
+          linkStatus: 'pending',
+        },
+      ])
+      expect(listed.body).toMatchObject({ page: 1, total: 1 })
+      await admin.agent
+        .get('/api/admin/administrators/pending?role=admin')
+        .set('Origin', origin)
+        .expect(400)
+    })
+
+    it('reissues a link that replaces the old one, then drops out after activation', async () => {
+      const pending = await provisionPending()
+      const id = pending.administrator.id
+      const reissued = await act(admin, id, 'activation').expect(200)
+      expect(Object.keys(reissued.body).sort()).toEqual(['activationUrl', 'expiresAt'])
+      await activate(tokenOf(pending.activationUrl)).then((res) =>
+        expect(res.status).toBeGreaterThanOrEqual(400),
+      )
+      await activate(tokenOf(reissued.body.activationUrl)).then((res) =>
+        expect(res.status).toBe(204),
+      )
+      expect((await listPending().expect(200)).body.administrators).toEqual([])
+      await act(admin, id, 'activation').expect(404)
+      await act(admin, id, 'delete').expect(404)
+      expect(await userModel(database).exists({ _id: id })).toBeTruthy()
+    })
+
+    it('cancels a pending administrator, its tokens and its link, with an audit event', async () => {
+      const pending = await provisionPending()
+      const id = pending.administrator.id
+      await act(admin, id, 'delete').expect(200, { outcome: 'cancelled' })
+      expect(await userModel(database).exists({ _id: id })).toBeNull()
+      expect(
+        await database.db
+          .collection('password_resets')
+          .countDocuments({ userId: new Types.ObjectId(id) }),
+      ).toBe(0)
+      const events = await database.db
+        .collection('audit_events')
+        .find({ eventType: 'admin.administrator.cancel', targetId: new Types.ObjectId(id) })
+        .toArray()
+      expect(events).toHaveLength(1)
+      expect(events[0].actorId.toString()).toBe(admin.user.id)
+      await activate(tokenOf(pending.activationUrl)).then((res) =>
+        expect(res.status).toBeGreaterThanOrEqual(400),
+      )
+      await act(admin, id, 'delete').expect(404)
+    })
+
+    it('rejects non-admins and missing CSRF tokens', async () => {
+      const pending = await provisionPending()
+      const id = pending.administrator.id
+      for (const who of [student]) {
+        await who.agent.get('/api/admin/administrators/pending').set('Origin', origin).expect(403)
+        await act(who, id, 'activation').expect(403)
+        await act(who, id, 'delete').expect(403)
+      }
+      const instructor = await registerAccount('instructor')
+      await instructor.agent
+        .get('/api/admin/administrators/pending')
+        .set('Origin', origin)
+        .expect(403)
+      await act(instructor, id, 'activation').expect(403)
+      await act(instructor, id, 'delete').expect(403)
+      await admin.agent
+        .post(`/api/admin/administrators/${id}/delete`)
+        .set('Origin', origin)
+        .send({})
+        .expect(403)
+      expect(await userModel(database).exists({ _id: id })).toBeTruthy()
+    })
+  })
+
   it('replaces active instructor assignments with revision checks and hides admin APIs from students', async () => {
     const { cohort } = await createInstitutionAndCohort(admin.agent, admin.csrfToken)
     const secondCohortResponse = await admin.agent

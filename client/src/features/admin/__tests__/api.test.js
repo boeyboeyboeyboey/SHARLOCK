@@ -18,6 +18,9 @@ import {
   listCohorts,
   listInstitutions,
   reissueInstructorActivation,
+  listPendingAdministrators,
+  reissueAdministratorActivation,
+  cancelPendingAdministrator,
   updateCohort,
   updateInstitution,
   updateAdminUser,
@@ -270,6 +273,41 @@ describe('admin workspace API', () => {
       data: { activationUrl: 'https://evil.example.test/activate-account#token=x', expiresAt: 'x' },
     })
     await expect(createAdministrator(input)).rejects.toBeInstanceOf(Error)
+  })
+
+  it('lists, reissues and cancels pending administrators', async () => {
+    const id = '0123456789abcdef01234567'
+    mocks.api.get.mockResolvedValueOnce({ data: { administrators: [], total: 0 } })
+    await listPendingAdministrators({ page: 1, limit: 20 })
+    expect(mocks.api.get).toHaveBeenLastCalledWith('/admin/administrators/pending', {
+      params: { page: 1, limit: 20 },
+      signal: undefined,
+    })
+
+    mocks.requestCsrfToken.mockResolvedValueOnce('csrf-pa-one').mockResolvedValueOnce('csrf-pa-two')
+    mocks.api.post
+      .mockResolvedValueOnce({
+        data: {
+          activationUrl: `${window.location.origin}/activate-account#token=${'G'.repeat(43)}`,
+          expiresAt: '2026-10-16T00:00:00.000Z',
+        },
+      })
+      .mockResolvedValueOnce({ data: { outcome: 'cancelled' } })
+    const link = await reissueAdministratorActivation(id)
+    expect(link.activationUrl).toContain('#token=')
+    expect(mocks.api.post).toHaveBeenNthCalledWith(
+      1,
+      `/admin/administrators/${id}/activation`,
+      undefined,
+      { signal: undefined, headers: { 'X-CSRF-Token': 'csrf-pa-one' } },
+    )
+    await expect(cancelPendingAdministrator(id)).resolves.toEqual({ outcome: 'cancelled' })
+    expect(mocks.api.post).toHaveBeenNthCalledWith(
+      2,
+      `/admin/administrators/${id}/delete`,
+      undefined,
+      { signal: undefined, headers: { 'X-CSRF-Token': 'csrf-pa-two' } },
+    )
   })
 
   it('uses revisioned allowlisted PATCH payloads for institutions and classes', async () => {

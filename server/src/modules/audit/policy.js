@@ -38,6 +38,7 @@ export const auditEventTypes = Object.freeze([
   'admin.instructor.assignments.update',
   'admin.administrator.provision',
   'admin.administrator.activation.issue',
+  'admin.administrator.cancel',
   'admin.user.disable',
   'admin.user.enable',
   'admin.account.delete',
