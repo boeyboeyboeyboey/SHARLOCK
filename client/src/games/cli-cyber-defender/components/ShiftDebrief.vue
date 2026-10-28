@@ -188,6 +188,7 @@ onMounted(() => heading.value?.focus())
                   }}
                 </span>
                 <span class="cli-incident-title">{{ item.title }}</span>
+                <span v-if="item.decoy" class="cli-hint-tag">false alarm</span>
                 <span v-if="item.hintUsed" class="cli-hint-tag">hint used</span>
                 <span v-if="item.pointsAwarded" class="cli-incident-points"
                   >+{{ item.pointsAwarded }}</span
@@ -198,14 +199,31 @@ onMounted(() => heading.value?.focus())
                   <div>
                     <dt>Your command</dt>
                     <dd>
-                      <code>{{ item.yourCommand ?? 'none' }}</code>
+                      <code v-if="!item.yourCommands?.length">{{
+                        item.yourCommand ?? 'none'
+                      }}</code>
+                      <template v-else>
+                        <code v-for="(command, position) in item.yourCommands" :key="position">{{
+                          command
+                        }}</code>
+                      </template>
                     </dd>
                   </div>
                   <div>
                     <dt>Correct response</dt>
                     <dd>
-                      <code>{{ item.expectedCommand }}</code>
+                      <code
+                        v-for="(command, position) in item.expectedCommands ?? [
+                          item.expectedCommand,
+                        ]"
+                        :key="position"
+                        >{{ command }}</code
+                      >
                     </dd>
+                  </div>
+                  <div v-if="item.lookupsUsed != null">
+                    <dt>Lookups used</dt>
+                    <dd>{{ item.lookupsUsed }}</dd>
                   </div>
                 </dl>
                 <p class="cli-incident-why">{{ item.explanation }}</p>

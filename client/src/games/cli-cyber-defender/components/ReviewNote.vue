@@ -23,6 +23,9 @@ defineProps({ review: { type: Object, default: null } })
     <p v-if="review.outcome !== 'correct'">
       Correct response: <code>{{ review.expectedCommand }}</code>
     </p>
+    <p v-if="review.decoy" class="cli-decoy-label">
+      <span class="cli-hint-tag">false alarm</span> Nothing needed containing.
+    </p>
     <p class="cli-note">{{ review.explanation }}</p>
     <ConceptTags :concepts="review.concepts" />
   </section>

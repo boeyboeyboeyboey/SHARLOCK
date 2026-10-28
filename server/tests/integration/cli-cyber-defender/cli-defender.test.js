@@ -33,9 +33,16 @@ const owned = { users: [], cohorts: [], institutions: [], memberships: [] }
 // the news feature is stubbed so this suite exercises only the cli routes
 const newsStub = { store: {}, provider: { configured: false } }
 
-function answerFor(current) {
-  const scenario = SCENARIOS.find((item) => item.alert.title === current.alert.title)
-  return formatCommand(scenario.expected.verb, scenario.expected.target)
+function scenarioFor(current) {
+  return SCENARIOS.find((item) => item.alert.title === current.alert.title)
+}
+
+// the ordered containment commands for an incident, or dismiss for a decoy
+function answersFor(current) {
+  const scenario = scenarioFor(current)
+  return scenario.steps.length
+    ? scenario.steps.map(({ verb, target }) => formatCommand(verb, target))
+    : ['dismiss']
 }
 
 let counter = 0
@@ -93,13 +100,16 @@ async function playPerfect(student, mode, context) {
   const start = await post(student, base, { mode, context }).expect(200)
   let snapshot = start.body
   while (snapshot.current) {
-    clock.now += 1500
-    const response = await post(student, `${base}/${snapshot.runId}/commands`, {
-      actionId: actionId(),
-      incidentId: snapshot.current.incidentId,
-      command: answerFor(snapshot.current),
-    }).expect(200)
-    snapshot = response.body
+    const incidentId = snapshot.current.incidentId
+    for (const command of answersFor(snapshot.current)) {
+      clock.now += 1500
+      const response = await post(student, `${base}/${snapshot.runId}/commands`, {
+        actionId: actionId(),
+        incidentId,
+        command,
+      }).expect(200)
+      snapshot = response.body
+    }
   }
   const done = await post(student, `${base}/${snapshot.runId}/complete`, {
     actionId: actionId(),
@@ -156,15 +166,15 @@ describe('cli cyber defender http api', () => {
   it('saves a personal practice run as a readable attempt', async () => {
     const student = await createStudent()
     const done = await playPerfect(student, 'practice', personal)
-    expect(done).toMatchObject({ score: 2100, maxScore: 2100, saved: true })
+    expect(done).toMatchObject({ score: 2700, maxScore: 2700, saved: true })
     expect(done.debrief).toHaveLength(8)
-    expect(done.attempt).toMatchObject({ score: 2100, maxScore: 2100, persisted: true })
+    expect(done.attempt).toMatchObject({ score: 2700, maxScore: 2700, persisted: true })
     const read = await get(student, `/api/attempts/${done.attempt.attemptId}`).expect(200)
     expect(read.body).toMatchObject({
       gameId,
       mode: 'practice',
       status: 'completed',
-      score: 2100,
+      score: 2700,
       context: { kind: 'personal' },
     })
     // completing again returns the same saved attempt
@@ -180,14 +190,14 @@ describe('cli cyber defender http api', () => {
     await addMember(student.user.id, cohortId)
     const context = { kind: 'cohort', cohortId }
     const timed = await playPerfect(student, 'timed', context)
-    expect(timed).toMatchObject({ saved: true, score: 2100 })
+    expect(timed).toMatchObject({ saved: true, score: 2700 })
     const practice = await playPerfect(student, 'practice', context)
     expect(practice.saved).toBe(true)
     const best = await get(student, `/api/cohorts/${cohortId}/leaderboard?gameId=${gameId}`).expect(
       200,
     )
     expect(best.body.rows.map((row) => [row.username, row.score])).toEqual([
-      [student.user.username, 2100],
+      [student.user.username, 2700],
     ])
     const all = await get(
       student,
@@ -273,7 +283,7 @@ describe('cli cyber defender http api', () => {
     const late = await post(student, `${base}/${start.body.runId}/commands`, {
       actionId: actionId(),
       incidentId: start.body.current.incidentId,
-      command: answerFor(start.body.current),
+      command: answersFor(start.body.current)[0],
     }).expect(409)
     expect(late.body.error.code).toBe('CLI_INCIDENT_CLOSED')
     expect(late.body.requestId).toBeTruthy()
@@ -299,6 +309,56 @@ describe('cli cyber defender http api', () => {
     }).expect(200)
     expect(Number.isInteger(hint.body.hint.lineIndex)).toBe(true)
     expect(JSON.stringify(hint.body)).not.toContain('expectedCommand')
+    expect(hint.body.hint.lookup).toBe(scenarioFor(practice.body.current).hintLookup)
+  })
+
+  it('serves scripted lookups and dismiss without leaking the answer', async () => {
+    const student = await createStudent()
+    const start = await post(student, base, { mode: 'practice', context: personal }).expect(200)
+    const { runId } = start.body
+    const incidentId = start.body.current.incidentId
+    const scenario = scenarioFor(start.body.current)
+    const [key, lines] = Object.entries(scenario.lookups)[0]
+    const lookup = await post(student, `${base}/${runId}/commands`, {
+      actionId: actionId(),
+      incidentId,
+      command: key,
+    }).expect(200)
+    expect(lookup.body).toMatchObject({ outcome: 'lookup', pointsAwarded: 0, score: 0 })
+    expect(lookup.body.current.lookups).toEqual({
+      used: 1,
+      limit: 6,
+      results: [{ command: key, lines }],
+    })
+    const reread = await get(student, `${base}/${runId}`).expect(200)
+    expect(reread.body.current.lookups.used).toBe(1)
+    const payload = JSON.stringify(reread.body)
+    for (const word of ['decoy', '"steps"', 'expectedCommand']) expect(payload).not.toContain(word)
+    // a containment command the shift never needs reveals the review only when the incident closes
+    const wrong = await post(student, `${base}/${runId}/commands`, {
+      actionId: actionId(),
+      incidentId,
+      command: scenario.decoy ? 'isolate host not-the-host' : 'dismiss',
+    }).expect(200)
+    expect(wrong.body).toMatchObject({
+      outcome: 'wrong',
+      incidentClosed: true,
+      timePenaltySeconds: 0,
+    })
+    expect(wrong.body.review.decoy).toBe(Boolean(scenario.decoy))
+  })
+
+  it('cuts 5 seconds from the clock for a wrong action in a timed shift only', async () => {
+    const student = await createStudent()
+    const start = await post(student, base, { mode: 'timed', context: personal }).expect(200)
+    const scenario = scenarioFor(start.body.current)
+    const wrong = await post(student, `${base}/${start.body.runId}/commands`, {
+      actionId: actionId(),
+      incidentId: start.body.current.incidentId,
+      command: scenario.decoy ? 'isolate host not-the-host' : 'dismiss',
+    }).expect(200)
+    expect(wrong.body.timePenaltySeconds).toBe(5)
+    expect(wrong.body.current.penaltySeconds).toBe(5)
   })
 
   it('rejects malformed bodies and unknown run ids', async () => {

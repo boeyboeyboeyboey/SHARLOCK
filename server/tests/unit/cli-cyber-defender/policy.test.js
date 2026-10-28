@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
   CliError,
+  INCIDENT_COUNT,
+  MAX_COMMANDS_PER_RUN,
+  MAX_LOOKUPS_PER_INCIDENT,
   MAX_SCORE,
+  RULESET_VERSION,
+  SHIFT_SECONDS,
+  TOTAL_STEPS,
   parseCommandBody,
   parseCompleteBody,
   parseRunId,
@@ -20,7 +26,20 @@ function codeOf(fn) {
 
 describe('cli defender request validation', () => {
   it('derives the documented maximum score', () => {
-    expect(MAX_SCORE).toBe(2100)
+    // 8 incidents plus 2 second steps: 100 + 200 + 8 x 300
+    expect(TOTAL_STEPS).toBe(10)
+    expect(MAX_SCORE).toBe(2700)
+    expect(RULESET_VERSION).toBe('cli-3')
+  })
+
+  it('keeps the shift length, lookup allowance and command cap consistent', () => {
+    expect(SHIFT_SECONDS).toBe(INCIDENT_COUNT * 25)
+    expect(MAX_LOOKUPS_PER_INCIDENT).toBe(6)
+    // every lookup, step and mistake of a long run still fits under the cap
+    expect(MAX_COMMANDS_PER_RUN).toBe(120)
+    expect(MAX_COMMANDS_PER_RUN).toBeGreaterThanOrEqual(
+      INCIDENT_COUNT * MAX_LOOKUPS_PER_INCIDENT + TOTAL_STEPS,
+    )
   })
 
   it('accepts only timed or practice starts with no extra fields', () => {

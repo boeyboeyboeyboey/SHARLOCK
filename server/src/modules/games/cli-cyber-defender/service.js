@@ -4,8 +4,11 @@ import {
   GAME_ID,
   INCIDENT_COUNT,
   MAX_COMMANDS_PER_RUN,
+  MAX_LOOKUPS_PER_INCIDENT,
+  MAX_MISTAKES_PER_INCIDENT,
   MAX_SCORE,
   RULESET_VERSION,
+  TIME_PENALTY_SECONDS,
   actionConflict,
   commandLimit,
   hintUnavailable,
@@ -35,14 +38,21 @@ function shuffle(items, randomInt) {
   return ordered
 }
 
-// a shift draws easy, then medium, then hard incidents, shuffled within each tier
+// a shift draws easy, then medium, then hard incidents; each tier mixes its decoys with real
+// incidents (shuffled together) and the hard tier only holds two-step incidents
 function pickScenarios(pool, randomInt) {
-  const picked = TIER_PLAN.flatMap(({ tier, count }) =>
-    shuffle(
-      pool.filter((scenario) => scenario.tier === tier),
+  const picked = TIER_PLAN.flatMap(({ tier, count, decoys, twoStep }) => {
+    const inTier = pool.filter((scenario) => scenario.tier === tier)
+    const chosenDecoys = shuffle(
+      inTier.filter((scenario) => scenario.decoy),
       randomInt,
-    ).slice(0, count),
-  )
+    ).slice(0, decoys)
+    const real = shuffle(
+      inTier.filter((scenario) => !scenario.decoy && scenario.steps.length === (twoStep ? 2 : 1)),
+      randomInt,
+    ).slice(0, count - decoys)
+    return shuffle([...chosenDecoys, ...real], randomInt)
+  })
   return picked.length === INCIDENT_COUNT
     ? picked
     : shuffle(pool, randomInt).slice(0, INCIDENT_COUNT)
@@ -80,10 +90,18 @@ function publicAlert(scenario) {
   }
 }
 
+function expectedCommands(scenario) {
+  return scenario.steps.length
+    ? scenario.steps.map(({ verb, target }) => formatCommand(verb, target))
+    : ['dismiss']
+}
+
 function review(scenario) {
-  const { verb, target } = scenario.expected
+  const commands = expectedCommands(scenario)
   return {
-    expectedCommand: formatCommand(verb, target),
+    expectedCommand: commands.join(' then '),
+    expectedCommands: commands,
+    decoy: Boolean(scenario.decoy),
     explanation: scenario.explanation,
     concepts: concepts(scenario),
   }
@@ -147,6 +165,18 @@ export function createCliDefenderService({
           run.mode === 'timed' ? run.incidents[progress.current.index].windowSeconds : null,
         alert: run.pausedAt === null ? publicAlert(scenario) : null,
         hintLine: run.incidents[progress.current.index].hintUsed ? scenario.keyLine : null,
+        hintLookup: run.incidents[progress.current.index].hintUsed ? scenario.hintLookup : null,
+        stepsDone: progress.current.stepsDone,
+        mistakes: progress.current.mistakes,
+        penaltySeconds: progress.current.penaltySeconds,
+        lookups: {
+          used: run.incidents[progress.current.index].lookups.length,
+          limit: MAX_LOOKUPS_PER_INCIDENT,
+          results: run.incidents[progress.current.index].lookups.map((item) => ({
+            command: item.command,
+            lines: [...item.lines],
+          })),
+        },
       },
       history: progress.incidents
         .filter((item) => !['open', 'pending'].includes(item.outcome))
@@ -185,6 +215,9 @@ export function createCliDefenderService({
         windowSeconds: windows[index],
         resolution: null,
         hintUsed: false,
+        events: [],
+        lookups: [],
+        commands: [],
       })),
       actions: new Map(),
       completion: null,
@@ -211,7 +244,11 @@ export function createCliDefenderService({
     run.lastActivityAt = wall
     return {
       ...snapshot(run, gameTime(run, wall)),
-      hint: { incidentId: target, lineIndex: incident.scenario.keyLine },
+      hint: {
+        incidentId: target,
+        lineIndex: incident.scenario.keyLine,
+        lookup: incident.scenario.hintLookup,
+      },
     }
   }
 
@@ -256,29 +293,73 @@ export function createCliDefenderService({
     run.lastActivityAt = wall
 
     const parsed = parseCommand(command)
+    const incident = run.incidents[before.current.index]
+    const { scenario } = incident
+    const timed = run.mode === 'timed'
     let outcome = 'syntax'
     let message = SYNTAX_HINTS[parsed.reason]
-    if (parsed.ok) {
-      const incident = run.incidents[before.current.index]
-      const { verb, target: expected } = incident.scenario.expected
-      outcome = parsed.verb === verb && parsed.target === expected ? 'correct' : 'wrong'
-      incident.resolution = { at, outcome, command: parsed.normalized }
-      message =
-        outcome === 'correct'
-          ? 'Containment confirmed.'
-          : 'That action did not contain the incident. Incident closed.'
+    let closed = false
+    let penalty = 0
+    if (parsed.ok && parsed.kind === 'lookup') {
+      // lookups only read scripted lines: no score, no streak change, no real host or shell
+      if (incident.lookups.length >= MAX_LOOKUPS_PER_INCIDENT) {
+        outcome = 'lookup-limit'
+        message = 'No lookups left for this incident. Decide with what you have.'
+      } else {
+        const lines = scenario.lookups?.[parsed.normalized] ?? [
+          `No records for ${parsed.target} in this scope.`,
+        ]
+        incident.lookups.push({ command: parsed.normalized, lines })
+        outcome = 'lookup'
+        message = `${parsed.normalized}: ${lines.length} record${lines.length === 1 ? '' : 's'} found.`
+      }
+    } else if (parsed.ok) {
+      incident.commands.push(parsed.normalized)
+      const done = incident.events.filter((item) => item.kind === 'ok').length
+      const next = scenario.steps[done]
+      const correct = scenario.decoy
+        ? parsed.verb === 'dismiss'
+        : Boolean(next) && parsed.verb === next.verb && parsed.target === next.target
+      if (correct) {
+        incident.events.push({ at, kind: 'ok' })
+        closed = scenario.decoy || done + 1 === scenario.steps.length
+        if (closed) {
+          const mistakes = incident.events.filter((item) => item.kind === 'bad').length
+          incident.resolution = {
+            at,
+            outcome: mistakes ? 'wrong' : 'correct',
+            closedByMistake: false,
+          }
+        }
+        outcome = closed ? 'correct' : 'step'
+        message = !closed
+          ? 'Step confirmed. The incident is still active.'
+          : scenario.decoy
+            ? 'Alert dismissed as a false positive.'
+            : 'Containment confirmed.'
+      } else {
+        incident.events.push({ at, kind: 'bad' })
+        const mistakes = incident.events.filter((item) => item.kind === 'bad').length
+        closed = scenario.steps.length < 2 || mistakes >= MAX_MISTAKES_PER_INCIDENT
+        if (closed) incident.resolution = { at, outcome: 'wrong', closedByMistake: true }
+        outcome = 'wrong'
+        if (timed) penalty = TIME_PENALTY_SECONDS
+        message = closed
+          ? 'That action did not resolve the incident. Incident closed.'
+          : 'That was the wrong action. The incident is still open.'
+        if (timed) message += ` ${TIME_PENALTY_SECONDS} seconds were cut from the clock.`
+      }
     }
     const after = snapshot(run, at)
     const response = {
       ...after,
       outcome,
       message,
-      review: parsed.ok ? review(run.incidents[before.current.index].scenario) : null,
+      review: closed ? review(scenario) : null,
       command: parsed.ok ? parsed.normalized : null,
-      pointsAwarded:
-        outcome === 'syntax'
-          ? 0
-          : after.history.find((item) => item.incidentId === target).pointsAwarded,
+      incidentClosed: closed,
+      timePenaltySeconds: penalty,
+      pointsAwarded: outcome === 'syntax' ? 0 : after.score - before.score,
     }
     run.actions.set(actionId, { fingerprint, response })
     return response
@@ -300,17 +381,21 @@ export function createCliDefenderService({
 
     const debrief = final.incidents.map((item) => {
       const incident = run.incidents[item.index]
-      const { verb, target } = incident.scenario.expected
+      const commands = expectedCommands(incident.scenario)
       return {
         incidentId: item.incidentId,
         index: item.index,
         title: incident.scenario.alert.title,
         topic: incident.scenario.topic,
         outcome: item.outcome,
-        yourCommand: incident.resolution?.command ?? null,
+        yourCommand: incident.commands.at(-1) ?? null,
+        yourCommands: [...incident.commands],
+        lookupsUsed: incident.lookups.length,
+        decoy: Boolean(incident.scenario.decoy),
         concepts: concepts(incident.scenario),
         hintUsed: incident.hintUsed,
-        expectedCommand: formatCommand(verb, target),
+        expectedCommand: commands.join(' then '),
+        expectedCommands: commands,
         explanation: incident.scenario.explanation,
         pointsAwarded: item.pointsAwarded,
       }
@@ -367,6 +452,7 @@ export function createCliDefenderService({
         scenarioId: run.incidents[item.index].scenario.id,
         outcome: item.outcome,
         hintUsed: item.hintUsed,
+        trail: run.incidents[item.index].events.map((event) => event.kind),
       }))
       try {
         run.savedAttempt = await attempts.recordCompletedAttempt({ id: owner }, GAME_ID, {

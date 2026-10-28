@@ -12,6 +12,7 @@ const props = defineProps({
   mode: { type: String, default: 'timed' },
   history: { type: Array, default: () => [] },
   currentIndex: { type: Number, default: null },
+  penalty: { type: Object, default: null },
 })
 
 const shownScore = ref(props.score)
@@ -109,6 +110,12 @@ const timeLabel = computed(() =>
             aria-hidden="true"
             >{{ timeLabel }}</span
           >
+          <span v-if="penalty" :key="penalty.key" class="cli-penalty-cue" aria-hidden="true"
+            >-{{ penalty.seconds }} s</span
+          >
+          <span class="visually-hidden" role="status">{{
+            penalty ? `${penalty.seconds} seconds cut from the clock.` : ''
+          }}</span>
         </div>
       </div>
     </div>

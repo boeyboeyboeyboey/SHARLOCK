@@ -36,6 +36,8 @@ export function useCliDefender({ now = () => Date.now(), tickMs = 100, onEvent =
   const hinting = ref(false)
   const saving = ref(false)
   const runContext = ref({ kind: 'personal' })
+  // brief "-5 s" cue for the hud; key changes on every penalty so the cue replays
+  const penalty = ref(null)
 
   // server time minus local time, so deadlines are compared on the server's clock
   let offset = 0
@@ -44,6 +46,7 @@ export function useCliDefender({ now = () => Date.now(), tickMs = 100, onEvent =
   let announced = new Set()
   let controller
   let timer
+  let penaltyTimer
   let syncing = false
   let disposed = false
 
@@ -135,6 +138,8 @@ export function useCliDefender({ now = () => Date.now(), tickMs = 100, onEvent =
     frozenRemaining.value = null
     lastReview.value = null
     hinting.value = false
+    penalty.value = null
+    clearTimeout(penaltyTimer)
     shownIncident = null
     announced = new Set()
   }
@@ -177,6 +182,8 @@ export function useCliDefender({ now = () => Date.now(), tickMs = 100, onEvent =
       print('info', 'Commands:')
       for (const item of COMMAND_TEMPLATES)
         print('info', `  ${item.template.trim()} <target>  ${item.hint}`)
+      print('info', '  dismiss  Close a false alarm (no target)')
+      print('info', '  logs and whois are lookups: they never score and are limited per incident')
       print('info', '  help | history | clear  (local, never sent)')
       return true
     }
@@ -219,9 +226,22 @@ export function useCliDefender({ now = () => Date.now(), tickMs = 100, onEvent =
           'ok',
           `[ OK ] ${data.command}: ${data.message} +${data.pointsAwarded} (streak ${data.streak})`,
         )
+      } else if (data.outcome === 'step') {
+        print(
+          'ok',
+          `[STEP] ${data.command}: ${data.message} +${data.pointsAwarded} (streak ${data.streak})`,
+        )
       } else if (data.outcome === 'wrong') {
-        announced.add(incident.incidentId)
+        if (data.incidentClosed) announced.add(incident.incidentId)
         print('fail', `[FAIL] ${data.command}: ${data.message} Streak reset.`)
+        showPenalty(data.timePenaltySeconds)
+      } else if (data.outcome === 'lookup') {
+        const results = data.current?.lookups?.results ?? []
+        print(
+          'lookup',
+          `[${data.command}] (${data.current.lookups.used}/${data.current.lookups.limit})`,
+        )
+        for (const text of results.at(-1)?.lines ?? []) print('lookup', `  ${text}`)
       } else print('error', data.message)
       if (data.review) {
         printReview(data.outcome, data.review)
@@ -280,7 +300,16 @@ export function useCliDefender({ now = () => Date.now(), tickMs = 100, onEvent =
     }
   }
 
+  function showPenalty(seconds) {
+    if (!seconds) return
+    print('miss', `[-${seconds} s] ${seconds} seconds were cut from the clock.`)
+    penalty.value = { key: (penalty.value?.key ?? 0) + 1, seconds }
+    clearTimeout(penaltyTimer)
+    penaltyTimer = setTimeout(() => (penalty.value = null), 1800)
+  }
+
   function printReview(outcome, review) {
+    if (review.decoy) print('why', '  false alarm: nothing needed containing, dismiss was right')
     if (outcome !== 'correct') print('why', `  correct: ${review.expectedCommand}`)
     print('why', `  why: ${review.explanation}`)
     const { attack, cia, stage } = review.concepts
@@ -296,7 +325,10 @@ export function useCliDefender({ now = () => Date.now(), tickMs = 100, onEvent =
       const data = await requestHint(snapshot.value.runId, incident.incidentId, controller?.signal)
       if (disposed) return
       apply(data)
-      print('info', 'Hint: the highlighted line in the alert holds the key evidence.')
+      print(
+        'info',
+        `Hint: the highlighted line holds key evidence. Try "${data.hint?.lookup ?? 'logs'}" first.`,
+      )
     } catch (requestError) {
       if (disposed || controller?.signal.aborted) return
       print('error', errorMessage(requestError, 'No hint is available right now.'))
@@ -363,6 +395,7 @@ export function useCliDefender({ now = () => Date.now(), tickMs = 100, onEvent =
     disposed = true
     controller?.abort()
     stopTimer()
+    clearTimeout(penaltyTimer)
     document.removeEventListener('visibilitychange', onVisibility)
   })
 
@@ -385,6 +418,7 @@ export function useCliDefender({ now = () => Date.now(), tickMs = 100, onEvent =
     hinting,
     saving,
     runContext,
+    penalty,
     start,
     hint,
     pause,

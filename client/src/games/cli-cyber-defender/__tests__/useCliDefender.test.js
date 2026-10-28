@@ -142,7 +142,9 @@ describe('cli defender composable', () => {
     await game.submit('help')
     await game.submit('history')
     expect(submitCommand).not.toHaveBeenCalled()
-    expect(game.lines.value.some((line) => line.text.includes('block ip <target>'))).toBe(true)
+    const help = game.lines.value.map((line) => line.text).join('\n')
+    for (const word of ['block ip <target>', 'logs <target>', 'whois <target>', 'dismiss'])
+      expect(help).toContain(word)
     await game.submit('clear')
     expect(game.lines.value).toEqual([])
   })
@@ -365,6 +367,98 @@ describe('cli defender composable', () => {
       expectedCommand: 'block ip 203.0.113.45',
     })
     expect(events).toEqual(['alert', 'fail', 'alert'])
+  })
+
+  it('prints lookup results inline and reports the lookup limit', async () => {
+    startRun.mockResolvedValue(snapshot())
+    const lookups = (results) => ({
+      ...snapshot().current,
+      lookups: { used: results.length, limit: 6, results },
+    })
+    submitCommand.mockResolvedValueOnce(
+      snapshot({
+        outcome: 'lookup',
+        command: 'whois 203.0.113.45',
+        message: 'found',
+        pointsAwarded: 0,
+        current: lookups([{ command: 'whois 203.0.113.45', lines: ['400 failed logins'] }]),
+      }),
+    )
+    submitCommand.mockResolvedValueOnce(
+      snapshot({
+        outcome: 'lookup-limit',
+        message: 'No lookups left for this incident. Decide with what you have.',
+        current: lookups([{ command: 'whois 203.0.113.45', lines: ['400 failed logins'] }]),
+      }),
+    )
+    const { game } = harness({ now: 50_000 })
+    await game.start('timed')
+    await game.submit('whois 203.0.113.45')
+    let texts = game.lines.value.map((line) => line.text)
+    expect(texts).toContain('[whois 203.0.113.45] (1/6)')
+    expect(texts).toContain('  400 failed logins')
+    expect(game.current.value.incidentId).toBe('incident-01')
+    await game.submit('whois 203.0.113.46')
+    texts = game.lines.value.map((line) => line.text)
+    expect(texts).toContain('No lookups left for this incident. Decide with what you have.')
+  })
+
+  it('reports a step without closing the incident and cues a wrong-action penalty', async () => {
+    startRun.mockResolvedValue(snapshot())
+    submitCommand.mockResolvedValueOnce(
+      snapshot({
+        outcome: 'step',
+        command: 'isolate host kiosk-04',
+        message: 'Step confirmed. The incident is still active.',
+        pointsAwarded: 100,
+        score: 100,
+        streak: 1,
+        current: { ...snapshot().current, stepsDone: 1 },
+      }),
+    )
+    submitCommand.mockResolvedValueOnce(
+      snapshot({
+        outcome: 'wrong',
+        command: 'dismiss',
+        message:
+          'That was the wrong action. The incident is still open. 5 seconds were cut from the clock.',
+        incidentClosed: false,
+        timePenaltySeconds: 5,
+        review: null,
+        current: { ...snapshot().current, stepsDone: 1, mistakes: 1, penaltySeconds: 5 },
+      }),
+    )
+    const { game } = harness({ now: 50_000 })
+    await game.start('timed')
+    await game.submit('isolate host kiosk-04')
+    expect(
+      game.lines.value.some((line) => line.text.startsWith('[STEP] isolate host kiosk-04')),
+    ).toBe(true)
+    expect(game.penalty.value).toBeNull()
+    await game.submit('dismiss')
+    expect(game.lastReview.value).toBeNull()
+    expect(game.penalty.value).toMatchObject({ seconds: 5 })
+    expect(game.lines.value.map((line) => line.text)).toContain(
+      '[-5 s] 5 seconds were cut from the clock.',
+    )
+    expect(game.current.value.incidentId).toBe('incident-01')
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(game.penalty.value).toBeNull()
+  })
+
+  it('names the lookup to run when a practice hint is used', async () => {
+    startRun.mockResolvedValue(snapshot({ mode: 'practice' }))
+    requestHint.mockResolvedValue(
+      snapshot({
+        mode: 'practice',
+        current: { ...snapshot().current, hintLine: 0, hintLookup: 'whois 192.0.2.50' },
+        hint: { incidentId: 'incident-01', lineIndex: 0, lookup: 'whois 192.0.2.50' },
+      }),
+    )
+    const { game } = harness({ now: 50_000 })
+    await game.start('practice')
+    await game.hint()
+    expect(game.lines.value.map((line) => line.text).join('\n')).toContain('Try "whois 192.0.2.50"')
   })
 
   it('requests a hint only in practice and only once per incident', async () => {
