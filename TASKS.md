@@ -515,7 +515,7 @@ No active implementation task.
 - **Verified (28 October 2026, Athithya's Mac):** `prettier --check` clean and eslint exit 0 on both files; `playwright test --list` loads them (38 tests in 2 files). The hub E2E was not run (formatting cannot change behaviour).
 - **Not in scope:** `prettier --check .` still reports 79 other files on `main` (mostly `client/src/features/`, owned by several contributors); making `format:check` pass needs its own task with owner agreement.
 - **Docs:** no docs impact (formatting only); this record.
-- **Next action:** Boey reviews; merge only with his OK.
+- **Next action:** merged into `main` by Athithya (28 October 2026, `Merge branch 'fmt-02-hub-specs-prettier'`); Boey accepts or reopens.
 
 **BOARD-01 — Class leaderboards** · Status: **Review** · Contributor: **Boey** · Branch: `board-01-class-leaderboards` (cut from `origin/main` at `9e6c3a1`, 27 October 2026, upstream unset). Plan approved by Boey on 27 October 2026. Spec: [BOARD-01](#board-01--cohort-leaderboards).
 
