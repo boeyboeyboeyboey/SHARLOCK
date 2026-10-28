@@ -30,9 +30,12 @@ function setGraphics(event) {
 }
 const noticeText = computed(() => {
   const reasons = townMode.reasons.value
-  if (reasons.includes('no-webgl2')) return 'This browser does not support WebGL 2, so you are seeing the 2D map.'
-  if (reasons.includes('slow-runtime')) return 'Your device was struggling to run the 3D wharf, so we switched to the 2D map.'
-  if (reasons.includes('failed')) return 'The 3D wharf could not start on this device, so you are seeing the 2D map.'
+  if (reasons.includes('no-webgl2'))
+    return 'This browser does not support WebGL 2, so you are seeing the 2D map.'
+  if (reasons.includes('slow-runtime'))
+    return 'Your device was struggling to run the 3D wharf, so we switched to the 2D map.'
+  if (reasons.includes('failed'))
+    return 'The 3D wharf could not start on this device, so you are seeing the 2D map.'
   return 'You are seeing the 2D map because this device may not run the 3D wharf smoothly.'
 })
 const toggleLabel = computed(() => (is3d.value ? 'Switch to 2D map' : 'Switch to 3D wharf'))
@@ -96,7 +99,11 @@ function closeNewspaper() {
         Your class request is pending staff approval. You can explore on your own while you wait.
         <RouterLink to="/classes">View your classes</RouterLink>
       </p>
-      <p v-else-if="route.query.classRequest === 'active'" class="alert alert-success" role="status">
+      <p
+        v-else-if="route.query.classRequest === 'active'"
+        class="alert alert-success"
+        role="status"
+      >
         You already belong to this class. <RouterLink to="/classes">View your classes</RouterLink>
       </p>
       <div
