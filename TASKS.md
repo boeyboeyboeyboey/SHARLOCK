@@ -443,6 +443,16 @@ No active implementation task.
 - **Docs:** agents.md §8, hub and legacy-town READMEs (Audio), README "Using the app", DESIGN.md audio lines.
 - **Next action:** Boey listens in the hub and the 2D town and tunes gains if needed; merge only with his OK.
 
+**E2E-05 — Mobile sign-out drawer retry** · Status: **Review** · Contributor: **Boey** · Branch: `e2e-05-signout-drawer-retry` (cut from `origin/main` at `bc545d7`, 28 October 2026, upstream unset) · Approved by Boey on 28 October 2026.
+
+- **Problem:** in full E2E runs the mobile project failed `tests/e2e/auth.spec.js` sign-out tests: the "Your detective desk" drawer never got `show`, or Sign out was clicked mid-transition. Each passed alone.
+- **Likely cause (not proven):** `client/src/layouts/PortalLayout.vue` `openMenu()` calls `offcanvas?.show()`, which does nothing before the layout mounts or while a Bootstrap transition runs, so one swallowed tap left the drawer shut. AUDIO-01's listeners are not armed on those pages and never stop propagation.
+- **Change (test only):** `signOutFromDetectiveDesk` in `tests/e2e/auth.spec.js` retries the drawer tap until Bootstrap's `show` state settles (`toPass`), then waits for the transition to end before clicking Sign out; both call sites use it.
+- **Verified (28 October 2026):** `auth.spec.js` mobile 3/3, mobile `--repeat-each=5 --workers=2` 15/15, desktop 3/3; eslint and prettier clean.
+- **Not verified:** a full E2E run under load. `tests/e2e/portal.spec.js` (~213-222) opens the drawer with a single tap and has the same risk (unchanged).
+- **Docs:** no docs impact (test-only change).
+- **Next action:** confirm in the next full E2E run.
+
 **BOARD-01 — Class leaderboards** · Status: **Review** · Contributor: **Boey** · Branch: `board-01-class-leaderboards` (cut from `origin/main` at `9e6c3a1`, 27 October 2026, upstream unset). Plan approved by Boey on 27 October 2026. Spec: [BOARD-01](#board-01--cohort-leaderboards).
 
 - **Collision check (27 October 2026):** no leaderboard code on `main`, in local or remote branch names, or in the `admin-01-b-admin-controls` (Codex admin-controls) worktree. Existing references are only the `/leaderboard` ComingSoon placeholder (`client/src/router/index.js`), nav links (`Navbar.vue:34`, `PortalLayout.vue:30`), the pixel-wipe label, docs mentions, and an empty `server/src/modules/leaderboards/.gitkeep`. Remote branch contents, PRs and teammates' machines were not inspected.

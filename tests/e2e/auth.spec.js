@@ -8,11 +8,16 @@ test.skip(
   'The account journey includes transactional onboarding; run with --replica-set.',
 )
 
-// bootstrap marks the drawer as a dialog before its slide-in ends, so wait for the settled show state
+// openMenu() is a no-op until the layout mounts or while a transition runs, so retry the tap until the drawer settles
 async function signOutFromDetectiveDesk(page) {
+  const opener = page.getByRole('button', { name: 'Open navigation and profile' })
   const detectiveDesk = page.getByRole('dialog', { name: 'Your detective desk' })
+  await expect(async () => {
+    await opener.click({ timeout: 2000 })
+    // bootstrap marks the drawer as a dialog before its slide-in ends, so wait for the settled show state
+    await expect(detectiveDesk).toHaveClass(/(^|\s)show(\s|$)/, { timeout: 3000 })
+  }).toPass({ timeout: 15_000 })
   await expect(detectiveDesk).toBeVisible()
-  await expect(detectiveDesk).toHaveClass(/(^|\s)show(\s|$)/)
   await expect(detectiveDesk).not.toHaveClass(/(^|\s)showing(\s|$)/)
   await detectiveDesk.getByRole('button', { name: 'Sign out' }).click()
 }
@@ -135,7 +140,6 @@ test('registers, restores, signs out, signs in, and stops a protected action aft
   if (await desktopSignOut.isVisible()) {
     await desktopSignOut.click()
   } else {
-    await page.getByRole('button', { name: 'Open navigation and profile' }).click()
     await signOutFromDetectiveDesk(page)
   }
   await expect(page).toHaveURL(/\/login/)
@@ -218,7 +222,6 @@ test('signing out with a lapsed session cookie still lands on the sign-in page',
   if (await desktopSignOut.isVisible()) {
     await desktopSignOut.click()
   } else {
-    await page.getByRole('button', { name: 'Open navigation and profile' }).click()
     await signOutFromDetectiveDesk(page)
   }
   await expect(page).toHaveURL(/\/login/)
