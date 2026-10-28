@@ -471,6 +471,14 @@ No active implementation task.
 - **Docs:** no module or README impact (test-only); this record.
 - **Next action:** Boey decides on merge.
 
+**FMT-01 — Prettier format of Dashboard.vue** · Status: **Review** · Contributor: **Athithya** (done for Boey) · Branch: `fmt-01-dashboard-prettier` (cut from `origin/main` at `389a6e1`, rebased onto `51dda6f`, 28 October 2026, upstream unset) · Approved by Boey's todo list and Athithya on 28 October 2026.
+
+- **Problem:** `client/src/views/Dashboard.vue` failed `prettier --check` on `main` (three long fallback-notice lines and one long `<p v-else-if>` tag), noted under AUDIO-03.
+- **Change (format only):** `prettier --write client/src/views/Dashboard.vue`; line wrapping only, no code, text or behaviour change. `tests/e2e/hub.spec.js` also fails prettier on `main` and is left alone (not in this scope).
+- **Verified (28 October 2026, cloud copy):** `prettier --check` and eslint on `Dashboard.vue` clean; `vitest run --project client` exit 0 (68 files, 587 tests).
+- **Docs:** no docs impact (formatting only).
+- **Next action:** Boey reviews the diff; merge only with his OK.
+
 **BOARD-01 — Class leaderboards** · Status: **Review** · Contributor: **Boey** · Branch: `board-01-class-leaderboards` (cut from `origin/main` at `9e6c3a1`, 27 October 2026, upstream unset). Plan approved by Boey on 27 October 2026. Spec: [BOARD-01](#board-01--cohort-leaderboards).
 
 - **Collision check (27 October 2026):** no leaderboard code on `main`, in local or remote branch names, or in the `admin-01-b-admin-controls` (Codex admin-controls) worktree. Existing references are only the `/leaderboard` ComingSoon placeholder (`client/src/router/index.js`), nav links (`Navbar.vue:34`, `PortalLayout.vue:30`), the pixel-wipe label, docs mentions, and an empty `server/src/modules/leaderboards/.gitkeep`. Remote branch contents, PRs and teammates' machines were not inspected.
