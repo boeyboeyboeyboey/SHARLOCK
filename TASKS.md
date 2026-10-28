@@ -282,7 +282,7 @@ No active implementation task.
 - **PHISH-01 known gaps:** the "Opening the inbox..." loading text is no longer in `client/src/` on `389a6e1`, and this change covers the stale "unsaved" lines; the PHISH-01 record itself is left as written.
 - **Verified (28 October 2026, cloud copy):** prettier check on the four changed Markdown files clean; `rg -n "Opening the inbox" client/src` no matches.
 - **Docs:** DESIGN.md, README.md, phishing server README, TASKS.md.
-- **Next action:** Boey reviews the wording; merge only with his OK.
+- **Next action:** merged into `main` by Athithya with Boey's OK (28 October 2026, `Merge branch 'doc-18-phish-credit-and-readiness'`); Boey accepts or reopens.
 
 **CLI-02 — CLI pause/resume race on "Keep playing"** · Status: **Review** · Contributor: **Boey** · Branch: `cli-02-pause-resume-race` · Approved by Boey on 27 October 2026 under the recorded owner agreement. Owner to notify: **Xin Lei**.
 
@@ -470,7 +470,7 @@ No active implementation task.
 - **Verified on Athithya's Mac (28 October 2026):** `pnpm test:e2e tests/e2e/clearance-tower.spec.js --workers=1 --repeat-each=5` all passed (130 reported passed, as relayed by Athithya).
 - **Not verified:** a full E2E run under load.
 - **Docs:** no docs impact (test-only change).
-- **Next action:** Boey reviews; merge only with his OK.
+- **Next action:** merged into `main` by Athithya with Boey's OK (28 October 2026, `Merge branch 'e2e-06-clearance-howto-settle'`); Boey accepts or reopens.
 
 **AUDIO-03 — 3D hub ambience loop** · Status: **Review** · Contributor: **Boey** · Branch: `audio-03-hub-ambience` (cut from `origin/main` at `e5e5a4c`, 28 October 2026, upstream unset) · Approved by Boey on 28 October 2026; amends AUDIO-02 and agents.md §8 for the hub only.
 
@@ -506,7 +506,7 @@ No active implementation task.
 - **Change (format only):** `prettier --write client/src/views/Dashboard.vue`; line wrapping only, no code, text or behaviour change. `tests/e2e/hub.spec.js` also fails prettier on `main` and is left alone (not in this scope).
 - **Verified (28 October 2026, cloud copy):** `prettier --check` and eslint on `Dashboard.vue` clean; `vitest run --project client` exit 0 (68 files, 587 tests).
 - **Docs:** no docs impact (formatting only).
-- **Next action:** Boey reviews the diff; merge only with his OK.
+- **Next action:** merged into `main` by Athithya with Boey's OK (28 October 2026, `Merge branch 'fmt-01-dashboard-prettier'`); Boey accepts or reopens.
 
 **BOARD-01 — Class leaderboards** · Status: **Review** · Contributor: **Boey** · Branch: `board-01-class-leaderboards` (cut from `origin/main` at `9e6c3a1`, 27 October 2026, upstream unset). Plan approved by Boey on 27 October 2026. Spec: [BOARD-01](#board-01--cohort-leaderboards).
 
