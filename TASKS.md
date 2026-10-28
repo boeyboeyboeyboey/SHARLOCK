@@ -275,6 +275,15 @@ No active implementation task.
 - **Scope:** `docs/course-alignment.md` open-gaps row 2 marked closed with evidence; documentation only. Owner of the tests: Athithya (no test or component change). The component still calls `readingPane.value?.scrollTo` unguarded (`PhishingPostMortem.vue:69-72`), which real browsers support; jsdom lacks it, so the tests stub it at `client/src/games/phishing-post-mortem/__tests__/game.test.js:91-92` and `components.test.js:20-21`.
 - **Checks (27 October 2026):** `pnpm test:unit` on `main` `12a6a90`: 111 files, 1277/1277, exit 0, no unhandled errors; `prettier --check docs/course-alignment.md TASKS.md` clean.
 
+**DOC-18 — Phishing credit and saved-game readiness wording** · Status: **Review** · Contributor: **Athithya** (done for Boey) · Branch: `doc-18-phish-credit-and-readiness` (cut from `origin/main` at `389a6e1`, 28 October 2026, upstream unset) · Approved by Boey's todo list and Athithya on 28 October 2026.
+
+- **Problem:** after SAVE-01 the DESIGN.md town table still listed CLI, Social and Clearance as "Playable, unsaved (Review)", README §2 still said only G-SQL saves results, and the phishing server README did not credit the ported generator code.
+- **Change (docs only):** DESIGN.md town table rows for those three games now read "Playable, saved (Review)"; README account paragraph now says all five scored games save through SAVE-01; `server/src/modules/games/phishing-post-mortem/README.md` credits Athithya's G-PHISH-03 work for `random.js`, `pools.js` and `tricks.js`.
+- **PHISH-01 known gaps:** the "Opening the inbox..." loading text is no longer in `client/src/` on `389a6e1`, and this change covers the stale "unsaved" lines; the PHISH-01 record itself is left as written.
+- **Verified (28 October 2026, cloud copy):** prettier check on the four changed Markdown files clean; `rg -n "Opening the inbox" client/src` no matches.
+- **Docs:** DESIGN.md, README.md, phishing server README, TASKS.md.
+- **Next action:** Boey reviews the wording; merge only with his OK.
+
 **CLI-02 — CLI pause/resume race on "Keep playing"** · Status: **Review** · Contributor: **Boey** · Branch: `cli-02-pause-resume-race` · Approved by Boey on 27 October 2026 under the recorded owner agreement. Owner to notify: **Xin Lei**.
 
 - **Cause:** the leaving prompt pauses a timed game and "Keep playing" resumes it, but `resume()` did not wait for the in-flight pause request. When the pause response landed after the resume response, `apply()` set `paused` back to true and `.cli-paused` stayed (seen in `tests/e2e/cli-cyber-defender.spec.js` under load).

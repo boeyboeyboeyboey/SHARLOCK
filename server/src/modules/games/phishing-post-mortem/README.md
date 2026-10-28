@@ -36,3 +36,5 @@ This module adds no routes. `attempts/production-registry.js` registers `triageR
 ## Changing the generator
 
 Add a scenario as one entry in the `SCENARIOS` array in `generator/templates.js` (an id, 2-4 `phishTypes`, a `safeRoute` sentence and `safeNote`, and a `build(c, { verdict, phishType })` that returns the genuine email and lets `finish` turn it into the phish) and keep every domain on a fictional `.example` host. Bump `GENERATOR_VERSION` when a change would alter what an existing seed produces, because unfinished runs regenerate their emails from the stored seed. `server/tests/unit/phishing-post-mortem/triage-generator.test.js` and `triage-ruleset.test.js` cover determinism, content safety, the tier ramp, scoring and end conditions.
+
+Credit: the seeded generator core (`random.js`, `pools.js` and `tricks.js`) was ported from Athithya's G-PHISH-03 generated-cases work (branch `g-phish-03-generated-cases`, 19 October 2026).
