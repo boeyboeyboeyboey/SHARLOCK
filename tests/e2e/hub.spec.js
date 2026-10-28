@@ -140,6 +140,33 @@ test('deselects a destination by clicking it again or pressing Escape', async ({
   await expect(enter).toHaveCount(0)
 })
 
+test('a destination picked from the west promenade is reached and entered', async ({ page }) => {
+  await page.goto('/')
+  await hubReady(page)
+  // beside the crate stack, nearest to a lane end that sits inside its collider
+  await page.evaluate(() => window.__hub.debug.walkTo(-20, 40))
+  await expect.poll(async () => (await position(page)).z, slow).toBeGreaterThan(39)
+  const dest = page.getByTestId('dest-cli-cyber-defender')
+  await dest.click()
+  await expect
+    .poll(() => page.evaluate(() => window.__hub.state.nearDoor), slow)
+    .toBe('cli-cyber-defender')
+  await expect(dest).toHaveAttribute('aria-pressed', 'true')
+  await page.getByTestId('enter').click()
+  await expect(page).toHaveURL(/\/games\/cli-cyber-defender$/, slow)
+})
+
+test('a destination picked during the enter swoop is ignored', async ({ page }) => {
+  await page.goto('/')
+  await hubReady(page)
+  await page.getByTestId('dest-cli-cyber-defender').click()
+  await page.getByTestId('enter').click()
+  await expect.poll(() => page.evaluate(() => window.__hub.state.mode)).toBe('entering')
+  await page.evaluate(() => window.__hub.select('sql-injection-arcade'))
+  expect(await page.evaluate(() => window.__hub.state.selected)).toBe('cli-cyber-defender')
+  await expect(page).toHaveURL(/\/games\/cli-cyber-defender$/, slow)
+})
+
 test('returns to the door of the building that was entered', async ({ page }) => {
   await page.goto('/')
   await hubReady(page)

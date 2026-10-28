@@ -57,6 +57,7 @@ export function createPlayer({ scene, canvas, camera, ground, sharlock, reduced,
   let flight = null;
   let hold = false;
   let stallTime = 0;
+  let stalled = false;
   let lastPos = new Vector3();
   let walkBlend = 0;
   const jump = createJump();
@@ -173,6 +174,7 @@ export function createPlayer({ scene, canvas, camera, ground, sharlock, reduced,
     route = points.map(([x, z]) => ({ x, z }));
     routeSerial += 1;
     stallTime = 0;
+    stalled = false;
     if (cancelHold) hold = false;
   }
 
@@ -181,7 +183,9 @@ export function createPlayer({ scene, canvas, camera, ground, sharlock, reduced,
     const dest = destinations.find((d) => d.id === id);
     const target = door(dest);
     const { nodes, link } = graph;
-    const nearest = (x, z) => nodes.reduce((best, n, i) => (Math.hypot(n[0] - x, n[1] - z) < Math.hypot(nodes[best][0] - x, nodes[best][1] - z) ? i : best), 0);
+    // lane ends can sit inside a prop's collider, so only walkable nodes can start or end a route
+    const usable = nodes.map((n, i) => i).filter((i) => walkable(nodes[i][0], nodes[i][1]));
+    const nearest = (x, z) => (usable.length ? usable : nodes.map((n, i) => i)).reduce((best, i) => (Math.hypot(nodes[i][0] - x, nodes[i][1] - z) < Math.hypot(nodes[best][0] - x, nodes[best][1] - z) ? i : best));
     const here = pos();
     const start = nearest(here.x, here.z);
     const goal = nearest(target.x, target.z);
@@ -248,6 +252,7 @@ export function createPlayer({ scene, canvas, camera, ground, sharlock, reduced,
     if (manual) {
       route = [];
       hold = false;
+      stalled = false;
       const len = Math.hypot(ix, iy);
       if (len > 1) {
         ix /= len;
@@ -321,9 +326,10 @@ export function createPlayer({ scene, canvas, camera, ground, sharlock, reduced,
       const progress = Math.hypot(np.x - lastPos.x, np.z - lastPos.z);
       stallTime = progress < speed * dt * 0.12 ? stallTime + dt : 0;
       if (stallTime > 0.45) {
+        // keep the camera hold and let the caller keep its pick, so Enter still works
         route = [];
-        hold = false;
         stallTime = 0;
+        stalled = true;
       }
     }
     lastPos = np.clone();
@@ -400,6 +406,7 @@ export function createPlayer({ scene, canvas, camera, ground, sharlock, reduced,
     position: () => ({ x: pos().x, z: pos().z, y: pos().y - capsule.height / 2 }),
     feet,
     isWalking: () => route.length > 0,
+    wasStalled: () => stalled,
     jump: () => {
       if (enabled) jump.request();
     },

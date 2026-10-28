@@ -140,6 +140,16 @@ No active implementation task.
 
 ## Review
 
+**HUB-05 — 3D destination pick drops before Enter** · Status: **Review** · Contributor: **Boey** · Branch: `hub-05-destination-drop` (cut from `origin/main` at `c070ac8`, 29 October 2026, upstream unset) · Plan approved by Boey on 29 October 2026 (overnight batch with CLI-03, SQL-02, HUB-06).
+
+- **Bug:** a list or minimap pick flew to the building, then dropped back to free roam and the game could not be entered (Boey, 29 Oct, from the west promenade).
+- **Cause (reproduced in Playwright):** `routeToDoor` started the auto-walk at the nearest lane node without a walkability check; the west lane end (-24, 36) sits inside the crate collider, so the walk stalled, the stall rule cleared route and camera hold, and the doors' steer-away check dropped the pick. A second bug: a pick during the enter swoop overwrote the enter flight and left the hub stuck in `entering`.
+- **Fix:** routes start and end only at walkable lane nodes (`scenes/shared/player.js`); a stalled route keeps the hold and the pick (`wasStalled()`, `scenes/shared/doors.js`), so Enter stays usable; picks are ignored outside `explore` (`doors.js`, `engine.js`, `HubScene.vue`). Steering by hand still drops the pick.
+- **Collision check (29 Oct 2026):** Boey's own hub module; no other branch or record touches the destination flow.
+- **Docs impact:** hub README (new "Destination picks" section, two stale lines fixed), this record.
+- **Tests:** `tests/e2e/hub.spec.js` +2 (pick from the west promenade then Enter; pick during the swoop is ignored); both failed against the old code on desktop and mobile. No unit test: the stall rule lives inside Babylon physics.
+- **Verification (29 Oct 2026):** vitest `client/src/features/hub` 12 files 109/109; eslint on changed files clean; E2E `hub.spec.js` + `hub-auto.spec.js` 37 passed, 5 skipped (existing project skips), `--workers=1`. One earlier run had a flaky 'deselects a destination' failure (`__hub.debug` null), passed on rerun; not investigated. Only the CLI destination was driven from the promenade; others share the routing but were not each checked.
+
 **LORE-01 — Lore intro for the 3D hub** · Status: **Review** · Contributor: **Boey** · Branch: `lore-01-intro` (cut from `origin/main` at `114468b`, 28 October 2026, upstream unset) · Plan approved by Boey on 28 October 2026 after the agents.md §2D checkpoint (all recommended defaults accepted).
 
 - **Behaviour:** on first entry to the 3D hub on `/`, white serif title cards fade in and out on black (five cards, Boey's text, 23 Oct spec), then the veil fades up on the existing spawn camera at the wharf. Hold per card = max(1.5 s, 0.32 s × words; raised from 0.25 s on 29 Oct 2026 at Boey's request), 0.4 s fades, about 27 s in all. Enter, Space or a click advances one card; Esc or the visible Skip ends it. Reduced motion: no fades, no auto-advance, plain cards with Continue and Skip. Real DOM text in an `aria-live` region; dialog focus trap with focus restored to the hub. If the scene is not ready when the cards end, the last card shows "Loading the wharf…" until it is. Hub input and `HubAmbience` stay paused while it plays. A "Replay intro" button sits beside Reset camera. 2D mode and the no-WebGL fallback never show it.

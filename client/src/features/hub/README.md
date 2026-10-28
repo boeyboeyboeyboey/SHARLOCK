@@ -63,7 +63,7 @@ Players' controls and settings are described in the root README under "Using the
 
 - Unit: `client/src/features/hub/__tests__/`, including `idle.test.js`, `jump.test.js` and the lore tests (`loreCards.test.js`, `useLoreIntro.test.js`, `LoreIntro.test.js`).
 - Lore intro: every hub E2E spec must pre-set `sharlock.loreIntroSeen` to `'1'` in its init script, or the intro blocks the hub. `tests/e2e/lore-intro.spec.js` covers the intro journey.
-- E2E: `tests/e2e/hub.spec.js` and `tests/e2e/hub-auto.spec.js`. `hub.spec.js` covers the jump. Hub specs force 3D with `sharlock.hubForce3d=1` and `sharlock.hubWatchManual=1` (see `hub.spec.js` near line 44), because headless Chromium renders in software.
+- E2E: `tests/e2e/hub.spec.js` and `tests/e2e/hub-auto.spec.js`. `hub.spec.js` covers the jump. Hub specs force 3D with `sharlock.hubForce3d=1` and `sharlock.hubWatchManual=1` (see the `beforeEach` in `hub.spec.js`, about lines 42-49), because headless Chromium renders in software.
 - E2E waits are condition-based (`expect`, `expect.poll`, `waitForFunction`); never use `waitForTimeout`.
 - Any other E2E spec that touches the town must force 2D mode:
 
@@ -73,6 +73,12 @@ await page.addInitScript(() => localStorage.setItem('sharlock.townMode', '2d'))
 
 See `tests/e2e/portal.spec.js:6`.
 
+## Destination picks (HUB-05)
+
+- A list or minimap pick auto-walks along the lane graph. Routes start and end only at walkable lane nodes, because the west lane end sits inside a crate collider and used to stall the walk.
+- If a route still stalls, the camera hold and the pick stay, so Enter remains usable; steering by hand (keys, joystick) or clicking the ground drops the pick as before.
+- Picks made while the enter swoop is running are ignored, so the swoop always finishes and opens the game.
+
 ## Assets and adding a building
 
 - Skyline plates: `client/public/hub/plates/` (`thames-far-1..8`, `thames-mid-1..4` `.webp`); the list is in `scenes/shared/assets.js` (far 7 and 8 are probed, not assumed).
@@ -80,7 +86,7 @@ See `tests/e2e/portal.spec.js:6`.
 
 ## Known gaps
 
-- Crates, chimneys, signs and the crane jib have no camera collision.
+- Crates, chimneys and signs have no camera collision (the crane tower has one; the jib does not).
 - The desktop destination list covers the right edge of selection views.
 - Minimap context blocks are approximate.
 - Not verified on real phones or low-end hardware.

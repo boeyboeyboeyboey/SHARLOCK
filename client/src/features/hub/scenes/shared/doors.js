@@ -96,6 +96,8 @@ export function createDoors({ scene, state, notify, infos, control, camera, redu
   };
 
   const select = (id) => {
+    // the enter swoop owns the camera, so a list or minimap pick during it is ignored
+    if (entering) return;
     state.selected = id;
     headingTo = id && id !== state.nearDoor ? id : null;
     notify();
@@ -185,7 +187,7 @@ export function createDoors({ scene, state, notify, infos, control, camera, redu
       notify();
     }
     // steering away (keys, joystick or a click elsewhere) before reaching the picked door drops the pick
-    if (!entering && headingTo && headingTo === state.selected && state.nearDoor !== headingTo && (!control.isWalking() || control.routeSerial() !== headingRoute)) {
+    if (!entering && headingTo && headingTo === state.selected && state.nearDoor !== headingTo && !control.wasStalled() && (!control.isWalking() || control.routeSerial() !== headingRoute)) {
       headingTo = null;
       if (control.isHeld()) select(null);
       else {

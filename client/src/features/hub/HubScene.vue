@@ -83,6 +83,7 @@ function sync(state) {
 
 // choosing the selected destination again deselects it
 function choose(id) {
+  if (view.mode !== 'explore') return
   const next = view.selected === id ? null : id
   view.selected = next
   hub?.select(next)

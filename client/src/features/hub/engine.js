@@ -210,6 +210,8 @@ export function createHub({ container, joystick = {}, params = new URLSearchPara
     state,
     ready,
     select(id) {
+      // the enter and return flights own the camera, so picks wait for explore
+      if (state.mode !== 'explore') return;
       state.selected = id;
       api()?.select(id);
       emit();
