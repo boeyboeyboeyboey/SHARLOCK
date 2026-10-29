@@ -242,7 +242,10 @@ test('keeps the incident open on a typo, closes it on a wrong target', async ({ 
   await useMenu(page, 'End practice')
   await expect(page.getByText('100 / 2,700 points')).toBeVisible()
   await expect(page.locator('.cli-outcome-wrong')).toHaveCount(1)
-  await expect(page.locator('.cli-outcome-skipped')).toHaveCount(6)
+  // only the reached incidents are reviewed: two settled and the one on screen, unanswered
+  await expect(page.getByText('Practice ended after challenge 3 of 8.')).toBeVisible()
+  await expect(page.locator('.cli-debrief-item')).toHaveCount(3)
+  await expect(page.getByText('NOT ANSWERED')).toHaveCount(1)
 })
 
 test('scores a timed incident against the server window', async ({ page }) => {
