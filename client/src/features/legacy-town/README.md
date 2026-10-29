@@ -24,8 +24,9 @@ Art and motion:
 
 1. `townArt.js` builds trusted static SVG strings (no user text) on a 4px grid: six buildings keyed by catalog `building.type` (`TYPE_ART`), the ground and unfinished bridge, barges, props, lamps and the capybara and gull markup. `TownBuildingArt.vue` renders one building; `TownScenery.vue` layers ground, barges, props, life, trees/bushes (the `/images/town/` SVGs) and lamps.
 2. Catalog `building.x/y` is the top-left of a 192 x 200 footprint whose bottom edge is the ground line; art is centred and bottom-anchored, and the name label hangs below.
-3. Animals walk with CSS `transform` keyframes and a two-frame leg swap (no JavaScript timers or listeners). All decorative layers are `aria-hidden` and `pointer-events: none`.
-4. Under `prefers-reduced-motion: reduce` every animation is off and walkers are drawn static with four legs; the rules live in `town.css` under `no-preference`.
+3. Townsfolk capybaras come from a small wardrobe in `townArt.js` (TOWN-02): `capyFurs` (six fur pairs), `capyProps` (crate, basket, flat cap, felt hat, bowler, apron, newspaper, neckerchief; back props sit behind the body, front props over it) and `townCapys`, one distinct fur and prop combination per capybara in `lifeMarkup` order. Sharlock's deerstalker, monocle and red scarf are never used. The crane and everything else on the ground stay at least 8px below the world top, and the second gull flies in open sky between the crane and the scaffold; `__tests__/townArt.test.js` checks both.
+4. Animals walk with CSS `transform` keyframes and a two-frame leg swap (no JavaScript timers or listeners). All decorative layers are `aria-hidden` and `pointer-events: none`.
+5. Under `prefers-reduced-motion: reduce` every animation is off and walkers are drawn static with four legs; the rules live in `town.css` under `no-preference`.
 
 Owned files: `TownMap.vue`, `TownBuildingArt.vue`, `townArt.js`, `TownScenery.vue`, `TownAudio.vue`, `GameInfoCard.vue`, `useTownMode.js`, `__tests__/`.
 
