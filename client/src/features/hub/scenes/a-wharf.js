@@ -27,6 +27,8 @@ import { createSky } from './wharf/sky.js';
 import { createWater, waterClock } from './wharf/water.js';
 import { buildBoats } from './wharf/boats.js';
 import { buildLife } from './wharf/life.js';
+import { buildTownsfolk } from './wharf/townsfolk.js';
+import { npcs } from './wharf/npcs.js';
 import { setupLook } from './wharf/look.js';
 import { applyToon } from './wharf/toon.js';
 import { selectionViews } from './wharf/views.js';
@@ -101,6 +103,8 @@ export async function build({ engine, scene, canvas, state, notify, params, joys
   disposers.push(() => boats.dispose());
   const life = buildLife({ scene, world, tier, reduced, chimneys: district.chimneys, farStacks: backdrop.smokeStacks });
   disposers.push(() => life.dispose());
+  const townsfolk = buildTownsfolk({ scene, tier, reduced, look });
+  disposers.push(() => townsfolk.dispose());
 
   // planar reflection of boats, lamps, lit windows, skyline and the bridge, desktop only
   let mirror = null;
@@ -128,6 +132,8 @@ export async function build({ engine, scene, canvas, state, notify, params, joys
   const box = (x, y, z, sx, sy, sz) => compound.addChild(new PhysicsShapeBox(new Vector3(x, y, z), Quaternion.Identity(), new Vector3(sx, sy, sz), scene));
   box(0, -0.5, 10, 220, 1, 220);
   for (const r of obstacles) box((r.x0 + r.x1) / 2, 1.3, (r.z0 + r.z1) / 2, r.x1 - r.x0, 2.6, r.z1 - r.z0);
+  // townsfolk stand off the lanes; a small post each keeps sharlock from walking through them
+  for (const n of npcs) box(n.x, 0.9, n.z, 0.8, 1.8, 0.8);
   const colliderBody = new PhysicsBody(colliderNode, PhysicsMotionType.STATIC, false, scene);
   colliderBody.shape = compound;
   compound.material = { friction: 0.2, restitution: 0 };
@@ -201,6 +207,11 @@ export async function build({ engine, scene, canvas, state, notify, params, joys
     lamps.update(t, dt);
     boats.update(dt);
     life.update(dt);
+    const talk = townsfolk.update(dt, state.player, state.nearDoor);
+    if (talk !== state.nearNpc) {
+      state.nearNpc = talk;
+      notify();
+    }
   });
 
   state.look = { mirror: Boolean(mirror), lamps: lamps.count, boats: true, tier: tier.name };
@@ -272,6 +283,7 @@ export async function build({ engine, scene, canvas, state, notify, params, joys
         },
         sharlockStats: () => ({ triangles: control.player.rig?.triangles() ?? 0, meshes: control.player.rig?.drawCalls() ?? 0 }),
         lampsLit: () => lamps.litFraction(),
+        npcs: () => townsfolk.list(),
         cab: () => life.cabAt(),
         worker: (i) => life.workerAt(i),
         sunClock: () => (performance.now() - start) / 1000,

@@ -89,6 +89,16 @@ See `tests/e2e/portal.spec.js:6`.
 - Key legend: a **Keys** button (`KeyLegend.vue`, `data-testid="hub-keys"`, `aria-expanded`, `aria-controls`) in the HUD under Reset camera and Replay intro. Closed by default; Escape closes it before it deselects anything. Escape is one `window` keydown listener in `HubScene.vue` (added on mount, removed on unmount), so it works with focus on the page body; it ignores typing targets, handled events, the lore intro and a paused hub (Times open), and the full-screen map stops its own Escape. It lists WASD / arrows move, Space jump, Q / E rotate, R reset camera, Enter go in, Esc deselect.
 - Camera clip at the Customs House (SQL Injection Arcade): not reproduced. With the arcade picked and the player on its door ring, the follow camera sat at radius 19.2 (wanted 22) and outside every blocker box. Orbiting with Q and E while standing at the door, 28 samples never put the camera inside a blocker, but 11 pulled the spring arm in to a radius of 1 to 2 (the 1 unit minimum), so the camera hugs the facade right behind Sharlock. No scene change was made; if a clip is seen again, it is that near-wall pull-in, and raising `minRadius` or the Customs blocker pad in `scenes/shared/cameraCollision.js` and `wharf/buildings.js` is the place to look.
 
+## Townsfolk (NPC-01)
+
+- Who: nine capybaras from `scenes/wharf/npcs.js`. Six game keepers stand beside their doors (customs officer, telegraph clerk, postmaster, police constable, publican, news vendor) and three wanderers (fisherman, lamplighter, gull feeder) are scenery with a one-liner. Each has a small collider post. They face the player within 4 m, otherwise their post.
+- Tiers: animated rigs (`townsfolk.js`, own idle seed each) on the desktop tier, static meshes on compact and low (`npcRigs` in `quality.js`).
+- Talk rule: `townsfolk.update` returns the nearest npc the player can talk to, written to `state.nearNpc`: within 2.5 m, or for a game keeper also while `state.nearDoor` is that keeper's game. The **Talk to <name>** button (`data-testid="talk"`) shows beside Enter in explore mode only.
+- Flow: Talk opens `NpcDialogue.vue` (`role="dialog"`, non-modal, `data-testid="npc-dialogue"`), announces "Talking to <name>", focuses the panel and pauses movement (`useNpcDialogue.js` holds the line state). Next steps through the lines; the last line offers **Go in** (selects the keeper's game if needed, then the same path as Enter) and **Close** for game keepers, or **Bye** for wanderers. Walking away, leaving explore mode or a paused hub closes it.
+- Escape order: Keys legend, then the dialogue (focus returns to Talk), then the destination pick.
+- Lines: scripted text only, all in `npcs.js` (`lines`; game keepers 2-4, wanderers 1-2, 140 characters at most). No model, no rewards.
+- Tests: `__tests__/npcs.test.js`, `useNpcDialogue.test.js`, `NpcDialogue.test.js`; `tests/e2e/hub-npcs.spec.js`.
+
 ## Assets and adding a building
 
 - Skyline plates: `client/public/hub/plates/` (`thames-far-1..8`, `thames-mid-1..4` `.webp`); the list is in `scenes/shared/assets.js` (far 7 and 8 are probed, not assumed).

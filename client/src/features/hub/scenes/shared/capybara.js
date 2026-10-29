@@ -706,7 +706,7 @@ export function createCapybaraCrowd(scene, { variants, count, size = 1.05, toon 
 
 // the animated rig: torso with a knitted scarf, head, ears, four legs, plus a tweed hat, glass and glint on the detective
 // options: size (uniform scale), hat ('deerstalker' | 'cap' | null), monocle, toon(material), reduced() -> boolean
-export function createCapybaraRig(scene, { name = 'sharlock', style = furStyles.sharlock, size = 1.35, hat = 'deerstalker', monocle = true, capColor = [0.2, 0.28, 0.5], toon = () => {}, reduced = () => false } = {}) {
+export function createCapybaraRig(scene, { name = 'sharlock', style = furStyles.sharlock, size = 1.35, hat = 'deerstalker', monocle = true, capColor = [0.2, 0.28, 0.5], toon = () => {}, reduced = () => false, idleSeed = 7 } = {}) {
   const holder = new TransformNode(`${name}-rig`, scene);
   holder.scaling.setAll(size);
   const materials = [];
@@ -833,7 +833,7 @@ export function createCapybaraRig(scene, { name = 'sharlock', style = furStyles.
   let walkAmp = 0;
   let headYaw = 0;
   let tilt = 0;
-  const idleMachine = createIdle({ seed: 7 });
+  const idleMachine = createIdle({ seed: idleSeed });
   let nextFlick = 2 + Math.random() * 2;
   let flickAge = 9;
   let flickSide = 0;

@@ -74,6 +74,7 @@ export function createHub({ container, joystick = {}, params = new URLSearchPara
     fps: 0,
     selected: null,
     nearDoor: null,
+    nearNpc: null,
     mode: 'explore',
     panelFor: null,
     drawCalls: 0,

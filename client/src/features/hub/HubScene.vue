@@ -3,6 +3,9 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } 
 import { GRAPHICS_TO_TIER } from './scenes/shared/quality.js'
 import HubMinimap from './HubMinimap.vue'
 import KeyLegend from './KeyLegend.vue'
+import NpcDialogue from './NpcDialogue.vue'
+import { useNpcDialogue } from './useNpcDialogue.js'
+import { npcs } from './scenes/wharf/npcs.js'
 import { announceChange } from './announce.js'
 import { PhFilmSlate } from '@phosphor-icons/vue'
 import LoreIntro from './intro/LoreIntro.vue'
@@ -34,6 +37,7 @@ const view = reactive({
   failed: false,
   selected: null,
   nearDoor: null,
+  nearNpc: null,
   mode: 'explore',
   engine: null,
   fps: 0,
@@ -78,6 +82,54 @@ const status = computed(() => {
 })
 const devStats = computed(() => (isDev && view.ready ? `Engine ${view.engine}, ${view.fps} fps, ${view.drawCalls} draws` : ''))
 const keysOpen = ref(false)
+const talk = useNpcDialogue()
+const talkNpc = computed(() => npcs.find((npc) => npc.id === view.nearNpc) ?? null)
+const showTalk = computed(() => view.ready && view.mode === 'explore' && !paused.value && Boolean(talkNpc.value))
+const talkBtn = ref(null)
+const dialogue = ref(null)
+
+function say(text) {
+  announcement.value = text
+  clearTimeout(announceTimer)
+  announceTimer = setTimeout(() => {
+    announcement.value = ''
+  }, 5000)
+}
+
+async function openTalk() {
+  const npc = talkNpc.value
+  if (!npc || talk.open.value || !talk.begin(npc)) return
+  hub?.pauseInput(true)
+  say(`Talking to ${npc.name}`)
+  await nextTick()
+  dialogue.value?.focus()
+}
+
+function closeTalk({ restoreFocus = true } = {}) {
+  if (!talk.open.value) return
+  talk.close()
+  hub?.pauseInput(paused.value)
+  if (restoreFocus) nextTick(() => talkBtn.value?.focus())
+}
+
+function goInFromTalk() {
+  const id = talk.npc.value?.gameId
+  if (!id) return
+  closeTalk({ restoreFocus: false })
+  if (view.selected !== id) {
+    view.selected = id
+    hub?.select(id)
+  }
+  enterSelected()
+}
+
+// the conversation ends if the npc is left behind or the hub stops exploring
+watch(
+  () => [view.nearNpc, view.mode, paused.value],
+  ([near, mode, isPaused]) => {
+    if (talk.open.value && (near !== talk.npc.value.id || mode !== 'explore' || isPaused)) closeTalk({ restoreFocus: false })
+  },
+)
 
 watch(
   () => [view.selected, view.nearDoor, view.mode],
@@ -88,11 +140,7 @@ watch(
       (id) => props.games.find((game) => game.id === id)?.name,
     )
     if (!text) return
-    announcement.value = text
-    clearTimeout(announceTimer)
-    announceTimer = setTimeout(() => {
-      announcement.value = ''
-    }, 5000)
+    say(text)
   },
 )
 
@@ -100,6 +148,7 @@ function sync(state) {
   view.ready = state.ready
   view.selected = state.selected
   view.nearDoor = state.nearDoor
+  view.nearNpc = state.nearNpc
   view.mode = state.mode
   view.engine = state.engine
   view.fps = state.fps
@@ -153,6 +202,10 @@ function onEscape(event) {
     keysOpen.value = false
     return
   }
+  if (talk.open.value) {
+    closeTalk()
+    return
+  }
   if (view.mode !== 'explore' || !view.selected) return
   choose(view.selected)
 }
@@ -191,7 +244,7 @@ async function enterSelected() {
 }
 
 function pauseFromProp(value) {
-  hub?.pauseInput(value)
+  hub?.pauseInput(value || talk.open.value)
   if (value) hub?.back()
 }
 
@@ -373,16 +426,41 @@ defineExpose({ focusDestination })
           </li>
         </ul>
       </nav>
-      <button
-        v-if="selectedGame"
-        type="button"
-        class="btn btn-primary hub-enter"
-        data-testid="enter"
-        :disabled="!canEnter"
-        @click="enterSelected"
-      >
-        Enter {{ selectedGame.name }}
-      </button>
+      <NpcDialogue
+        v-if="talk.open.value && talk.npc.value"
+        ref="dialogue"
+        class="hub-talk-panel"
+        :name="talk.npc.value.name"
+        :line="talk.line.value"
+        :last="talk.isLast.value"
+        :can-enter="talk.npc.value.kind === 'game'"
+        @next="talk.next()"
+        @enter="goInFromTalk"
+        @close="closeTalk()"
+      />
+      <div v-if="selectedGame || showTalk" class="hub-actions">
+        <button
+          v-if="showTalk"
+          ref="talkBtn"
+          type="button"
+          class="btn btn-secondary hub-talk"
+          data-testid="talk"
+          :aria-expanded="String(talk.open.value)"
+          @click="openTalk"
+        >
+          Talk to {{ talkNpc.name }}
+        </button>
+        <button
+          v-if="selectedGame"
+          type="button"
+          class="btn btn-primary hub-enter"
+          data-testid="enter"
+          :disabled="!canEnter"
+          @click="enterSelected"
+        >
+          Enter {{ selectedGame.name }}
+        </button>
+      </div>
     </div>
     <HubMinimap
       v-if="view.ready && !paused"
@@ -496,23 +574,40 @@ defineExpose({ focusDestination })
   background: var(--accent-primary);
   box-shadow: inset 0 0 0 2px var(--town-edge);
 }
-.hub-enter {
+.hub-actions {
   position: absolute;
   left: 50%;
   bottom: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
   transform: translateX(-50%);
   max-width: calc(100% - 32px);
+}
+.hub-talk-panel {
+  position: absolute;
+  left: 50%;
+  bottom: 72px;
+  transform: translateX(-50%);
+}
+.hub-enter,
+.hub-talk {
   transition: filter 0.12s;
 }
-/* the shared pixel button nudges itself on hover, which would undo the centring, so only the shade changes */
+/* the shared pixel button nudges itself on hover, which would shift the row, so only the shade changes */
 .hub-enter.btn:hover,
 .hub-enter.btn:focus-visible,
-.hub-enter.btn:active {
-  transform: translateX(-50%);
+.hub-enter.btn:active,
+.hub-talk.btn:hover,
+.hub-talk.btn:focus-visible,
+.hub-talk.btn:active {
+  transform: none;
   box-shadow: var(--shadow-pixel);
   filter: brightness(0.9);
 }
-.hub-enter.btn:active {
+.hub-enter.btn:active,
+.hub-talk.btn:active {
   filter: brightness(0.8);
 }
 .hub-joystick {
@@ -590,17 +685,21 @@ defineExpose({ focusDestination })
     font-size: 13px;
     line-height: 1.2;
   }
-  .hub-enter {
+  .hub-actions {
     position: static;
     align-self: center;
-    min-height: 44px;
+    max-width: 100%;
     transform: none;
     pointer-events: auto;
   }
-  .hub-enter.btn:hover,
-  .hub-enter.btn:focus-visible,
-  .hub-enter.btn:active {
+  .hub-talk-panel {
+    position: static;
+    width: 100%;
     transform: none;
+  }
+  .hub-enter,
+  .hub-talk {
+    min-height: 44px;
   }
   /* the left column holds the toolbar, status and Reset camera, so the pad moves under the Map button on the right */
   .hub-joystick {
