@@ -42,6 +42,43 @@ test.describe('3d interior', () => {
   })
 })
 
+const rooms = [
+  ['phishing-post-mortem', /phishing/i],
+  ['sql-injection-arcade', /sql/i],
+  ['social-engineering-simulator', /social/i],
+  ['clearance-tower', /clearance/i],
+]
+test.describe('3d interiors for the other four games', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('sharlock.hubForce3d', '1')
+      localStorage.setItem('sharlock.townMode', '3d')
+      localStorage.setItem('sharlock.hubWatchManual', '1')
+      localStorage.setItem('sharlock.loreIntroSeen', '1')
+      localStorage.setItem('sharlock.controlsHintSeen', '3')
+      sessionStorage.setItem('sharlock.musicMuted', '1')
+    })
+  })
+
+  for (const [id, title] of rooms) {
+    test(`${id} mounts its own room within the draw budget`, async ({ page }) => {
+      await page.goto(`/games/${id}`)
+      await expect(page.getByTestId('interior-canvas')).toBeVisible(slow)
+      await page.waitForFunction(
+        (room) => window.__interior?.state.ready === true && window.__interior.state.room === room,
+        id,
+        slow,
+      )
+      await expect(
+        page.getByTestId('interior-desk').getByRole('heading', { name: title }).first(),
+      ).toBeVisible()
+      const meshes = await page.evaluate(() => window.__interior.state.activeMeshes)
+      expect(meshes).toBeGreaterThan(5)
+      expect(meshes).toBeLessThanOrEqual(150)
+    })
+  }
+})
+
 test.describe('2d mode', () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem('sharlock.townMode', '2d'))

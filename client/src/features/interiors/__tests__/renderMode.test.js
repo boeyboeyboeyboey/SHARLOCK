@@ -53,6 +53,24 @@ describe('room registry', () => {
     expect(Object.keys(rooms).sort()).toEqual([...ROOM_IDS].sort())
   })
 
+  it('loads a real builder module for every room', async () => {
+    const names = {
+      'cli-cyber-defender': 'buildCliRoom',
+      'phishing-post-mortem': 'buildPostRoom',
+      'sql-injection-arcade': 'buildCustomsRoom',
+      'social-engineering-simulator': 'buildSnugRoom',
+      'clearance-tower': 'buildClearanceRoom',
+    }
+    const builders = new Set()
+    for (const id of ROOM_IDS) {
+      const build = await roomFor(id).load()
+      expect(typeof build, id).toBe('function')
+      expect(build.name, id).toBe(names[id])
+      builders.add(build)
+    }
+    expect(builders.size).toBe(ROOM_IDS.length)
+  })
+
   it('knows nothing about other ids', () => {
     expect(roomFor('threat-briefing')).toBeNull()
   })

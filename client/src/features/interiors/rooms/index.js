@@ -10,14 +10,6 @@ export const ROOM_IDS = [
 ]
 
 // palette is [top, bottom, accent] and also feeds the still fallback
-const placeholder = (id, label, palette, light) => ({
-  id,
-  label,
-  palette,
-  load: () =>
-    import('./placeholder.js').then((m) => (ctx) => m.buildPlaceholder(ctx, { palette, light })),
-})
-
 export const rooms = {
   'cli-cyber-defender': {
     id: 'cli-cyber-defender',
@@ -25,30 +17,30 @@ export const rooms = {
     palette: ['#2b3a36', '#14100d', '#d69a2f'],
     load: () => import('./cli.js').then((m) => m.buildCliRoom),
   },
-  'phishing-post-mortem': placeholder(
-    'phishing-post-mortem',
-    'Post Office, sorting room',
-    ['#6a4a3a', '#2c1c16', '#e0b04a'],
-    [1, 0.86, 0.6],
-  ),
-  'sql-injection-arcade': placeholder(
-    'sql-injection-arcade',
-    'Customs House, bonded registry',
-    ['#1f3045', '#0e1620', '#4fc3d9'],
-    [0.6, 0.8, 1],
-  ),
-  'social-engineering-simulator': placeholder(
-    'social-engineering-simulator',
-    'The snug, The Capybara & Crown',
-    ['#5a3a24', '#22140c', '#f0a050'],
-    [1, 0.7, 0.4],
-  ),
-  'clearance-tower': placeholder(
-    'clearance-tower',
-    'Records room, river police tower',
-    ['#26344a', '#10151f', '#d8c070'],
-    [0.8, 0.85, 1],
-  ),
+  'phishing-post-mortem': {
+    id: 'phishing-post-mortem',
+    label: 'Post Office, sorting room',
+    palette: ['#6a4a3a', '#2c1c16', '#e0b04a'],
+    load: () => import('./phishing.js').then((m) => m.buildPostRoom),
+  },
+  'sql-injection-arcade': {
+    id: 'sql-injection-arcade',
+    label: 'Customs House, bonded registry',
+    palette: ['#1f3045', '#0e1620', '#4fc3d9'],
+    load: () => import('./sql.js').then((m) => m.buildCustomsRoom),
+  },
+  'social-engineering-simulator': {
+    id: 'social-engineering-simulator',
+    label: 'The snug, The Capybara & Crown',
+    palette: ['#5a3a24', '#22140c', '#f0a050'],
+    load: () => import('./social.js').then((m) => m.buildSnugRoom),
+  },
+  'clearance-tower': {
+    id: 'clearance-tower',
+    label: 'Records room, river police tower',
+    palette: ['#26344a', '#10151f', '#d8c070'],
+    load: () => import('./clearance.js').then((m) => m.buildClearanceRoom),
+  },
 }
 
 export function roomFor(id) {
