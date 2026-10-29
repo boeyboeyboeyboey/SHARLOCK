@@ -140,6 +140,17 @@ No active implementation task.
 
 ## Review
 
+**QA-04 — Lint and test-suite stability fixes** · Status: **Review** · Contributor: **Xin Lei** · Branch: `qa-04-test-and-lint-fixes` (cut from `origin/main` at `1fc72c7`, 30 October 2026).
+
+- **Baseline (`main` `1fc72c7`):** `pnpm lint` reported 6 errors; `pnpm test:integration` failed 99 of 237 tests and skipped 68; `pnpm test:unit` failed 3 tests by timeout.
+- **1 (`524fa10`) — lint:** `admin/service.js` `passwordMatches` no longer starts with a value every path overwrote before reading it; `tests/integration/admin/delete-account.test.js` loses three unused imports and an unused `tokenFrom` helper; `tests/unit/admin/workspace.test.js` drops the password field with `delete` instead of an unused rest variable. Behaviour unchanged; `eslint .` clean.
+- **2 (`ee523f7`) — integration isolation:** files ran in parallel against one shared database, so one file deleted another's users and sessions (401s) and left rows others counted; the transactional admin files skipped and `lifecycle-races` failed without a replica set. New `server/tests/integration/setup-database.js` (the integration project's `setupFiles`) gives each file its own `_test` database on the shared test server; `test:integration` now passes `--replica-set` like `test:e2e`; integration `testTimeout` 10 → 20 s and `hookTimeout` 15 → 30 s (one class-results test takes 1.6 s alone but passed 10 s under full parallel load). README test notes updated.
+- **3 (`7d4f3cf`) — unit timeouts:** `phishing-post-mortem/triage-generator.test.js` property checks walk 500 seeds × 60 rounds (4.4 s and 5.7 s alone), so the file allows 30 s with coverage unchanged; `features/auth/__tests__/auth.test.js` mocks `views/Dashboard.vue`, which the router imports statically and which loads the 3D hub engine, so the route-meta test takes 0.16 s instead of 4.6 s alone and over 30 s in the full suite.
+- **Results (30 Oct 2026):** `eslint .` clean; `pnpm test:unit` 141 files, 1642/1642 in two consecutive runs; `pnpm test:integration` 27 files, 237/237 in three consecutive runs (about 1 minute).
+- **Not changed:** `page-fit.spec.js` "fits the window: Detective profile" fails because SKIN-01's wardrobe makes `/profile` 1,696 px tall at 1280 × 720; whether Profile should fit one screen is left to the shared UI work. E2E suites were not rerun for these test-infrastructure and lint changes.
+- **Docs impact:** README test notes (replica set and per-file databases), this record.
+- **Next action:** review and merge.
+
 **CODE-28 — Repository structure clean-up** · Status: **Review** · Maintenance contributor: **Xin Lei** · Branch: `code-28-structure-cleanup` (cut from `origin/main` at `bac13af`, 29 October 2026).
 
 - **Baseline:** CODE_STYLE.md v1. Read-only folder-structure review of `client/src`, `server/src` and the test folders on `main` `bac13af`; no other open remote branch touched these paths. Behaviour unchanged throughout; no game module, `llm/` engine, server code or dependency changed.
