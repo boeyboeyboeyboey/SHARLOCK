@@ -69,6 +69,7 @@ Libre Baskerville 400 (serif; OFL-1.1; Copyright 2012 The Libre Baskerville Proj
 | `client/public/images/avatars/*.png` (6 capybara portraits) | AI-generated with Codex's image tool at Boey's request, 14 October 2026; prompts in `client/public/images/avatars/README.md` |
 | `client/public/hub/plates/*.webp` (12 skyline plates)       | Source not recorded                                                                                                          |
 | 3D hub scene geometry and capybara rig                      | Procedural code in `client/src/features/hub/` (hub README); no external model files are listed under `client/public`         |
+| `client/public/interiors/*.webp` (5 room stills)            | Rendered from the project's own procedural scenes in `client/src/features/interiors/` with `scripts/capture-interiors.mjs`   |
 | Guardian "Powered by" logo in The Sharlock Times            | Official [Guardian Powered by logo](https://www.theguardian.com/open-platform/logos), per the Guardian's terms               |
 
 `client/src/assets/styles/` holds the team's own CSS.

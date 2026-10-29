@@ -93,6 +93,15 @@ test.describe('2d mode', () => {
     ).toBeVisible()
     await expect(page.getByTestId('interior-canvas')).toHaveCount(0)
     await expect(page.getByTestId('interior-fallback')).toBeAttached()
+    // the rendered still loads rather than falling back to the gradient alone
+    await expect
+      .poll(() =>
+        page
+          .getByTestId('interior-still')
+          .evaluate((img) => img.complete && img.naturalWidth > 0)
+          .catch(() => false),
+      )
+      .toBe(true)
     await expect(page.getByTestId('interior')).toHaveAttribute('data-stage', 'still')
   })
 })

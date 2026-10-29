@@ -123,7 +123,7 @@ Approved by Boey on 20 October 2026 (record in [TASKS.md](TASKS.md)); implemente
 
 - **Surface.** Shared shell around the five game routes: `client/src/features/interiors/InteriorLayout.vue` is the parent route component and holds a Babylon room behind the game, which sits in an inset "desk" panel. Each room is the inside of that game's building (1880 wharf). It reuses the hub's Graphics tiers, the toon and glow materials and the capybara rig; no new tokens or textures.
 - **Desk panel.** `--bg-primary` fill and a wood frame (`--room-wood`, scoped to the layout). From 768px up, 24 to 48px of room shows around it (`--room-gap`, 3vw clamped); on windows under 700px high the gap and frame drop so fitted games keep their full height. Below 768px the room is a 150px header band above a full width panel. The layout redefines `--shell-chrome` on the panel only; game CSS is not touched and no `:root`, `html` or `body` rule is added.
-- **Motion and fallbacks.** Slow camera drift, light blur on desktop and compact; reduced motion and the Low tier draw one frame. 2D mode, no WebGL or a perf drop show `/interiors/<id>.webp` or, when it is missing, a gradient in the room palette. The canvas is `aria-hidden`.
+- **Motion and fallbacks.** Slow camera drift, light blur on desktop and compact; reduced motion and the Low tier draw one frame. 2D mode, no WebGL or a perf drop show `/interiors/<id>.webp`, a render of the same room made with `scripts/capture-interiors.mjs`, or, when it is missing, a gradient in the room palette. The canvas is `aria-hidden`.
 
 ## Town interaction and responsiveness
 

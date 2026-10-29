@@ -6,7 +6,7 @@
 - How to use it: nothing to operate. Open a game from the hub or town; the room drifts slowly behind the panel. In 2D mode, without WebGL, on a slow device, on Low graphics or under reduced motion it is a still image or a single frame.
 - Technical: `InteriorLayout.vue` is the parent route of the five game routes (`client/src/router/index.js`, `meta.interior` is the room id). `useInteriorEngine.js` starts a WebGL2 Babylon engine for one room; `renderMode.js` decides loop, single frame or still; `rooms/` holds one builder per room.
 - Data: none stored; reads the Graphics setting, the stored town mode and the device check from the hub.
-- Status: stages A and B (infrastructure and all five rooms), see the INT-01 record in [TASKS.md](../../../../TASKS.md). The WebP stills do not exist yet, so 2D mode shows the palette gradient.
+- Status: stages A to C (infrastructure, all five rooms and the 2D stills), see the INT-01 record in [TASKS.md](../../../../TASKS.md).
 - Known limits: no shadows; WebGPU is not used; the room is not interactive; not verified on real phones or low-end hardware.
 
 Owner: Boey. Integration-sensitive: the router (five game routes are children of the layout) and `--shell-chrome`, which the layout redefines on the desk panel only. Game modules are never edited.
@@ -34,5 +34,16 @@ Desktop: loop, resident NPC rig, at most 150 draw calls. Compact: loop, static N
 
 1. Create `rooms/<name>.js` exporting `(ctx) => { camera: { pos, target, fov, drift: [x, y, periodSec] }, update(dt, time), dispose() }`. `ctx` has `scene`, `engine`, `tier`, `budget` and `reduced()`. Reuse `rooms/kit.js` and build from `Batch` (hub `scenes/shared/geometry.js`), `toonMaterial` and `glowMaterial` (hub `scenes/wharf/toon.js`); merge static meshes and keep animated parts as small separate meshes.
 2. Point the registry entry in `rooms/index.js` at it (`load: () => import('./<name>.js').then((m) => m.<builder>)`).
-3. Add `client/public/interiors/<id>.webp` (a capture of the same room) for 2D mode; without it the palette gradient is shown.
+3. Add the id to `rooms` in `scripts/capture-interiors.mjs` and run it for the new still (see below); without a still the palette gradient is shown.
 4. Add the room to the tests in `__tests__/renderMode.test.js` if it changes the registry shape.
+
+## 2D stills
+
+`client/public/interiors/<id>.webp` (1600 x 900, about 20 to 30 KB each) is shown in 2D mode, without WebGL and after a perf drop. The stills are rendered from the project's own Babylon rooms, not imported images. Regenerate them after changing a room, with the dev client and API running and a signed-in preview account (the script reads its credentials from `.local-handover/wardrobe-preview/login.txt`, which is gitignored, and never prints them):
+
+```bash
+node scripts/capture-interiors.mjs --base http://localhost:5176           # missing stills only
+node scripts/capture-interiors.mjs --base http://localhost:5176 --force   # overwrite all
+```
+
+The script uses headless Chromium with the software renderer, the desktop tier, reduced motion (camera at its drift start) and the desk panel hidden, and encodes WebP through a canvas, so it needs no extra dependency. It is a developer tool and is not part of the build or the tests.
