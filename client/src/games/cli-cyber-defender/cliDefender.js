@@ -71,8 +71,6 @@ export const DEMO_SCENES = [
   },
 ]
 
-export const LOCAL_COMMANDS = ['help', 'clear', 'history']
-
 export function startRun(mode, context, signal) {
   return writeAttempt(BASE, { mode, context }, signal)
 }

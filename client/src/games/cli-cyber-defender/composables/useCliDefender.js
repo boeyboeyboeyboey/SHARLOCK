@@ -220,29 +220,11 @@ export function useCliDefender({ now = () => Date.now(), tickMs = 100, onEvent =
         controller?.signal,
       )
       if (disposed) return
-      if (data.outcome === 'correct') {
-        announced.add(incident.incidentId)
-        print(
-          'ok',
-          `[ OK ] ${data.command}: ${data.message} +${data.pointsAwarded} (streak ${data.streak})`,
-        )
-      } else if (data.outcome === 'step') {
-        print(
-          'ok',
-          `[STEP] ${data.command}: ${data.message} +${data.pointsAwarded} (streak ${data.streak})`,
-        )
-      } else if (data.outcome === 'wrong') {
-        if (data.incidentClosed) announced.add(incident.incidentId)
-        print('fail', `[FAIL] ${data.command}: ${data.message} Streak reset.`)
-        showPenalty(data.timePenaltySeconds)
-      } else if (data.outcome === 'lookup') {
-        const results = data.current?.lookups?.results ?? []
-        print(
-          'lookup',
-          `[${data.command}] (${data.current.lookups.used}/${data.current.lookups.limit})`,
-        )
-        for (const text of results.at(-1)?.lines ?? []) print('lookup', `  ${text}`)
-      } else print('error', data.message)
+      // an incident this command closed is reported here, so apply() skips it in the history
+      const closedHere =
+        data.outcome === 'correct' || (data.outcome === 'wrong' && data.incidentClosed)
+      if (closedHere) announced.add(incident.incidentId)
+      printOutcome(data)
       if (data.review) {
         printReview(data.outcome, data.review)
         lastReview.value = { outcome: data.outcome, command: data.command, ...data.review }
@@ -306,6 +288,37 @@ export function useCliDefender({ now = () => Date.now(), tickMs = 100, onEvent =
     penalty.value = { key: (penalty.value?.key ?? 0) + 1, seconds }
     clearTimeout(penaltyTimer)
     penaltyTimer = setTimeout(() => (penalty.value = null), 1800)
+  }
+
+  function printLookup(data) {
+    const results = data.current?.lookups?.results ?? []
+    print(
+      'lookup',
+      `[${data.command}] (${data.current.lookups.used}/${data.current.lookups.limit})`,
+    )
+    for (const text of results.at(-1)?.lines ?? []) print('lookup', `  ${text}`)
+  }
+
+  // one terminal line per server outcome; lookup-limit and syntax replies print as errors
+  function printOutcome(data) {
+    const scored = `${data.command}: ${data.message} +${data.pointsAwarded} (streak ${data.streak})`
+    switch (data.outcome) {
+      case 'correct':
+        print('ok', `[ OK ] ${scored}`)
+        break
+      case 'step':
+        print('ok', `[STEP] ${scored}`)
+        break
+      case 'wrong':
+        print('fail', `[FAIL] ${data.command}: ${data.message} Streak reset.`)
+        showPenalty(data.timePenaltySeconds)
+        break
+      case 'lookup':
+        printLookup(data)
+        break
+      default:
+        print('error', data.message)
+    }
   }
 
   function printReview(outcome, review) {
