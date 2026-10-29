@@ -163,30 +163,38 @@ export const routes = [
     path: `/games/${previous}`,
     redirect: `/games/${current}`,
   })),
+  // the five game routes render inside a Babylon room; /games alone is not a page
   {
-    path: '/games/sql-injection-arcade',
-    component: () => import('../games/sql-injection-arcade/SqlInjectionArcade.vue'),
-    meta: { title: 'SQL Injection Arcade', requiresAccount: true },
-  },
-  {
-    path: '/games/phishing-post-mortem',
-    component: () => import('../games/phishing-post-mortem/PhishingPostMortem.vue'),
-    meta: { title: 'The Phishing Post-Mortem', requiresAccount: true },
-  },
-  {
-    path: '/games/social-engineering-simulator',
-    component: () => import('../games/social-engineering-simulator/SocialEngineeringSimulator.vue'),
-    meta: { title: 'LLM Social Engineering Simulator', requiresAccount: true },
-  },
-  {
-    path: '/games/cli-cyber-defender',
-    component: () => import('../games/cli-cyber-defender/CliDefenderGame.vue'),
-    meta: { title: 'CLI Cyber Defender', requiresAccount: true },
-  },
-  {
-    path: '/games/clearance-tower',
-    component: () => import('../games/clearance-tower/ClearanceTowerGame.vue'),
-    meta: { title: 'Clearance Tower', requiresAccount: true },
+    path: '/games',
+    redirect: '/',
+    component: () => import('../features/interiors/InteriorLayout.vue'),
+    children: [
+      {
+        path: '/games/sql-injection-arcade',
+        component: () => import('../games/sql-injection-arcade/SqlInjectionArcade.vue'),
+        meta: { interior: 'sql-injection-arcade', title: 'SQL Injection Arcade', requiresAccount: true },
+      },
+      {
+        path: '/games/phishing-post-mortem',
+        component: () => import('../games/phishing-post-mortem/PhishingPostMortem.vue'),
+        meta: { interior: 'phishing-post-mortem', title: 'The Phishing Post-Mortem', requiresAccount: true },
+      },
+      {
+        path: '/games/social-engineering-simulator',
+        component: () => import('../games/social-engineering-simulator/SocialEngineeringSimulator.vue'),
+        meta: { interior: 'social-engineering-simulator', title: 'LLM Social Engineering Simulator', requiresAccount: true },
+      },
+      {
+        path: '/games/cli-cyber-defender',
+        component: () => import('../games/cli-cyber-defender/CliDefenderGame.vue'),
+        meta: { interior: 'cli-cyber-defender', title: 'CLI Cyber Defender', requiresAccount: true },
+      },
+      {
+        path: '/games/clearance-tower',
+        component: () => import('../games/clearance-tower/ClearanceTowerGame.vue'),
+        meta: { interior: 'clearance-tower', title: 'Clearance Tower', requiresAccount: true },
+      },
+    ],
   },
   {
     path: '/games/:gameId',

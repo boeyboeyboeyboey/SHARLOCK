@@ -159,7 +159,7 @@ test('reflows with keyboard access at required widths and fits the laptop viewpo
     const inspector = await page.getByTestId('sql-inspector-row').boundingBox()
     const tests = await page.getByTestId('sql-test-row').boundingBox()
     const gameFrame = await page.locator('.sql-game').boundingBox()
-    const workspace = await page.locator('.portal-workspace').boundingBox()
+    const workspace = await page.getByTestId('interior-desk').boundingBox()
     expect(Math.abs(gameFrame.x - workspace.x)).toBeLessThanOrEqual(1)
     expect(Math.abs(gameFrame.width - workspace.width)).toBeLessThanOrEqual(1)
     expect(inspector.y + inspector.height).toBeLessThanOrEqual(tests.y)
