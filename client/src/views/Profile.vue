@@ -7,6 +7,7 @@ import TrophyCase from '../components/portal/TrophyCase.vue'
 import SessionNotice from '../features/auth/components/SessionNotice.vue'
 import { avatarFor } from '../features/auth/avatars.js'
 import { useAuthStore } from '../features/auth/store.js'
+import WardrobePicker from '../features/profile/components/WardrobePicker.vue'
 import ProfileEditor from '../features/profile/components/ProfileEditor.vue'
 import { getOwnProfile, safeError, updateOwnProfile } from '../features/profile/api.js'
 import '../features/profile/profile.css'
@@ -215,6 +216,7 @@ async function retrySession() {
           Refresh account display
         </button>
       </div>
+      <WardrobePicker />
       <p class="preview-notice">
         Your account and avatar are saved. Saved activity results, points and badges are on your
         learning progress page.

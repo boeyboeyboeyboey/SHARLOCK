@@ -13,6 +13,7 @@ import { createPlayer } from './shared/player.js';
 import { getTier } from './shared/quality.js';
 import { createPlanarMirror } from './shared/mirror.js';
 import { loadIndexes, probeOptionalPlates } from './shared/assets.js';
+import { parseWardrobeParam } from '../../../data/wardrobeLook.js';
 import { createSharlock } from './shared/sharlock.js';
 import { createWorld } from './wharf/world.js';
 import { createSigns } from './wharf/signs.js';
@@ -34,7 +35,7 @@ import { applyToon } from './wharf/toon.js';
 import { selectionViews } from './wharf/views.js';
 import { destinations, heightAt, obstacles, paths, spawn, walkable, waterY } from './wharf/layout.js';
 
-export async function build({ engine, scene, canvas, state, notify, params, joystick, spawnAt = null, quality = 'auto', resumeAt = null }) {
+export async function build({ engine, scene, canvas, state, notify, params, joystick, spawnAt = null, quality = 'auto', resumeAt = null, wardrobe = null }) {
   const tier = getTier(params, quality);
   state.desktop = tier.desktop;
   state.tier = tier.name;
@@ -138,7 +139,9 @@ export async function build({ engine, scene, canvas, state, notify, params, joys
   colliderBody.shape = compound;
   compound.material = { friction: 0.2, restitution: 0 };
 
-  const sharlock = createSharlock(scene, { reduced, toon: (material) => applyToon(material, { rimGain: 1.2 }) });
+  // params only carries dev overrides, so the wardrobe preview never applies in a production build
+  const previewWardrobe = params.get('wardrobe') ? { ...wardrobe, ...parseWardrobeParam(params.get('wardrobe')) } : wardrobe;
+  const sharlock = createSharlock(scene, { reduced, wardrobe: previewWardrobe, toon: (material) => applyToon(material, { rimGain: 1.2 }) });
   for (const mesh of sharlock.meshes) mesh.receiveShadows = true;
   for (const mesh of sharlock.casters) look.csm.addShadowCaster(mesh);
   const control = createPlayer({
@@ -258,6 +261,7 @@ export async function build({ engine, scene, canvas, state, notify, params, joys
       },
       debug: {
         scene,
+        sharlockLook: () => JSON.parse(JSON.stringify(sharlock.look)),
         teleport: (x, z) => control.teleport(x, z),
         position: () => control.position(),
         jump: () => control.jump(),

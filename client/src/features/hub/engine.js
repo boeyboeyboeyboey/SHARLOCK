@@ -64,7 +64,7 @@ async function createEngine(canvas, params) {
 // params: URLSearchParams with the dev overrides renderer, tier and mirror
 // joystick: { el, knob } elements of the touch pad, owned by the caller
 // spawnAt: destination id whose door the player starts beside, for coming back from a game
-export function createHub({ container, joystick = {}, params = new URLSearchParams(), spawnAt = null, quality = 'auto', watch = false, resumeAt = null, onPerf = () => {}, onState = () => {} }) {
+export function createHub({ container, joystick = {}, params = new URLSearchParams(), spawnAt = null, quality = 'auto', watch = false, resumeAt = null, wardrobe = null, onPerf = () => {}, onState = () => {} }) {
   const tier = getTier(params, quality);
   const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
   const state = {
@@ -138,7 +138,7 @@ export function createHub({ container, joystick = {}, params = new URLSearchPara
     scene.enablePhysics(new Vector3(0, -9.81, 0), new HavokPlugin(true, hk));
     const { build } = await import('./scenes/a-wharf.js');
     if (disposed) return;
-    built = await build({ engine, scene, canvas, state, notify: emit, params, joystick, spawnAt, quality, resumeAt });
+    built = await build({ engine, scene, canvas, state, notify: emit, params, joystick, spawnAt, quality, resumeAt, wardrobe });
     if (disposed) return;
 
     const rendered = new Promise((resolve) => scene.onAfterRenderObservable.addOnce(resolve));

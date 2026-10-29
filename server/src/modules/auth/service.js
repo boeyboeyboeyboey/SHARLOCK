@@ -1,6 +1,7 @@
 import { Types } from 'mongoose'
 import { userModel } from '../../models/User.js'
 import { AuthError } from './policy.js'
+import { equippedFrom } from '../wardrobe/catalog.js'
 import { hashPassword, verifyDummyPassword, verifyPassword } from './password.js'
 
 export const invalidCredentialsError = () =>
@@ -17,6 +18,7 @@ export function serializeUser(user) {
     avatarId: user.avatarId,
     globalRoles: [...user.globalRoles],
     howToPlayDismissed: [...(user.howToPlayDismissed ?? [])],
+    wardrobe: equippedFrom(user),
   }
 }
 

@@ -21,6 +21,8 @@ const props = defineProps({
   quality: { type: String, default: 'auto' },
   // an explicit 3d choice means a struggling device is never switched to the 2d map
   explicit3d: { type: Boolean, default: false },
+  // equipped wardrobe ids for Sharlock, read once when the hub builds
+  wardrobe: { type: Object, default: null },
 })
 const emit = defineEmits(['enter', 'failed', 'slow'])
 const TIER_TO_GRAPHICS = Object.fromEntries(Object.entries(GRAPHICS_TO_TIER).map(([setting, tier]) => [tier, setting]))
@@ -292,6 +294,7 @@ async function mountHub(resume = null) {
     quality: props.quality === 'auto' && watchedTier ? TIER_TO_GRAPHICS[watchedTier] : props.quality,
     watch: props.quality === 'auto',
     resumeAt: resume,
+    wardrobe: props.wardrobe,
     onPerf: (result) => {
       if (mine === generation) onPerf(result)
     },

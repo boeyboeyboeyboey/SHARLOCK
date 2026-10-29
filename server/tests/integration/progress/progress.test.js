@@ -272,6 +272,7 @@ describe('personal progress API', () => {
       'first-clue',
       'perfect-case',
       'topic-expert',
+      'timed-run',
     ])
     const again = await student.agent.get('/api/me/progress').set('Origin', origin).expect(200)
     expect(again.body).toEqual(progress.body)

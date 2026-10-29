@@ -145,6 +145,7 @@ function closeNewspaper() {
       :input-paused="route.name === 'news'"
       :quality="graphics"
       :explicit3d="townMode.explicit3d.value"
+      :wardrobe="auth.user?.wardrobe ?? null"
       @enter="router.push($event.route)"
       @failed="townMode.markFailed"
       @slow="townMode.markSlow"

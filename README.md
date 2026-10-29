@@ -222,6 +222,7 @@ Games open a **How to play** guide on your first visit. Tick "Don't show again" 
 - Touch (phones and tablets): the joystick at the top right walks, and the "Jump" button next to the joystick jumps; drag to orbit; pinch to zoom. The "Map" button opens a full-screen map (Esc closes it) whose pins travel to a building.
 - Townsfolk: a keeper stands beside each building and three wanderers roam the wharf. Near one, **Talk to <name>** opens a few lines of dialogue (Next, then Go in for a game keeper or Bye); Esc closes it. Talking is optional: Enter still works.
 - Standing still for a while, Sharlock looks around, sits down and yawns.
+- Wardrobe: achievements unlock scarf colours, hats, monocle frames and a magnifying glass. Equip them under **Wardrobe** on `/profile`; Sharlock wears them in the 3D hub. Locked items say which achievement unlocks them.
 - Staff reach their areas from the header (768px and up) or the sidebar: admins see an **Admin** button and instructors an **Instructor** button; students see neither.
 - The daily briefing newsstand opens the newspaper as an overlay on the hub. Closing it returns to the hub, and hub input is paused while it is open.
 

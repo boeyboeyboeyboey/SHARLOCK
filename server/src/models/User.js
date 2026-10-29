@@ -1,6 +1,7 @@
 import { Schema } from 'mongoose'
 import { avatarPresets } from '../modules/auth/avatars.js'
 import { HOW_TO_PLAY_GAME_IDS } from '../modules/profile/how-to-play.js'
+import { DEFAULT_WARDROBE, WARDROBE_ITEM_IDS_BY_SLOT } from '../modules/wardrobe/catalog.js'
 
 // present only while an email address awaits verification. Accounts without it, including every
 // account created before verification existed, count as verified.
@@ -37,6 +38,25 @@ const userSchema = new Schema(
       type: [String],
       enum: HOW_TO_PLAY_GAME_IDS,
       default: [],
+    },
+    // equipped cosmetics only; unlocks are derived from completed attempts, never stored
+    wardrobe: {
+      scarf: {
+        type: String,
+        enum: WARDROBE_ITEM_IDS_BY_SLOT.scarf,
+        default: DEFAULT_WARDROBE.scarf,
+      },
+      hat: { type: String, enum: WARDROBE_ITEM_IDS_BY_SLOT.hat, default: DEFAULT_WARDROBE.hat },
+      monocle: {
+        type: String,
+        enum: WARDROBE_ITEM_IDS_BY_SLOT.monocle,
+        default: DEFAULT_WARDROBE.monocle,
+      },
+      accessory: {
+        type: String,
+        enum: WARDROBE_ITEM_IDS_BY_SLOT.accessory,
+        default: DEFAULT_WARDROBE.accessory,
+      },
     },
     accountStatus: {
       type: String,

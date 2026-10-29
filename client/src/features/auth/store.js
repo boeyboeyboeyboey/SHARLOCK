@@ -40,7 +40,7 @@ function userDto(value) {
     throw new SafeAuthError({ message: 'Sharlock returned an incomplete account. Try again.' })
   }
 
-  const { id, email, username, avatarId, globalRoles, howToPlayDismissed = [] } = value
+  const { id, email, username, avatarId, globalRoles, howToPlayDismissed = [], wardrobe = null } = value
   if (
     typeof id !== 'string' ||
     typeof email !== 'string' ||
@@ -60,6 +60,7 @@ function userDto(value) {
     avatarId,
     globalRoles: [...globalRoles],
     howToPlayDismissed: [...howToPlayDismissed],
+    ...(wardrobe && typeof wardrobe === 'object' ? { wardrobe: Object.freeze({ ...wardrobe }) } : {}),
   })
 }
 
@@ -403,6 +404,12 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  // the picker has already saved on the server, this only mirrors the equipped ids
+  function setWardrobe(equipped) {
+    if (!user.value || !equipped || typeof equipped !== 'object') return
+    user.value = Object.freeze({ ...user.value, wardrobe: Object.freeze({ ...equipped }) })
+  }
+
   return {
     status,
     user,
@@ -419,5 +426,6 @@ export const useAuthStore = defineStore('auth', () => {
     logout,
     invalidateSession,
     setHowToPlayDismissed,
+    setWardrobe,
   }
 })
