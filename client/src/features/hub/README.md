@@ -61,9 +61,9 @@ Players' controls and settings are described in the root README under "Using the
 
 ## Testing
 
-- Unit: `client/src/features/hub/__tests__/`, including `idle.test.js`, `jump.test.js` and the lore tests (`loreCards.test.js`, `useLoreIntro.test.js`, `LoreIntro.test.js`).
+- Unit: `client/src/features/hub/__tests__/`, including `idle.test.js`, `jump.test.js`, `announce.test.js`, `KeyLegend.test.js` and the lore tests (`loreCards.test.js`, `useLoreIntro.test.js`, `LoreIntro.test.js`).
 - Lore intro: every hub E2E spec must pre-set `sharlock.loreIntroSeen` to `'1'` in its init script, or the intro blocks the hub. `tests/e2e/lore-intro.spec.js` covers the intro journey.
-- E2E: `tests/e2e/hub.spec.js` and `tests/e2e/hub-auto.spec.js`. `hub.spec.js` covers the jump. Hub specs force 3D with `sharlock.hubForce3d=1` and `sharlock.hubWatchManual=1` (see `hub.spec.js` near line 44), because headless Chromium renders in software.
+- E2E: `tests/e2e/hub.spec.js` and `tests/e2e/hub-auto.spec.js`. `hub.spec.js` covers the jump. Hub specs force 3D with `sharlock.hubForce3d=1` and `sharlock.hubWatchManual=1` (see the `beforeEach` in `hub.spec.js`, about lines 42-49), because headless Chromium renders in software.
 - E2E waits are condition-based (`expect`, `expect.poll`, `waitForFunction`); never use `waitForTimeout`.
 - Any other E2E spec that touches the town must force 2D mode:
 
@@ -73,6 +73,22 @@ await page.addInitScript(() => localStorage.setItem('sharlock.townMode', '2d'))
 
 See `tests/e2e/portal.spec.js:6`.
 
+## Destination picks (HUB-05)
+
+- A list or minimap pick auto-walks along the lane graph. Routes start and end only at walkable lane nodes, because the west lane end sits inside a crate collider and used to stall the walk.
+- If a route still stalls, the camera hold and the pick stay, so Enter remains usable; steering by hand (keys, joystick) or clicking the ground drops the pick as before.
+- Picks made while the enter swoop is running are ignored, so the swoop always finishes and opens the game.
+- Picking the building whose door ring you already stand on (for example after Esc) does not walk: the camera turns to the shopfront and the pick stays, so Enter is usable at once.
+
+## Keyboard and screen reader (HUB-06)
+
+- Destinations stay toggle buttons (`aria-pressed`), not links.
+- Announcements: the `hub-status` live region (`role="status"`, `aria-live="polite"`, visually hidden while empty, cleared after 5 s) carries load and failure text first, then one message per transition, built by `announce.js`: `<Game> selected`, `Arrived at <Game>. Press Enter to go in` (the player is on the picked door's ring, whether by auto-walk or by hand), `Entering <Game>` and `Selection cleared` (a pick dropped while exploring). Nothing is announced per frame. The dev engine/fps line moved to its own `hub-stats` element so it no longer feeds the live region.
+- Focus after a pick: a pick from the destination list or the minimap moves focus to the **Enter** button once it renders, only when focus was on that control. Escape (or re-picking) with focus on Enter returns focus to that destination's list button.
+- Focus on return: coming back from a game (remount with `sharlock.hubReturn`), focus goes to that destination's list button once the hub is ready, unless something else already holds focus. The newspaper close is restored separately by `Dashboard.vue` (`focusDestination('threat-briefing')`), which `HubScene` exposes.
+- Key legend: a **Keys** button (`KeyLegend.vue`, `data-testid="hub-keys"`, `aria-expanded`, `aria-controls`) in the HUD under Reset camera and Replay intro. Closed by default; Escape closes it before it deselects anything. It lists WASD / arrows move, Space jump, Q / E rotate, R reset camera, Enter go in, Esc deselect.
+- Camera clip at the Customs House (SQL Injection Arcade): not reproduced. With the arcade picked and the player on its door ring, the follow camera sat at radius 19.2 (wanted 22) and outside every blocker box. Orbiting with Q and E while standing at the door, 28 samples never put the camera inside a blocker, but 11 pulled the spring arm in to a radius of 1 to 2 (the 1 unit minimum), so the camera hugs the facade right behind Sharlock. No scene change was made; if a clip is seen again, it is that near-wall pull-in, and raising `minRadius` or the Customs blocker pad in `scenes/shared/cameraCollision.js` and `wharf/buildings.js` is the place to look.
+
 ## Assets and adding a building
 
 - Skyline plates: `client/public/hub/plates/` (`thames-far-1..8`, `thames-mid-1..4` `.webp`); the list is in `scenes/shared/assets.js` (far 7 and 8 are probed, not assumed).
@@ -80,7 +96,7 @@ See `tests/e2e/portal.spec.js:6`.
 
 ## Known gaps
 
-- Crates, chimneys, signs and the crane jib have no camera collision.
+- Crates, chimneys and signs have no camera collision (the crane tower has one; the jib does not).
 - The desktop destination list covers the right edge of selection views.
 - Minimap context blocks are approximate.
 - Not verified on real phones or low-end hardware.

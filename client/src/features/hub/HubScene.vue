@@ -2,6 +2,8 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { GRAPHICS_TO_TIER } from './scenes/shared/quality.js'
 import HubMinimap from './HubMinimap.vue'
+import KeyLegend from './KeyLegend.vue'
+import { announceChange } from './announce.js'
 import { PhFilmSlate } from '@phosphor-icons/vue'
 import LoreIntro from './intro/LoreIntro.vue'
 import { useLoreIntro } from './intro/useLoreIntro.js'
@@ -31,6 +33,7 @@ const view = reactive({
   ready: false,
   failed: false,
   selected: null,
+  nearDoor: null,
   mode: 'explore',
   engine: null,
   fps: 0,
@@ -65,15 +68,38 @@ const faded = computed(
     (!view.ready && !view.failed) ||
     (view.selected === 'threat-briefing' && (view.mode === 'entering' || view.mode === 'panel')),
 )
+// the live region carries load and failure text first, then one message per selection change
+const announcement = ref('')
+let announceTimer = null
 const status = computed(() => {
   if (view.failed) return '3D view unavailable. Choose a destination below.'
   if (!view.ready) return view.lowering ? 'Lowering graphics for smoother play' : 'Loading the wharf'
-  return isDev ? `Engine ${view.engine}, ${view.fps} fps, ${view.drawCalls} draws` : ''
+  return announcement.value
 })
+const devStats = computed(() => (isDev && view.ready ? `Engine ${view.engine}, ${view.fps} fps, ${view.drawCalls} draws` : ''))
+const keysOpen = ref(false)
+
+watch(
+  () => [view.selected, view.nearDoor, view.mode],
+  ([selected, nearDoor, mode], [pSelected, pNearDoor, pMode]) => {
+    const text = announceChange(
+      { selected: pSelected, nearDoor: pNearDoor, mode: pMode },
+      { selected, nearDoor, mode },
+      (id) => props.games.find((game) => game.id === id)?.name,
+    )
+    if (!text) return
+    announcement.value = text
+    clearTimeout(announceTimer)
+    announceTimer = setTimeout(() => {
+      announcement.value = ''
+    }, 5000)
+  },
+)
 
 function sync(state) {
   view.ready = state.ready
   view.selected = state.selected
+  view.nearDoor = state.nearDoor
   view.mode = state.mode
   view.engine = state.engine
   view.fps = state.fps
@@ -83,9 +109,28 @@ function sync(state) {
 
 // choosing the selected destination again deselects it
 function choose(id) {
+  if (view.mode !== 'explore') return
+  const origin = document.activeElement
   const next = view.selected === id ? null : id
   view.selected = next
   hub?.select(next)
+  moveFocusAfterPick(origin, next, id)
+}
+
+// a pick made from the list or the map moves focus to Enter, but only when focus was on that control
+async function moveFocusAfterPick(origin, next, id) {
+  if (!(origin instanceof HTMLElement)) return
+  const fromPicker = Boolean(destList.value?.contains(origin) || origin.closest('.hub-map-root'))
+  const fromEnter = origin.matches('[data-testid="enter"]')
+  if (!next && fromEnter) {
+    // the Enter button leaves with the pick, so focus goes back to the list
+    await focusDestination(id)
+    return
+  }
+  if (!next || !fromPicker) return
+  await nextTick()
+  const enter = stage.value?.parentElement?.querySelector('[data-testid="enter"]')
+  if (enter && !enter.disabled && view.selected === next) enter.focus()
 }
 
 // the engine writes the player's spot into its shared state every frame; the map samples it at 10 Hz
@@ -100,6 +145,10 @@ function samplePlayer() {
 }
 
 function onEscape() {
+  if (keysOpen.value) {
+    keysOpen.value = false
+    return
+  }
   if (paused.value || view.mode !== 'explore' || !view.selected) return
   choose(view.selected)
 }
@@ -177,11 +226,12 @@ async function mountHub(resume = null) {
   if (gone || mine !== generation) return
   // dev overrides (renderer, tier, mirror) only apply outside a production build
   const params = isDev ? new URLSearchParams(location.search) : new URLSearchParams()
+  const returnDoor = takeDoor()
   const next = createHub({
     container: stage.value,
     joystick: { el: pad.value, knob: knob.value, jump: jumpBtn.value },
     params,
-    spawnAt: takeDoor(),
+    spawnAt: returnDoor,
     quality: props.quality === 'auto' && watchedTier ? TIER_TO_GRAPHICS[watchedTier] : props.quality,
     watch: props.quality === 'auto',
     resumeAt: resume,
@@ -195,9 +245,17 @@ async function mountHub(resume = null) {
   hub = next
   if (paused.value) pauseFromProp(true)
   if (view.selected) next.select(view.selected)
-  next.ready.catch(() => {
-    if (!gone && mine === generation) view.failed = true
-  })
+  next.ready.then(
+    () => {
+      // coming back from a game puts focus on that destination's list button
+      const active = document.activeElement
+      const idle = !active || active === document.body || active.tagName === 'H1'
+      if (returnDoor && !gone && mine === generation && idle) focusDestination(returnDoor)
+    },
+    () => {
+      if (!gone && mine === generation) view.failed = true
+    },
+  )
 }
 
 function rebuildHub() {
@@ -221,6 +279,7 @@ onBeforeUnmount(() => {
   motionQuery?.removeEventListener?.('change', onMotionChange)
   gone = true
   clearInterval(mapTimer)
+  clearTimeout(announceTimer)
   hub?.dispose()
   hub = null
 })
@@ -238,12 +297,12 @@ watch(
   },
 )
 
-defineExpose({
-  async focusDestination(id) {
-    await nextTick()
-    destList.value?.querySelector(`[data-testid="dest-${id}"]`)?.focus()
-  },
-})
+async function focusDestination(id) {
+  await nextTick()
+  destList.value?.querySelector(`[data-testid="dest-${id}"]`)?.focus()
+}
+
+defineExpose({ focusDestination })
 </script>
 
 <template>
@@ -261,11 +320,12 @@ defineExpose({
         class="hub-status"
         data-testid="hub-status"
         role="status"
-        :aria-live="isDev ? 'off' : 'polite'"
-        :hidden="!status"
+        aria-live="polite"
+        :class="{ 'visually-hidden': !status }"
       >
         {{ status }}
       </p>
+      <p v-if="devStats" class="hub-status" data-testid="hub-stats">{{ devStats }}</p>
       <button
         v-if="view.ready"
         type="button"
@@ -290,6 +350,7 @@ defineExpose({
       >
         <PhFilmSlate :size="18" aria-hidden="true" />
       </button>
+      <KeyLegend v-if="view.ready" v-model:open="keysOpen" />
     </div>
     <div class="hub-dock">
       <nav class="hub-dest" aria-label="Destinations">
