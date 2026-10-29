@@ -148,7 +148,7 @@ No active implementation task.
 - **Tests (30 Oct 2026):** CLI server unit 89/89 (new: reached-only debrief, including a check that no unreached explanation appears in the response; the hint test now reaches a second incident); integration `cli-cyber-defender` 14/14; CLI client vitest 44/44; eslint clean. E2E (`--workers=2`): `cli-cyber-defender.spec.js` all passed (1 skipped desktop-only/mobile-only gate), including the updated early-end check (3 reviewed incidents, 1 NOT ANSWERED) and a new check that the alert, prompt, Run, Hint and all command buttons stay in the viewport after several incidents at 375×667, 1440×900, 1024×768 and 1366×650. In the same run `page-fit.spec.js` "fits the window: Detective profile" failed on desktop (page 1,696px tall in a 721px window); that page is outside this task and was not investigated here.
 - **Not verified:** real-device phone keyboards (the layout uses `100dvh`; browsers differ when the on-screen keyboard opens) and landscape phones below 26rem tall, where the page scrolls slightly.
 - **Docs impact:** client CLI README (End practice step, layout paragraph), server CLI README (practice early-end rule), this record.
-- **Next action:** review and play-test on desktop and phone; merge into `main` when accepted.
+- **Merge / next action:** merged into `main` on 30 October 2026; play-test on desktop and phone.
 
 **CODE-28 — Repository structure clean-up** · Status: **Review** · Maintenance contributor: **Xin Lei** · Branch: `code-28-structure-cleanup` (cut from `origin/main` at `bac13af`, 29 October 2026).
 
