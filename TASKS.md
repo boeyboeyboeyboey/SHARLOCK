@@ -136,7 +136,63 @@ Move the task's active record rather than duplicating it across board states. Re
 
 ## In Progress
 
-No active implementation task.
+**COH-04 — One class per student** · Status: **In Progress** · Contributor: **Boey** (implemented by Claude Code) · Branch: `coh-04-one-class` · Plan approved by Boey on 30 October 2026 (mega-batch, `.local-handover/MEGA-BATCH-PLAN-2026-10-30.md`); Boey states the team has consented to this feature. Pre-approved for the batch: branch, commit and `--no-ff` merge into local `main` after checks; no push.
+
+- **Scope:** Server cohorts module refuses a join request or invitation (409, generic message) while the student has an active or pending membership, rechecked at approval; the join-class page explains and links to Your classes. Staff unchanged; existing extra memberships kept (Atlas had none on 30 Oct: 2 memberships, no student in two classes).
+- **Difficulty and checks:** complexity 2; unit, integration (second request, approval race, pending blocks, removed allows) and `cohorts.spec.js`.
+- **Collision check (30 Oct):** no TASKS record, branch or code for this feature (rg over TASKS.md, `client/src`, `server/src`, remote branches); DESIGN.md:110 and the HUB-01 follow-ups listed it as needing its own approval, now given. Teammate worktrees were not inspected.
+- **Docs impact:** cohorts server README, README "Using the app", this record.
+- **Next action:** implement in batch order (COH-04, UX-01, NPC-02, NPC-03, MP-01, INT-01, AUDIO-04).
+
+**UX-01 — UI/UX overhaul** · Status: **In Progress** · Contributor: **Boey** (implemented by Claude Code) · Branch: `ux-01-menu-overlays` · Plan approved by Boey on 30 October 2026 (mega-batch, `.local-handover/MEGA-BATCH-PLAN-2026-10-30.md`); Boey states the team has consented to this feature. Pre-approved for the batch: branch, commit and `--no-ff` merge into local `main` after checks; no push.
+
+- **Scope:** Mockup of three directions (tidy HUD, game overlays, world is the UI) first; Boey picks. Then one Menu button plus Esc, a clear 3D/2D switch in both modes, Profile and Progress merged with tabs, a controls hint replacing Keys, E to interact with Z/C rotation, phones defaulting to 2D, consistent navbar and sidebar entries, and a tester task script (`docs/ux-task-test.md`). Shared UI: navbar, PortalLayout, router, Dashboard, hub HUD, 2D town controls.
+- **Difficulty and checks:** complexity 3; menu and hint unit tests; updated portal, page-fit, auth, profile, cohorts and hub E2E.
+- **Collision check (30 Oct):** no TASKS record, branch or code for this feature (rg over TASKS.md, `client/src`, `server/src`, remote branches); DESIGN.md:110 and the HUB-01 follow-ups listed it as needing its own approval, now given. Teammate worktrees were not inspected.
+- **Docs impact:** DESIGN.md, README "Using the app", hub README, legacy-town README, this record.
+- **Next action:** implement in batch order (COH-04, UX-01, NPC-02, NPC-03, MP-01, INT-01, AUDIO-04).
+
+**NPC-02 — Townsfolk patrol routes** · Status: **In Progress** · Contributor: **Boey** (implemented by Claude Code) · Branch: `npc-02-patrols` · Plan approved by Boey on 30 October 2026 (mega-batch, `.local-handover/MEGA-BATCH-PLAN-2026-10-30.md`); Boey states the team has consented to this feature. Pre-approved for the batch: branch, commit and `--no-ff` merge into local `main` after checks; no push.
+
+- **Scope:** Wanderers walk set routes along walkable lanes with pauses; game keepers stay at their posts; NPCs stop and face the player within range, while talking and under reduced motion; per-NPC kinematic colliders.
+- **Difficulty and checks:** complexity 2; route unit tests and `hub-npcs.spec.js`.
+- **Collision check (30 Oct):** no TASKS record, branch or code for this feature (rg over TASKS.md, `client/src`, `server/src`, remote branches); DESIGN.md:110 and the HUB-01 follow-ups listed it as needing its own approval, now given. Teammate worktrees were not inspected.
+- **Docs impact:** hub README, this record.
+- **Next action:** implement in batch order (COH-04, UX-01, NPC-02, NPC-03, MP-01, INT-01, AUDIO-04).
+
+**NPC-03 — Outskirts discoveries** · Status: **In Progress** · Contributor: **Boey** (implemented by Claude Code) · Branch: `npc-03-outskirts` · Plan approved by Boey on 30 October 2026 (mega-batch, `.local-handover/MEGA-BATCH-PLAN-2026-10-30.md`); Boey states the team has consented to this feature. Pre-approved for the batch: branch, commit and `--no-ff` merge into local `main` after checks; no push.
+
+- **Scope:** Two or three new walkable outskirt pockets with five or six hidden security-themed NPCs and objects (E or tap to interact), off the minimap and destination list; a Discoveries count in the menu with found IDs in localStorage (non-sensitive).
+- **Difficulty and checks:** complexity 2; unit tests and one hub E2E.
+- **Collision check (30 Oct):** no TASKS record, branch or code for this feature (rg over TASKS.md, `client/src`, `server/src`, remote branches); DESIGN.md:110 and the HUB-01 follow-ups listed it as needing its own approval, now given. Teammate worktrees were not inspected.
+- **Docs impact:** hub README, README "Using the app", this record.
+- **Next action:** implement in batch order (COH-04, UX-01, NPC-02, NPC-03, MP-01, INT-01, AUDIO-04).
+
+**MP-01 — Wharf presence** · Status: **In Progress** · Contributor: **Boey** (implemented by Claude Code) · Branch: `mp-01-wharf-presence` · Plan approved by Boey on 30 October 2026 (mega-batch, `.local-handover/MEGA-BATCH-PLAN-2026-10-30.md`); Boey states the team has consented to this feature. Pre-approved for the batch: branch, commit and `--no-ff` merge into local `main` after checks; no push.
+
+- **Scope:** `ws` on `/api/presence` attached to the HTTP server: expected-origin and session-cookie checks, class rooms (students placed by the server; staff join an assigned class, admins any active class, labelled), position messages capped at 10 Hz and 256 bytes, per-connection ids, public outfit serializer, periodic session and membership recheck. Client renders up to 20 classmates in the 3D hub with interpolation and name labels; 2D shows none.
+- **Difficulty and checks:** complexity 3; new dependency `ws` (approved); unit, integration (origin, no cookie, removal, cross-class isolation, staff join) and a two-context E2E.
+- **Collision check (30 Oct):** no TASKS record, branch or code for this feature (rg over TASKS.md, `client/src`, `server/src`, remote branches); DESIGN.md:110 and the HUB-01 follow-ups listed it as needing its own approval, now given. Teammate worktrees were not inspected.
+- **Docs impact:** README §2 (dependency), README "Using the app", hub README, presence server README, this record.
+- **Next action:** implement in batch order (COH-04, UX-01, NPC-02, NPC-03, MP-01, INT-01, AUDIO-04).
+
+**INT-01 — Game interiors** · Status: **In Progress** · Contributor: **Boey** (implemented by Claude Code) · Branch: `int-01-game-interiors` · Plan approved by Boey on 30 October 2026 (mega-batch, `.local-handover/MEGA-BATCH-PLAN-2026-10-30.md`); Boey states the team has consented to this feature. Pre-approved for the batch: branch, commit and `--no-ff` merge into local `main` after checks; no push.
+
+- **Scope:** New `client/src/features/interiors/`: `InteriorLayout.vue` as the parent route of the five game routes renders a lore-accurate Babylon room of the game's own building (Telegraph Office instrument room, Post Office sorting room, Customs House bonded registry, Capybara & Crown snug, river-police records room) behind an inset game panel, with the hub's tiers, reduced motion, disposal, and a WebP still of the same room in 2D mode or without WebGL. Game modules are not edited. If fidelity is poor, AI-image prompts go into `docs/asset-generation-guide.md`.
+- **Difficulty and checks:** complexity 3; tier and fallback unit tests; each game's E2E still passes; one interior E2E per route.
+- **Collision check (30 Oct):** no TASKS record, branch or code for this feature (rg over TASKS.md, `client/src`, `server/src`, remote branches); DESIGN.md:110 and the HUB-01 follow-ups listed it as needing its own approval, now given. Teammate worktrees were not inspected.
+- **Docs impact:** DESIGN.md, README "Using the app", interiors README, owner notes (game READMEs are owners'), this record.
+- **Next action:** implement in batch order (COH-04, UX-01, NPC-02, NPC-03, MP-01, INT-01, AUDIO-04).
+
+**AUDIO-04 — Game music and sound effects** · Status: **In Progress** · Contributor: **Boey** (implemented by Claude Code) · Branch: `audio-04-game-audio` · Plan approved by Boey on 30 October 2026 (mega-batch, `.local-handover/MEGA-BATCH-PLAN-2026-10-30.md`); Boey states the team has consented to this feature. Pre-approved for the batch: branch, commit and `--no-ff` merge into local `main` after checks; no push.
+
+- **Scope:** `useGameAudio` and a Sound control in `InteriorLayout` play per-game music under the hub's playback rules; `playSfx` wired into key game moments (small edits in owners' modules under the recorded blanket agreement; owners notified; CLI keeps its own beeps). Missing files fail silently. `docs/asset-generation-guide.md` gives Boey the Gemini prompt, filename, save location and purpose for each file.
+- **Difficulty and checks:** complexity 2; unit tests incl. the missing-file path.
+- **Collision check (30 Oct):** no TASKS record, branch or code for this feature (rg over TASKS.md, `client/src`, `server/src`, remote branches); DESIGN.md:110 and the HUB-01 follow-ups listed it as needing its own approval, now given. Teammate worktrees were not inspected.
+- **Docs impact:** README "Using the app", CREDITS.md (pending entries), this record.
+- **Next action:** implement in batch order (COH-04, UX-01, NPC-02, NPC-03, MP-01, INT-01, AUDIO-04).
+
+**DOC-17 — Mega-batch policy** · Status: **Review** · Contributor: **Boey** · Branch: `doc-17-mega-batch-policy` · Approved by Boey on 30 October 2026 ("Change agents.md then"). agents.md §3/§4 (Babylon for interiors, `ws`), §5 (one class per student, presence privacy) and §8 (game audio, interiors) amended; the records above added.
 
 ## Review
 
