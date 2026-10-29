@@ -82,4 +82,45 @@ describe('achievements', () => {
     expect(first.map((a) => a.key)).toEqual(['first-clue'])
     expect(deriveAchievements(attempts)).toEqual(first)
   })
+  describe('first close and timed run', () => {
+    const closeGames = {
+      'sql-injection-arcade': 'Customs cleared',
+      'clearance-tower': 'Tower cleared',
+      'phishing-post-mortem': 'Post sorted',
+      'cli-cyber-defender': 'Wire held',
+      'social-engineering-simulator': 'Talked down',
+    }
+
+    it.each(Object.entries(closeGames))(
+      'awards %s on its first completed attempt',
+      (gameId, name) => {
+        const attempts = [
+          attempt({ gameId: 'other', mode: 'practice' }),
+          attempt({ gameId, mode: 'practice' }),
+          attempt({ gameId, mode: 'practice' }),
+        ]
+        const found = deriveAchievements(attempts).find((a) => a.key === `first-close-${gameId}`)
+        expect(found).toMatchObject({ name, earnedAt: attempts[1].completedAt })
+        expect(found.description).toMatch(/^Finish a case in /)
+      },
+    )
+
+    it('awards timed run only for a standard attempt on a competitive ruleset', () => {
+      const isCompetitive = (gameId, version) => gameId === 'g1' && version === 'v9'
+      const attempts = [
+        attempt({ gameId: 'g1', rulesetVersion: 'v9', mode: 'practice' }),
+        attempt({ gameId: 'g2', rulesetVersion: 'v9', mode: 'standard' }),
+        attempt({ gameId: 'g1', rulesetVersion: 'v1', mode: 'standard' }),
+      ]
+      const keys = (list, options) => deriveAchievements(list, options).map((a) => a.key)
+      expect(keys(attempts, { isCompetitive })).not.toContain('timed-run')
+      expect(keys(attempts)).not.toContain('timed-run')
+
+      const timed = attempt({ gameId: 'g1', rulesetVersion: 'v9', mode: 'standard' })
+      const earned = deriveAchievements([...attempts, timed], { isCompetitive }).find(
+        (a) => a.key === 'timed-run',
+      )
+      expect(earned).toMatchObject({ name: 'Against the clock', earnedAt: timed.completedAt })
+    })
+  })
 })

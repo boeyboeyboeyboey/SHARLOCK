@@ -557,6 +557,7 @@ export function createAttemptService(
         gameId: 1,
         rulesetVersion: 1,
         'context.kind': 1,
+        mode: 1,
         score: 1,
         maxScore: 1,
         completedAt: 1,

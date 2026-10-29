@@ -13,6 +13,8 @@ function publicTime(value) {
 
 export function createProgressService(database, { registry = createAttemptRegistry(), now } = {}) {
   const attemptService = createAttemptService(database, { registry, now })
+  const isCompetitive = (gameId, rulesetVersion) =>
+    registry.get(gameId, rulesetVersion)?.competitive === true
   const savingGameIds = [...new Set(registry.entries.map((entry) => entry.id))].sort()
 
   async function getProgress(playerId) {
@@ -25,6 +27,7 @@ export function createProgressService(database, { registry = createAttemptRegist
       rulesetVersion: attempt.rulesetVersion,
       score: attempt.score,
       maxScore: attempt.maxScore,
+      mode: attempt.mode,
       completedAt: attempt.completedAt,
       topicOutcomes: attempt.topicOutcomes ?? [],
     }))
@@ -35,7 +38,7 @@ export function createProgressService(database, { registry = createAttemptRegist
       totalPoints: games.reduce((sum, game) => sum + game.points, 0),
       maxPoints: POINTS_PER_GAME * savingGameIds.length,
       topicOutcomes: summarizeTopics(attempts),
-      achievements: deriveAchievements(attempts).map((item) => ({
+      achievements: deriveAchievements(attempts, { isCompetitive }).map((item) => ({
         ...item,
         earnedAt: publicTime(item.earnedAt),
       })),
@@ -63,5 +66,10 @@ export function createProgressService(database, { registry = createAttemptRegist
     }
   }
 
-  return Object.freeze({ getProgress, listHistory, savingGameIds })
+  async function listAchievements(playerId) {
+    const { achievements } = await getProgress(playerId)
+    return achievements
+  }
+
+  return Object.freeze({ getProgress, listHistory, listAchievements, savingGameIds })
 }

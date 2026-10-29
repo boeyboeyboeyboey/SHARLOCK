@@ -14,6 +14,7 @@ import { createProgressRouter } from './modules/progress/router.js'
 import { createClassResultsRouter } from './modules/class-results/router.js'
 import { createLeaderboardRouter } from './modules/leaderboards/router.js'
 import { createProfileRouter } from './modules/profile/router.js'
+import { createWardrobeRouter } from './modules/wardrobe/router.js'
 import { createRecoveryRouter } from './modules/recovery/router.js'
 import { createHealthRouter } from './routes/health.js'
 import { handleError, notFound } from './middleware/errors.js'
@@ -99,6 +100,15 @@ export function createApp(
   app.use(
     '/api',
     createProfileRouter(database, {
+      requireSession: authRuntime.requireSession,
+      requireMutation: authRuntime.requireMutation,
+    }),
+  )
+  app.use(
+    '/api',
+    createWardrobeRouter(database, {
+      registry: attempts.registry ?? createProductionAttemptRegistry(),
+      now: attempts.now ?? authRuntime.now,
       requireSession: authRuntime.requireSession,
       requireMutation: authRuntime.requireMutation,
     }),

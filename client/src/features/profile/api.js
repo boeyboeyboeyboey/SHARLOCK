@@ -181,4 +181,38 @@ export async function setHowToPlayDismissed(gameId, dismissed, { signal } = {}) 
   }
 }
 
+export async function getWardrobe({ signal } = {}) {
+  try {
+    const { data } = await api.get('/me/wardrobe', { signal })
+    if (!data || !Array.isArray(data.items) || !data.equipped || typeof data.equipped !== 'object') {
+      throw new ProfileApiError({ message: 'Sharlock returned an incomplete wardrobe. Try again.' })
+    }
+    return { items: data.items, equipped: data.equipped }
+  } catch (error) {
+    throw safeError(error)
+  }
+}
+
+export async function equipWardrobeItem(slot, itemId, { signal } = {}) {
+  try {
+    const csrfToken = await requestCsrfToken()
+    signal?.throwIfAborted()
+    const { data } = await api.put(
+      `/me/wardrobe/${slot}`,
+      { itemId },
+      { signal, headers: { 'X-CSRF-Token': csrfToken } },
+    )
+    if (!data?.equipped || typeof data.equipped !== 'object') {
+      throw new ProfileApiError({ message: 'Sharlock returned an incomplete wardrobe. Try again.' })
+    }
+    return data.equipped
+  } catch (error) {
+    const safe = safeError(error)
+    if (safe.code === 'WARDROBE_ITEM_LOCKED') {
+      throw new ProfileApiError({ code: safe.code, status: safe.status, message: 'That item is not available yet.' })
+    }
+    throw safe
+  }
+}
+
 export { safeError }

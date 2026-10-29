@@ -1,4 +1,13 @@
 // each criterion receives completed attempts oldest first and returns the attempt that first satisfied it
+// game ids as registered in the attempts registry
+const firstCloseGames = Object.freeze([
+  ['sql-injection-arcade', 'Customs cleared', 'SQL Injection Arcade'],
+  ['clearance-tower', 'Tower cleared', 'Clearance Tower'],
+  ['phishing-post-mortem', 'Post sorted', 'Phishing Post-Mortem'],
+  ['cli-cyber-defender', 'Wire held', 'CLI Cyber Defender'],
+  ['social-engineering-simulator', 'Talked down', 'Social Engineering Simulator'],
+])
+
 const achievementDefinitions = Object.freeze([
   {
     key: 'first-clue',
@@ -42,12 +51,34 @@ const achievementDefinitions = Object.freeze([
           attempt.topicOutcomes.every((outcome) => outcome.achieved === true),
       ),
   },
+  ...firstCloseGames.map(([gameId, name, title]) => ({
+    key: `first-close-${gameId}`,
+    name,
+    description: `Finish a case in ${title}.`,
+    find: (attempts) => attempts.find((attempt) => attempt.gameId === gameId),
+  })),
+  {
+    key: 'timed-run',
+    name: 'Against the clock',
+    description: 'Finish a timed run in a ranked game.',
+    find: (attempts, isCompetitive) =>
+      attempts.find(
+        (attempt) =>
+          attempt.mode === 'standard' && isCompetitive(attempt.gameId, attempt.rulesetVersion),
+      ),
+  },
 ])
 
-export function deriveAchievements(attemptsOldestFirst) {
+export const achievementKeys = Object.freeze(achievementDefinitions.map(({ key }) => key))
+export const achievementNames = Object.freeze(
+  Object.fromEntries(achievementDefinitions.map(({ key, name }) => [key, name])),
+)
+
+// isCompetitive(gameId, rulesetVersion) comes from the server attempts registry, never the client
+export function deriveAchievements(attemptsOldestFirst, { isCompetitive = () => false } = {}) {
   const earned = []
   for (const definition of achievementDefinitions) {
-    const source = definition.find(attemptsOldestFirst)
+    const source = definition.find(attemptsOldestFirst, isCompetitive)
     if (!source) continue
     earned.push({
       key: definition.key,

@@ -86,8 +86,18 @@ See `tests/e2e/portal.spec.js:6`.
 - Announcements: the `hub-status` live region (`role="status"`, `aria-live="polite"`, visually hidden while empty, cleared after 5 s) carries load and failure text first, then one message per transition, built by `announce.js`: `<Game> selected`, `Arrived at <Game>. Press Enter to go in` (the player is on the picked door's ring, whether by auto-walk or by hand), `Entering <Game>` and `Selection cleared` (a pick dropped while exploring). Nothing is announced per frame. The dev engine/fps line moved to its own `hub-stats` element so it no longer feeds the live region.
 - Focus after a pick: a pick from the destination list or the minimap moves focus to the **Enter** button once it renders, only when focus was on that control. Escape (or re-picking) with focus on Enter returns focus to that destination's list button.
 - Focus on return: coming back from a game (remount with `sharlock.hubReturn`), focus goes to that destination's list button once the hub is ready, unless something else already holds focus. The newspaper close is restored separately by `Dashboard.vue` (`focusDestination('threat-briefing')`), which `HubScene` exposes.
-- Key legend: a **Keys** button (`KeyLegend.vue`, `data-testid="hub-keys"`, `aria-expanded`, `aria-controls`) in the HUD under Reset camera and Replay intro. Closed by default; Escape closes it before it deselects anything. It lists WASD / arrows move, Space jump, Q / E rotate, R reset camera, Enter go in, Esc deselect.
+- Key legend: a **Keys** button (`KeyLegend.vue`, `data-testid="hub-keys"`, `aria-expanded`, `aria-controls`) in the HUD under Reset camera and Replay intro. Closed by default; Escape closes it before it deselects anything. Escape is one `window` keydown listener in `HubScene.vue` (added on mount, removed on unmount), so it works with focus on the page body; it ignores typing targets, handled events, the lore intro and a paused hub (Times open), and the full-screen map stops its own Escape. It lists WASD / arrows move, Space jump, Q / E rotate, R reset camera, Enter go in, Esc deselect.
 - Camera clip at the Customs House (SQL Injection Arcade): not reproduced. With the arcade picked and the player on its door ring, the follow camera sat at radius 19.2 (wanted 22) and outside every blocker box. Orbiting with Q and E while standing at the door, 28 samples never put the camera inside a blocker, but 11 pulled the spring arm in to a radius of 1 to 2 (the 1 unit minimum), so the camera hugs the facade right behind Sharlock. No scene change was made; if a clip is seen again, it is that near-wall pull-in, and raising `minRadius` or the Customs blocker pad in `scenes/shared/cameraCollision.js` and `wharf/buildings.js` is the place to look.
+
+## Townsfolk (NPC-01)
+
+- Who: nine capybaras from `scenes/wharf/npcs.js`. Six game keepers stand beside their doors (customs officer, telegraph clerk, postmaster, police constable, publican, news vendor) and three wanderers (fisherman, lamplighter, gull feeder) are scenery with a one-liner. Each has a small collider post, kept clear of the pier rails so it never makes a pocket against the walkable edge. They face the player within 4 m, otherwise their post.
+- Tiers: animated rigs (`townsfolk.js`, own idle seed each) on the desktop tier, static meshes on compact and low (`npcRigs` in `quality.js`).
+- Talk rule: `townsfolk.update` returns the nearest npc the player can talk to, written to `state.nearNpc`: within 2.5 m, or for a game keeper also while `state.nearDoor` is that keeper's game. The **Talk to <name>** button (`data-testid="talk"`) shows beside Enter in explore mode only.
+- Flow: Talk opens `NpcDialogue.vue` (`role="dialog"`, non-modal, `data-testid="npc-dialogue"`), announces "Talking to <name>", focuses the panel and pauses movement (`useNpcDialogue.js` holds the line state). Next steps through the lines; the last line offers **Go in** (selects the keeper's game if needed, then the same path as Enter) and **Close** for game keepers, or **Bye** for wanderers. Walking away, leaving explore mode or a paused hub closes it.
+- Escape order: Keys legend, then the dialogue (focus returns to Talk), then the destination pick.
+- Lines: scripted text only, all in `npcs.js` (`lines`; game keepers 2-4, wanderers 1-2, 140 characters at most). No model, no rewards.
+- Tests: `__tests__/npcs.test.js`, `useNpcDialogue.test.js`, `NpcDialogue.test.js`; `tests/e2e/hub-npcs.spec.js`.
 
 ## Assets and adding a building
 
@@ -98,6 +108,7 @@ See `tests/e2e/portal.spec.js:6`.
 
 - Crates, chimneys and signs have no camera collision (the crane tower has one; the jib does not).
 - The desktop destination list covers the right edge of selection views.
+- The Clearance Tower view (`views.js`) looks up the street from the south (`alphaOffset` -1.0, `beta` 1.34, radius 34, `focusY` 13) so the door, signboard, clock and spire all fit. A straight on view is pulled in by the houses opposite and crops the tower.
 - Minimap context blocks are approximate.
 - Not verified on real phones or low-end hardware.
 
@@ -106,3 +117,11 @@ See `tests/e2e/portal.spec.js:6`.
 The 3D hub plays its own recorded ambience loop, `/audio/hub-ambience.mp3`, through `HubAmbience.vue` (AUDIO-03, Boey, 28 October 2026). It reuses `client/src/composables/useLandingMusic.js` unchanged: autoplay attempt, one-time `pointerdown`/`keydown`/`touchstart` fallback, volume 0.5, and the shared session-only mute key `sharlock.musicMuted`, so one Sound off covers the hub and the 2D town. The visible **Sound on/off** control (`Mute hub sound` / `Turn on hub sound`) sits in the HUD row between Graphics and the profile link in `Dashboard.vue`. It pauses while the Times (`news` route) is open and resumes on close unless muted; playback and listeners are cleaned up on leave. The 2D town keeps `sharlock-bgm.mp3` ([legacy-town](../legacy-town/README.md#audio)); only one of the two is mounted, so `/` has one sound source at a time.
 
 E2E: `tests/e2e/hub.spec.js` (mode-switch test) checks that the hub mounts one `<audio>` with `src` `/audio/hub-ambience.mp3` and a visible hub Sound button, and that switching to 2D mounts `/audio/sharlock-bgm.mp3` with no hub Sound button. Unit: `client/src/features/hub/__tests__/HubAmbience.test.js` covers the file and loop, autostart, session mute, muted-session no-autoplay and the Times suspend/resume.
+
+## Sharlock's wardrobe (SKIN-01)
+
+Cosmetics are colour and accessory swaps only; body and face are unchanged. `client/src/data/wardrobeLook.js` maps each item id to a swatch colour and rig options, and `rigOptionsFor(equipped)` falls back to the default for missing or unknown ids.
+
+Props flow: `Dashboard.vue` passes `auth.user?.wardrobe` to `HubScene` (`wardrobe` prop, read once at build), then `createHub({ wardrobe })`, `scenes/a-wharf.js` `build`, `createSharlock(scene, { wardrobe })` and `createCapybaraRig`. Rig options (all `null` or absent means the stock look): `scarfColor`, `tweedColor` (multiplies the tweed texture, default `[1, 1, 1]`), `monocleColor`, `capColor` with `hat: 'detective-cap'`, and `accessory: 'magnifier'` (one extra mesh on the torso). The town dock workers keep `hat: 'cap'` unchanged. A changed prop does not rebuild a mounted hub; the profile is a separate page, so the next visit picks it up.
+
+Dev only: `__hub.debug.sharlockLook()` returns the applied rig options, and `/?wardrobe=scarf-navy,hat-flat-cap,monocle-silver,accessory-magnifier` previews items without unlocking them (read through the dev-only `params`, never in a production build).

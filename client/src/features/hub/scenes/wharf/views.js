@@ -9,6 +9,6 @@ export const selectionViews = {
   'phishing-post-mortem': { alphaOffset: 0.5, beta: 1.2, radius: 16, focusY: 4.5, shift: 0 },
   'cli-cyber-defender': { alphaOffset: -0.5, beta: 1.3, radius: 15, focusY: 4.4, shift: 0 },
   'social-engineering-simulator': { alphaOffset: 0.5, beta: 1.3, radius: 15, focusY: 4.4, shift: 0 },
-  // oblique from the south end of the street so the whole watchtower, the sign and the skyline fit
-  'clearance-tower': { alphaOffset: -0.8, beta: 1.38, radius: 31, focusY: 17, shift: -2 },
+  // looks up the street from the south: straight on, the houses opposite pull the camera in and crop the tower
+  'clearance-tower': { alphaOffset: -1.0, beta: 1.34, radius: 34, focusY: 13, shift: -0.8 },
 };

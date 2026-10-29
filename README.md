@@ -220,7 +220,9 @@ Games open a **How to play** guide on your first visit. Tick "Don't show again" 
 - Mouse: click the ground to walk there; drag to orbit; scroll to zoom. A destination list button walks Sharlock to that building, and on arrival "Enter <building>" opens it. "Reset camera" is a button. On desktop the minimap (bottom right) travels to a building when you click its pin.
 - Lore intro (first visit, or the **Replay intro** film-slate icon beside "Reset camera"): Enter or a click advances a card; Space or Esc skips the whole intro, as does the faint bottom-right "Press Space to skip" button (or "Tap to skip" on touch screens). The top-right sound toggle mutes the intro for the browser session, shared with the hub and town music. If the browser blocks autoplay, click or press Enter to begin. With reduced motion, use **Continue** to advance.
 - Touch (phones and tablets): the joystick at the top right walks, and the "Jump" button next to the joystick jumps; drag to orbit; pinch to zoom. The "Map" button opens a full-screen map (Esc closes it) whose pins travel to a building.
+- Townsfolk: a keeper stands beside each building and three wanderers roam the wharf. Near one, **Talk to <name>** opens a few lines of dialogue (Next, then Go in for a game keeper or Bye); Esc closes it. Talking is optional: Enter still works.
 - Standing still for a while, Sharlock looks around, sits down and yawns.
+- Wardrobe: achievements unlock scarf colours, hats, monocle frames and a magnifying glass. Equip them under **Wardrobe** on `/profile`; Sharlock wears them in the 3D hub. Locked items say which achievement unlocks them.
 - Staff reach their areas from the header (768px and up) or the sidebar: admins see an **Admin** button and instructors an **Instructor** button; students see neither.
 - The daily briefing newsstand opens the newspaper as an overlay on the hub. Closing it returns to the hub, and hub input is paused while it is open.
 

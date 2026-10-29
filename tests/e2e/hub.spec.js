@@ -242,6 +242,19 @@ test('announces picks, moves focus to Enter and restores it after a game', async
   await expect(dest).toBeFocused()
 })
 
+test('Escape clears a pick even when focus is on the page body', async ({ page }) => {
+  await page.goto('/')
+  await hubReady(page)
+  const dest = page.getByTestId('dest-cli-cyber-defender')
+  await dest.click()
+  await expect(dest).toHaveAttribute('aria-pressed', 'true')
+  await page.evaluate(() => document.activeElement.blur())
+  expect(await page.evaluate(() => document.activeElement === document.body)).toBe(true)
+  await page.keyboard.press('Escape')
+  await expect(dest).toHaveAttribute('aria-pressed', 'false')
+  await expect(page.getByTestId('hub-status')).toHaveText('Selection cleared')
+})
+
 test('the key legend toggles with aria-expanded and closes on Escape without dropping a pick', async ({
   page,
 }) => {
