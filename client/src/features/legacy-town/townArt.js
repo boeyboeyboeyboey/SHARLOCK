@@ -303,11 +303,12 @@ export function groundMarkup() {
   for (const y of [8, 16, 24, 32]) scaf += R(243, y, 22, 1, '#ae7750')
   for (const x of [243, 254, 264]) scaf += R(x, 8, 1, 28, '#ae7750')
   g += scaf
+  // crane stays 2 units (8px) below the world top so the viewport never clips it
   g +=
-    R(197, -1, 1, 9, INK) +
-    R(197, 0, 14, 1, INK) +
-    R(211, 0, 1, 6, '#7a85a0') +
-    R(208, 6, 6, 2, '#c4443a')
+    R(197, 2, 1, 6, INK) +
+    R(197, 2, 14, 1, INK) +
+    R(211, 2, 1, 7, '#7a85a0') +
+    R(208, 9, 6, 2, '#c4443a')
   return g
 }
 
@@ -333,7 +334,8 @@ export function bargesMarkup() {
 }
 
 // generic capybaras, 12 x 8 units; walkers swap two leg frames, sitters and standers keep four legs
-function capybara({ fur, dark, extra = '', walk = false, sit = false }) {
+// back props sit behind the body, front props are drawn over it
+function capybara({ fur, dark, back = '', front = '', walk = false, sit = false }) {
   const leg = (x) => R(x, 7, 1, 1, INK)
   const legs = walk
     ? `<g class="cap-f0">${leg(2) + leg(4) + leg(6) + leg(8)}</g><g class="cap-f1">${leg(2) + leg(6)}</g><g class="cap-f2">${leg(4) + leg(8)}</g>`
@@ -348,17 +350,52 @@ function capybara({ fur, dark, extra = '', walk = false, sit = false }) {
     R(9, 4, 2, 1, dark) +
     R(2, 5, 6, 1, dark) +
     R(10, 3, 1, 1, INK)
-  return `<svg class="town-capy" width="48" height="32" viewBox="0 0 12 8" shape-rendering="crispEdges"><g class="cap-body">${extra}${body}${legs}</g></svg>`
+  return `<svg class="town-capy" width="48" height="32" viewBox="0 0 12 8" shape-rendering="crispEdges"><g class="cap-body">${back}${body}${front}${legs}</g></svg>`
 }
-const crate = R(2, -1, 6, 4, INK) + R(3, 0, 4, 2, '#c79b66')
-const cap = R(8, 0, 3, 2, INK) + R(9, 0, 2, 1, '#4f6a86')
-const hat = R(8, 0, 4, 2, INK) + R(9, 0, 2, 1, '#a96e57')
-const scarf = R(7, 4, 2, 3, '#c4443a')
-const furs = [
-  ['#b98258', '#8a5c3c'],
-  ['#a9784f', '#7d5233'],
-  ['#c79463', '#946a44'],
+
+// townsfolk wardrobe; sharlock's deerstalker, monocle and red scarf stay his alone
+export const capyFurs = {
+  chestnut: ['#b98258', '#8a5c3c'],
+  walnut: ['#a9784f', '#7d5233'],
+  honey: ['#c79463', '#946a44'],
+  sand: ['#d8b48a', '#a88660'],
+  cocoa: ['#7f5538', '#5a3a26'],
+  ash: ['#9a8572', '#6f5e4e'],
+}
+export const capyProps = {
+  crate: { back: R(2, -1, 6, 4, INK) + R(3, 0, 4, 2, '#c79b66') },
+  basket: {
+    back:
+      R(2, 0, 6, 2, INK) +
+      R(3, 0, 4, 1, '#d0a05a') +
+      R(4, 0, 1, 1, '#9c6b33') +
+      R(6, 0, 1, 1, '#9c6b33'),
+  },
+  flatCap: { back: R(8, 0, 3, 2, INK) + R(9, 0, 2, 1, '#4f6a86') },
+  feltHat: { back: R(8, 0, 4, 2, INK) + R(9, 0, 2, 1, '#a96e57') },
+  bowler: { back: R(8, 0, 4, 2, INK) + R(9, 0, 2, 1, '#3d3a42') },
+  apron: { front: R(5, 3, 3, 3, '#efe4c8') + R(5, 3, 3, 1, '#d8c9a4') },
+  newspaper: { front: R(10, 4, 2, 2, '#fff8df') + R(10, 5, 2, 1, '#b9b29a') },
+  neckerchief: { front: R(8, 4, 1, 2, '#d9a441') },
+}
+
+// one entry per capybara in lifeMarkup order: four walkers, then three stills
+export const townCapys = [
+  { fur: 'chestnut', props: ['crate', 'flatCap'] },
+  { fur: 'honey', props: ['basket', 'bowler'] },
+  { fur: 'sand', props: ['feltHat', 'newspaper'] },
+  { fur: 'cocoa', props: ['neckerchief'] },
+  { fur: 'ash', props: ['flatCap', 'apron'] },
+  { fur: 'walnut', props: ['bowler', 'newspaper'] },
+  { fur: 'chestnut', props: ['apron'] },
 ]
+
+const capyArt = (i, opts = {}) => {
+  const { fur, props } = townCapys[i]
+  const [light, dark] = capyFurs[fur]
+  const pick = (side) => props.map((p) => capyProps[p][side] || '').join('')
+  return capybara({ fur: light, dark, back: pick('back'), front: pick('front'), ...opts })
+}
 
 const walker = (x, y, axis, dist, secs, art) =>
   `<div class="town-walker ${axis}" style="left:${x}px;top:${y}px;--d:${dist}px;--t:${secs}s"><div class="town-flip">${art}</div></div>`
@@ -373,30 +410,16 @@ const gull = (x, y, dist, secs) =>
 
 // people and birds, positioned in world pixels (feet at the anchor)
 export function lifeMarkup() {
-  const [a, b, c] = furs
   return [
-    walker(
-      40,
-      166,
-      'x',
-      350,
-      44,
-      capybara({ fur: a[0], dark: a[1], extra: crate + cap, walk: true }),
-    ),
-    walker(
-      700,
-      166,
-      'x',
-      370,
-      48,
-      capybara({ fur: c[0], dark: c[1], extra: crate + hat, walk: true }),
-    ),
-    walker(30, 262, 'x', 170, 26, capybara({ fur: b[0], dark: b[1], extra: hat, walk: true })),
-    walker(560, 300, 'y', 340, 40, capybara({ fur: a[0], dark: a[1], extra: scarf, walk: true })),
-    still(640, 776, capybara({ fur: c[0], dark: c[1], extra: cap }), true),
-    still(200, 692, capybara({ fur: a[0], dark: a[1], extra: hat, sit: true }), true),
-    still(1000, 380, capybara({ fur: b[0], dark: b[1], sit: true }), true),
+    walker(40, 166, 'x', 350, 44, capyArt(0, { walk: true })),
+    walker(700, 166, 'x', 370, 48, capyArt(1, { walk: true })),
+    walker(30, 262, 'x', 170, 26, capyArt(2, { walk: true })),
+    walker(560, 300, 'y', 340, 40, capyArt(3, { walk: true })),
+    still(640, 776, capyArt(4), true),
+    still(200, 692, capyArt(5, { sit: true }), true),
+    still(1000, 380, capyArt(6, { sit: true }), true),
     gull(80, 60, 240, 18),
-    gull(780, 84, 170, 14),
+    // open sky between the crane and the scaffold, clear of both towers
+    gull(880, 40, 60, 14),
   ].join('')
 }
