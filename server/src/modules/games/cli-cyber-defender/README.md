@@ -29,7 +29,7 @@ Server half of the `cli-cyber-defender` game (G-CLI). Runs belong to a signed-in
 - The receipt time is taken on the server. A command arriving at or after `closesAt` is rejected with `CLI_INCIDENT_CLOSED`.
 - Missed windows are derived from the clock whenever the run is read, so `GET` never changes state.
 - A timed shift can be paused. While paused, the server's game clock stops, so every deadline moves back by the paused time; commands are refused with `CLI_RUN_PAUSED` and snapshots hide the alert (`alert: null`). Pause and resume are idempotent. Practice cannot be paused.
-- Practice mode has no deadlines (`closesAt: null`), may be ended early (unhandled incidents become `skipped`) and offers hints that name a lookup to run.
+- Practice mode has no deadlines (`closesAt: null`), may be ended early (unhandled incidents become `skipped`; the debrief then covers only the settled incidents plus the one on screen, so unreached incidents' answers never leave the server, while the saved attempt still records all eight outcomes) and offers hints that name a lookup to run.
 
 ## Endpoints
 
