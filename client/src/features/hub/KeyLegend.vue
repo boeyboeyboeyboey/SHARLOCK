@@ -15,7 +15,7 @@ const keys = [
   <div class="hub-keys">
     <button
       type="button"
-      class="btn btn-secondary btn-sm"
+      class="btn btn-secondary btn-sm hub-glass-btn hub-glass"
       data-testid="hub-keys"
       aria-controls="hub-keys-list"
       :aria-expanded="String(open)"
@@ -23,7 +23,7 @@ const keys = [
     >
       Keys
     </button>
-    <ul v-show="open" id="hub-keys-list" class="hub-keys-list" data-testid="hub-keys-list">
+    <ul v-show="open" id="hub-keys-list" class="hub-keys-list hub-glass" data-testid="hub-keys-list">
       <li v-for="[key, action] in keys" :key="key">
         <kbd>{{ key }}</kbd> {{ action }}
       </li>
@@ -41,16 +41,15 @@ const keys = [
   display: grid;
   gap: 2px;
   margin: 0;
-  padding: 4px 8px;
-  border: 2px solid var(--town-edge);
-  background: var(--town-paper);
+  padding: 8px 12px;
   font-size: 13px;
   list-style: none;
 }
 .hub-keys-list kbd {
-  padding: 0 4px;
-  border: 1px solid var(--town-edge);
-  background: transparent;
+  padding: 0 5px;
+  border: 1px solid var(--hub-glass-edge);
+  border-radius: 4px;
+  background: var(--hub-glass-btn);
   color: inherit;
   font: inherit;
 }

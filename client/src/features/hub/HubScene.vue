@@ -11,6 +11,8 @@ import { PhFilmSlate } from '@phosphor-icons/vue'
 import LoreIntro from './intro/LoreIntro.vue'
 import { useLoreIntro } from './intro/useLoreIntro.js'
 import { decidePerf, perfRecord, writePerf } from './perfWatch.js'
+import { getDeviceCheck } from './deviceCheck.js'
+import { isSolidHud } from './glass.js'
 
 const props = defineProps({
   games: { type: Array, required: true },
@@ -254,7 +256,11 @@ let createHub = null
 // a rebuild must not let the previous hub's late state overwrite the new one
 let generation = 0
 // the tier the runtime watch stepped down to; only used while the setting is auto
-let watchedTier = null
+const watchedTier = ref(null)
+// opaque hud panels on the low tier
+const solidHud = computed(() =>
+  isSolidHud({ quality: props.quality, watchedTier: watchedTier.value, deviceTier: getDeviceCheck().tier }),
+)
 
 function onPerf({ fps, tier }) {
   const decision = decidePerf({ tier, fps, explicit3d: props.explicit3d })
@@ -262,7 +268,7 @@ function onPerf({ fps, tier }) {
   const record = perfRecord(decision)
   if (record) writePerf(record)
   if (decision.action === 'lower') {
-    watchedTier = decision.tier
+    watchedTier.value = decision.tier
     view.lowering = true
     rebuildHub()
   } else if (decision.action === 'switch-2d') {
@@ -291,7 +297,7 @@ async function mountHub(resume = null) {
     joystick: { el: pad.value, knob: knob.value, jump: jumpBtn.value },
     params,
     spawnAt: returnDoor,
-    quality: props.quality === 'auto' && watchedTier ? TIER_TO_GRAPHICS[watchedTier] : props.quality,
+    quality: props.quality === 'auto' && watchedTier.value ? TIER_TO_GRAPHICS[watchedTier.value] : props.quality,
     watch: props.quality === 'auto',
     resumeAt: resume,
     wardrobe: props.wardrobe,
@@ -348,7 +354,7 @@ onBeforeUnmount(() => {
 
 watch(paused, pauseFromProp)
 watch(() => props.quality, () => {
-  watchedTier = null
+  watchedTier.value = null
   view.lowering = false
   rebuildHub()
 })
@@ -370,7 +376,7 @@ defineExpose({ focusDestination })
 <template>
   <section
     class="hub-scene"
-    :class="{ 'is-fill': fill }"
+    :class="{ 'is-fill': fill, 'hub-solid': solidHud }"
     aria-label="Thames Wharf"
   >
     <div ref="stage" class="hub-stage"></div>
@@ -378,7 +384,7 @@ defineExpose({ focusDestination })
     <div class="hub-hud">
       <slot></slot>
       <p
-        class="hub-status"
+        class="hub-status hub-glass"
         data-testid="hub-status"
         role="status"
         aria-live="polite"
@@ -386,11 +392,11 @@ defineExpose({ focusDestination })
       >
         {{ status }}
       </p>
-      <p v-if="devStats" class="hub-status" data-testid="hub-stats">{{ devStats }}</p>
+      <p v-if="devStats" class="hub-status hub-glass" data-testid="hub-stats">{{ devStats }}</p>
       <button
         v-if="view.ready"
         type="button"
-        class="btn btn-secondary btn-sm hub-reset"
+        class="btn btn-secondary btn-sm hub-reset hub-glass-btn hub-glass"
         data-testid="hub-reset-camera"
         aria-label="Reset camera behind Sharlock"
         title="Reset camera (R)"
@@ -402,7 +408,7 @@ defineExpose({ focusDestination })
       <button
         v-if="view.ready"
         type="button"
-        class="btn btn-secondary btn-sm hub-replay"
+        class="btn btn-secondary btn-sm hub-replay hub-glass-btn hub-glass"
         data-testid="hub-replay-intro"
         aria-label="Replay intro"
         title="Replay intro"
@@ -414,7 +420,7 @@ defineExpose({ focusDestination })
       <KeyLegend v-if="view.ready" v-model:open="keysOpen" />
     </div>
     <div class="hub-dock">
-      <nav class="hub-dest" aria-label="Destinations">
+      <nav class="hub-dest hub-glass" aria-label="Destinations">
         <ul ref="destList" class="hub-dest-list">
           <li v-for="game in games" :key="game.id">
             <button
@@ -441,12 +447,12 @@ defineExpose({ focusDestination })
         @enter="goInFromTalk"
         @close="closeTalk()"
       />
-      <div v-if="selectedGame || showTalk" class="hub-actions">
+      <div v-if="selectedGame || showTalk" class="hub-actions hub-glass">
         <button
           v-if="showTalk"
           ref="talkBtn"
           type="button"
-          class="btn btn-secondary hub-talk"
+          class="btn btn-secondary hub-talk hub-glass-btn"
           data-testid="talk"
           :aria-expanded="String(talk.open.value)"
           @click="openTalk"
@@ -456,7 +462,7 @@ defineExpose({ focusDestination })
         <button
           v-if="selectedGame"
           type="button"
-          class="btn btn-primary hub-enter"
+          class="btn btn-primary hub-enter hub-glass-btn hub-glass-btn-primary"
           data-testid="enter"
           :disabled="!canEnter"
           @click="enterSelected"
@@ -535,15 +541,13 @@ defineExpose({ focusDestination })
 }
 .hub-status {
   margin: 0;
-  padding: 2px 8px;
-  border: 2px solid var(--town-edge);
-  background: var(--town-paper);
+  padding: 4px 10px;
   font-size: 13px;
 }
 .hub-replay {
   display: inline-flex;
   align-items: center;
-  padding: 2px 6px;
+  padding: 2px 8px;
 }
 .hub-status[hidden] {
   display: none;
@@ -559,8 +563,6 @@ defineExpose({ focusDestination })
   max-height: calc(100% - 16px);
   overflow-y: auto;
   padding: 6px;
-  border: 2px solid var(--town-edge);
-  background: var(--town-paper);
 }
 .hub-dest-list {
   display: grid;
@@ -587,31 +589,13 @@ defineExpose({ focusDestination })
   gap: 8px;
   transform: translateX(-50%);
   max-width: calc(100% - 32px);
+  padding: 6px;
 }
 .hub-talk-panel {
   position: absolute;
   left: 50%;
   bottom: 72px;
   transform: translateX(-50%);
-}
-.hub-enter,
-.hub-talk {
-  transition: filter 0.12s;
-}
-/* the shared pixel button nudges itself on hover, which would shift the row, so only the shade changes */
-.hub-enter.btn:hover,
-.hub-enter.btn:focus-visible,
-.hub-enter.btn:active,
-.hub-talk.btn:hover,
-.hub-talk.btn:focus-visible,
-.hub-talk.btn:active {
-  transform: none;
-  box-shadow: var(--shadow-pixel);
-  filter: brightness(0.9);
-}
-.hub-enter.btn:active,
-.hub-talk.btn:active {
-  filter: brightness(0.8);
 }
 .hub-joystick {
   position: absolute;
@@ -621,9 +605,9 @@ defineExpose({ focusDestination })
   place-items: center;
   width: 120px;
   height: 120px;
-  border: 3px solid var(--town-edge);
+  border: 2px solid rgb(243 238 221 / 55%);
   border-radius: 50%;
-  background: rgb(255 248 223 / 45%);
+  background: rgb(20 32 46 / 45%);
   touch-action: none;
 }
 .hub-jump {
@@ -635,22 +619,22 @@ defineExpose({ focusDestination })
   height: 64px;
   align-items: center;
   justify-content: center;
-  border: 3px solid var(--town-edge);
+  border: 2px solid rgb(243 238 221 / 55%);
   border-radius: 50%;
-  background: var(--accent-primary);
-  color: inherit;
+  background: rgb(20 32 46 / 70%);
+  color: var(--hub-glass-ink);
   font-weight: 700;
   touch-action: none;
 }
 .hub-joystick-knob {
   width: 52px;
   height: 52px;
-  border: 3px solid var(--town-edge);
   border-radius: 50%;
-  background: var(--accent-primary);
+  background: rgb(243 238 221 / 85%);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 35%);
 }
 .hub-jump:focus-visible {
-  outline: 3px solid var(--town-edge);
+  outline: 3px solid var(--hub-glass-focus);
   outline-offset: 3px;
 }
 @media (pointer: coarse) {
@@ -700,10 +684,6 @@ defineExpose({ focusDestination })
     width: 100%;
     transform: none;
   }
-  .hub-enter,
-  .hub-talk {
-    min-height: 44px;
-  }
   /* the left column holds the toolbar, status and Reset camera, so the pad moves under the Map button on the right */
   .hub-joystick {
     bottom: auto;
@@ -738,6 +718,156 @@ defineExpose({ focusDestination })
 @media (prefers-reduced-motion: reduce) {
   .hub-fade {
     transition: none;
+  }
+}
+@media (forced-colors: active) {
+  .hub-joystick,
+  .hub-jump {
+    border-color: CanvasText;
+    background: Canvas;
+    color: CanvasText;
+  }
+  .hub-joystick-knob {
+    background: CanvasText;
+    box-shadow: none;
+  }
+}
+</style>
+
+<!-- smoked glass for every hud panel in the hub; unscoped so the children and the Dashboard slot share it, and the custom properties stay on the hub root -->
+<style>
+.hub-scene {
+  --hub-glass-bg: rgb(20 32 46 / 72%);
+  --hub-glass-solid: #14202e;
+  --hub-glass-edge: rgb(243 238 221 / 28%);
+  --hub-glass-ink: #f3eedd;
+  --hub-glass-muted: #c9c5b6;
+  --hub-glass-blur: 12px;
+  --hub-glass-shadow: 0 8px 26px rgb(0 0 0 / 40%);
+  --hub-glass-radius: 10px;
+  --hub-glass-focus: #ffd479;
+  --hub-glass-btn: rgb(255 255 255 / 8%);
+  --hub-glass-btn-hover: rgb(255 255 255 / 16%);
+  --hub-glass-btn-active: rgb(255 255 255 / 24%);
+  --hub-glass-filter: blur(var(--hub-glass-blur)) saturate(1.15);
+}
+/* opaque fallbacks only swap the fill and drop the blur */
+.hub-scene.hub-solid {
+  --hub-glass-bg: var(--hub-glass-solid);
+  --hub-glass-filter: none;
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .hub-scene {
+    --hub-glass-bg: var(--hub-glass-solid);
+    --hub-glass-filter: none;
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .hub-scene {
+    --hub-glass-bg: var(--hub-glass-solid);
+    --hub-glass-filter: none;
+  }
+}
+@media (forced-colors: active) {
+  .hub-scene {
+    --hub-glass-bg: Canvas;
+    --hub-glass-ink: CanvasText;
+    --hub-glass-muted: CanvasText;
+    --hub-glass-edge: ButtonBorder;
+    --hub-glass-focus: Highlight;
+    --hub-glass-shadow: none;
+    --hub-glass-btn: ButtonFace;
+    --hub-glass-btn-hover: ButtonFace;
+    --hub-glass-btn-active: ButtonFace;
+    --hub-glass-filter: none;
+  }
+}
+.hub-scene .hub-glass {
+  border: 1px solid var(--hub-glass-edge);
+  border-radius: var(--hub-glass-radius);
+  background: var(--hub-glass-bg);
+  color: var(--hub-glass-ink);
+  box-shadow: var(--hub-glass-shadow);
+  -webkit-backdrop-filter: var(--hub-glass-filter);
+  backdrop-filter: var(--hub-glass-filter);
+}
+.hub-scene .hub-glass a:not(.btn) {
+  color: var(--hub-glass-ink);
+  text-decoration-color: var(--hub-glass-muted);
+}
+.portal-shell .hub-scene .hub-glass-btn {
+  min-height: 40px;
+  border: 1px solid var(--hub-glass-edge);
+  border-radius: calc(var(--hub-glass-radius) - 2px);
+  background: var(--hub-glass-btn);
+  color: var(--hub-glass-ink);
+  box-shadow: none;
+  font-size: 13px;
+  font-weight: 600;
+  transform: none;
+  transition: background-color 0.12s;
+}
+.portal-shell .hub-scene .hub-glass-btn:hover {
+  border-color: var(--hub-glass-edge);
+  background: var(--hub-glass-btn-hover);
+  color: var(--hub-glass-ink);
+  box-shadow: none;
+  transform: none;
+}
+.portal-shell .hub-scene .hub-glass-btn:active {
+  border-color: var(--hub-glass-edge);
+  background: var(--hub-glass-btn-active);
+  color: var(--hub-glass-ink);
+  box-shadow: none;
+  transform: none;
+}
+/* a button that stands alone over the scene carries its own glass */
+.portal-shell .hub-scene .hub-glass-btn.hub-glass {
+  background: var(--hub-glass-bg);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 35%);
+}
+.portal-shell .hub-scene .hub-glass-btn.hub-glass:hover,
+.portal-shell .hub-scene .hub-glass-btn.hub-glass:active {
+  background: color-mix(in srgb, var(--hub-glass-ink) 16%, var(--hub-glass-bg));
+  box-shadow: 0 4px 14px rgb(0 0 0 / 35%);
+}
+.portal-shell .hub-scene .hub-glass-btn:focus-visible {
+  outline: 3px solid var(--hub-glass-focus);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+.portal-shell .hub-scene .hub-glass-btn:disabled {
+  opacity: 0.55;
+}
+.portal-shell .hub-scene .hub-glass-btn-primary {
+  border-color: var(--hub-glass-ink);
+  background: var(--hub-glass-ink);
+  color: var(--hub-glass-solid);
+  font-weight: 700;
+}
+.portal-shell .hub-scene .hub-glass-btn-primary:hover,
+.portal-shell .hub-scene .hub-glass-btn-primary:active {
+  border-color: var(--hub-glass-ink);
+  background: var(--hub-glass-ink);
+  color: var(--hub-glass-solid);
+  filter: brightness(0.9);
+}
+.portal-shell .hub-scene .hub-glass-btn-primary:active {
+  filter: brightness(0.8);
+}
+@media (forced-colors: active) {
+  .portal-shell .hub-scene .hub-glass-btn-primary,
+  .portal-shell .hub-scene .hub-glass-btn-primary:hover,
+  .portal-shell .hub-scene .hub-glass-btn-primary:active {
+    border-color: ButtonText;
+    background: ButtonFace;
+    color: ButtonText;
+    filter: none;
+  }
+}
+@media (pointer: coarse), (max-width: 575.98px) {
+  .portal-shell .hub-scene .hub-glass-btn {
+    min-height: 44px;
   }
 }
 </style>

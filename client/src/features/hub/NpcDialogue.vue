@@ -16,7 +16,7 @@ defineExpose({ focus: () => panel.value?.focus() })
 <template>
   <div
     ref="panel"
-    class="npc-dialogue"
+    class="npc-dialogue hub-glass"
     role="dialog"
     aria-labelledby="npc-dialogue-name"
     data-testid="npc-dialogue"
@@ -28,7 +28,7 @@ defineExpose({ focus: () => panel.value?.focus() })
       <button
         v-if="!last"
         type="button"
-        class="btn btn-primary btn-sm"
+        class="btn btn-primary btn-sm hub-glass-btn hub-glass-btn-primary"
         data-testid="npc-next"
         @click="$emit('next')"
       >
@@ -37,7 +37,7 @@ defineExpose({ focus: () => panel.value?.focus() })
       <template v-else-if="canEnter">
         <button
           type="button"
-          class="btn btn-primary btn-sm"
+          class="btn btn-primary btn-sm hub-glass-btn hub-glass-btn-primary"
           data-testid="npc-enter"
           @click="$emit('enter')"
         >
@@ -45,7 +45,7 @@ defineExpose({ focus: () => panel.value?.focus() })
         </button>
         <button
           type="button"
-          class="btn btn-secondary btn-sm"
+          class="btn btn-secondary btn-sm hub-glass-btn"
           data-testid="npc-close"
           @click="$emit('close')"
         >
@@ -55,7 +55,7 @@ defineExpose({ focus: () => panel.value?.focus() })
       <button
         v-else
         type="button"
-        class="btn btn-primary btn-sm"
+        class="btn btn-primary btn-sm hub-glass-btn hub-glass-btn-primary"
         data-testid="npc-close"
         @click="$emit('close')"
       >
@@ -68,17 +68,16 @@ defineExpose({ focus: () => panel.value?.focus() })
 <style scoped>
 .npc-dialogue {
   width: min(420px, calc(100% - 16px));
-  padding: 8px 12px 10px;
-  border: 2px solid var(--town-edge);
-  background: var(--town-paper);
+  padding: 12px 14px;
   pointer-events: auto;
 }
 .npc-dialogue:focus-visible {
-  outline: 3px solid var(--accent-primary);
+  outline: 3px solid var(--hub-glass-focus);
   outline-offset: 2px;
 }
 .npc-name {
   margin: 0 0 4px;
+  color: inherit;
   font-size: 16px;
 }
 .npc-line {
@@ -91,15 +90,9 @@ defineExpose({ focus: () => panel.value?.focus() })
   gap: 8px;
   justify-content: flex-end;
 }
-.npc-actions .btn {
-  min-height: 36px;
-}
 @media (max-width: 575.98px) {
   .npc-dialogue {
     width: 100%;
-  }
-  .npc-actions .btn {
-    min-height: 44px;
   }
 }
 </style>

@@ -100,7 +100,7 @@ function onKeydown(event) {
     <button
       ref="toggle"
       type="button"
-      class="btn btn-secondary btn-sm hub-map-toggle"
+      class="btn btn-secondary btn-sm hub-map-toggle hub-glass-btn hub-glass"
       data-testid="hub-map-toggle"
       aria-label="Open map"
       :aria-expanded="String(open)"
@@ -110,7 +110,7 @@ function onKeydown(event) {
     </button>
     <section
       ref="panel"
-      class="hub-map"
+      class="hub-map hub-glass"
       :class="{ 'is-open': open }"
       data-testid="hub-minimap"
       role="region"
@@ -119,7 +119,7 @@ function onKeydown(event) {
     >
       <div class="hub-map-head">
         <span class="hub-map-title">Map</span>
-        <button ref="closer" type="button" class="btn btn-secondary btn-sm" data-testid="hub-map-close" @click="closeMap">
+        <button ref="closer" type="button" class="btn btn-secondary btn-sm hub-glass-btn" data-testid="hub-map-close" @click="closeMap">
           Close
         </button>
       </div>
@@ -186,9 +186,7 @@ function onKeydown(event) {
   bottom: 8px;
   z-index: 2;
   width: 132px;
-  padding: 4px;
-  border: 2px solid var(--town-edge);
-  background: color-mix(in srgb, var(--town-paper) 88%, transparent);
+  padding: 6px;
 }
 .hub-map-head {
   display: none;
@@ -202,7 +200,9 @@ function onKeydown(event) {
   position: relative;
   width: 100%;
   aspect-ratio: var(--ratio);
-  border: 2px solid var(--town-edge);
+  overflow: hidden;
+  border: 1px solid var(--hub-glass-edge);
+  border-radius: calc(var(--hub-glass-radius) - 4px);
   background: #c9b88f;
 }
 .hub-map-svg {
@@ -293,7 +293,7 @@ function onKeydown(event) {
   background: var(--accent-primary);
 }
 .hub-map-pin:focus-visible {
-  outline: 3px solid var(--accent-primary);
+  outline: 3px solid var(--town-edge);
   outline-offset: 0;
 }
 @media (min-width: 768px) {
@@ -329,7 +329,7 @@ function onKeydown(event) {
     width: auto;
     padding: 8px;
     border-width: 0;
-    background: var(--town-paper);
+    border-radius: 0;
   }
   .hub-map-head {
     display: flex;
