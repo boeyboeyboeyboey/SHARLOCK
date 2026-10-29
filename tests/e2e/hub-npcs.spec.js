@@ -103,3 +103,24 @@ test('a wanderer talks, then says bye', async ({ page }) => {
   await expect(page.getByTestId('npc-dialogue')).toHaveCount(0)
   await expect(page).toHaveURL(/\/$/)
 })
+
+test('a patrolling wanderer can be talked to at its live position', async ({ page }) => {
+  await page.goto('/')
+  await hubReady(page)
+  await page.evaluate(() => window.__hub.debug.freezeNpcs(true))
+  const lamplighter = await page.evaluate(() =>
+    window.__hub.debug.npcs().find((n) => n.id === 'lamplighter'),
+  )
+  await page.evaluate(({ x, z }) => window.__hub.debug.teleport(x, z - 1.5), lamplighter)
+  await expect
+    .poll(() => page.evaluate(() => window.__hub.state.nearNpc), slow)
+    .toBe('lamplighter')
+  const still = await page.evaluate(() =>
+    window.__hub.debug.npcs().find((n) => n.id === 'lamplighter'),
+  )
+  expect(Math.hypot(still.x - lamplighter.x, still.z - lamplighter.z)).toBeLessThan(0.01)
+  await page.getByTestId('talk').click()
+  await expect(
+    page.getByTestId('npc-dialogue').getByRole('heading', { name: 'Lamplighter' }),
+  ).toBeVisible()
+})

@@ -1,7 +1,12 @@
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode.js';
+import { Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector.js';
+import { PhysicsBody } from '@babylonjs/core/Physics/v2/physicsBody.js';
+import { PhysicsShapeBox } from '@babylonjs/core/Physics/v2/physicsShape.js';
+import { PhysicsMotionType } from '@babylonjs/core/Physics/v2/IPhysicsEnginePlugin.js';
 import { createCapybaraRig, createCapybaraStatic, furStyles } from '../shared/capybara.js';
 import { applyToon } from './toon.js';
 import { npcs } from './npcs.js';
+import { WALK_SPEED, createPatrol, holdsStill, stepPatrol } from './patrol.js';
 
 const SIZE = 1.2;
 const UPDATE_RANGE = 25;
@@ -32,20 +37,35 @@ export function buildTownsfolk({ scene, tier, reduced, look }) {
     }
     root.position.set(npc.x, 0, npc.z);
     root.rotation.y = npc.yaw;
-    return { npc, root, rig, mesh, yaw: npc.yaw, speed: 0 };
+    const folk = { npc, root, rig, mesh, yaw: npc.yaw, want: npc.yaw, x: npc.x, z: npc.z, patrol: null, body: null, node: null };
+    if (npc.kind === 'wanderer' && npc.route) {
+      folk.patrol = createPatrol(npc.route);
+      // a wanderer's collider is its own animated body so it follows the walk; game keepers stay in the static compound
+      folk.node = new TransformNode(`npc-collider-${npc.id}`, scene);
+      folk.node.position.set(npc.x, 0, npc.z);
+      folk.body = new PhysicsBody(folk.node, PhysicsMotionType.ANIMATED, false, scene);
+      folk.body.disablePreStep = true;
+      folk.body.shape = new PhysicsShapeBox(new Vector3(0, 0.9, 0), Quaternion.Identity(), new Vector3(0.8, 1.8, 0.8), scene);
+    }
+    return folk;
   });
+  const target = new Vector3();
+  const noTurn = Quaternion.Identity();
+  let frozen = false;
 
   // world positions for the talk prompt and tests
-  const list = () => folk.map((f) => ({ id: f.npc.id, name: f.npc.name, role: f.npc.role, kind: f.npc.kind, gameId: f.npc.gameId ?? null, x: f.npc.x, z: f.npc.z }));
+  const list = () => folk.map((f) => ({ id: f.npc.id, name: f.npc.name, role: f.npc.role, kind: f.npc.kind, gameId: f.npc.gameId ?? null, x: f.x, z: f.z }));
 
   // returns the id of the npc the player can talk to: within TALK_RANGE, or a game keeper whose door ring the player stands on
-  function update(dt, player, nearDoor = null) {
+  // talkId is the npc in an open talk, who stands still and faces the player
+  function update(dt, player, nearDoor = null, talkId = null) {
     const step = Math.min(dt, 0.05);
+    const calm = reduced();
     let talk = null;
     let best = Infinity;
     for (const f of folk) {
-      const dx = player.x - f.npc.x;
-      const dz = player.z - f.npc.z;
+      const dx = player.x - f.x;
+      const dz = player.z - f.z;
       const dist = Math.hypot(dx, dz);
       const reachable = dist < TALK_RANGE || (f.npc.kind === 'game' && nearDoor === f.npc.gameId);
       if (reachable && dist < best) {
@@ -53,13 +73,29 @@ export function buildTownsfolk({ scene, tier, reduced, look }) {
         talk = f.npc.id;
       }
       if (dist > UPDATE_RANGE) continue;
-      // ease the body round to face the player when close, else back to the post
-      const want = dist < FACE_RANGE ? Math.atan2(dx, dz) : f.npc.yaw;
+      let walking = false;
+      if (f.patrol && !holdsStill({ frozen, calm, dist, range: UPDATE_RANGE, near: FACE_RANGE, talking: talkId === f.npc.id })) {
+        stepPatrol(f.patrol, f.npc.route, f.npc.pause, step);
+        walking = f.patrol.moving;
+        if (walking) {
+          f.x = f.patrol.x;
+          f.z = f.patrol.z;
+          f.want = f.patrol.heading;
+          f.root.position.x = f.x;
+          f.root.position.z = f.z;
+          f.node.position.x = f.x;
+          f.node.position.z = f.z;
+          target.set(f.x, 0, f.z);
+          f.body.setTargetTransform(target, noTurn);
+        }
+      }
+      // ease the body round to face the player when close, else along the walk or back to the post
+      const want = dist < FACE_RANGE || talkId === f.npc.id ? Math.atan2(dx, dz) : f.want;
       let diff = want - f.yaw;
       diff -= TAU * Math.round(diff / TAU);
-      f.yaw += diff * (reduced() ? 1 : 1 - Math.exp(-step * 6));
+      f.yaw += diff * (calm ? 1 : 1 - Math.exp(-step * 6));
       f.root.rotation.y = f.yaw;
-      f.rig?.update(dt, 0, 4.4, { active: false });
+      f.rig?.update(dt, walking ? WALK_SPEED : 0, 2.4, { active: walking });
     }
     return talk;
   }
@@ -68,8 +104,13 @@ export function buildTownsfolk({ scene, tier, reduced, look }) {
     list,
     meshes: folk.flatMap((f) => (f.rig ? f.rig.meshes : [f.mesh])),
     update,
+    setFrozen(value) {
+      frozen = Boolean(value);
+    },
     dispose() {
       for (const f of folk) {
+        f.body?.dispose();
+        f.node?.dispose();
         if (f.rig) {
           f.rig.dispose();
           f.root.dispose();

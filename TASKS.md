@@ -159,7 +159,8 @@ Move the task's active record rather than duplicating it across board states. Re
 - **Difficulty and checks:** complexity 2; route unit tests and `hub-npcs.spec.js`.
 - **Collision check (30 Oct):** no TASKS record, branch or code for this feature (rg over TASKS.md, `client/src`, `server/src`, remote branches); DESIGN.md:110 and the HUB-01 follow-ups listed it as needing its own approval, now given. Teammate worktrees were not inspected.
 - **Docs impact:** hub README, this record.
-- **Next action:** implement in batch order (COH-04, UX-01, NPC-02, NPC-03, MP-01, INT-01, AUDIO-04).
+- **Verification (30 Oct):** `pnpm exec vitest run client/src/features/hub` 19 files, 174 tests pass (new `patrol.test.js`); `node scripts/run-with-test-db.mjs e2e --replica-set tests/e2e/hub-npcs.spec.js --workers=1` 8 passed (4 tests, mobile and desktop; new patrolling-wanderer talk test); eslint clean on changed files. Visual walk cycle not inspected.
+- **Next action:** review the diff, then continue the batch order (NPC-03, MP-01, INT-01, AUDIO-04).
 
 **NPC-03 — Outskirts discoveries** · Status: **In Progress** · Contributor: **Boey** (implemented by Claude Code) · Branch: `npc-03-outskirts` · Plan approved by Boey on 30 October 2026 (mega-batch, `.local-handover/MEGA-BATCH-PLAN-2026-10-30.md`); Boey states the team has consented to this feature. Pre-approved for the batch: branch, commit and `--no-ff` merge into local `main` after checks; no push.
 

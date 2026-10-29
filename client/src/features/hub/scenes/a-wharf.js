@@ -133,8 +133,8 @@ export async function build({ engine, scene, canvas, state, notify, params, joys
   const box = (x, y, z, sx, sy, sz) => compound.addChild(new PhysicsShapeBox(new Vector3(x, y, z), Quaternion.Identity(), new Vector3(sx, sy, sz), scene));
   box(0, -0.5, 10, 220, 1, 220);
   for (const r of obstacles) box((r.x0 + r.x1) / 2, 1.3, (r.z0 + r.z1) / 2, r.x1 - r.x0, 2.6, r.z1 - r.z0);
-  // townsfolk stand off the lanes; a small post each keeps sharlock from walking through them
-  for (const n of npcs) box(n.x, 0.9, n.z, 0.8, 1.8, 0.8);
+  // game keepers stand off the lanes; a small post each keeps sharlock from walking through them (wanderers carry their own moving collider)
+  for (const n of npcs.filter((npc) => npc.kind === 'game')) box(n.x, 0.9, n.z, 0.8, 1.8, 0.8);
   const colliderBody = new PhysicsBody(colliderNode, PhysicsMotionType.STATIC, false, scene);
   colliderBody.shape = compound;
   compound.material = { friction: 0.2, restitution: 0 };
@@ -210,7 +210,7 @@ export async function build({ engine, scene, canvas, state, notify, params, joys
     lamps.update(t, dt);
     boats.update(dt);
     life.update(dt);
-    const talk = townsfolk.update(dt, state.player, state.nearDoor);
+    const talk = townsfolk.update(dt, state.player, state.nearDoor, inputPaused ? state.nearNpc : null);
     if (talk !== state.nearNpc) {
       state.nearNpc = talk;
       notify();
@@ -288,6 +288,7 @@ export async function build({ engine, scene, canvas, state, notify, params, joys
         sharlockStats: () => ({ triangles: control.player.rig?.triangles() ?? 0, meshes: control.player.rig?.drawCalls() ?? 0 }),
         lampsLit: () => lamps.litFraction(),
         npcs: () => townsfolk.list(),
+        freezeNpcs: (value) => townsfolk.setFrozen(value),
         cab: () => life.cabAt(),
         worker: (i) => life.workerAt(i),
         sunClock: () => (performance.now() - start) / 1000,
