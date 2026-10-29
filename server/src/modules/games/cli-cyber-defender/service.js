@@ -115,6 +115,83 @@ function concepts(scenario) {
   }
 }
 
+function countEvents(incident, kind) {
+  return incident.events.filter((item) => item.kind === kind).length
+}
+
+// lookups only read scripted lines: no score, no streak change, no real host or shell
+function runLookup(incident, parsed) {
+  if (incident.lookups.length >= MAX_LOOKUPS_PER_INCIDENT) {
+    return {
+      outcome: 'lookup-limit',
+      message: 'No lookups left for this incident. Decide with what you have.',
+      closed: false,
+      penalty: 0,
+    }
+  }
+  const lines = incident.scenario.lookups?.[parsed.normalized] ?? [
+    `No records for ${parsed.target} in this scope.`,
+  ]
+  incident.lookups.push({ command: parsed.normalized, lines })
+  return {
+    outcome: 'lookup',
+    message: `${parsed.normalized}: ${lines.length} record${lines.length === 1 ? '' : 's'} found.`,
+    closed: false,
+    penalty: 0,
+  }
+}
+
+function confirmStep(incident, at) {
+  const { scenario } = incident
+  const done = countEvents(incident, 'ok')
+  incident.events.push({ at, kind: 'ok' })
+  const closed = scenario.decoy || done + 1 === scenario.steps.length
+  if (!closed) {
+    return {
+      outcome: 'step',
+      message: 'Step confirmed. The incident is still active.',
+      closed,
+      penalty: 0,
+    }
+  }
+  const mistakes = countEvents(incident, 'bad')
+  incident.resolution = { at, outcome: mistakes ? 'wrong' : 'correct', closedByMistake: false }
+  const message = scenario.decoy ? 'Alert dismissed as a false positive.' : 'Containment confirmed.'
+  return { outcome: 'correct', message, closed, penalty: 0 }
+}
+
+// a one-step incident closes on the first mistake, a two-step one after the mistake limit
+function recordMistake(incident, at, timed) {
+  incident.events.push({ at, kind: 'bad' })
+  const closed =
+    incident.scenario.steps.length < 2 || countEvents(incident, 'bad') >= MAX_MISTAKES_PER_INCIDENT
+  if (closed) incident.resolution = { at, outcome: 'wrong', closedByMistake: true }
+  let message = closed
+    ? 'That action did not resolve the incident. Incident closed.'
+    : 'That was the wrong action. The incident is still open.'
+  if (timed) message += ` ${TIME_PENALTY_SECONDS} seconds were cut from the clock.`
+  return { outcome: 'wrong', message, closed, penalty: timed ? TIME_PENALTY_SECONDS : 0 }
+}
+
+// a decoy is closed by dismiss; a real incident needs each containment step in order
+function runAction(incident, parsed, at, timed) {
+  const { scenario } = incident
+  incident.commands.push(parsed.normalized)
+  const next = scenario.steps[countEvents(incident, 'ok')]
+  const correct = scenario.decoy
+    ? parsed.verb === 'dismiss'
+    : Boolean(next) && parsed.verb === next.verb && parsed.target === next.target
+  return correct ? confirmStep(incident, at) : recordMistake(incident, at, timed)
+}
+
+function applyCommand(incident, parsed, at, timed) {
+  if (!parsed.ok) {
+    return { outcome: 'syntax', message: SYNTAX_HINTS[parsed.reason], closed: false, penalty: 0 }
+  }
+  if (parsed.kind === 'lookup') return runLookup(incident, parsed)
+  return runAction(incident, parsed, at, timed)
+}
+
 export function createCliDefenderService({
   now = Date.now,
   randomInt = cryptoRandomInt,
@@ -294,68 +371,18 @@ export function createCliDefenderService({
 
     const parsed = parseCommand(command)
     const incident = run.incidents[before.current.index]
-    const { scenario } = incident
-    const timed = run.mode === 'timed'
-    let outcome = 'syntax'
-    let message = SYNTAX_HINTS[parsed.reason]
-    let closed = false
-    let penalty = 0
-    if (parsed.ok && parsed.kind === 'lookup') {
-      // lookups only read scripted lines: no score, no streak change, no real host or shell
-      if (incident.lookups.length >= MAX_LOOKUPS_PER_INCIDENT) {
-        outcome = 'lookup-limit'
-        message = 'No lookups left for this incident. Decide with what you have.'
-      } else {
-        const lines = scenario.lookups?.[parsed.normalized] ?? [
-          `No records for ${parsed.target} in this scope.`,
-        ]
-        incident.lookups.push({ command: parsed.normalized, lines })
-        outcome = 'lookup'
-        message = `${parsed.normalized}: ${lines.length} record${lines.length === 1 ? '' : 's'} found.`
-      }
-    } else if (parsed.ok) {
-      incident.commands.push(parsed.normalized)
-      const done = incident.events.filter((item) => item.kind === 'ok').length
-      const next = scenario.steps[done]
-      const correct = scenario.decoy
-        ? parsed.verb === 'dismiss'
-        : Boolean(next) && parsed.verb === next.verb && parsed.target === next.target
-      if (correct) {
-        incident.events.push({ at, kind: 'ok' })
-        closed = scenario.decoy || done + 1 === scenario.steps.length
-        if (closed) {
-          const mistakes = incident.events.filter((item) => item.kind === 'bad').length
-          incident.resolution = {
-            at,
-            outcome: mistakes ? 'wrong' : 'correct',
-            closedByMistake: false,
-          }
-        }
-        outcome = closed ? 'correct' : 'step'
-        message = !closed
-          ? 'Step confirmed. The incident is still active.'
-          : scenario.decoy
-            ? 'Alert dismissed as a false positive.'
-            : 'Containment confirmed.'
-      } else {
-        incident.events.push({ at, kind: 'bad' })
-        const mistakes = incident.events.filter((item) => item.kind === 'bad').length
-        closed = scenario.steps.length < 2 || mistakes >= MAX_MISTAKES_PER_INCIDENT
-        if (closed) incident.resolution = { at, outcome: 'wrong', closedByMistake: true }
-        outcome = 'wrong'
-        if (timed) penalty = TIME_PENALTY_SECONDS
-        message = closed
-          ? 'That action did not resolve the incident. Incident closed.'
-          : 'That was the wrong action. The incident is still open.'
-        if (timed) message += ` ${TIME_PENALTY_SECONDS} seconds were cut from the clock.`
-      }
-    }
+    const { outcome, message, closed, penalty } = applyCommand(
+      incident,
+      parsed,
+      at,
+      run.mode === 'timed',
+    )
     const after = snapshot(run, at)
     const response = {
       ...after,
       outcome,
       message,
-      review: closed ? review(scenario) : null,
+      review: closed ? review(incident.scenario) : null,
       command: parsed.ok ? parsed.normalized : null,
       incidentClosed: closed,
       timePenaltySeconds: penalty,
