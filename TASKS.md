@@ -140,7 +140,7 @@ No active implementation task.
 
 ## Review
 
-**CODE-27 — CLI readability pass** · Status: **Review** · Maintenance contributor and feature owner: **Xin Lei** · Branch: `code-27-cli-readability` (cut from `origin/main` at `740e58b`, 29 October 2026) · First batch of the fresh code-cleanliness and folder-structure pass Boey suggested on 29 October 2026; Boey's own chat covers the UI update.
+**CODE-27 — CLI readability pass** · Status: **Review** · Maintenance contributor and feature owner: **Xin Lei** · Branch: `code-27-cli-readability` (cut from `origin/main` at `740e58b`, 29 October 2026).
 
 - **Approval / policy / baseline:** CODE_STYLE.md v1. Read-only audit of `client/src/games/cli-cyber-defender/` and `server/src/modules/games/cli-cyber-defender/` on `main` `740e58b` (clean tree, level with `origin/main`, no CLI changes since). Xin Lei approved proposals A, B and C ("yes") on 29 October 2026. `llm/`, shared files and other modules untouched.
 - **A (`7be6152`):** `service.js` `submitCommand()` (about 90 lines, four branch levels, a nested ternary) now calls `applyCommand()`, which delegates to `runLookup()`, `confirmStep()` and `recordMistake()`; each returns `{ outcome, message, closed, penalty }`.
