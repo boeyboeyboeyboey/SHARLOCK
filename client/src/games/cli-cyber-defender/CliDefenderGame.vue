@@ -118,15 +118,20 @@ watch(phase, (next) => {
   }
 })
 
-watch([phase, paused], async ([next, isPaused]) => {
+const gameRoot = ref(null)
+
+watch([phase, paused], async ([next, isPaused], [previous]) => {
   if (next !== 'running' || isPaused) return
   await nextTick()
+  // on a phone the game fills one screen while playing, so line it up with the top of the window
+  if (previous !== 'running' && globalThis.matchMedia?.('(max-width: 767.98px)').matches)
+    gameRoot.value?.scrollIntoView?.({ block: 'start' })
   terminal.value?.focus()
 })
 </script>
 
 <template>
-  <div class="cli-game is-fitted">
+  <div ref="gameRoot" :class="['cli-game', 'is-fitted', { 'is-playing': inGame }]">
     <div class="cli-intro">
       <nav class="cli-nav" aria-label="Game navigation">
         <RouterLink v-if="!inGame" to="/" class="cli-back back-link"
@@ -200,7 +205,7 @@ watch([phase, paused], async ([next, isPaused]) => {
       <div :class="['cli-stage', { 'is-paused': paused }]">
         <PausedPanel v-if="paused" :pending="resuming" @resume="resume" />
         <div class="row g-3 align-items-stretch" :inert="paused" :aria-hidden="paused">
-          <div class="col-12 col-xl-5 d-flex flex-column gap-3">
+          <div class="cli-alert-col col-12 col-xl-5 d-flex flex-column gap-3">
             <IncidentBanner
               :incident="current"
               :remaining-ms="remainingMs"
@@ -213,7 +218,7 @@ watch([phase, paused], async ([next, isPaused]) => {
             />
             <ReviewNote class="d-none d-xl-block" :review="lastReview" />
           </div>
-          <div class="col-12 col-xl-7 d-flex flex-column gap-2">
+          <div class="cli-terminal-col col-12 col-xl-7 d-flex flex-column gap-2">
             <TerminalPanel
               ref="terminal"
               v-model="draft"

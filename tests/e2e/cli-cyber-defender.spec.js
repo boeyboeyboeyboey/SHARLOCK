@@ -242,7 +242,10 @@ test('keeps the incident open on a typo, closes it on a wrong target', async ({ 
   await useMenu(page, 'End practice')
   await expect(page.getByText('100 / 2,700 points')).toBeVisible()
   await expect(page.locator('.cli-outcome-wrong')).toHaveCount(1)
-  await expect(page.locator('.cli-outcome-skipped')).toHaveCount(6)
+  // only the reached incidents are reviewed: two settled and the one on screen, unanswered
+  await expect(page.getByText('Practice ended after challenge 3 of 8.')).toBeVisible()
+  await expect(page.locator('.cli-debrief-item')).toHaveCount(3)
+  await expect(page.getByText('NOT ANSWERED')).toHaveCount(1)
 })
 
 test('scores a timed incident against the server window', async ({ page }) => {
@@ -503,6 +506,33 @@ test('keeps the command prompt in place as the log fills up', async ({ page }, t
   )
   expect(Math.abs((await pageY()) - before)).toBeLessThanOrEqual(1)
   await expect(commandInput(page)).toBeInViewport()
+})
+
+test('keeps the alert, prompt and command buttons on screen after several incidents', async ({
+  page,
+}, testInfo) => {
+  await startShift(page, 'practice')
+  for (let incident = 0; incident < 3; incident += 1) await solve(page)
+  for (let attempt = 1; attempt < 10; attempt += 1) await run(page, `blok ip 192.0.2.${attempt}`)
+  await expect(page.getByRole('log', { name: 'Terminal output' })).toContainText('not recognised')
+
+  // the project's own size, plus a stacked laptop width and a short laptop window on desktop
+  const sizes =
+    testInfo.project.name === 'desktop-chromium'
+      ? [null, { width: 1024, height: 768 }, { width: 1366, height: 650 }]
+      : [null]
+  for (const size of sizes) {
+    if (size) await page.setViewportSize(size)
+    const label = size ? `${size.width}x${size.height}` : testInfo.project.name
+    await expect(banner(page).getByRole('heading'), `alert at ${label}`).toBeInViewport()
+    await expect(commandInput(page), `prompt at ${label}`).toBeInViewport()
+    await expect(page.getByRole('button', { name: 'Run' }), `run at ${label}`).toBeInViewport()
+    await expect(page.getByRole('button', { name: 'Hint' }), `hint at ${label}`).toBeInViewport()
+    const templates = page.getByRole('button', { name: /^Insert / })
+    await expect(templates).toHaveCount(6)
+    for (const template of await templates.all())
+      await expect(template, `command button at ${label}`).toBeInViewport()
+  }
 })
 
 test('fits the command template buttons at every width', async ({ page }) => {

@@ -17,7 +17,7 @@ const OUTCOME_LABELS = {
   correct: 'OK',
   wrong: 'WRONG',
   missed: 'MISSED',
-  skipped: 'SKIPPED',
+  skipped: 'NOT ANSWERED',
 }
 const OUTCOME_ICONS = {
   correct: 'check',

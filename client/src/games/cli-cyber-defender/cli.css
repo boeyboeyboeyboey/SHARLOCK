@@ -1756,15 +1756,20 @@
     }
   }
 
-  .cli-game.is-fitted .cli-debrief {
+  /* the debrief header, summary and buttons stay put; only the list below the divider scrolls */
+  .cli-game.is-fitted > .cli-debrief {
     display: flex;
     flex-direction: column;
+    overflow: hidden;
   }
 
   .cli-game.is-fitted .cli-debrief-scroll {
     flex: 1 1 auto;
-    min-height: 0;
+    min-height: 8rem;
+    margin-top: 0.75rem;
+    padding-top: 0.25rem;
     overflow-y: auto;
+    border-top: 1px solid var(--game-line);
   }
 
   .cli-game.is-fitted .cli-debrief-section {
@@ -1773,24 +1778,7 @@
   }
 
   .cli-game.is-fitted .cli-console.d-grid {
-    flex: 1 1 auto;
-    grid-template-rows: auto minmax(0, 1fr);
     gap: 0.5rem !important;
-    min-height: 0;
-  }
-
-  .cli-game.is-fitted .cli-stage {
-    min-height: 0;
-    overflow-y: auto;
-  }
-
-  .cli-game.is-fitted .cli-stage > .row {
-    min-height: 100%;
-  }
-
-  .cli-game.is-fitted .cli-output {
-    height: auto;
-    min-height: 5rem;
   }
 
   .cli-game.is-fitted .cli-stat {
@@ -1940,5 +1928,169 @@
 @media (prefers-reduced-motion: reduce) {
   .cli-penalty-cue {
     animation: none;
+  }
+}
+
+/* while a game runs the console never grows past the screen: the alert column and the terminal
+   log scroll inside themselves, so the alert, prompt and command buttons always stay in view */
+.cli-game.is-playing .cli-console.d-grid {
+  flex: 1 1 auto;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+}
+
+.cli-game.is-playing .cli-stage {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.cli-game.is-playing .cli-stage > .row {
+  --bs-gutter-y: 0;
+  height: 100%;
+}
+
+.cli-game.is-playing .cli-alert-col,
+.cli-game.is-playing .cli-terminal-col {
+  min-height: 0;
+  max-height: 100%;
+}
+
+.cli-game.is-playing .cli-alert-col {
+  overflow-y: auto;
+}
+
+/* the hint stays at the bottom of the alert box even while its lines scroll */
+.cli-game.is-playing .cli-banner-foot {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  padding-top: 0.35rem;
+  background: var(--game-panel);
+}
+
+.cli-game.is-playing .cli-terminal {
+  min-height: 0;
+}
+
+.cli-game.is-playing .cli-output {
+  flex: 1 1 0;
+  height: 0;
+  min-height: 4rem;
+}
+
+/* below the two-column width the alert sits above the terminal and takes at most a third of the
+   console; the command buttons pack into one compact grid */
+@media (max-width: 1199.98px) {
+  .cli-game.is-playing .cli-stage > .row {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    row-gap: 0.5rem;
+  }
+
+  .cli-game.is-playing .cli-alert-col {
+    flex: 0 1 auto;
+    max-height: 34%;
+  }
+
+  .cli-game.is-playing .cli-terminal-col {
+    flex: 1 1 auto;
+  }
+
+  .cli-game.is-playing .cli-template-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.35rem;
+  }
+
+  .cli-game.is-playing .cli-template {
+    min-height: 44px;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.4rem;
+  }
+
+  .cli-game.is-playing .cli-template-hint {
+    display: none;
+  }
+
+  /* command words may wrap so three buttons fit side by side in a narrow console */
+  .cli-game.is-playing .cli-template-command {
+    white-space: normal;
+  }
+}
+
+/* phones and short windows: the running game fills one screen of its own */
+@media (max-width: 767.98px), (max-height: 599.98px) {
+  /* the shared header stays pinned above, so the game takes the rest of the screen below it */
+  .cli-game.is-playing {
+    display: flex;
+    flex-direction: column;
+    height: calc(100dvh - var(--header-height, 76px));
+    min-height: 26rem;
+    padding: 0.5rem;
+    scroll-margin-top: var(--header-height, 76px);
+  }
+
+  .cli-game.is-playing .cli-intro {
+    display: flex;
+    flex: none;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0 0.75rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .cli-game.is-playing .cli-intro h1 {
+    order: -1;
+    margin: 0;
+    font-size: 1rem;
+  }
+
+  .cli-game.is-playing .cli-nav {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .cli-game.is-playing .cli-strap,
+  .cli-game.is-playing .cli-banner-tip,
+  .cli-game.is-playing .cli-hud .cli-stat-icon,
+  .cli-game.is-playing .cli-hud .cli-steps,
+  .cli-game.is-playing .cli-hud .cli-streak-meter,
+  .cli-game.is-playing .cli-hud .cli-hud-sub,
+  .cli-game.is-playing .cli-template .cli-icon {
+    display: none;
+  }
+
+  /* each stat is one short line, label beside value, two stats per row */
+  .cli-game.is-playing .cli-hud .cli-stat {
+    padding: 0.25rem 0.5rem;
+  }
+
+  .cli-game.is-playing .cli-hud .cli-stat-body {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 0.4rem;
+  }
+
+  .cli-game.is-playing .cli-hud .cli-stat-label {
+    font-size: 0.7rem;
+  }
+
+  .cli-game.is-playing .cli-hud .cli-stat-value {
+    font-size: 0.95rem;
+  }
+
+  .cli-game.is-playing .cli-banner {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .cli-game.is-playing .cli-banner-lines {
+    line-height: 1.8;
+  }
+
+  .cli-game.is-playing .cli-template {
+    font-size: 0.8rem;
   }
 }
