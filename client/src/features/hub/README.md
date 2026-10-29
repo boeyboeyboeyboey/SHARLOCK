@@ -91,7 +91,7 @@ See `tests/e2e/portal.spec.js:6`.
 
 ## Townsfolk (NPC-01)
 
-- Who: nine capybaras from `scenes/wharf/npcs.js`. Six game keepers stand beside their doors (customs officer, telegraph clerk, postmaster, police constable, publican, news vendor) and three wanderers (fisherman, lamplighter, gull feeder) are scenery with a one-liner. Each has a small collider post. They face the player within 4 m, otherwise their post.
+- Who: nine capybaras from `scenes/wharf/npcs.js`. Six game keepers stand beside their doors (customs officer, telegraph clerk, postmaster, police constable, publican, news vendor) and three wanderers (fisherman, lamplighter, gull feeder) are scenery with a one-liner. Each has a small collider post, kept clear of the pier rails so it never makes a pocket against the walkable edge. They face the player within 4 m, otherwise their post.
 - Tiers: animated rigs (`townsfolk.js`, own idle seed each) on the desktop tier, static meshes on compact and low (`npcRigs` in `quality.js`).
 - Talk rule: `townsfolk.update` returns the nearest npc the player can talk to, written to `state.nearNpc`: within 2.5 m, or for a game keeper also while `state.nearDoor` is that keeper's game. The **Talk to <name>** button (`data-testid="talk"`) shows beside Enter in explore mode only.
 - Flow: Talk opens `NpcDialogue.vue` (`role="dialog"`, non-modal, `data-testid="npc-dialogue"`), announces "Talking to <name>", focuses the panel and pauses movement (`useNpcDialogue.js` holds the line state). Next steps through the lines; the last line offers **Go in** (selects the keeper's game if needed, then the same path as Enter) and **Close** for game keepers, or **Bye** for wanderers. Walking away, leaving explore mode or a paused hub closes it.
@@ -108,7 +108,7 @@ See `tests/e2e/portal.spec.js:6`.
 
 - Crates, chimneys and signs have no camera collision (the crane tower has one; the jib does not).
 - The desktop destination list covers the right edge of selection views.
-- The Clearance Tower view (`views.js`) stands about 34 m back at a slight angle (`alphaOffset` -0.4, `beta` 1.34, `focusY` 10.5) so the door, signboard and clock tower fill the frame; the spring arm may pull it in a little.
+- The Clearance Tower view (`views.js`) looks up the street from the south (`alphaOffset` -1.0, `beta` 1.34, radius 34, `focusY` 13) so the door, signboard, clock and spire all fit. A straight on view is pulled in by the houses opposite and crops the tower.
 - Minimap context blocks are approximate.
 - Not verified on real phones or low-end hardware.
 
