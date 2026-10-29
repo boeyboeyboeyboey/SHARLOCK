@@ -221,11 +221,20 @@ test('announces picks, moves focus to Enter and restores it after a game', async
   await expect(status).toHaveText('Selection cleared')
   await expect(dest).toBeFocused()
 
-  // a fresh load starts away from the door; picking the building you stand at is not what this checks
-  await page.reload()
-  await hubReady(page)
+  // re-picking the building you stand at keeps the pick instead of walking off the ring
   await dest.click()
-  await page.getByTestId('enter').click()
+  await expect(status).toHaveText('Arrived at CLI Cyber Defender. Press Enter to go in')
+  await page.evaluate(
+    () =>
+      new Promise((done) => {
+        let frames = 30
+        const tick = () => (--frames ? requestAnimationFrame(tick) : done())
+        requestAnimationFrame(tick)
+      }),
+  )
+  await expect(dest).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByTestId('enter')).toBeFocused()
+  await page.keyboard.press('Enter')
   await expect(page).toHaveURL(/\/games\/cli-cyber-defender$/, slow)
   await page.goBack()
   await expect(page).toHaveURL('/')

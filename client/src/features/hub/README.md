@@ -78,6 +78,7 @@ See `tests/e2e/portal.spec.js:6`.
 - A list or minimap pick auto-walks along the lane graph. Routes start and end only at walkable lane nodes, because the west lane end sits inside a crate collider and used to stall the walk.
 - If a route still stalls, the camera hold and the pick stay, so Enter remains usable; steering by hand (keys, joystick) or clicking the ground drops the pick as before.
 - Picks made while the enter swoop is running are ignored, so the swoop always finishes and opens the game.
+- Picking the building whose door ring you already stand on (for example after Esc) does not walk: the camera turns to the shopfront and the pick stays, so Enter is usable at once.
 
 ## Keyboard and screen reader (HUB-06)
 

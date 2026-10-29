@@ -111,8 +111,12 @@ export function createDoors({ scene, state, notify, infos, control, camera, redu
       });
       return;
     }
-    control.routeToDoor(id);
-    headingRoute = control.routeSerial();
+    // already on that door's ring: walking a route would carry the player off it and drop the pick
+    if (id === state.nearDoor) control.cancelRoute();
+    else {
+      control.routeToDoor(id);
+      headingRoute = control.routeSerial();
+    }
     // face the shopfront from the open side
     frameView(infoOf(id));
   };
