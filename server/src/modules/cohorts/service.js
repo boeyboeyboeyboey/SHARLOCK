@@ -158,7 +158,12 @@ function codeDto(code) {
 
 export function createCohortService(
   database,
-  { now = Date.now, clientOrigin = 'http://localhost:5173', recordAuditEvent } = {},
+  {
+    now = Date.now,
+    clientOrigin = 'http://localhost:5173',
+    recordAuditEvent,
+    onMembershipChanged,
+  } = {},
 ) {
   const User = userModel(database)
   const Cohort = cohortModel(database)
@@ -532,7 +537,7 @@ export function createCohortService(
     }
   }
 
-  async function decide(actor, cohortId, membershipId, input, query = {}) {
+  async function decideMembership(actor, cohortId, membershipId, input, query = {}) {
     assertEmptyQuery(query)
     const parsedCohortId = parseObjectId(cohortId)
     const parsedMembershipId = parseObjectId(membershipId)
@@ -601,6 +606,12 @@ export function createCohortService(
         },
       }
     })
+  }
+
+  async function decide(...args) {
+    const result = await decideMembership(...args)
+    onMembershipChanged?.()
+    return result
   }
 
   async function getCode(actor, cohortId, query = {}) {

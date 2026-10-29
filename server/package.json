@@ -18,7 +18,8 @@
     "mongodb": "7.6.0",
     "mongodb-connection-string-url": "7.0.2",
     "mongoose": "9.10.1",
-    "parse5": "8.0.1"
+    "parse5": "8.0.1",
+    "ws": "8.22.0"
   },
   "devDependencies": {
     "nodemon": "3.1.14"

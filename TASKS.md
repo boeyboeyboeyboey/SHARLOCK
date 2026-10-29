@@ -182,7 +182,8 @@ Move the task's active record rather than duplicating it across board states. Re
 - **Difficulty and checks:** complexity 3; new dependency `ws` (approved); unit, integration (origin, no cookie, removal, cross-class isolation, staff join) and a two-context E2E.
 - **Collision check (30 Oct):** no TASKS record, branch or code for this feature (rg over TASKS.md, `client/src`, `server/src`, remote branches); DESIGN.md:110 and the HUB-01 follow-ups listed it as needing its own approval, now given. Teammate worktrees were not inspected.
 - **Docs impact:** README §2 (dependency), README "Using the app", hub README, presence server README, this record.
-- **Next action:** implement in batch order (COH-04, UX-01, NPC-02, NPC-03, MP-01, INT-01, AUDIO-04).
+- **Stage A (server) done, 30 Oct 2026:** `server/src/modules/presence/` (README, protocol, look, rooms, service), narrow additions in auth (`hasExpectedOrigin`, `resolveSessionUser`, `recheckSession`, `session-ended` event on logout), cohorts (`onMembershipChanged` after `decide`), `app.js`, `server.js`; `ws` 8.22.0 pinned exact. Verification: `pnpm exec vitest run server/tests/unit` 954/954; presence integration 16/16; auth, profile and wardrobe integration plus presence 63 passed, 2 skipped; cohorts and admin integration (`--replica-set`) 65/65. Not run: E2E (stage B).
+- **Next action:** stage B (client `features/hub/presence/`, Vite `ws: true`, E2E, README "Using the app", hub README).
 
 **INT-01 — Game interiors** · Status: **In Progress** · Contributor: **Boey** (implemented by Claude Code) · Branch: `int-01-game-interiors` · Plan approved by Boey on 30 October 2026 (mega-batch, `.local-handover/MEGA-BATCH-PLAN-2026-10-30.md`); Boey states the team has consented to this feature. Pre-approved for the batch: branch, commit and `--no-ff` merge into local `main` after checks; no push.
 
