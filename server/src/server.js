@@ -33,6 +33,7 @@ async function shutdown() {
   shuttingDown = true
   clearInterval(newsCleanup)
   const timeout = setTimeout(() => process.exit(1), 5000).unref()
+  app?.locals.presence?.close()
   if (server) await new Promise((resolve) => server.close(resolve))
   await app?.locals.disposeAuth?.()
   if (database) await database.close()
@@ -116,6 +117,9 @@ try {
     ...(config.nodeEnv === 'test' && { attempts: { limits: E2E_ATTEMPT_LIMITS } }),
   })
   server = app.listen(config.port, '127.0.0.1')
+  server.on('upgrade', (request, socket, head) => {
+    app.locals.presence.handleUpgrade(request, socket, head)
+  })
   server.on('listening', () =>
     console.log(`SHARLOCK API ready at http://localhost:${config.port}/api/health`),
   )

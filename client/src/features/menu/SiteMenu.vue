@@ -3,6 +3,7 @@ defineOptions({ name: 'SharlockSiteMenu' })
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { avatarFor } from '../auth/avatars.js'
 import { useDiscoveries } from '../hub/discoveries.js'
+import { usePresenceRoster } from '../hub/presence/roster.js'
 import './menu.css'
 
 const props = defineProps({
@@ -20,6 +21,8 @@ const isStaff = computed(() => roles.value.some((role) => ['instructor', 'admin'
 const isAdmin = computed(() => roles.value.includes('admin'))
 const avatar = computed(() => avatarFor(props.user?.avatarId))
 const discoveries = useDiscoveries()
+const { state: presence, count: onlineCount } = usePresenceRoster()
+const onlineOpen = ref(false)
 
 function sync() {
   const el = dialog.value
@@ -76,6 +79,31 @@ watch(() => props.open, sync)
       <p class="menu-count" data-testid="menu-discoveries">
         Discoveries <strong>{{ discoveries.count.value }}/{{ discoveries.total }}</strong>
       </p>
+      <div v-if="presence.active" class="menu-online" data-testid="menu-online">
+        <label v-if="presence.staff && presence.classes.length" class="menu-online-class">
+          Class
+          <select v-model="presence.selectedCohortId" data-testid="menu-online-class">
+            <option v-for="c in presence.classes" :key="c.cohortId" :value="c.cohortId">
+              {{ c.cohortName }}
+            </option>
+          </select>
+        </label>
+        <button
+          type="button"
+          class="menu-online-toggle"
+          data-testid="menu-online-toggle"
+          aria-controls="menu-online-list"
+          :aria-expanded="String(onlineOpen)"
+          @click="onlineOpen = !onlineOpen"
+        >
+          Online in your class: <strong data-testid="menu-online-count">{{ onlineCount }}</strong>
+        </button>
+        <ul v-show="onlineOpen" id="menu-online-list" class="menu-online-list" data-testid="menu-online-list">
+          <li v-for="peer in presence.peers" :key="peer.sid">
+            {{ peer.username }}<small v-if="peer.staff"> (staff)</small>
+          </li>
+        </ul>
+      </div>
       <nav aria-label="Site menu">
         <ul class="menu-list">
           <template v-if="user">

@@ -18,7 +18,7 @@ export default defineConfig(({ mode }) => {
       host: origin.hostname === '[::1]' ? '::1' : origin.hostname,
       port: Number(origin.port || 80),
       strictPort: true,
-      proxy: { '/api': { target: `http://127.0.0.1:${apiPort}` } },
+      proxy: { '/api': { target: `http://127.0.0.1:${apiPort}`, ws: true } },
     },
   }
 })

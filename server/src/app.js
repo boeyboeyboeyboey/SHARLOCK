@@ -13,6 +13,7 @@ import { createProductionAttemptRegistry } from './modules/attempts/production-r
 import { createProgressRouter } from './modules/progress/router.js'
 import { createClassResultsRouter } from './modules/class-results/router.js'
 import { createLeaderboardRouter } from './modules/leaderboards/router.js'
+import { createPresenceService } from './modules/presence/service.js'
 import { createProfileRouter } from './modules/profile/router.js'
 import { createWardrobeRouter } from './modules/wardrobe/router.js'
 import { createRecoveryRouter } from './modules/recovery/router.js'
@@ -32,6 +33,7 @@ export function createApp(
     news = {},
     socialEngineering = {},
     cliDefender = {},
+    presence: presenceOptions = {},
   } = {},
 ) {
   const app = express()
@@ -46,6 +48,15 @@ export function createApp(
   app.use(express.json({ limit: '16kb' }))
   const authRuntime = createAuthRouter(database, auth, mail.mailer ? { mailer: mail.mailer } : {})
   app.use('/api/auth', authRuntime.router)
+  // websocket presence is attached to the http server by server.js through app.locals.presence
+  const presence = createPresenceService(database, {
+    clientOrigin: authRuntime.clientOrigin,
+    resolveSessionUser: authRuntime.resolveSessionUser,
+    recheckSession: authRuntime.recheckSession,
+    ...presenceOptions,
+  })
+  authRuntime.events.on('session-ended', presence.disconnectSession)
+  app.locals.presence = presence
   const adminRouter = createAdminRouter(database, {
     ...admin,
     now: admin.now ?? authRuntime.now,
@@ -66,6 +77,7 @@ export function createApp(
   )
   const cohortRouter = createCohortRouter(database, {
     ...cohorts,
+    onMembershipChanged: presence.refresh,
     now: cohorts.now ?? authRuntime.now,
     clientOrigin: authRuntime.clientOrigin,
     requireSession: authRuntime.requireSession,
@@ -145,6 +157,7 @@ export function createApp(
   app.use(notFound)
   app.use(handleError)
   app.locals.disposeAuth = () => {
+    presence.close()
     adminRouter.dispose()
     cohortRouter.dispose()
     attemptRouter.dispose()

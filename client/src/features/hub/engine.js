@@ -222,6 +222,8 @@ export function createHub({ container, joystick = {}, params = new URLSearchPara
     back: () => api()?.back() ?? Promise.resolve(false),
     resetCamera: () => api()?.resetCamera(),
     position: () => api()?.debug.position() ?? null,
+    setPeers: (map) => api()?.setPeers(map),
+    peerLabels: () => api()?.peerLabels() ?? [],
     pauseInput(value) {
       state.inputPaused = Boolean(value);
       api()?.setInputPaused(state.inputPaused);

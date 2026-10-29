@@ -1,3 +1,5 @@
+import { ServerResponse } from 'node:http'
+import { EventEmitter } from 'node:events'
 import { Router } from 'express'
 import { createCsrfTools, requireExpectedOrigin } from './csrf.js'
 import { createRateLimits, rateLimitResponse } from './rate-limits.js'
@@ -109,6 +111,7 @@ export function createAuthRouter(database, settings, { mailer = createConsoleMai
   const csrf = createCsrfTools()
   const requireOrigin = requireExpectedOrigin(authSettings.clientOrigin)
   const router = Router()
+  const events = new EventEmitter()
 
   router.use((_request, response, next) => {
     response.set('Cache-Control', 'no-store')
@@ -360,7 +363,9 @@ export function createAuthRouter(database, settings, { mailer = createConsoleMai
     try {
       parseEmptyQuery(request.query)
       parseEmptyInput(request.body)
+      const endedSessionId = request.sessionID
       await destroySession(request)
+      events.emit('session-ended', endedSessionId)
       clearSessionCookie(response, authSettings.secureCookie)
       response.status(204).end()
     } catch (error) {
@@ -451,7 +456,36 @@ export function createAuthRouter(database, settings, { mailer = createConsoleMai
 
   router.use(requestError)
 
+  async function activeUserFor(sessionData) {
+    if (!sessionData?.userId || sessionIsExpired(sessionData, authSettings.now)) return null
+    return authService.findActiveSessionUser(sessionData.userId, sessionData.authVersion)
+  }
+
+  // narrow session access for the websocket upgrade: the same store and cookie, no second system
+  async function resolveSessionUser(request) {
+    await new Promise((resolve, reject) => {
+      sessionRuntime.middleware(request, new ServerResponse(request), (error) =>
+        error ? reject(error) : resolve(),
+      )
+    })
+    const user = await activeUserFor(request.session)
+    return user ? { user, sessionId: request.sessionID } : null
+  }
+
+  async function recheckSession(sessionId) {
+    const sessionData = await new Promise((resolve, reject) => {
+      sessionRuntime.store.get(sessionId, (error, value) =>
+        error ? reject(error) : resolve(value),
+      )
+    })
+    const user = await activeUserFor(sessionData)
+    return user ? { user, sessionId } : null
+  }
+
   return Object.freeze({
+    events,
+    resolveSessionUser,
+    recheckSession,
     router,
     requireSession: createProtectedSessionAccess(sessionRuntime, authService),
     requireMutation: [requireOrigin, csrf.protect],

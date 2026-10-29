@@ -20,23 +20,24 @@ export function createCsrfTools() {
   return Object.freeze({ generateToken: csrf.generateToken, protect })
 }
 
+// headers is a plain lowercase header object so http upgrade requests can reuse the check
+export function hasExpectedOrigin(headers, clientOrigin) {
+  let sourceOrigin = headers.origin
+  if (sourceOrigin === undefined && headers.referer !== undefined) {
+    try {
+      const parsed = new URL(headers.referer)
+      if (!parsed.username && !parsed.password) sourceOrigin = parsed.origin
+    } catch {
+      sourceOrigin = undefined
+    }
+  }
+  return sourceOrigin === clientOrigin
+}
+
 export function requireExpectedOrigin(clientOrigin) {
   return (request, _response, next) => {
-    const origin = request.get('origin')
-    let sourceOrigin = origin
-    if (origin === undefined) {
-      const referer = request.get('referer')
-      if (referer !== undefined) {
-        try {
-          const parsed = new URL(referer)
-          if (!parsed.username && !parsed.password) sourceOrigin = parsed.origin
-        } catch {
-          sourceOrigin = undefined
-        }
-      }
-    }
-
-    if (sourceOrigin !== clientOrigin) {
+    const headers = { origin: request.get('origin'), referer: request.get('referer') }
+    if (!hasExpectedOrigin(headers, clientOrigin)) {
       next(new AuthError('ORIGIN_FORBIDDEN', 'This request came from an untrusted origin.', 403))
       return
     }

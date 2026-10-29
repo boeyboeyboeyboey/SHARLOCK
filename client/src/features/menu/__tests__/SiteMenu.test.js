@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { mount, RouterLinkStub } from '@vue/test-utils'
 import SiteMenu from '../SiteMenu.vue'
+import { resetRoster, usePresenceRoster } from '../../hub/presence/roster.js'
 
 const student = { username: 'detective_boey', avatarId: 'capybara', globalRoles: ['student'] }
 const instructor = { ...student, globalRoles: ['instructor'] }
@@ -84,5 +85,47 @@ describe('site menu', () => {
     await wrapper.findAllComponents(RouterLinkStub)[0].trigger('click')
     expect(wrapper.emitted('navigate')).toHaveLength(1)
     wrapper.unmount()
+  })
+
+  describe('online in your class', () => {
+    afterEach(resetRoster)
+
+    it('is hidden unless the 3d hub is running presence', () => {
+      const wrapper = mountMenu()
+      expect(wrapper.find('[data-testid="menu-online"]').exists()).toBe(false)
+      wrapper.unmount()
+    })
+
+    it('shows the count and a collapsible list of classmates', async () => {
+      const { state } = usePresenceRoster()
+      state.active = true
+      state.peers = [
+        { sid: 'a', username: 'ada', staff: false },
+        { sid: 'b', username: 'mr_lee', staff: true },
+      ]
+      const wrapper = mountMenu()
+      expect(wrapper.get('[data-testid="menu-online-toggle"]').text()).toBe('Online in your class: 2')
+      const toggle = wrapper.get('[data-testid="menu-online-toggle"]')
+      expect(toggle.attributes('aria-expanded')).toBe('false')
+      expect(wrapper.get('[data-testid="menu-online-list"]').isVisible()).toBe(false)
+      await toggle.trigger('click')
+      expect(toggle.attributes('aria-expanded')).toBe('true')
+      const items = wrapper.findAll('[data-testid="menu-online-list"] li').map((li) => li.text())
+      expect(items).toEqual(['ada', 'mr_lee (staff)'])
+      expect(wrapper.find('[data-testid="menu-online-class"]').exists()).toBe(false)
+      wrapper.unmount()
+    })
+
+    it('gives staff a class picker that changes the chosen class', async () => {
+      const { state } = usePresenceRoster()
+      state.active = true
+      state.staff = true
+      state.classes = [{ cohortId: 'c1', cohortName: 'One' }, { cohortId: 'c2', cohortName: 'Two' }]
+      state.selectedCohortId = 'c1'
+      const wrapper = mountMenu({ user: instructor })
+      await wrapper.get('[data-testid="menu-online-class"]').setValue('c2')
+      expect(state.selectedCohortId).toBe('c2')
+      wrapper.unmount()
+    })
   })
 })

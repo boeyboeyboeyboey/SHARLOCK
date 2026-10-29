@@ -80,11 +80,23 @@ function saveSession(request) {
 
 export function createCohortRouter(
   database,
-  { requireSession, requireMutation, now, clientOrigin, recordAuditEvent } = {},
+  {
+    requireSession,
+    requireMutation,
+    now,
+    clientOrigin,
+    recordAuditEvent,
+    onMembershipChanged,
+  } = {},
 ) {
   const sessionMiddleware = requireMiddlewareArray(requireSession, 'session')
   const mutationMiddleware = requireMiddlewareArray(requireMutation, 'mutation')
-  const service = createCohortService(database, { now, clientOrigin, recordAuditEvent })
+  const service = createCohortService(database, {
+    now,
+    clientOrigin,
+    recordAuditEvent,
+    onMembershipChanged,
+  })
   const router = Router()
   const joinUser = createLimiter({
     windowMs: 15 * 60 * 1000,
