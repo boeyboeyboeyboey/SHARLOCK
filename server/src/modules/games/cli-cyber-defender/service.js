@@ -116,6 +116,19 @@ function concepts(scenario) {
   }
 }
 
+// an early practice end skips the incident on screen and every later one; the player saw only
+// the settled incidents and that first skipped one, so the rest stay out of the debrief
+function reachedIncidents(incidents) {
+  const firstSkipped = incidents.findIndex((item) => item.outcome === 'skipped')
+  return firstSkipped === -1 ? incidents : incidents.slice(0, firstSkipped + 1)
+}
+
+function debriefSummary(correct, reached, total) {
+  const summary = `You contained ${correct} of ${reached} incidents.`
+  if (reached === total) return summary
+  return `${summary} Practice ended after challenge ${reached} of ${total}.`
+}
+
 // open and pending incidents are still in play; every other outcome is settled
 function isResolved(item) {
   return !['open', 'pending'].includes(item.outcome)
@@ -413,8 +426,11 @@ export function createCliDefenderService({
     run.lastActivityAt = wall
     const final = deriveProgress(run, at)
     const count = (outcome) => final.incidents.filter((item) => item.outcome === outcome).length
+    // the saved attempt keeps all eight outcomes; the debrief only explains what the player reached
+    run.finalIncidents = final.incidents
+    const reached = reachedIncidents(final.incidents)
 
-    const debrief = final.incidents.map((item) => {
+    const debrief = reached.map((item) => {
       const incident = run.incidents[item.index]
       const commands = expectedCommands(incident.scenario)
       return {
@@ -460,9 +476,7 @@ export function createCliDefenderService({
         skipped: count('skipped'),
         bestStreak: final.bestStreak,
       },
-      feedback: {
-        summary: `You contained ${correct} of ${run.incidents.length} incidents.`,
-      },
+      feedback: { summary: debriefSummary(correct, reached.length, run.incidents.length) },
       topicOutcomes,
       debrief,
     }
@@ -475,10 +489,10 @@ export function createCliDefenderService({
     const completion = completeRun(runId, body, owner)
     const run = runs.get(runId)
     if (!run.savedAttempt) {
-      const incidents = run.completion.debrief.map((item) => ({
+      const incidents = run.finalIncidents.map((item) => ({
         scenarioId: run.incidents[item.index].scenario.id,
         outcome: item.outcome,
-        hintUsed: item.hintUsed,
+        hintUsed: run.incidents[item.index].hintUsed,
         trail: run.incidents[item.index].events.map((event) => event.kind),
       }))
       try {

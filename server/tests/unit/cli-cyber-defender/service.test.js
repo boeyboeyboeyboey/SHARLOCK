@@ -357,6 +357,35 @@ describe('cli defender service', () => {
     expect(result.mode).toBe('practice')
     expect(result.result.skipped).toBe(8)
     expect(result.score).toBe(0)
+    expect(result.debrief).toHaveLength(1)
+    expect(result.debrief[0]).toMatchObject({ incidentId: 'incident-01', outcome: 'skipped' })
+  })
+
+  it('debriefs only the incidents reached when practice ends early', () => {
+    const { service } = setup()
+    const started = service.startRun({ mode: 'practice' })
+    const onScreen = solve(service, started).current
+    const result = service.completeRun(RUN_ID, { actionId: nextAction() })
+
+    expect(result.debrief.map((item) => item.incidentId)).toEqual([
+      'incident-01',
+      onScreen.incidentId,
+    ])
+    expect(result.debrief[0].outcome).toBe('correct')
+    expect(result.debrief[1].outcome).toBe('skipped')
+    expect(result.debrief[1].expectedCommands.length).toBeGreaterThan(0)
+    expect(result.feedback.summary).toBe(
+      'You contained 1 of 2 incidents. Practice ended after challenge 2 of 8.',
+    )
+    const reachedTopics = new Set(result.debrief.map((item) => item.topic))
+    expect(result.topicOutcomes.every((topic) => reachedTopics.has(topic.topic))).toBe(true)
+    // no explanation or title of an unreached incident reaches the response
+    const shown = new Set(result.debrief.map((item) => item.explanation))
+    const serialized = JSON.stringify(result)
+    const leaked = SCENARIOS.filter(
+      (scenario) => !shown.has(scenario.explanation) && serialized.includes(scenario.explanation),
+    )
+    expect(leaked).toEqual([])
   })
 
   it('finishes a timed run by expiry and reports every miss', () => {
@@ -468,7 +497,10 @@ describe('cli defender service', () => {
       () => service.hintRun(RUN_ID, { incidentId: 'incident-02' }),
       'CLI_INCIDENT_CLOSED',
     )
+    // reach the second incident so the debrief lists one hinted and one unhinted incident
+    solve(service, hinted)
     const result = service.completeRun(RUN_ID, { actionId: nextAction() })
+    expect(result.debrief).toHaveLength(2)
     expect(result.debrief[0]).toMatchObject({ hintUsed: true })
     expect(result.debrief[1]).toMatchObject({ hintUsed: false })
     expect(result.debrief[0].concepts.stage).toBe('Containment')
