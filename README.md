@@ -239,6 +239,8 @@ Games open a **How to play** guide on your first visit. Tick "Don't show again" 
 
 **Graphics** (Auto, High, Medium or Low; remembered). Auto checks the device: no WebGL2 or a software renderer selects 2D; save-data, 2 GB of memory or less, or 2 CPU cores or fewer selects Low. It then watches the frame rate, stepping quality down and finally to 2D, unless you explicitly chose 3D. An automatic-2D notice offers "Try 3D anyway" with a warning.
 
+**Game rooms (INT-01).** Each game opens inside a small 3D room of its building on the wharf, with the game in a framed desk panel in front (Telegraph Office, Post Office, Customs House, the Capybara & Crown snug and the river-police records room). In 2D mode, without WebGL or on a slow device the room is a still image of the same room, and under reduced motion or on Low graphics it is drawn once and does not move. Developer notes are in the [interiors README](client/src/features/interiors/README.md).
+
 **Destinations**
 
 | Building / game                                                          | What it is                                                                                       | Status                                                                              | Link                                                                     |
