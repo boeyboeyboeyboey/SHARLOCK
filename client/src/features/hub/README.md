@@ -93,12 +93,13 @@ See `tests/e2e/portal.spec.js:6`.
 ## Townsfolk (NPC-01)
 
 - Who: nine capybaras from `scenes/wharf/npcs.js`. Six game keepers stand beside their doors (customs officer, telegraph clerk, postmaster, police constable, publican, news vendor) and three wanderers (fisherman, lamplighter, gull feeder) are scenery with a one-liner. Each has a small collider post, kept clear of the pier rails so it never makes a pocket against the walkable edge. They face the player within 4 m, otherwise their post.
+- Patrols (NPC-02): only wanderers move. Each has `route` (2-4 waypoints, the first is its post) and `pause` seconds in `npcs.js`, and walks the loop at 1.4 m/s using the rig's walk cycle on the desktop tier (a glide on static meshes). The stepping is the pure `scenes/wharf/patrol.js`. A wanderer stands still while the player is within 4 m, while a talk with it is open (`setInputPaused` plus `state.nearNpc`), under reduced motion (it stays at its post) and beyond 25 m (frozen, not simulated). Each wanderer owns an animated Havok collider that follows it (`setTargetTransform`); game keepers stay in the static compound. `__hub.debug.npcs()` returns live positions and `__hub.debug.freezeNpcs(true)` halts every patrol so E2E can pin positions. Tests: `__tests__/patrol.test.js` (route walkability, doors, lanes, spawn, stepping, hold rules).
 - Tiers: animated rigs (`townsfolk.js`, own idle seed each) on the desktop tier, static meshes on compact and low (`npcRigs` in `quality.js`).
 - Talk rule: `townsfolk.update` returns the nearest npc the player can talk to, written to `state.nearNpc`: within 2.5 m, or for a game keeper also while `state.nearDoor` is that keeper's game. The **Talk to <name>** button (`data-testid="talk"`) shows beside Enter in explore mode only.
 - Flow: Talk opens `NpcDialogue.vue` (`role="dialog"`, non-modal, `data-testid="npc-dialogue"`), announces "Talking to <name>", focuses the panel and pauses movement (`useNpcDialogue.js` holds the line state). Next steps through the lines; the last line offers **Go in** (selects the keeper's game if needed, then the same path as Enter) and **Close** for game keepers, or **Bye** for wanderers. Walking away, leaving explore mode or a paused hub closes it.
 - Escape order: Keys legend, then the dialogue (focus returns to Talk), then the destination pick.
 - Lines: scripted text only, all in `npcs.js` (`lines`; game keepers 2-4, wanderers 1-2, 140 characters at most). No model, no rewards.
-- Tests: `__tests__/npcs.test.js`, `useNpcDialogue.test.js`, `NpcDialogue.test.js`; `tests/e2e/hub-npcs.spec.js`.
+- Tests: `__tests__/npcs.test.js`, `patrol.test.js`, `useNpcDialogue.test.js`, `NpcDialogue.test.js`; `tests/e2e/hub-npcs.spec.js`.
 
 ## Assets and adding a building
 
