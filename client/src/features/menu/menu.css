@@ -455,3 +455,32 @@
     opacity: 0;
   }
 }
+
+.menu-online {
+  display: grid;
+  gap: 4px;
+  padding: 0 10px;
+  font-size: 14px;
+}
+.menu-online-toggle {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.menu-online-list {
+  margin: 0;
+  padding-left: 18px;
+}
+.menu-online-class {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.menu-online-class select {
+  min-width: 0;
+  flex: 1;
+}

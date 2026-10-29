@@ -15,6 +15,8 @@ import { useLoreIntro } from './intro/useLoreIntro.js'
 import { decidePerf, perfRecord, writePerf } from './perfWatch.js'
 import { getDeviceCheck } from './deviceCheck.js'
 import { isSolidHud } from './glass.js'
+import { useAuthStore } from '../auth/store.js'
+import { usePresence } from './presence/usePresence.js'
 
 const props = defineProps({
   games: { type: Array, required: true },
@@ -54,6 +56,52 @@ const view = reactive({
 })
 let hub = null
 let gone = false
+let presenceStarted = false
+
+// classmates on the wharf: the composable owns the socket, the scene draws the peers, these labels float over them
+const auth = useAuthStore()
+const labelLayer = ref(null)
+const labelNodes = new Map()
+let labelFrame = 0
+let latestPeers = new Map()
+const presence = usePresence({
+  getPlayer: () => hub?.state?.player ?? null,
+  staff: (auth.user?.globalRoles ?? []).some((role) => ['instructor', 'admin'].includes(role)),
+  onPeers: (peers) => {
+    latestPeers = peers
+    hub?.setPeers(peers)
+  },
+})
+
+function drawLabels() {
+  labelFrame = requestAnimationFrame(drawLabels)
+  const layer = labelLayer.value
+  if (!layer) return
+  const list = hub?.peerLabels() ?? []
+  const seen = new Set()
+  for (const item of list) {
+    seen.add(item.sid)
+    let node = labelNodes.get(item.sid)
+    if (!node) {
+      node = document.createElement('span')
+      node.className = 'hub-peer-label'
+      node.textContent = item.username
+      if (item.staff) {
+        const tag = document.createElement('small')
+        tag.textContent = 'staff'
+        node.append(' ', tag)
+      }
+      layer.append(node)
+      labelNodes.set(item.sid, node)
+    }
+    node.style.transform = `translate(${item.x.toFixed(1)}px, ${item.y.toFixed(1)}px) translate(-50%, -100%)`
+  }
+  for (const [sid, node] of labelNodes) {
+    if (seen.has(sid)) continue
+    node.remove()
+    labelNodes.delete(sid)
+  }
+}
 
 const lore = useLoreIntro()
 const introPlaying = lore.playing
@@ -352,10 +400,18 @@ async function mountHub(resume = null) {
     },
   })
   hub = next
+  hub.setPeers(latestPeers)
   if (paused.value) pauseFromProp(true)
   if (view.selected) next.select(view.selected)
   next.ready.then(
     () => {
+      if (!gone && mine === generation) {
+        next.setPeers(latestPeers)
+        if (auth.user && !presenceStarted) {
+          presenceStarted = true
+          presence.start()
+        }
+      }
       // coming back from a game puts focus on that destination's list button
       const active = document.activeElement
       const idle = !active || active === document.body || active.tagName === 'H1'
@@ -383,6 +439,7 @@ onMounted(() => {
   motionQuery?.addEventListener?.('change', onMotionChange)
   if (!lore.hasSeen()) lore.start()
   mapTimer = setInterval(samplePlayer, 100)
+  labelFrame = requestAnimationFrame(drawLabels)
   mountHub()
 })
 
@@ -392,6 +449,7 @@ onBeforeUnmount(() => {
   motionQuery?.removeEventListener?.('change', onMotionChange)
   gone = true
   clearInterval(mapTimer)
+  cancelAnimationFrame(labelFrame)
   clearTimeout(announceTimer)
   hub?.dispose()
   hub = null
@@ -435,6 +493,7 @@ defineExpose({
     aria-label="Thames Wharf"
   >
     <div ref="stage" class="hub-stage"></div>
+    <div ref="labelLayer" class="hub-peer-labels" aria-hidden="true"></div>
     <div class="hub-fade" :class="{ on: faded }" aria-hidden="true"></div>
     <div class="hub-hud">
       <slot></slot>
@@ -568,6 +627,29 @@ defineExpose({
 .hub-stage :deep(canvas:focus-visible) {
   outline: 3px solid var(--accent-primary);
   outline-offset: -3px;
+}
+.hub-peer-labels {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.hub-peer-labels :deep(.hub-peer-label) {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgb(20 32 46 / 72%);
+  color: #f3eedd;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.hub-peer-labels :deep(.hub-peer-label small) {
+  color: #f9bd38;
+  font-size: 10px;
+  text-transform: uppercase;
 }
 .hub-fade {
   position: absolute;

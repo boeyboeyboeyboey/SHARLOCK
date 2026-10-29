@@ -37,11 +37,21 @@ Players' controls and settings are described in the root README under "Using the
 - localStorage: `sharlock.graphics`, `sharlock.townMode` (explicit choice only, never an automatic fallback), `sharlock.hubPerf`, `sharlock.discoveries` (found discovery ids, JSON list), `sharlock.autoNoticeDismissed`, `sharlock.loreIntroSeen` (`'1'` once the lore intro finishes or is skipped).
 - sessionStorage: `sharlock.hubReturn` (building to restore after returning from a game).
 
+## Wharf presence (MP-01 stage B)
+
+Classmates appear as ghost capybaras in the 3D hub only; the 2D town shows nothing (known limitation). Wire protocol and limits: [presence server README](../../../../server/src/modules/presence/README.md).
+
+- `presence/usePresence.js`: `createPresence` owns one websocket to `/api/presence` (same origin, `ws:` or `wss:` from the page; the Vite `/api` proxy has `ws: true`). It starts once the hub is ready for a signed-in user and stops on unmount. A `move` goes out at most every 100 ms and only when the position, yaw or moving flag changed, plus a keepalive each second. It reconnects with 1 s to 30 s backoff after an abnormal close (gives up after 10 failures in a row) and does not reconnect on 4401 (quiet), 4403 or 4408. Staff load their classes from `GET /cohorts/managed`, `join` the selected one first and rejoin when the menu picker changes.
+- `presence/roster.js`: shared reactive state (`active`, `peers`, `classes`, `selectedCohortId`) that the site menu reads, so the menu shows "Online in your class: N" (others only) with a collapsible list and, for staff, a Class picker. It is hidden when presence is not running.
+- `presence/remotePeers.js`: draws at most 20 peers (nearest first), eased toward each report by `rules.js` `approachPeer` (snaps beyond 8 m). The desktop tier uses `createCapybaraRig` with the peer's `look` mapped through `rigOptionsFor`, walking while `moving`; compact and low tiers use `createCapybaraStatic` (scarf and cap colour only, no hat or monocle). Peers have no physics colliders. Name labels are projected DOM spans in `HubScene.vue`, `aria-hidden`, hidden when behind the camera or off screen, with a "staff" tag; the menu list is the accessible equivalent.
+- Dev hook `__hub.debug.peers()` returns `[{ username, x, z }]` of the drawn peers.
+- Tests: `__tests__/presenceRules.test.js`, `__tests__/usePresence.test.js` (mock WebSocket), the online list in `features/menu/__tests__/SiteMenu.test.js`, and `tests/e2e/hub-presence.spec.js` (two students in one class see each other and a third in another class sees none; desktop project only, run with `--project=desktop-chromium`).
+
 ## Dev-only hooks (`import.meta.env.DEV` only)
 
 - URL: `?hub=force3d`, `?renderer=webgl2`, `?tier=desktop|compact|low`, `?mirror=0|1`.
 - localStorage: `sharlock.hubForce3d=1` (force 3D on software rendering), `sharlock.hubWatchManual=1` (runtime watch reacts only to simulated fps).
-- `window.__hub`: `state`, `select`, `enter`, `back`, `resetCamera`, `pauseInput`, `debug.{position,doors,walkTo,simulateFps,jump,airborne}`.
+- `window.__hub`: `state`, `select`, `enter`, `back`, `resetCamera`, `pauseInput`, `debug.{position,peers,doors,walkTo,simulateFps,jump,airborne}`.
 - A status line shows engine, fps and draw calls.
 
 ## Lore intro

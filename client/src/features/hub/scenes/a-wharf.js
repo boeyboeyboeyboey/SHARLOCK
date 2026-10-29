@@ -29,6 +29,7 @@ import { createWater, waterClock } from './wharf/water.js';
 import { buildBoats } from './wharf/boats.js';
 import { buildLife } from './wharf/life.js';
 import { buildTownsfolk } from './wharf/townsfolk.js';
+import { createRemotePeers } from '../presence/remotePeers.js';
 import { buildOutskirts } from './wharf/outskirts.js';
 import { finds } from './wharf/finds.js';
 import { nearestFind } from '../discoveries.js';
@@ -186,6 +187,8 @@ export async function build({ engine, scene, canvas, state, notify, params, joys
   const frameOffset = -2.7;
   let frameNow = frameOffset;
   camera.targetScreenOffset.set(0, frameOffset);
+  const peers = createRemotePeers({ scene, camera, engine, canvas, tier, reduced, look, getPlayer: () => state.player });
+  disposers.push(() => peers.dispose());
   const metrics = createInstrumentation({ scene, state });
   const windowLit = world.materials.windowLit;
   const start = performance.now();
@@ -215,6 +218,7 @@ export async function build({ engine, scene, canvas, state, notify, params, joys
     lamps.update(t, dt);
     boats.update(dt);
     life.update(dt);
+    peers.update(dt);
     const talk = townsfolk.update(dt, state.player, state.nearDoor, inputPaused ? state.nearNpc : null);
     if (talk !== state.nearNpc) {
       state.nearNpc = talk;
@@ -265,6 +269,8 @@ export async function build({ engine, scene, canvas, state, notify, params, joys
         if (inputPaused) applyInput();
         return done;
       },
+      setPeers: peers.set,
+      peerLabels: peers.labels,
       setInputPaused: (value) => {
         inputPaused = Boolean(value);
         applyInput();
@@ -298,6 +304,7 @@ export async function build({ engine, scene, canvas, state, notify, params, joys
         sharlockStats: () => ({ triangles: control.player.rig?.triangles() ?? 0, meshes: control.player.rig?.drawCalls() ?? 0 }),
         lampsLit: () => lamps.litFraction(),
         npcs: () => townsfolk.list(),
+        peers: peers.list,
         finds: () => finds.map(({ id, kind, name, x, z }) => ({ id, kind, name, x, z })),
         freezeNpcs: (value) => townsfolk.setFrozen(value),
         cab: () => life.cabAt(),
