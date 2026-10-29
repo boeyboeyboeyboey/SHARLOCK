@@ -140,6 +140,16 @@ No active implementation task.
 
 ## Review
 
+**HUB-08 — Glass HUD** · Status: **Review** · Contributor: **Boey** · Branch: `hub-08-glass-hud` (cut from `origin/main` at `f64a3c5`, 29 October 2026, upstream unset) · Plan approved by Boey on 29 October 2026 (stage 1 with HUB-09 and TOWN-02, `.local-handover/STAGE1-PLAN-2026-10-29.md`); Boey chose the smoked-glass variant from a local mockup.
+
+- **Scope:** hub HUD boxes (`HubScene.vue`, `KeyLegend.vue`, `NpcDialogue.vue`, `HubMinimap.vue`, the hub row in `Dashboard.vue`) become smoked glass (deep navy tint at about 72% opacity, blur, light ink, hairline edge) through hub-local `--hub-glass-*` variables; solid fallback without `backdrop-filter`, under `prefers-reduced-transparency: reduce`, in forced colours and on the low tier (the auto-stepped tier becomes reactive). Lore intro unchanged (DESIGN.md black and white contract). `:root`, `main.css` and `town.css` are not edited.
+- **Destination buttons (deferred, Boey 30 Oct):** per-game destination buttons and the optional `gameCatalog.js` `shortName` were dropped from this task and folded into the UI/UX overhaul brainstorm (`docs/boey-todo.md` §N); the list buttons keep their current styling inside the glass panel.
+- **Shared edits (consumers):** none. `Dashboard.vue` changes are scoped hub-row styles only (no template edits); the glass variables are defined on `.hub-scene`, not `:root`. New hub file `glass.js` (`isSolidHud`) with `__tests__/glass.test.js`.
+- **Collision check (29 Oct):** no TASKS record for a HUD restyle or destination restyle; HUB-05/06/07, NPC-01 and SKIN-01 (all editing `HubScene.vue`) are merged; teammate remote branches `e2e-06-clearance-howto-settle`, `fmt-01-dashboard-prettier` and `fmt-02-hub-specs-prettier` are already ancestors of `main`.
+- **Docs impact:** hub README (HUD), DESIGN.md (3D hub landing HUD treatment and fallbacks), this record, `docs/boey-todo.md`.
+- **Tests (30 Oct 2026):** hub vitest 158/158 (incl. new `glass.test.js`); eslint clean on `client/src/features/hub` and `Dashboard.vue`; hub E2E (`hub.spec.js`, `hub-npcs.spec.js`, `hub-auto.spec.js`, `--workers=1`) 45 passed / 4 failed / 5 skipped, the 4 mobile failures (`hub.spec.js:170, :208, :245, :258`) ran while the laptop slept and all 4 passed on rerun. Screenshots on the local preview stack (desktop, dialogue, 375 px) show the glass panels; the mobile Jump button and a real GPU were not checked.
+- **Next action:** Boey's review in the browser, then commit with his OK.
+
 **CODE-28 — Repository structure clean-up** · Status: **Review** · Maintenance contributor: **Xin Lei** · Branch: `code-28-structure-cleanup` (cut from `origin/main` at `bac13af`, 29 October 2026).
 
 - **Baseline:** CODE_STYLE.md v1. Read-only folder-structure review of `client/src`, `server/src` and the test folders on `main` `bac13af`; no other open remote branch touched these paths. Behaviour unchanged throughout; no game module, `llm/` engine, server code or dependency changed.
