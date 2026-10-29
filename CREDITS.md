@@ -71,7 +71,7 @@ Libre Baskerville 400 (serif; OFL-1.1; Copyright 2012 The Libre Baskerville Proj
 | 3D hub scene geometry and capybara rig                      | Procedural code in `client/src/features/hub/` (hub README); no external model files are listed under `client/public`         |
 | Guardian "Powered by" logo in The Sharlock Times            | Official [Guardian Powered by logo](https://www.theguardian.com/open-platform/logos), per the Guardian's terms               |
 
-`client/src/assets/images/` is empty; `client/src/assets/styles/` holds the team's own CSS.
+`client/src/assets/styles/` holds the team's own CSS.
 
 ## Audio
 
