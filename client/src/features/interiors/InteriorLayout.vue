@@ -1,10 +1,13 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import PixelIcon from '../../components/town/PixelIcon.vue'
+import { useGameAudio } from '../../composables/useGameAudio.js'
 import { getDeviceCheck } from '../hub/deviceCheck.js'
 import { readGraphics } from '../hub/graphics.js'
 import { createSampler, decidePerf, realSamplingOff } from '../hub/perfWatch.js'
 import { getTier } from '../hub/scenes/shared/quality.js'
+import { useTownControls } from '../menu/townControls.js'
 import { readStoredMode, resolveMode } from '../legacy-town/useTownMode.js'
 import { decideRender, fallbackGradient, stillUrl } from './renderMode.js'
 import { roomFor } from './rooms/index.js'
@@ -13,6 +16,14 @@ import { createInterior } from './useInteriorEngine.js'
 const route = useRoute()
 const roomId = computed(() => String(route.meta.interior ?? ''))
 const room = computed(() => roomFor(roomId.value))
+
+// the room's theme is the only music on a game route
+const { isMuted, starting, toggle, missing } = useGameAudio(() => roomId.value)
+const controls = useTownControls()
+const unregisterSound = controls?.sound.register(
+  reactive({ muted: isMuted, busy: computed(() => starting.value || missing.value), toggle }),
+)
+onBeforeUnmount(() => unregisterSound?.())
 
 const device = getDeviceCheck()
 const stored = readStoredMode()
@@ -110,6 +121,18 @@ onBeforeUnmount(stop)
         />
       </template>
     </div>
+    <button
+      v-if="!missing"
+      class="sound-button interior-sound"
+      type="button"
+      data-testid="interior-sound"
+      :aria-label="isMuted ? 'Turn on game sound' : 'Mute game sound'"
+      :aria-pressed="!isMuted"
+      :disabled="starting"
+      @click="toggle"
+    >
+      <PixelIcon :name="isMuted ? 'mute' : 'sound'" :size="20" />
+    </button>
     <div class="interior-desk" data-testid="interior-desk">
       <RouterView />
     </div>
@@ -243,6 +266,51 @@ onBeforeUnmount(stop)
     --shell-chrome: 176px;
     margin-inline: 0;
     box-shadow: none;
+  }
+}
+
+/* glass button in the room band: top right on phones, centred in the room's top gap from 768px */
+.interior .interior-sound {
+  position: absolute;
+  z-index: 2;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid rgb(243 238 221 / 0.35);
+  border-radius: 12px;
+  background: rgb(20 32 46 / 0.72);
+  color: #f3eedd;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.35);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  transform: none;
+  cursor: pointer;
+}
+
+.interior .interior-sound:hover:not(:disabled),
+.interior .interior-sound:active:not(:disabled) {
+  background: rgb(46 62 80 / 0.85);
+  transform: none;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.35);
+}
+
+.interior .interior-sound:focus-visible {
+  outline: 3px solid #ffd479;
+  outline-offset: 2px;
+}
+
+.interior .interior-sound:disabled {
+  opacity: 0.55;
+}
+
+@media (min-width: 768px) {
+  .interior .interior-sound {
+    top: max(4px, calc((var(--room-gap-y) - 40px) / 2));
+    right: max(8px, calc((var(--room-gap) - 40px) / 2));
   }
 }
 

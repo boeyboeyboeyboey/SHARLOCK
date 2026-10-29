@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import HowToPlayDialog from '../../components/common/HowToPlayDialog.vue'
 import { useHowToPlay } from '../../composables/useHowToPlay.js'
+import { playSfx } from '../../composables/playSfx.js'
 import AttemptContextChooser from '../../features/attempts/components/AttemptContextChooser.vue'
 import SavedAttemptResult from '../../features/attempts/components/SavedAttemptResult.vue'
 import HowToPlayScene from './components/HowToPlayScene.vue'
@@ -117,6 +118,17 @@ watch(
     }
   },
 )
+
+// sound for each call and for the end of the run
+watch(
+  () => last.value?.roundId,
+  (roundId) => {
+    if (roundId && !initializing.value) playSfx(last.value.correct ? 'correct' : 'wrong')
+  },
+)
+watch(completed, (done) => {
+  if (done && !initializing.value) playSfx(endReason.value === 'mistakes' ? 'lose' : 'win')
+})
 
 onBeforeUnmount(() => {
   clearTimeout(stampTimer)

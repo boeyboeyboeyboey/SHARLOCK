@@ -1,7 +1,8 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import HowToPlayDialog from '../../components/common/HowToPlayDialog.vue'
 import { useHowToPlay } from '../../composables/useHowToPlay.js'
+import { playSfx } from '../../composables/playSfx.js'
 import AttemptContextChooser from '../../features/attempts/components/AttemptContextChooser.vue'
 import ChatThread from './components/ChatThread.vue'
 import ConversationTabs from './components/ConversationTabs.vue'
@@ -53,6 +54,11 @@ const {
   retrySave,
   reset,
 } = useSocialEngineeringSession()
+
+// sound when the call ends
+watch(result, (value, previous) => {
+  if (value && !previous) playSfx(value.outcome === 'resisted' ? 'win' : 'lose')
+})
 
 const personaName = computed(() => persona.value?.displayName ?? 'Colleague')
 const verifierName = computed(() => verifier.value?.displayName ?? 'Colleague')

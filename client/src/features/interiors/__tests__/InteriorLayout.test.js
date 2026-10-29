@@ -35,13 +35,20 @@ async function mountAt(path) {
 
 beforeEach(() => {
   localStorage.clear()
+  sessionStorage.clear()
+  vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue()
+  vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
+  vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => {})
   vi.stubGlobal('matchMedia', () => ({
     matches: false,
     addEventListener() {},
     removeEventListener() {},
   }))
 })
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.restoreAllMocks()
+})
 
 describe('InteriorLayout in 2d mode', () => {
   beforeEach(() => localStorage.setItem('sharlock.townMode', '2d'))
@@ -62,5 +69,25 @@ describe('InteriorLayout in 2d mode', () => {
     expect(wrapper.get('[data-testid="interior-fallback"]').attributes('style')).toContain(
       'gradient',
     )
+  })
+
+  it('offers a sound control that mutes the room theme for the session', async () => {
+    const wrapper = await mountAt('/games/cli-cyber-defender')
+    const button = wrapper.get('[data-testid="interior-sound"]')
+    expect(button.attributes('aria-label')).toBe('Mute game sound')
+    expect(button.attributes('aria-pressed')).toBe('true')
+    await button.trigger('click')
+    await flushPromises()
+    expect(button.attributes('aria-label')).toBe('Turn on game sound')
+    expect(sessionStorage.getItem('sharlock.musicMuted')).toBe('1')
+    wrapper.unmount()
+  })
+
+  it('starts muted and silent when the session was already muted', async () => {
+    sessionStorage.setItem('sharlock.musicMuted', '1')
+    const wrapper = await mountAt('/games/cli-cyber-defender')
+    expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled()
+    expect(wrapper.get('[data-testid="interior-sound"]').attributes('aria-pressed')).toBe('false')
+    wrapper.unmount()
   })
 })
