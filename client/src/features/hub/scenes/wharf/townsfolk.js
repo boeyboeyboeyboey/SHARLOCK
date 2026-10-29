@@ -6,6 +6,7 @@ import { PhysicsMotionType } from '@babylonjs/core/Physics/v2/IPhysicsEnginePlug
 import { createCapybaraRig, createCapybaraStatic, furStyles } from '../shared/capybara.js';
 import { applyToon } from './toon.js';
 import { npcs } from './npcs.js';
+import { finds } from './finds.js';
 import { WALK_SPEED, createPatrol, holdsStill, stepPatrol } from './patrol.js';
 
 const SIZE = 1.2;
@@ -17,7 +18,9 @@ const TAU = Math.PI * 2;
 // builds the npc capybaras: animated rigs on the desktop tier, static meshes elsewhere
 export function buildTownsfolk({ scene, tier, reduced, look }) {
   const toon = (m) => applyToon(m, { rimGain: 1.1 });
-  const folk = npcs.map((npc, index) => {
+  // the hidden discovery npcs stand still and face the player like the rest, but are never offered as a talk target
+  const roster = [...npcs, ...finds.filter((find) => find.kind === 'npc').map((find) => ({ ...find, kind: 'hidden' }))];
+  const folk = roster.map((npc, index) => {
     const style = { ...furStyles[npc.style.fur], scarf: npc.style.scarf };
     let root;
     let rig = null;
@@ -54,7 +57,7 @@ export function buildTownsfolk({ scene, tier, reduced, look }) {
   let frozen = false;
 
   // world positions for the talk prompt and tests
-  const list = () => folk.map((f) => ({ id: f.npc.id, name: f.npc.name, role: f.npc.role, kind: f.npc.kind, gameId: f.npc.gameId ?? null, x: f.x, z: f.z }));
+  const list = () => folk.filter((f) => f.npc.kind !== 'hidden').map((f) => ({ id: f.npc.id, name: f.npc.name, role: f.npc.role, kind: f.npc.kind, gameId: f.npc.gameId ?? null, x: f.x, z: f.z }));
 
   // returns the id of the npc the player can talk to: within TALK_RANGE, or a game keeper whose door ring the player stands on
   // talkId is the npc in an open talk, who stands still and faces the player
@@ -67,7 +70,7 @@ export function buildTownsfolk({ scene, tier, reduced, look }) {
       const dx = player.x - f.x;
       const dz = player.z - f.z;
       const dist = Math.hypot(dx, dz);
-      const reachable = dist < TALK_RANGE || (f.npc.kind === 'game' && nearDoor === f.npc.gameId);
+      const reachable = f.npc.kind !== 'hidden' && (dist < TALK_RANGE || (f.npc.kind === 'game' && nearDoor === f.npc.gameId));
       if (reachable && dist < best) {
         best = dist;
         talk = f.npc.id;

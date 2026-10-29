@@ -29,6 +29,9 @@ import { createWater, waterClock } from './wharf/water.js';
 import { buildBoats } from './wharf/boats.js';
 import { buildLife } from './wharf/life.js';
 import { buildTownsfolk } from './wharf/townsfolk.js';
+import { buildOutskirts } from './wharf/outskirts.js';
+import { finds } from './wharf/finds.js';
+import { nearestFind } from '../discoveries.js';
 import { npcs } from './wharf/npcs.js';
 import { setupLook } from './wharf/look.js';
 import { applyToon } from './wharf/toon.js';
@@ -82,6 +85,7 @@ export async function build({ engine, scene, canvas, state, notify, params, joys
   disposers.push(() => lamps.dispose());
   const cargo = buildCargo({ scene, world, barrels: district.crates.filter((c) => c.kind === 'barrel').map((c) => c.at) });
   buildCraneTower({ world });
+  buildOutskirts({ world });
   buildBridge({ world });
   const built = world.finish();
   look.cast(built.casters);
@@ -135,6 +139,7 @@ export async function build({ engine, scene, canvas, state, notify, params, joys
   for (const r of obstacles) box((r.x0 + r.x1) / 2, 1.3, (r.z0 + r.z1) / 2, r.x1 - r.x0, 2.6, r.z1 - r.z0);
   // game keepers stand off the lanes; a small post each keeps sharlock from walking through them (wanderers carry their own moving collider)
   for (const n of npcs.filter((npc) => npc.kind === 'game')) box(n.x, 0.9, n.z, 0.8, 1.8, 0.8);
+  for (const n of finds.filter((find) => find.kind === 'npc')) box(n.x, 0.9, n.z, 0.8, 1.8, 0.8);
   const colliderBody = new PhysicsBody(colliderNode, PhysicsMotionType.STATIC, false, scene);
   colliderBody.shape = compound;
   compound.material = { friction: 0.2, restitution: 0 };
@@ -215,6 +220,11 @@ export async function build({ engine, scene, canvas, state, notify, params, joys
       state.nearNpc = talk;
       notify();
     }
+    const find = nearestFind(state.player)?.id ?? null;
+    if (find !== state.nearFind) {
+      state.nearFind = find;
+      notify();
+    }
   });
 
   state.look = { mirror: Boolean(mirror), lamps: lamps.count, boats: true, tier: tier.name };
@@ -288,6 +298,7 @@ export async function build({ engine, scene, canvas, state, notify, params, joys
         sharlockStats: () => ({ triangles: control.player.rig?.triangles() ?? 0, meshes: control.player.rig?.drawCalls() ?? 0 }),
         lampsLit: () => lamps.litFraction(),
         npcs: () => townsfolk.list(),
+        finds: () => finds.map(({ id, kind, name, x, z }) => ({ id, kind, name, x, z })),
         freezeNpcs: (value) => townsfolk.setFrozen(value),
         cab: () => life.cabAt(),
         worker: (i) => life.workerAt(i),

@@ -7,6 +7,7 @@ defineProps({
   last: { type: Boolean, default: false },
   // game keepers can send the player in; wanderers only say goodbye
   canEnter: { type: Boolean, default: false },
+  closeLabel: { type: String, default: 'Bye' },
 })
 defineEmits(['next', 'enter', 'close'])
 const panel = ref(null)
@@ -59,7 +60,7 @@ defineExpose({ focus: () => panel.value?.focus() })
         data-testid="npc-close"
         @click="$emit('close')"
       >
-        Bye
+        {{ closeLabel }}
       </button>
     </div>
   </div>

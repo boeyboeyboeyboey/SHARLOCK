@@ -38,6 +38,15 @@ export const floors = [
   { x0: -2.9, x1: 2.9, z0: 45, z1: 77.5 },
 ];
 
+// outskirt pockets off the main street: the west back lane, the east yard and a jetty beside the pier
+// kept apart from floors so the minimap, which draws floors, never shows them
+export const pockets = [
+  { x0: -34, x1: -26, z0: -44, z1: -34 },
+  { x0: -43, x1: -33, z0: -44, z1: -4 },
+  { x0: 40, x1: 62, z0: -48.5, z1: -33 },
+  { x0: 2.9, x1: 11, z0: 61.6, z1: 64.4 },
+];
+
 export const obstacles = [
   // newsstand kiosk, pier bollards and crate stacks on the promenade
   { x0: -3.4, x1: -0.4, z0: 53, z1: 56.2 },
@@ -49,11 +58,18 @@ export const obstacles = [
   { x0: 30, x1: 33.4, z0: 40, z1: 43.4 },
   { x0: -9.6, x1: -7.2, z0: -26, z1: -24 },
   { x0: -9.6, x1: -7.2, z0: -18.4, z1: -16.6 },
+  // pocket props: strongbox, crate stack, ledger table, telegraph table and handbill post
+  { x0: -41.1, x1: -39.9, z0: -14.6, z1: -13.4 },
+  { x0: 45, x1: 47.6, z0: -46.6, z1: -44 },
+  { x0: 52.2, x1: 53.8, z0: -37.8, z1: -36.2 },
+  { x0: 5.8, x1: 7.2, z0: 63.4, z1: 64.4 },
+  { x0: 10.2, x1: 10.7, z0: 62.7, z1: 63.3 },
 ];
 
 export function walkable(x, z) {
   let inside = false;
   for (const f of floors) if (x > f.x0 && x < f.x1 && z > f.z0 && z < f.z1) inside = true;
+  for (const f of pockets) if (x > f.x0 && x < f.x1 && z > f.z0 && z < f.z1) inside = true;
   if (!inside) return false;
   for (const r of obstacles) if (x > r.x0 - 0.15 && x < r.x1 + 0.15 && z > r.z0 - 0.15 && z < r.z1 + 0.15) return false;
   return true;
@@ -65,9 +81,13 @@ export const heightAt = () => 0;
 export const paths = [
   [[-24, 36], [0, 36], [34, 36]],
   [[0, 36], [0, 20], [0, 0], [0, -21], [0, -38]],
-  [[0, 36], [0, 46], [1.2, 52], [1.2, 70]],
+  [[0, 36], [0, 46], [1.2, 52], [1.2, 63], [1.2, 70]],
   [[-24, -38], [0, -38], [34, -38]],
   [[34, -38], [34, 36]],
+  // pockets
+  [[-24, -38], [-38, -38], [-38, -8]],
+  [[34, -38], [56, -38]],
+  [[1.2, 63], [8.8, 63]],
 ];
 
 // street, promenade and lane footprints used by the ground builder

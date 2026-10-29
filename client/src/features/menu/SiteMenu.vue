@@ -2,6 +2,7 @@
 defineOptions({ name: 'SharlockSiteMenu' })
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { avatarFor } from '../auth/avatars.js'
+import { useDiscoveries } from '../hub/discoveries.js'
 import './menu.css'
 
 const props = defineProps({
@@ -18,6 +19,7 @@ const isStudent = computed(() => roles.value.includes('student'))
 const isStaff = computed(() => roles.value.some((role) => ['instructor', 'admin'].includes(role)))
 const isAdmin = computed(() => roles.value.includes('admin'))
 const avatar = computed(() => avatarFor(props.user?.avatarId))
+const discoveries = useDiscoveries()
 
 function sync() {
   const el = dialog.value
@@ -71,6 +73,9 @@ watch(() => props.open, sync)
           <small>Results are not saved</small>
         </div>
       </div>
+      <p class="menu-count" data-testid="menu-discoveries">
+        Discoveries <strong>{{ discoveries.count.value }}/{{ discoveries.total }}</strong>
+      </p>
       <nav aria-label="Site menu">
         <ul class="menu-list">
           <template v-if="user">

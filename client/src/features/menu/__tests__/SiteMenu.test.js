@@ -16,6 +16,12 @@ function mountMenu(props = {}) {
 const labels = (wrapper) => wrapper.findAll('.menu-link').map((node) => node.text())
 
 describe('site menu', () => {
+  it('shows the discoveries count', async () => {
+    const wrapper = mountMenu()
+    expect(wrapper.get('[data-testid="menu-discoveries"]').text()).toMatch(/Discoveries\s+\d\/6/)
+    wrapper.unmount()
+  })
+
   it('opens the dialog when asked and shows the header with the username note', async () => {
     const wrapper = mountMenu()
     expect(wrapper.get('dialog').element.open).toBe(false)

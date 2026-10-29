@@ -248,6 +248,13 @@
   color: var(--hub-glass-muted);
   font-size: 12px;
 }
+.menu-count {
+  display: flex;
+  justify-content: space-between;
+  margin: 0;
+  padding: 0 10px;
+  font-size: 14px;
+}
 .menu-list {
   display: grid;
   gap: 4px;
