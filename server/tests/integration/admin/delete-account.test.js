@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import request from 'supertest'
 import { Types } from 'mongoose'
@@ -7,7 +7,6 @@ import { assertSafeTestDatabaseUri } from '../../../src/config/database-uri.js'
 import { validateEnvironment } from '../../../src/config/env.js'
 import { cohortModel } from '../../../src/models/Cohort.js'
 import { institutionModel } from '../../../src/models/Institution.js'
-import { instructorAssignmentModel } from '../../../src/models/InstructorAssignment.js'
 import { membershipModel } from '../../../src/models/Membership.js'
 import { userModel } from '../../../src/models/User.js'
 import { hashPassword } from '../../../src/modules/auth/password.js'
@@ -101,10 +100,6 @@ async function newPublicAgent() {
   const agent = request.agent(app)
   const csrf = await agent.get('/api/auth/csrf').set('Origin', origin).expect(200)
   return { agent, csrfToken: csrf.body.csrfToken }
-}
-
-function tokenFrom(url) {
-  return new URLSearchParams(new URL(url).hash.slice(1)).get('token')
 }
 
 function patchStatus(userId, accountStatus, expectedRevision, actor = admin) {

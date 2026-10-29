@@ -110,9 +110,10 @@ describe('admin workspace policy', () => {
       status: 'inactive',
       expectedRevision: 4,
     })
-    expect(
-      parseCohortUpdateInput({ term: '2026 T2', expectedRevision: 2 }),
-    ).toEqual({ term: '2026 T2', expectedRevision: 2 })
+    expect(parseCohortUpdateInput({ term: '2026 T2', expectedRevision: 2 })).toEqual({
+      term: '2026 T2',
+      expectedRevision: 2,
+    })
     expect(
       parseCohortUpdateInput({
         name: 'WAD2',
@@ -209,7 +210,11 @@ describe('account delete input', () => {
   it('accepts the exact object and trims the note', () => {
     expect(parseAccountDeleteInput(valid)).toEqual(valid)
     expect(
-      parseAccountDeleteInput({ ...valid, reasonCategory: 'other', reasonNote: '  ten chars ok  ' }),
+      parseAccountDeleteInput({
+        ...valid,
+        reasonCategory: 'other',
+        reasonNote: '  ten chars ok  ',
+      }),
     ).toMatchObject({ reasonNote: 'ten chars ok' })
   })
 
@@ -230,15 +235,16 @@ describe('account delete input', () => {
   })
 
   it('rejects missing required fields and non-objects', () => {
-    const { password: _omitted, ...withoutPassword } = valid
+    const withoutPassword = { ...valid }
+    delete withoutPassword.password
     expect(() => parseAccountDeleteInput(withoutPassword)).toThrow(AdminError)
     expect(() => parseAccountDeleteInput(null)).toThrow(AdminError)
     expect(() => parseAccountDeleteInput([])).toThrow(AdminError)
   })
 
   it('still refuses deleted as a status transition', () => {
-    expect(() => parseAccountStatusInput({ accountStatus: 'deleted', expectedRevision: 1 })).toThrow(
-      AdminError,
-    )
+    expect(() =>
+      parseAccountStatusInput({ accountStatus: 'deleted', expectedRevision: 1 }),
+    ).toThrow(AdminError)
   })
 })
