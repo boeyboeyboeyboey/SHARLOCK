@@ -200,7 +200,7 @@ pnpm test:integration  # API tests against a disposable MongoDB
 pnpm test:e2e          # Playwright journeys on a phone and a desktop viewport
 ```
 
-`test:unit` needs no database. `test:integration` and `test:e2e` start and remove their own `_test` MongoDB; `test:e2e` already runs with a replica set, so the first run downloads the pinned MongoDB binary and the account, class and recovery journeys pass without extra flags. How these map to the WAD2 testing weeks is in [course alignment](docs/course-alignment.md).
+`test:unit` needs no database. `test:integration` and `test:e2e` start and remove their own `_test` MongoDB; both run with a replica set, so the first run downloads the pinned MongoDB binary and the transactional account, class, admin and recovery tests run without extra flags. Each integration test file gets its own `_test` database on that server (`server/tests/integration/setup-database.js`), so files run in parallel without seeing each other's data. How these map to the WAD2 testing weeks is in [course alignment](docs/course-alignment.md).
 
 **Troubleshooting:**
 

@@ -259,17 +259,24 @@ export function createAdminService(
         .select('_id username avatarId globalRoles accountStatus authVersion +recoveryRevision')
         .session(session)
         .lean()
-      if (!target || target.accountStatus === 'deleted' || !['student', 'instructor'].some((role) =>
-        target.globalRoles.length === 1 && target.globalRoles[0] === role,
-      )) {
+      if (
+        !target ||
+        target.accountStatus === 'deleted' ||
+        !['student', 'instructor'].some(
+          (role) => target.globalRoles.length === 1 && target.globalRoles[0] === role,
+        )
+      ) {
         throw new AdminError('ADMIN_NOT_FOUND')
       }
       const currentAuthVersion = target.authVersion ?? 0
       if (currentAuthVersion !== parsed.expectedRevision) {
         throw new AdminError('ADMIN_STALE_ACCOUNT')
       }
-      if (target.globalRoles[0] === 'instructor' &&
-        target.accountStatus === 'disabled' && parsed.accountStatus === 'active') {
+      if (
+        target.globalRoles[0] === 'instructor' &&
+        target.accountStatus === 'disabled' &&
+        parsed.accountStatus === 'active'
+      ) {
         throw new AdminError('ADMIN_INSTRUCTOR_ACTIVATION_REQUIRED')
       }
       if (target.accountStatus === parsed.accountStatus) throw new AdminError('ADMIN_CONFLICT')
@@ -302,10 +309,9 @@ export function createAdminService(
         { $set: { revokedAt: occurredAt } },
         { session },
       )
-      await database.db.collection('auth_sessions').deleteMany(
-        { 'session.userId': idString(targetId) },
-        { session },
-      )
+      await database.db
+        .collection('auth_sessions')
+        .deleteMany({ 'session.userId': idString(targetId) }, { session })
       await recordAdminEvent(
         currentActor,
         parsed.accountStatus === 'disabled' ? 'admin.user.disable' : 'admin.user.enable',
@@ -325,9 +331,10 @@ export function createAdminService(
     const adminAccount = await User.findById(objectId(currentActor.id))
       .select('+passwordHash')
       .lean()
-    let passwordMatches = false
+    let passwordMatches
     try {
-      passwordMatches = Boolean(adminAccount) && (await verifyPassword(adminAccount.passwordHash, parsed.password))
+      passwordMatches =
+        Boolean(adminAccount) && (await verifyPassword(adminAccount.passwordHash, parsed.password))
     } catch (error) {
       if (error?.name === 'PasswordBusyError') throw new AdminError('ADMIN_UNAVAILABLE')
       passwordMatches = false
@@ -414,10 +421,9 @@ export function createAdminService(
           await Membership.deleteMany({ userId: targetId }, { session })
           await PasswordReset.deleteMany({ userId: targetId }, { session })
         }
-        await database.db.collection('auth_sessions').deleteMany(
-          { 'session.userId': idString(targetId) },
-          { session },
-        )
+        await database.db
+          .collection('auth_sessions')
+          .deleteMany({ 'session.userId': idString(targetId) }, { session })
         const outcome = hasAttempts ? 'anonymised' : 'deleted'
         await recordAdminEvent(currentActor, 'admin.account.delete', targetId, session, {
           targetRole: 'student',
@@ -510,11 +516,12 @@ export function createAdminService(
       if (revision !== parsed.expectedRevision) throw new AdminError('ADMIN_STALE_INSTITUTION')
       const name = parsed.name ?? current.name
       const status = parsed.status ?? current.status
-      if (current.name === name && current.status === status)
-        throw new AdminError('ADMIN_CONFLICT')
+      if (current.name === name && current.status === status) throw new AdminError('ADMIN_CONFLICT')
       if (current.status !== status && status === 'inactive') {
-        const activeCohort = await Cohort.exists({ institutionId: current._id, status: 'active' })
-          .session(session)
+        const activeCohort = await Cohort.exists({
+          institutionId: current._id,
+          status: 'active',
+        }).session(session)
         if (activeCohort) throw new AdminError('ADMIN_CONFLICT')
       }
       const changesStatus = current.status !== status
@@ -523,18 +530,14 @@ export function createAdminService(
       const filter = revisionConditions(
         { _id: current._id, status: current.status },
         revisionFilter('adminRevision', revision),
-        ...(changesStatus
-          ? [revisionFilter('recoveryRevision', expectedRecoveryRevision)]
-          : []),
+        ...(changesStatus ? [revisionFilter('recoveryRevision', expectedRecoveryRevision)] : []),
       )
       const update = {
         $set: {
           name,
           status,
           adminRevision: nextAdminRevision,
-          ...(changesStatus
-            ? { recoveryRevision: nextRevision(expectedRecoveryRevision) }
-            : {}),
+          ...(changesStatus ? { recoveryRevision: nextRevision(expectedRecoveryRevision) } : {}),
         },
       }
       const changed = await Institution.findOneAndUpdate(filter, update, {
@@ -565,11 +568,7 @@ export function createAdminService(
       const name = parsed.name ?? current.name
       const term = parsed.term ?? current.term
       const status = parsed.status ?? current.status
-      if (
-        current.name === name &&
-        current.term === term &&
-        current.status === status
-      )
+      if (current.name === name && current.term === term && current.status === status)
         throw new AdminError('ADMIN_CONFLICT')
       const changesStatus = current.status !== status
       const institutionId = current.institutionId
@@ -598,9 +597,7 @@ export function createAdminService(
       const filter = revisionConditions(
         { _id: current._id, institutionId, status: current.status },
         revisionFilter('adminRevision', revision),
-        ...(changesStatus
-          ? [revisionFilter('recoveryRevision', expectedRecoveryRevision)]
-          : []),
+        ...(changesStatus ? [revisionFilter('recoveryRevision', expectedRecoveryRevision)] : []),
       )
       const update = {
         $set: {
@@ -608,9 +605,7 @@ export function createAdminService(
           term,
           status,
           adminRevision: nextAdminRevision,
-          ...(changesStatus
-            ? { recoveryRevision: nextRevision(expectedRecoveryRevision) }
-            : {}),
+          ...(changesStatus ? { recoveryRevision: nextRevision(expectedRecoveryRevision) } : {}),
         },
       }
       const changed = await Cohort.findOneAndUpdate(filter, update, {
@@ -994,7 +989,9 @@ export function createAdminService(
             .lean()
         : []
       if (cohorts.length !== cohortObjectIds.length) throw new AdminError('ADMIN_NOT_FOUND')
-      const institutionIds = [...new Set(cohorts.map(({ institutionId }) => idString(institutionId)))]
+      const institutionIds = [
+        ...new Set(cohorts.map(({ institutionId }) => idString(institutionId))),
+      ]
       const institutions = institutionIds.length
         ? await Institution.find({ _id: { $in: institutionIds } })
             .select('_id name status +recoveryRevision')
@@ -1090,10 +1087,7 @@ export function createAdminService(
           updated,
           parsed.cohortIds,
           parsed.cohortIds.map((cohortId) =>
-            cohortDto(
-              cohortByIdForWrites.get(cohortId),
-              institutionById,
-            ),
+            cohortDto(cohortByIdForWrites.get(cohortId), institutionById),
           ),
         ),
       }

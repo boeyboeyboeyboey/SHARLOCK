@@ -20,6 +20,12 @@ const authRequests = vi.hoisted(() => ({
   requestResendVerification: vi.fn(),
 }))
 
+// the router statically imports the town page, which pulls in the 3d hub engine; the route tests
+// here only read route meta, so a stand-in keeps that engine out of this file
+vi.mock('../../../views/Dashboard.vue', () => ({
+  default: { name: 'DashboardStub', render: () => null },
+}))
+
 vi.mock('../api.js', async () => {
   const actual = await vi.importActual('../api.js')
   return { ...actual, ...authRequests }
