@@ -1,7 +1,21 @@
 import { test, expect } from './fixtures/auth.js'
+import { seedClass, signedInPage } from './fixtures/class.js'
+import {
+  failSteps,
+  finishRun,
+  generateCase,
+  junkAction,
+  openRun,
+  playCase,
+  playStep,
+  solutionFor,
+  waitForCase,
+} from './fixtures/sql.js'
 
 // classic scrollbars take layout space, as on windows and linux desktops
 test.use({ launchOptions: { ignoreDefaultArgs: ['--hide-scrollbars'] } })
+
+const firstInput = (page) => page.locator('.sql-case-form input').first()
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('sharlock.townMode', '2d'))
@@ -10,50 +24,60 @@ test.beforeEach(async ({ page }) => {
   )
 })
 
-test('solves, repairs, persists across reload and replays the customs case', async ({
+test('plays a practice run with a wrong try, a hint, replay and a saved review', async ({
   page,
-}, testInfo) => {
+}) => {
+  test.setTimeout(180_000)
   const exceptions = []
   page.on('pageerror', (error) => exceptions.push(error.message))
-  await page.goto('/games/sql-injection-arcade')
+  await page.goto('/about')
   const sharedHeaderColor = await page
     .locator('.portal-header')
     .evaluate((element) => getComputedStyle(element).backgroundColor)
-  await page.screenshot({ path: testInfo.outputPath('sql-briefing.png'), fullPage: true })
-  await page.getByRole('button', { name: 'Open the case' }).click()
-  await expect(page).toHaveURL(/attempt=/)
+  const seed = await openRun(page)
   const savedUrl = page.url()
-  await page.screenshot({ path: testInfo.outputPath('sql-play.png'), fullPage: true })
-  await page.getByLabel('Fictional username', { exact: true }).fill("' OR 1=2 --")
-  await page.getByRole('button', { name: 'Test payload', exact: true }).click()
-  await expect(
-    page.getByRole('status').filter({ hasText: 'literal equality is false' }),
-  ).toBeVisible()
-  await page.getByLabel('Fictional username', { exact: true }).fill("' OR 1=1 --")
-  await page.getByRole('button', { name: 'Test payload', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Query inspector' })).toBeVisible()
-  await expect(page.getByRole('group', { name: 'Seal the breach' })).toBeVisible()
-  await page.screenshot({ path: testInfo.outputPath('sql-repair.png'), fullPage: true })
-  await page.getByRole('radio', { name: 'Bind input as parameters in a prepared query' }).check()
-  await page.getByRole('button', { name: 'Confirm repair' }).click()
-  await expect(page.getByText('100 / 100', { exact: true })).toBeVisible()
-  await expect(page.getByText('Result saved to your account.', { exact: true })).toBeVisible()
-  await page.screenshot({ path: testInfo.outputPath('sql-result.png'), fullPage: true })
+  const first = generateCase({ seed, index: 0 })
+  await waitForCase(page, first)
+  await expect(page.getByTestId('sql-hud-case')).toHaveText('Case 1 of 12')
+  await expect(page.getByText('Tries left 3 of 3')).toBeVisible()
+  await expect(page.getByTestId('sql-hud-clock')).toHaveCount(0)
+
+  // a wrong try keeps the case open and moves focus to the announced result
+  await playStep(page, first, junkAction(first))
+  await expect(page.getByTestId('sql-result')).toContainText('Server response')
+  await expect(page.getByTestId('sql-result')).toBeFocused()
+  await expect(page.getByText('Tries left 2 of 3')).toBeVisible()
+
+  // a hint marks the case assisted and drops the first-try bonus
+  await page.getByRole('button', { name: 'Show a hint' }).click()
+  await expect(page.getByText('Assisted', { exact: true })).toBeVisible()
+  await expect(page.getByText('Hint:')).toBeVisible()
+  for (const step of solutionFor(first)) await playStep(page, first, step)
+  await expect(page.getByTestId('sql-result')).toContainText('Solved: +10 points')
+  await page.getByRole('button', { name: 'Next case' }).click()
+  await expect(firstInput(page)).toBeFocused()
+
+  for (let index = 1; index < 15; index += 1) {
+    const c = generateCase({ seed, index })
+    await playCase(page, c, solutionFor(c))
+    if (index < 14) await page.getByRole('button', { name: 'Next case' }).click()
+  }
+  await finishRun(page)
+  await expect(page.getByRole('table', { name: 'Run review' }).locator('tbody tr')).toHaveCount(15)
+  await expect(page.getByRole('cell', { name: 'Yes', exact: true })).toHaveCount(1)
   await page.reload()
-  await expect(page.getByText('100 / 100', { exact: true })).toBeVisible()
+  await expect(page.getByText('Result saved to your account.', { exact: true })).toBeVisible()
+
   await page.getByRole('button', { name: 'Play again' }).click()
   await page.getByRole('button', { name: 'Open the case' }).click()
+  await expect(page).toHaveURL(/attempt=/)
   expect(page.url()).not.toBe(savedUrl)
-  for (let count = 0; count < 5; count++) {
-    await page.getByLabel('Fictional username', { exact: true }).fill('guest')
-    await page.getByRole('button', { name: 'Test payload', exact: true }).click()
-    await expect(page.getByText(`${count + 1} / 5 tests`, { exact: false })).toBeVisible()
-  }
-  await page.getByRole('radio', { name: 'Remove spaces from the input' }).check()
-  await page.getByRole('button', { name: 'Confirm repair' }).click()
-  await expect(page.getByText('0 / 100', { exact: true })).toBeVisible()
-  await expect(page.getByText('Result saved to your account.', { exact: true })).toBeVisible()
-  await page.getByRole('link', { name: 'Back to town', exact: true }).last().click()
+  await expect(page.getByTestId('sql-hud-case')).toHaveText('Case 1 of 12')
+
+  await page
+    .getByRole('link', { name: /Back to town/ })
+    .first()
+    .click()
   await expect(page).toHaveURL(/\/$/)
   expect(await page.locator('.sql-game').count()).toBe(0)
   await page.goto('/about')
@@ -65,30 +89,71 @@ test('solves, repairs, persists across reload and replays the customs case', asy
   expect(exceptions).toEqual([])
 })
 
+test('resumes the open case after a reload', async ({ page }) => {
+  const seed = await openRun(page)
+  const first = generateCase({ seed, index: 0 })
+  await playStep(page, first, junkAction(first))
+  await expect(page.getByText('Tries left 2 of 3')).toBeVisible()
+  await page.reload()
+  await waitForCase(page, first)
+  await expect(page.getByText('Tries left 2 of 3')).toBeVisible()
+  await expect(page.getByTestId('sql-result')).toContainText('Server response')
+})
+
+test('a class run is timed, spends lives on failed cases and saves', async ({
+  browser,
+  baseURL,
+}) => {
+  test.setTimeout(180_000)
+  const seeded = await seedClass(Math.random().toString(16).slice(2, 10))
+  const session = await signedInPage(browser, baseURL, seeded.studentA)
+  const { page } = session
+  try {
+    const seed = await openRun(page, seeded.classId)
+    await expect(page.getByTestId('sql-hud-case')).toHaveText('Case 1')
+    await expect(page.getByText('Lives 3 of 3')).toBeVisible()
+    await expect(page.getByTestId('sql-hud-clock')).toHaveText(/^[0-3]:\d\d$/)
+    await expect(page.getByRole('button', { name: 'Show a hint' })).toHaveCount(0)
+    const first = generateCase({ seed, index: 0 })
+    await playCase(page, first, solutionFor(first))
+    await expect(page.getByTestId('sql-result')).toContainText('Solved: +20 points')
+    await page.getByRole('button', { name: 'Next case' }).click()
+    const second = generateCase({ seed, index: 1 })
+    await playCase(page, second, failSteps(second))
+    await expect(page.getByTestId('sql-result')).toContainText('Not solved')
+    await expect(page.getByText('Lives 2 of 3')).toBeVisible()
+    await page.getByRole('button', { name: 'Next case' }).click()
+    for (const index of [2, 3]) {
+      const c = generateCase({ seed, index })
+      await playCase(page, c, failSteps(c))
+      if (index === 2) await page.getByRole('button', { name: 'Next case' }).click()
+    }
+    await finishRun(page)
+    await expect(page.getByText('The run ended when your lives ran out.')).toBeVisible()
+    await expect(page.getByRole('table', { name: 'Run review' }).locator('tbody tr')).toHaveCount(4)
+  } finally {
+    await session.context.close()
+  }
+})
+
 test('reflows with keyboard access at required widths and fits the laptop viewport', async ({
   page,
 }, testInfo) => {
-  await page.goto('/games/sql-injection-arcade')
+  const seed = await openRun(page)
   await page.emulateMedia({ reducedMotion: 'reduce' })
-  await page.getByRole('button', { name: 'Open the case' }).click()
+  const first = generateCase({ seed, index: 0 })
+  const submit = page.getByRole('button', { name: 'Run the query', exact: true })
   for (const width of [375, 576, 767, 768, 992, 1200, 1280, 1440]) {
     await page.setViewportSize({ width, height: width === 1280 ? 720 : 900 })
-    if (width < 768)
-      await page.getByRole('button', { name: 'Test payload', exact: true }).scrollIntoViewIfNeeded()
-    await expect(page.getByRole('button', { name: 'Test payload', exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Test payload', exact: true })).toBeInViewport()
+    if (width < 768) await submit.scrollIntoViewIfNeeded()
+    await expect(submit).toBeVisible()
+    await expect(submit).toBeInViewport()
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
-    if (width >= 768)
+    if (width >= 768) {
       expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(
         true,
       )
-    if (width >= 768) {
-      await expect(page.getByLabel('Fictional username', { exact: true })).toBeInViewport({
-        ratio: 1,
-      })
-      await expect(page.getByLabel('Fictional password', { exact: true })).toBeInViewport({
-        ratio: 1,
-      })
+      await expect(firstInput(page)).toBeInViewport({ ratio: 1 })
     }
     const inspector = await page.getByTestId('sql-inspector-row').boundingBox()
     const tests = await page.getByTestId('sql-test-row').boundingBox()
@@ -102,17 +167,26 @@ test('reflows with keyboard access at required widths and fits the laptop viewpo
     if (width === 1280)
       await page.screenshot({ path: testInfo.outputPath('sql-laptop.png'), fullPage: true })
   }
-  await page.getByLabel('Fictional username', { exact: true }).focus()
-  await page.keyboard.type("' OR 1=1 --")
-  await page.keyboard.press('Enter')
-  await expect(page.getByRole('group', { name: 'Seal the breach' })).toBeVisible()
+  // type the solution and submit with Enter, never touching the mouse
+  const [step] = solutionFor(first)
+  await firstInput(page).focus()
+  for (const [position, value] of step.payload.inputs.entries()) {
+    if (position > 0) await page.keyboard.press('Tab')
+    await page.keyboard.type(value)
+  }
+  await Promise.all([
+    page.waitForResponse((response) => /\/actions$/.test(response.url())),
+    page.keyboard.press('Enter'),
+  ])
+  await expect(page.getByTestId('sql-result')).toContainText('Solved')
+  await expect(page.getByRole('button', { name: 'Next case' })).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
 
 test.describe('with a classic vertical scrollbar', () => {
   test('keeps the frame and back link inside the visible width', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'desktop-chromium', 'desktop layout only')
-    await page.goto('/games/sql-injection-arcade')
-    await page.getByRole('button', { name: 'Open the case' }).click()
+    await openRun(page)
     await page.addStyleTag({ content: 'html{overflow-y:scroll}' })
     for (const width of [992, 1200, 1440]) {
       await page.setViewportSize({ width, height: 900 })
@@ -145,11 +219,12 @@ test('enters through the existing town destination and legacy alias', async ({ p
   ).toBeVisible()
 })
 
-test('recovers lost action and completion responses without spending another test or changing the result', async ({
+test('recovers lost action and completion responses without spending another try or changing the result', async ({
   page,
-}, testInfo) => {
-  await page.goto('/games/sql-injection-arcade')
-  await page.getByRole('button', { name: 'Open the case' }).click()
+}) => {
+  test.setTimeout(180_000)
+  const seed = await openRun(page)
+  const first = generateCase({ seed, index: 0 })
   let loseAction = true
   const actionIds = []
   await page.route('**/api/attempts/*/actions', async (route) => {
@@ -160,13 +235,24 @@ test('recovers lost action and completion responses without spending another tes
       await route.abort('failed')
     } else await route.continue()
   })
-  await page.getByLabel('Fictional username', { exact: true }).fill("' OR 1=1 --")
-  await page.getByRole('button', { name: 'Test payload', exact: true }).click()
+  const inputs = page.locator('.sql-case-form input')
+  const step = junkAction(first)
+  for (const [position, value] of step.payload.inputs.entries())
+    await inputs.nth(position).fill(value)
+  await page.getByRole('button', { name: 'Run the query', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Retry same request' })).toBeVisible()
-  await page.screenshot({ path: testInfo.outputPath('sql-retry.png'), fullPage: true })
   await page.getByRole('button', { name: 'Retry same request' }).click()
-  await expect(page.getByRole('group', { name: 'Seal the breach' })).toBeVisible()
+  await expect(page.getByText('Tries left 2 of 3')).toBeVisible()
   expect(actionIds[0]).toBe(actionIds[1])
+
+  await page.unroute('**/api/attempts/*/actions')
+  for (const step of solutionFor(first)) await playStep(page, first, step)
+  await page.getByRole('button', { name: 'Next case' }).click()
+  for (let index = 1; index < 15; index += 1) {
+    const c = generateCase({ seed, index })
+    await playCase(page, c, solutionFor(c))
+    if (index < 14) await page.getByRole('button', { name: 'Next case' }).click()
+  }
   let loseCompletion = true
   const completionIds = []
   await page.route('**/api/attempts/*/complete', async (route) => {
@@ -177,9 +263,8 @@ test('recovers lost action and completion responses without spending another tes
       await route.abort('failed')
     } else await route.continue()
   })
-  await page.getByRole('radio', { name: 'Bind input as parameters in a prepared query' }).check()
-  await page.getByRole('button', { name: 'Confirm repair' }).click()
+  await page.getByRole('button', { name: 'Finish and save result' }).click()
   await page.getByRole('button', { name: 'Retry same request' }).click()
-  await expect(page.getByText('100 / 100', { exact: true })).toBeVisible()
+  await expect(page.getByText('Result saved to your account.', { exact: true })).toBeVisible()
   expect(completionIds[0]).toBe(completionIds[1])
 })

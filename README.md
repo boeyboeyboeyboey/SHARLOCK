@@ -241,7 +241,7 @@ Games open a **How to play** guide on your first visit. Tick "Don't show again" 
 | The Phishing Post-Mortem (`/games/phishing-post-mortem`)                 | Triage a run of fictional emails: Report or Trust each one, then tap the part that gave it away. | Playable, saved · Review (see [SAVE-01](TASKS.md#review)) | [module README](client/src/games/phishing-post-mortem/README.md)         |
 | LLM Social Engineering Simulator (`/games/social-engineering-simulator`) | Spot a fictional colleague’s pressure tactics; completed calls save as practice attempts.        | Playable, saved · Review (see [SAVE-01](TASKS.md#review)) | [module README](client/src/games/social-engineering-simulator/README.md) |
 | Clearance Tower (`/games/clearance-tower`)                               | Design who may see what in an intelligence tower; a six-case climb saves up to 600 points.       | Playable, saved · Review (see [SAVE-01](TASKS.md#review)) | [module README](client/src/games/clearance-tower/README.md)              |
-| SQL Injection Arcade (`/games/sql-injection-arcade`)                     | Solve a simulated login puzzle and learn how parameterized queries protect it.                   | Playable, saved · Review (see [SAVE-01](TASKS.md#review)) | [module README](client/src/games/sql-injection-arcade/README.md)         |
+| SQL Injection Arcade (`/games/sql-injection-arcade`)                     | Crack a run of simulated injection cases, then pick the fix; timed class runs rank on boards.    | Playable, saved · Review (see [SAVE-01](TASKS.md#review)) | [module README](client/src/games/sql-injection-arcade/README.md)         |
 | The daily briefing / Threat Briefing (`/games/threat-briefing`)          | Read The Sharlock Times for recent cybersecurity and technology stories; opens as an overlay.    | Playable                                                  | [module README](client/src/games/threat-briefing/README.md)              |
 
 <a id="account-setup-walkthrough"></a>
@@ -272,7 +272,7 @@ Student
 
 **Leaderboards** (`/leaderboard`, signed in): pick a class, then click a game tab; Best score ranks each student's best class score (labelled practice best scores; CLI Cyber Defender timed runs are the only competitive ruleset, shown as "Timed runs") and All-time ranks total points with plays. Only active students in the class are ranked; staff and personal practice are excluded. See the [leaderboard README](client/src/features/leaderboard/README.md).
 
-G-SQL fills the game area with a blue SQL arcade console: choose personal/class practice, inspect the query in the top screen, test up to five fictional login inputs in the console below, select one repair and read the saved result. The case URL restores your own attempt after reload; Play again starts a new one. See the [G-SQL handoff record](TASKS.md#g-sql-saved-practice) and [module known limits](client/src/games/sql-injection-arcade/README.md#known-limits-and-handoff) for verification and remaining recovery/teaching limitations.
+G-SQL fills the game area with a blue SQL arcade console: a class run is timed (180 s, 3 lives) and a personal run is untimed practice with hints. Each case shows the vulnerable query; break it with a login bypass, UNION, blind probes or a second-order username, then choose the right fix every four cases and read the saved result (SQL-02). The case URL restores your own attempt after reload; Play again starts a new one. See the [G-SQL handoff record](TASKS.md#g-sql-saved-practice) and [module known limits](client/src/games/sql-injection-arcade/README.md#known-limits-and-handoff) for verification and remaining recovery/teaching limitations.
 
 Learning progress (`/progress`, signed in): your points (best score per saving game), a card for every activity, topic outcomes, derived badges in the trophy case and a filterable history of completed attempts. Only the SQL Injection Arcade saves results so far; the other activities show "Results not saved yet". See the [module README](client/src/features/progress/README.md). Assigned instructors and administrators can open `/instructor?class=<id>&view=results` for the Results view of a class: per-game summary, per-student table and paginated attempts (completed class attempts only; see [class-results README](client/src/features/class-results/README.md)).
 
@@ -320,7 +320,7 @@ Team: Boey, Keane, Eric, Russell, Xin Lei and Athithya. No automatic assignments
 
 ## 5. Game Backlog
 
-The five scored games have implementation blueprints, but a blueprint does not authorize work. G-NEWS / Cyber News Central is accepted by Boey; G-PHISH, G-SOC, G-CLI and G-CLEAR (which replaced G-REGEX) are playable implementations that now save through the shared attempts contract (SAVE-01, Review); G-SQL uses saved untimed practice; see each module README and the TASKS records. The town has six activities. Star ratings describe learner difficulty. New scope must be agreed through the kickoff dialogue.
+The five scored games have implementation blueprints, but a blueprint does not authorize work. G-NEWS / Cyber News Central is accepted by Boey; G-PHISH, G-SOC, G-CLI and G-CLEAR (which replaced G-REGEX) are playable implementations that now save through the shared attempts contract (SAVE-01, Review); G-SQL saves timed class runs and untimed practice (SQL-02, Review); see each module README and the TASKS records. The town has six activities. Star ratings describe learner difficulty. New scope must be agreed through the kickoff dialogue.
 
 ### Shared implementation blueprint
 
@@ -537,6 +537,8 @@ The screen never authenticates the player as a real administrator.
 - Mongoose `state`: `{ scenarioId, testCount, bypassAchieved, repairOptionId, evaluations: [outcomeCode] }`. Do not retain the mock password field.
 
 **Acceptance:** Test the example payload, false equalities, payload text contained entirely within a string, malformed quoting, unsupported syntax, retry deduplication and repair scoring. Prove the simulation never grants real privileges or executes a query.
+
+**SQL-02 update (29 October 2026, Review; supersedes the loop, scoring, parser and state above for new attempts):** ruleset `sql-2` replaces the single login puzzle with a run of seeded, server-generated Customs House cases: login bypass (quoted `OR`, comment cut-off, unquoted numeric field), UNION column matching, boolean-blind probing with a yes/no answer, second-order (a stored username fires in a later unsafe update) and a repair choice after every four cases. Class runs are timed (180 s, 3 lives, ranked); personal runs are untimed practice of 12 cases with server-recorded hints that mark a case assisted. Each case allows 3 tries (6 probes plus an answer for blind); points are 10/20/30 by tier, +10 first try when not assisted, 10 per correct repair. The bounded teaching parser (`engine.js`) models the fictional tables in memory and never executes SQL. `sql-1` stays registered (`current: false`) so earlier results still read. See the SQL-02 record in TASKS.md and the server module README.
 
 ### G-CLEAR — Clearance Tower
 

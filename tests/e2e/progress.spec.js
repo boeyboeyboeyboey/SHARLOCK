@@ -6,6 +6,7 @@ import { createAuthService } from '../../server/src/modules/auth/service.js'
 import { parseRegistrationInput } from '../../server/src/modules/auth/policy.js'
 import { userModel } from '../../server/src/models/User.js'
 import { HOW_TO_PLAY_GAME_IDS } from '../../server/src/modules/profile/how-to-play.js'
+import { playSqlRun } from './fixtures/sql.js'
 
 const gameNames = [
   'CLI Cyber Defender',
@@ -110,17 +111,9 @@ test('a completed G-SQL attempt appears in points, history and badges', async ({
   try {
     const page = await openProgress(context)
     // play a full run through the real UI so the server scores it
-    await page.goto('/games/sql-injection-arcade')
-    await page.getByRole('button', { name: 'Open the case' }).click()
-    await expect(page).toHaveURL(/attempt=/)
-    await page.getByLabel('Fictional username', { exact: true }).fill("' OR 1=1 --")
-    await page.getByRole('button', { name: 'Test payload', exact: true }).click()
-    await expect(page.getByRole('group', { name: 'Seal the breach' })).toBeVisible()
-    await page.getByRole('radio', { name: 'Bind input as parameters in a prepared query' }).check()
-    await page.getByRole('button', { name: 'Confirm repair' }).click()
-    await expect(page.getByText('Result saved to your account.', { exact: true })).toBeVisible()
+    await playSqlRun(page, 'personal')
     const score = await page
-      .getByText(/^\d+ \/ 100$/)
+      .getByText(/^\d+ \/ \d+$/)
       .first()
       .innerText()
 
@@ -129,7 +122,10 @@ test('a completed G-SQL attempt appears in points, history and badges', async ({
       await expect(game.getByText('Completed', { exact: true })).toBeVisible()
       await expect(game.locator('dd').nth(0)).toHaveText('1')
       await expect(game.locator('dd').nth(1)).toHaveText(score)
-      await expect(game.locator('dd').nth(2)).toHaveText(`${score.split(' ')[0]} / 100`)
+      const [points, outOf] = score.split(' / ').map(Number)
+      await expect(game.locator('dd').nth(2)).toHaveText(
+        `${Math.round((points * 100) / outOf)} / 100`,
+      )
       const history = page.getByRole('table', { name: 'Completed attempts, newest first' })
       await expect(
         history.getByRole('row', { name: new RegExp(`SQL Injection Arcade ${score}`) }),
