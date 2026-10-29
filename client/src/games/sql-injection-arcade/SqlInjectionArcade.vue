@@ -14,6 +14,7 @@ import RunReview from './components/RunReview.vue'
 import HowToPlayScene from './components/HowToPlayScene.vue'
 import HowToPlayDialog from '../../components/common/HowToPlayDialog.vue'
 import { useHowToPlay } from '../../composables/useHowToPlay.js'
+import { playSfx } from '../../composables/playSfx.js'
 import { HOW_TO_PLAY } from './howToPlay.js'
 import { useSqlInjection } from './useSqlInjection.js'
 import './sql.css'
@@ -64,6 +65,19 @@ watch(
     await nextTick()
     if (hinted) controls.value?.querySelector('.sql-hint-text')?.focus()
     else if (last.value) resultRegion.value?.focus()
+  },
+)
+// sound for each closed case and for the end of the run
+watch(
+  () => (last.value?.closed ? last.value.caseId : null),
+  (caseId) => {
+    if (caseId && !initializing.value) playSfx(last.value.solved ? 'correct' : 'wrong')
+  },
+)
+watch(
+  () => snapshot.value?.status,
+  (status, previous) => {
+    if (status === 'completed' && previous === 'active') playSfx('win')
   },
 )
 onMounted(async () => {

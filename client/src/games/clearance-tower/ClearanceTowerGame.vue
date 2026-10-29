@@ -5,6 +5,7 @@ import AttemptContextChooser from '../../features/attempts/components/AttemptCon
 import SavedAttemptResult from '../../features/attempts/components/SavedAttemptResult.vue'
 import HowToPlayDialog from '../../components/common/HowToPlayDialog.vue'
 import { useHowToPlay } from '../../composables/useHowToPlay.js'
+import { playSfx } from '../../composables/playSfx.js'
 import AccessMatrix from './components/AccessMatrix.vue'
 import DayControls from './components/DayControls.vue'
 import DossierBrief from './components/DossierBrief.vue'
@@ -76,6 +77,17 @@ const policyReady = computed(() => {
   if (level.value?.model !== 'rbac') return true
   return policy.value.roles.every((role) => role.name.trim().length > 0)
 })
+
+// sound for each case result and for the end of the climb
+watch(phase, (current) => {
+  if (current === 'debrief' && result.value) playSfx(result.value.stars > 0 ? 'correct' : 'wrong')
+})
+watch(
+  () => snapshot.value?.status,
+  (status, previous) => {
+    if (status === 'completed' && previous === 'active') playSfx('win')
+  },
+)
 
 // move focus to the new step's heading so keyboard and screen-reader users follow along
 watch(phase, async (current) => {
