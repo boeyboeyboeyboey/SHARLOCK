@@ -2,15 +2,15 @@
 defineOptions({ name: 'SharlockProfile' })
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import PixelIcon from '../components/town/PixelIcon.vue'
-import TrophyCase from '../components/portal/TrophyCase.vue'
-import SessionNotice from '../features/auth/components/SessionNotice.vue'
-import { avatarFor } from '../features/auth/avatars.js'
-import { useAuthStore } from '../features/auth/store.js'
-import WardrobePicker from '../features/profile/components/WardrobePicker.vue'
-import ProfileEditor from '../features/profile/components/ProfileEditor.vue'
-import { getOwnProfile, safeError, updateOwnProfile } from '../features/profile/api.js'
-import '../features/profile/profile.css'
+import PixelIcon from '../../components/town/PixelIcon.vue'
+import TrophyCase from '../../components/portal/TrophyCase.vue'
+import SessionNotice from '../auth/components/SessionNotice.vue'
+import { avatarFor } from '../auth/avatars.js'
+import { useAuthStore } from '../auth/store.js'
+import WardrobePicker from './components/WardrobePicker.vue'
+import ProfileEditor from './components/ProfileEditor.vue'
+import { getOwnProfile, safeError, updateOwnProfile } from './api.js'
+import './profile.css'
 
 const route = useRoute()
 const auth = useAuthStore()

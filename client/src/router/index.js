@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { reactive, readonly } from 'vue'
 import Dashboard from '../views/Dashboard.vue'
-import Profile from '../views/Profile.vue'
+import Profile from '../features/profile/ProfilePage.vue'
 import ComingSoon from '../views/ComingSoon.vue'
 
 const RESET_PASSWORD_PATH = '/reset-password'
