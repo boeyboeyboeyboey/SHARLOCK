@@ -18,7 +18,7 @@ vi.mock('../api.js', () => ({
   safeError: mocks.safeError,
 }))
 
-import Profile from '../../../views/Profile.vue'
+import Profile from '../ProfilePage.vue'
 
 const currentUser = {
   id: '66f0a35f2d84787cce1a1001',

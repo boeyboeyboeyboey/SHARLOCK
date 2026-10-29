@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { reactive, readonly } from 'vue'
 import Dashboard from '../views/Dashboard.vue'
-import Profile from '../views/Profile.vue'
+import Profile from '../features/profile/ProfilePage.vue'
 import ComingSoon from '../views/ComingSoon.vue'
 
 const RESET_PASSWORD_PATH = '/reset-password'
@@ -181,14 +181,16 @@ export const routes = [
     component: () => import('../views/About.vue'),
     meta: { title: 'About Sharlock' },
   },
-  ...[
-    ['forbidden', 'This case needs permission', 'Return to town to find an available activity.'],
-  ].map(([path, title, description]) => ({
-    path: `/${path}`,
+  {
+    path: '/forbidden',
     component: ComingSoon,
-    props: { title, description, showMascot: ['login', 'register'].includes(path) },
-    meta: { title, ...(path === 'admin' ? { theme: 'utility' } : {}) },
-  })),
+    props: {
+      title: 'This case needs permission',
+      description: 'Return to town to find an available activity.',
+      showMascot: false,
+    },
+    meta: { title: 'This case needs permission' },
+  },
   {
     path: '/:pathMatch(.*)*',
     component: () => import('../views/NotFound.vue'),
