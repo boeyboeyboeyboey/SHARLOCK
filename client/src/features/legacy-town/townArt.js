@@ -303,11 +303,11 @@ export function groundMarkup() {
   for (const y of [8, 16, 24, 32]) scaf += R(243, y, 22, 1, '#ae7750')
   for (const x of [243, 254, 264]) scaf += R(x, 8, 1, 28, '#ae7750')
   g += scaf
-  // crane stays 2 units (8px) below the world top so the viewport never clips it
+  // crane stays 3 units below the world top, off the ink edge line, and never in ink so it reads on the water
   g +=
-    R(197, 2, 1, 6, INK) +
-    R(197, 2, 14, 1, INK) +
-    R(211, 2, 1, 7, '#7a85a0') +
+    R(197, 3, 1, 5, '#d9a441') +
+    R(197, 3, 14, 1, '#d9a441') +
+    R(211, 4, 1, 5, '#7a85a0') +
     R(208, 9, 6, 2, '#c4443a')
   return g
 }
@@ -373,7 +373,7 @@ export const capyProps = {
   },
   flatCap: { back: R(8, 0, 3, 2, INK) + R(9, 0, 2, 1, '#4f6a86') },
   feltHat: { back: R(8, 0, 4, 2, INK) + R(9, 0, 2, 1, '#a96e57') },
-  bowler: { back: R(8, 0, 4, 2, INK) + R(9, 0, 2, 1, '#3d3a42') },
+  bowler: { back: R(8, 0, 4, 2, INK) + R(9, 0, 2, 1, '#5f6675') },
   apron: { front: R(5, 3, 3, 3, '#efe4c8') + R(5, 3, 3, 1, '#d8c9a4') },
   newspaper: { front: R(10, 4, 2, 2, '#fff8df') + R(10, 5, 2, 1, '#b9b29a') },
   neckerchief: { front: R(8, 4, 1, 2, '#d9a441') },
