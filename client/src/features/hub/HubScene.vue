@@ -7,6 +7,8 @@ import { isInteractKey } from './controls.js'
 import NpcDialogue from './NpcDialogue.vue'
 import { useNpcDialogue } from './useNpcDialogue.js'
 import { npcs } from './scenes/wharf/npcs.js'
+import { finds } from './scenes/wharf/finds.js'
+import { useDiscoveries } from './discoveries.js'
 import { announceChange } from './announce.js'
 import LoreIntro from './intro/LoreIntro.vue'
 import { useLoreIntro } from './intro/useLoreIntro.js'
@@ -42,6 +44,7 @@ const view = reactive({
   selected: null,
   nearDoor: null,
   nearNpc: null,
+  nearFind: null,
   mode: 'explore',
   engine: null,
   fps: 0,
@@ -92,7 +95,11 @@ const destOpen = ref(wideQuery ? wideQuery.matches : true)
 const talk = useNpcDialogue()
 const talkNpc = computed(() => npcs.find((npc) => npc.id === view.nearNpc) ?? null)
 const showTalk = computed(() => view.ready && view.mode === 'explore' && !paused.value && Boolean(talkNpc.value))
+const discoveries = useDiscoveries()
+const nearFind = computed(() => finds.find((find) => find.id === view.nearFind) ?? null)
+const showFind = computed(() => view.ready && view.mode === 'explore' && !paused.value && Boolean(nearFind.value))
 const talkBtn = ref(null)
+const findBtn = ref(null)
 const dialogue = ref(null)
 
 function say(text) {
@@ -112,9 +119,25 @@ async function openTalk() {
   dialogue.value?.focus()
 }
 
-// the one interact path: E talks to a nearby townsperson; discoveries hook in here later
+// a discovery opens the same card as a townsperson and counts as found the first time
+async function openFind() {
+  const find = nearFind.value
+  if (!find || talk.open.value || !talk.begin({ ...find, kind: 'discovery' })) return
+  hub?.pauseInput(true)
+  if (discoveries.mark(find.id)) say(`Discovery ${discoveries.count.value} of ${discoveries.total}: ${find.name}`)
+  else say(find.name)
+  await nextTick()
+  dialogue.value?.focus()
+}
+
+// the one interact path: E opens a nearby discovery first, else talks to a nearby townsperson
 function interact() {
-  if (!showTalk.value || talk.open.value) return false
+  if (talk.open.value) return false
+  if (showFind.value) {
+    openFind()
+    return true
+  }
+  if (!showTalk.value) return false
   openTalk()
   return true
 }
@@ -129,7 +152,7 @@ function closeTalk({ restoreFocus = true } = {}) {
   if (!talk.open.value) return
   talk.close()
   hub?.pauseInput(paused.value)
-  if (restoreFocus) nextTick(() => talkBtn.value?.focus())
+  if (restoreFocus) nextTick(() => (findBtn.value ?? talkBtn.value)?.focus())
 }
 
 function goInFromTalk() {
@@ -145,9 +168,11 @@ function goInFromTalk() {
 
 // the conversation ends if the npc is left behind or the hub stops exploring
 watch(
-  () => [view.nearNpc, view.mode, paused.value],
-  ([near, mode, isPaused]) => {
-    if (talk.open.value && (near !== talk.npc.value.id || mode !== 'explore' || isPaused)) closeTalk({ restoreFocus: false })
+  () => [view.nearNpc, view.nearFind, view.mode, paused.value],
+  ([nearNpc, nearFindId, mode, isPaused]) => {
+    if (!talk.open.value) return
+    const near = talk.npc.value.kind === 'discovery' ? nearFindId : nearNpc
+    if (near !== talk.npc.value.id || mode !== 'explore' || isPaused) closeTalk({ restoreFocus: false })
   },
 )
 
@@ -169,6 +194,7 @@ function sync(state) {
   view.selected = state.selected
   view.nearDoor = state.nearDoor
   view.nearNpc = state.nearNpc
+  view.nearFind = state.nearFind
   view.mode = state.mode
   view.engine = state.engine
   view.fps = state.fps
@@ -459,11 +485,12 @@ defineExpose({
         :line="talk.line.value"
         :last="talk.isLast.value"
         :can-enter="talk.npc.value.kind === 'game'"
+        :close-label="talk.npc.value.kind === 'discovery' ? 'Got it' : 'Bye'"
         @next="talk.next()"
         @enter="goInFromTalk"
         @close="closeTalk()"
       />
-      <div v-if="selectedGame || showTalk" class="hub-actions hub-glass">
+      <div v-if="selectedGame || showTalk || showFind" class="hub-actions hub-glass">
         <button
           v-if="showTalk"
           ref="talkBtn"
@@ -474,6 +501,17 @@ defineExpose({
           @click="openTalk"
         >
           Talk to {{ talkNpc.name }}
+        </button>
+        <button
+          v-if="showFind"
+          ref="findBtn"
+          type="button"
+          class="btn btn-secondary hub-talk hub-glass-btn"
+          data-testid="inspect"
+          :aria-expanded="String(talk.open.value)"
+          @click="openFind"
+        >
+          {{ nearFind.kind === 'npc' ? 'Talk to' : 'Look at' }} {{ nearFind.name }}
         </button>
         <button
           v-if="selectedGame"

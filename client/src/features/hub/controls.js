@@ -2,7 +2,7 @@
 export const HUB_KEYS = [
   ['WASD / arrows', 'move'],
   ['Space', 'jump'],
-  ['E', 'talk'],
+  ['E', 'talk or look'],
   ['Enter', 'go in'],
   ['Z / C', 'rotate'],
   ['R', 'reset camera'],
@@ -13,7 +13,7 @@ export const TOUCH_HINT = 'Drag to move · tap a place to walk · Jump button'
 
 // the toast lists the keys that matter on arrival, without Esc
 export function keyboardHint() {
-  return 'WASD / arrow keys move · Space jump · E talk · Enter go in · Z/C rotate · R reset camera'
+  return 'WASD / arrow keys move · Space jump · E talk or look · Enter go in · Z/C rotate · R reset camera'
 }
 
 export const HINT_SEEN_KEY = 'sharlock.controlsHintSeen'

@@ -31,6 +31,9 @@ export function buildGround({ scene, world }) {
   flat(cobble, -62, streets.promenade.x0, dampZ, quayZ, 0, warm, damp);
   flat(cobble, streets.cross.x0, streets.cross.x1, streets.cross.z0, streets.cross.z1, 0, street);
   flat(cobble, streets.lane.x0, streets.lane.x1, streets.lane.z0, streets.lane.z1, 0, street);
+  // outskirt pockets: the east yard and the strip between the cross street and the west back lane
+  flat(cobble, streets.cross.x1, 62, -49, streets.cross.z1, 0.004, street);
+  flat(cobble, -34, streets.cross.x0, -44, -34, 0.004, street);
 
   // flagstone pavements along the building fronts, faded toward the wall for contact shadow
   const paving = [0.98, 0.93, 0.86, 1];

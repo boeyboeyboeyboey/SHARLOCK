@@ -166,13 +166,15 @@ Move the task's active record rather than duplicating it across board states. Re
 - **Verification (30 Oct):** `pnpm exec vitest run client/src/features/hub` 19 files, 174 tests pass (new `patrol.test.js`); `node scripts/run-with-test-db.mjs e2e --replica-set tests/e2e/hub-npcs.spec.js --workers=1` 8 passed (4 tests, mobile and desktop; new patrolling-wanderer talk test); eslint clean on changed files. Visual walk cycle not inspected.
 - **Next action:** review the diff, then continue the batch order (NPC-03, MP-01, INT-01, AUDIO-04).
 
-**NPC-03 — Outskirts discoveries** · Status: **In Progress** · Contributor: **Boey** (implemented by Claude Code) · Branch: `npc-03-outskirts` · Plan approved by Boey on 30 October 2026 (mega-batch, `.local-handover/MEGA-BATCH-PLAN-2026-10-30.md`); Boey states the team has consented to this feature. Pre-approved for the batch: branch, commit and `--no-ff` merge into local `main` after checks; no push.
+**NPC-03 — Outskirts discoveries** · Status: **Review** · Contributor: **Boey** (implemented by Claude Code) · Branch: `npc-03-outskirts` · Plan approved by Boey on 30 October 2026 (mega-batch, `.local-handover/MEGA-BATCH-PLAN-2026-10-30.md`); Boey states the team has consented to this feature. Pre-approved for the batch: branch, commit and `--no-ff` merge into local `main` after checks; no push.
 
 - **Scope:** Two or three new walkable outskirt pockets with five or six hidden security-themed NPCs and objects (E or tap to interact), off the minimap and destination list; a Discoveries count in the menu with found IDs in localStorage (non-sensitive).
 - **Difficulty and checks:** complexity 2; unit tests and one hub E2E.
 - **Collision check (30 Oct):** no TASKS record, branch or code for this feature (rg over TASKS.md, `client/src`, `server/src`, remote branches); DESIGN.md:110 and the HUB-01 follow-ups listed it as needing its own approval, now given. Teammate worktrees were not inspected.
-- **Docs impact:** hub README, README "Using the app", this record.
-- **Next action:** implement in batch order (COH-04, UX-01, NPC-02, NPC-03, MP-01, INT-01, AUDIO-04).
+- **Docs impact:** hub README, README "Using the app", this record (all updated).
+- **Implemented (30 Oct):** four pockets in `pockets` (`layout.js`), six finds in `scenes/wharf/finds.js`, scenery and objects in `scenes/wharf/outskirts.js`, `discoveries.js` store and proximity helper, `HubScene.vue` interact path and prompt button, `NpcDialogue.vue` `closeLabel`, Discoveries count in `SiteMenu.vue`. Shared edits: `HubScene.vue`, `NpcDialogue.vue`, `engine.js` (`nearFind`), `townsfolk.js`, `ground.js`, `SiteMenu.vue`/`menu.css`.
+- **Verification (30 Oct):** `pnpm exec vitest run client/src/features/hub client/src/features/menu` 22 files, 217 tests pass (new `discoveries.test.js`); `node scripts/run-with-test-db.mjs e2e --replica-set tests/e2e/hub-discoveries.spec.js --workers=1` 4 passed (2 tests, mobile and desktop); eslint clean on `hub` and `menu`. Visual check in headless software rendering: pockets, objects and the open card looked right.
+- **Next action:** review the diff, then continue the batch order (MP-01, INT-01, AUDIO-04).
 
 **MP-01 — Wharf presence** · Status: **In Progress** · Contributor: **Boey** (implemented by Claude Code) · Branch: `mp-01-wharf-presence` · Plan approved by Boey on 30 October 2026 (mega-batch, `.local-handover/MEGA-BATCH-PLAN-2026-10-30.md`); Boey states the team has consented to this feature. Pre-approved for the batch: branch, commit and `--no-ff` merge into local `main` after checks; no push.
 
