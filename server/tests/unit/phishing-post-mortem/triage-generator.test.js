@@ -41,7 +41,8 @@ function hostsOf(email) {
   return hosts
 }
 
-describe('triage generator', () => {
+// the property checks walk 500 seeds x 60 rounds, which takes several seconds per test
+describe('triage generator', { timeout: 30000 }, () => {
   it('exposes a version and a fixed tier ramp', () => {
     expect(GENERATOR_VERSION).toBe('triage-2')
     expect([0, 3].map(tierForRound)).toEqual([1, 1])
