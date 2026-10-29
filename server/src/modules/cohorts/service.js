@@ -111,6 +111,15 @@ function unavailable() {
   )
 }
 
+function alreadyInClass(staffFacing = false) {
+  return conflict(
+    'COHORT_ALREADY_IN_CLASS',
+    staffFacing
+      ? 'This student is already in another class.'
+      : "You're already in a class. Leave it before joining another.",
+  )
+}
+
 function assertEmptyQuery(query) {
   if (
     !query ||
@@ -181,6 +190,15 @@ export function createCohortService(
       await session?.endSession().catch(() => {})
     }
     return result
+  }
+
+  async function assertNoOtherClass(userId, cohortId, session, staffFacing = false) {
+    const other = await Membership.exists({
+      userId,
+      cohortId: { $ne: cohortId },
+      status: { $in: ['active', 'pending'] },
+    }).session(session)
+    if (other) throw alreadyInClass(staffFacing)
   }
 
   async function currentActor(actor, session) {
@@ -347,6 +365,7 @@ export function createCohortService(
       if (!cohort || !institution)
         throw new CohortError('COHORT_CODE_UNAVAILABLE', 'This class code is unavailable.', 404)
       await acquireActiveClassGuards(Cohort, Institution, cohort, institution, session)
+      await assertNoOtherClass(current._id, cohort._id, session)
       const claimed = await EnrollmentCode.updateOne(
         {
           _id: code._id,
@@ -536,6 +555,8 @@ export function createCohortService(
           globalRoles: 'student',
         }).session(session)
         if (!eligibleStudent) throw notFound()
+        if (membership.status === 'pending')
+          await assertNoOtherClass(membership.userId, parsedCohortId, session, true)
       }
       let decision
       if (membership.status === 'pending' && parsed.status === 'active') decision = 'approved'

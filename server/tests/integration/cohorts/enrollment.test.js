@@ -573,3 +573,108 @@ describe.skipIf(process.env.SHARLOCK_TEST_REPLICA_SET !== '1')('cohort enrollmen
     })
   })
 })
+
+describe.skipIf(process.env.SHARLOCK_TEST_REPLICA_SET !== '1')('one class per student', () => {
+  let sibling
+  let siblingTeacherCode
+
+  async function createSibling() {
+    sibling = await cohortModel(database).create({
+      institutionId: institution._id,
+      name: `Sibling ${randomUUID().slice(0, 8)}`,
+      term: '2026 T2',
+      status: 'active',
+    })
+    owned.cohorts.add(sibling._id.toString())
+    await instructorAssignmentModel(database).create({
+      userId: new Types.ObjectId(teacher.user.id),
+      cohortId: sibling._id,
+      status: 'active',
+    })
+    const issued = await teacher.agent
+      .post(`/api/cohorts/${sibling._id}/enrollment-codes`)
+      .set('Origin', origin)
+      .set('X-CSRF-Token', teacher.csrfToken)
+      .send({ expectedRevision: 0 })
+      .expect(201)
+    siblingTeacherCode = issued.body.rawCode
+  }
+
+  function join(account, code) {
+    return account.agent
+      .post('/api/cohorts/join-requests')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', account.csrfToken)
+      .send({ code })
+  }
+
+  function decide(cohortId, membershipId, status, expectedRevision) {
+    return teacher.agent
+      .patch(`/api/cohorts/${cohortId}/memberships/${membershipId}`)
+      .set('Origin', origin)
+      .set('X-CSRF-Token', teacher.csrfToken)
+      .send({ status, expectedRevision })
+  }
+
+  it('blocks a second class while one is pending or active, keeps same-class retries and allows a new class after removal', async () => {
+    await createSibling()
+    const firstCode = (await requestCode().expect(201)).body.rawCode
+    const pending = await join(student, firstCode).expect(200)
+    const blocked = await join(student, siblingTeacherCode).expect(409)
+    expect(blocked.body.error).toMatchObject({
+      code: 'COHORT_ALREADY_IN_CLASS',
+      message: "You're already in a class. Leave it before joining another.",
+    })
+    expect(await membershipModel(database).countDocuments({ userId: student.user.id })).toBe(1)
+    expect((await join(student, firstCode).expect(200)).body).toEqual(pending.body)
+
+    await decide(cohort._id, pending.body.membership.id, 'active', 0).expect(200)
+    await join(student, siblingTeacherCode).expect(409)
+
+    await decide(cohort._id, pending.body.membership.id, 'removed', 1).expect(200)
+    const next = await join(student, siblingTeacherCode).expect(200)
+    expect(next.body.membership).toMatchObject({ status: 'pending' })
+    await join(student, firstCode).expect(409)
+  })
+
+  it('refuses approval when the student already holds another active class and changes nothing', async () => {
+    await createSibling()
+    const userId = new Types.ObjectId(student.user.id)
+    const pendingHere = await membershipModel(database).create({
+      userId,
+      cohortId: cohort._id,
+      status: 'pending',
+      requestedAt: new Date(currentTime),
+    })
+    await membershipModel(database).create({
+      userId,
+      cohortId: sibling._id,
+      status: 'active',
+      requestedAt: new Date(currentTime),
+    })
+    const refused = await decide(cohort._id, pendingHere._id, 'active', 0).expect(409)
+    expect(refused.body.error).toMatchObject({
+      code: 'COHORT_ALREADY_IN_CLASS',
+      message: 'This student is already in another class.',
+    })
+    expect(await membershipModel(database).findById(pendingHere._id).lean()).toMatchObject({
+      status: 'pending',
+      decision: null,
+      revision: 0,
+    })
+    await decide(cohort._id, pendingHere._id, 'removed', 0).expect(200)
+  })
+
+  it('does not limit staff or touch existing extra memberships', async () => {
+    await createSibling()
+    const code = (await requestCode().expect(201)).body.rawCode
+    await join(teacher, code).expect(403)
+    const userId = new Types.ObjectId(student.user.id)
+    await membershipModel(database).create([
+      { userId, cohortId: cohort._id, status: 'active', requestedAt: new Date(currentTime) },
+      { userId, cohortId: sibling._id, status: 'active', requestedAt: new Date(currentTime) },
+    ])
+    const listed = await student.agent.get('/api/me/memberships').expect(200)
+    expect(listed.body.memberships.filter(({ status }) => status === 'active')).toHaveLength(2)
+  })
+})

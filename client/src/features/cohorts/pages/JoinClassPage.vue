@@ -8,6 +8,7 @@ import {
   completeOnboarding,
   getEnrollment,
   joinClass,
+  listMemberships,
   safeError,
 } from '../api.js'
 import {
@@ -31,9 +32,27 @@ const notice = ref('')
 const onboarding = ref(route.query.onboarding === '1')
 const carry = ref(route.query.carry === '1' && consumeAutomaticJoin())
 const hasInvitation = ref(false)
+const currentClass = ref(null)
 let controller = new AbortController()
 let joinedAutomatically = false
 let preserveHeldOnUnmount = false
+
+async function loadCurrentClass() {
+  try {
+    const result = await listMemberships({ limit: 50, signal: controller.signal })
+    const holdsClass = ({ status }) => status === 'active' || status === 'pending'
+    currentClass.value = (result?.memberships ?? []).find(holdsClass) ?? null
+  } catch {
+    currentClass.value = null
+  }
+}
+
+async function handleJoinFailure(cause) {
+  if (controller.signal.aborted) return
+  const failure = safeError(cause)
+  error.value = failure.message
+  if (failure.code === 'COHORT_ALREADY_IN_CLASS') await loadCurrentClass()
+}
 
 async function initialize() {
   loading.value = true
@@ -44,10 +63,11 @@ async function initialize() {
     if (captured) hasInvitation.value = true
     if (auth.status !== 'authenticated') await auth.restoreSession({ force: true })
     if (auth.status === 'authenticated') {
+      await loadCurrentClass()
       const enrollment = await getEnrollment(controller.signal)
       hasInvitation.value = Boolean(enrollment?.hasInvitation)
       if (route.query.carry === '1' && !carry.value) await router.replace('/join-class')
-      if (carry.value && hasInvitation.value && !joinedAutomatically) {
+      if (carry.value && hasInvitation.value && !joinedAutomatically && !currentClass.value) {
         joinedAutomatically = true
         carry.value = false
         onboarding.value = true
@@ -72,7 +92,7 @@ async function sendInvitation() {
     const state = result?.membership?.status === 'active' ? 'active' : 'pending'
     await router.replace({ path: '/', query: { classRequest: state } })
   } catch (cause) {
-    if (!controller.signal.aborted) error.value = safeError(cause).message
+    await handleJoinFailure(cause)
   } finally {
     pending.value = false
   }
@@ -96,7 +116,7 @@ async function submitCode(code) {
     const state = result?.membership?.status === 'active' ? 'active' : 'pending'
     await router.replace({ path: '/', query: { classRequest: state } })
   } catch (cause) {
-    if (!controller.signal.aborted) error.value = safeError(cause).message
+    await handleJoinFailure(cause)
   } finally {
     pending.value = false
   }
@@ -176,6 +196,20 @@ onBeforeUnmount(() => {
         @submit="submitCode"
       />
     </template>
+    <div v-else-if="currentClass" class="cohort-notice" data-testid="already-in-class">
+      <p>You're already in {{ currentClass.cohortName ?? 'a class' }}.</p>
+      <p>Leave it first to join another.</p>
+      <RouterLink class="btn btn-secondary" to="/classes">Your classes</RouterLink>
+      <button
+        v-if="onboarding"
+        class="btn btn-secondary"
+        type="button"
+        :disabled="pending"
+        @click="skipOnboarding"
+      >
+        {{ pending ? 'Saving…' : 'Skip and explore Sharlock' }}
+      </button>
+    </div>
     <template v-else>
       <p v-if="error" class="cohort-alert" role="alert">{{ error }}</p>
       <p v-if="hasInvitation" class="cohort-notice">
