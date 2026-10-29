@@ -1884,3 +1884,61 @@
   outline: 3px solid var(--game-amber);
   outline-offset: 2px;
 }
+
+/* lookup output, time penalty cue and step status added for cli-3 */
+.cli-line-lookup {
+  color: var(--game-amber);
+}
+
+.cli-banner-status {
+  margin: 0.25rem 0 0.5rem;
+  font-size: 0.85rem;
+  color: var(--game-green-dim);
+}
+
+.cli-step-note {
+  color: var(--game-amber);
+}
+
+.cli-penalty-cue {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.5rem;
+  font-weight: 700;
+  color: var(--game-red);
+  animation: cli-penalty-rise 1.6s ease-out forwards;
+}
+
+.cli-stat-window {
+  position: relative;
+}
+
+.cli-demo-found {
+  margin: 0;
+  color: var(--game-amber);
+}
+
+.cli-demo-lookup {
+  color: var(--game-ink);
+}
+
+.cli-decoy-label {
+  margin: 0.25rem 0;
+}
+
+@keyframes cli-penalty-rise {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-0.75rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cli-penalty-cue {
+    animation: none;
+  }
+}

@@ -24,24 +24,50 @@ export const COMMAND_TEMPLATES = [
     label: 'isolate host',
     hint: 'Cut an infected machine off the network',
   },
+  {
+    id: 'logs',
+    template: 'logs ',
+    label: 'logs',
+    hint: 'Read the log of a host',
+  },
+  {
+    id: 'whois',
+    template: 'whois ',
+    label: 'whois',
+    hint: 'Look up who owns an address',
+  },
+  {
+    id: 'dismiss',
+    template: 'dismiss',
+    label: 'dismiss',
+    hint: 'Close a false alarm',
+    noTarget: true,
+  },
 ]
 
 // demo-only incidents that never appear in a real shift, so the loop teaches without spoiling
+// each one looks something up first, then acts, because the alert never names the culprit
 export const DEMO_SCENES = [
   {
-    alert: 'Brute force on vpn-gw from 192.0.2.99',
-    command: 'block ip 192.0.2.99',
+    alert: 'Failed logins on vpn-gw from 192.0.2.131 or 192.0.2.132',
+    lookup: 'whois 192.0.2.132',
+    found: '300 password guesses a minute',
+    command: 'block ip 192.0.2.132',
     result: 'Contained +100',
   },
   {
-    alert: 'Phished account demo-07 signs in from abroad',
+    alert: 'Odd sign-in from abroad: demo-07 or demo-08',
+    lookup: 'logs demo-07',
+    found: 'new country, MFA never answered',
     command: 'disable user demo-07',
     result: 'Contained +200',
   },
   {
-    alert: 'Host demo-pc beacons to a known C2 server',
-    command: 'isolate host demo-pc',
-    result: 'Contained +300',
+    alert: 'Port scan against demo-srv from 192.0.2.60',
+    lookup: 'whois 192.0.2.60',
+    found: 'IT scanner, change ticket on file',
+    command: 'dismiss',
+    result: 'False alarm dismissed +300',
   },
 ]
 

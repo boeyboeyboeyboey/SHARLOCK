@@ -1,4 +1,5 @@
 import { createAttemptRegistry } from './registry.js'
+import { cliLegacyRuleset } from '../games/cli-cyber-defender/legacy.js'
 import { cliRuleset } from '../games/cli-cyber-defender/ruleset.js'
 import { clearanceRuleset } from '../games/clearance-tower/ruleset.js'
 import { phishingRuleset } from '../games/phishing-post-mortem/ruleset.js'
@@ -12,6 +13,7 @@ export function createProductionAttemptRegistry() {
     clearanceRuleset,
     phishingRuleset,
     triageRuleset,
+    cliLegacyRuleset,
     cliRuleset,
     socialEngineeringRuleset,
   ])

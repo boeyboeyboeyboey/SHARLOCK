@@ -1,16 +1,22 @@
 export const GAME_ID = 'cli-cyber-defender'
-export const RULESET_VERSION = 'cli-2'
+export const RULESET_VERSION = 'cli-3'
 export const MODES = ['timed', 'practice']
 export const INCIDENT_COUNT = 8
-export const SHIFT_SECONDS = 100
-export const MIN_WINDOW_SECONDS = 10
-export const MAX_WINDOW_SECONDS = 15
+export const SHIFT_SECONDS = 200
+export const MIN_WINDOW_SECONDS = 20
+export const MAX_WINDOW_SECONDS = 30
+export const TWO_STEP_INCIDENTS = 2
+export const TOTAL_STEPS = INCIDENT_COUNT + TWO_STEP_INCIDENTS
+export const MAX_LOOKUPS_PER_INCIDENT = 6
+export const MAX_MISTAKES_PER_INCIDENT = 3
+export const TIME_PENALTY_SECONDS = 5
+export const MIN_PENALISED_WINDOW_SECONDS = 5
 export const POINTS_PER_STEP = 100
 export const MAX_MULTIPLIER = 3
 export const MAX_COMMAND_LENGTH = 120
-export const MAX_COMMANDS_PER_RUN = 80
+export const MAX_COMMANDS_PER_RUN = 120
 export const MAX_SCORE = Array.from(
-  { length: INCIDENT_COUNT },
+  { length: TOTAL_STEPS },
   (_, index) => POINTS_PER_STEP * Math.min(MAX_MULTIPLIER, index + 1),
 ).reduce((total, points) => total + points, 0)
 

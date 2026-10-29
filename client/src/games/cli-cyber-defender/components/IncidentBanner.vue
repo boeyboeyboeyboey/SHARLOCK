@@ -59,8 +59,16 @@ const urgent = computed(() => props.remainingMs != null && props.remainingMs <= 
           <span v-if="incident.hintLine === index" class="cli-hint-tag">hint</span>
         </li>
       </ul>
+      <p v-if="incident.lookups" class="cli-banner-status">
+        Lookups used: {{ incident.lookups.used }} of {{ incident.lookups.limit }}
+        <span v-if="incident.stepsDone > 0" class="cli-step-note"
+          >| Step {{ incident.stepsDone }} done, the incident is still open</span
+        >
+      </p>
       <div v-if="interactive" class="cli-banner-foot">
-        <p class="cli-banner-tip">Tap a name to target it.</p>
+        <p class="cli-banner-tip">
+          Investigate with logs and whois, then act. Tap a name to use it.
+        </p>
         <button
           v-if="canHint"
           type="button"

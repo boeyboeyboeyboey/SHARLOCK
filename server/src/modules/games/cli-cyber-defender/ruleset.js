@@ -1,8 +1,16 @@
 import { Schema } from 'mongoose'
-import { GAME_ID, INCIDENT_COUNT, MAX_SCORE, MODES, RULESET_VERSION } from './policy.js'
+import {
+  GAME_ID,
+  INCIDENT_COUNT,
+  MAX_MISTAKES_PER_INCIDENT,
+  MAX_SCORE,
+  MODES,
+  RULESET_VERSION,
+} from './policy.js'
 import { SCENARIOS, TOPICS } from './scenarios.js'
 import { pointsFor } from './schedule.js'
 
+const TRAIL_STEPS = ['ok', 'bad']
 const OUTCOMES = ['correct', 'wrong', 'missed', 'skipped']
 const SCENARIO_IDS = SCENARIOS.map((scenario) => scenario.id)
 const TOPIC_OF = new Map(SCENARIOS.map((scenario) => [scenario.id, scenario.topic]))
@@ -12,6 +20,11 @@ const incidentSchema = new Schema(
     scenarioId: { type: String, required: true, enum: SCENARIO_IDS },
     outcome: { type: String, required: true, enum: OUTCOMES },
     hintUsed: { type: Boolean, required: true },
+    // ordered containment results for this incident: ok steps score, bad steps reset the streak
+    trail: {
+      type: [{ type: String, enum: TRAIL_STEPS }],
+      validate: (list) => list.length <= 2 + MAX_MISTAKES_PER_INCIDENT,
+    },
   },
   { _id: false, strict: 'throw' },
 )
@@ -32,11 +45,14 @@ const stateSchema = new Schema(
 export function scoreIncidents(incidents) {
   let streak = 0
   let score = 0
-  for (const { outcome } of incidents) {
-    if (outcome === 'correct') {
-      streak += 1
-      score += pointsFor(streak)
-    } else streak = 0
+  for (const { outcome, trail } of incidents) {
+    for (const step of trail) {
+      if (step === 'ok') {
+        streak += 1
+        score += pointsFor(streak)
+      } else streak = 0
+    }
+    if (outcome === 'missed' || outcome === 'skipped') streak = 0
   }
   return score
 }

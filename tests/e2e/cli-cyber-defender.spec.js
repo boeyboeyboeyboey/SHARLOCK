@@ -17,11 +17,36 @@ const commandInput = (page) => page.getByRole('textbox', { name: 'Command', exac
 const banner = (page) => page.getByRole('region', { name: 'Current incident' })
 const hud = (page) => page.getByLabel('Game status')
 
-async function expectedCommand(page) {
+async function scenarioOnScreen(page) {
   const title = (await banner(page).getByRole('heading').textContent()).trim()
   const scenario = SCENARIOS.find((item) => item.alert.title === title)
   expect(scenario, `unknown alert ${title}`).toBeTruthy()
-  return formatCommand(scenario.expected.verb, scenario.expected.target)
+  return scenario
+}
+
+// the ordered commands that resolve the open incident, or dismiss for a false alarm
+async function stepsFor(page) {
+  const scenario = await scenarioOnScreen(page)
+  return scenario.steps.length
+    ? scenario.steps.map(({ verb, target }) => formatCommand(verb, target))
+    : ['dismiss']
+}
+
+async function expectedCommand(page) {
+  return (await stepsFor(page))[0]
+}
+
+async function solve(page) {
+  for (const command of await stepsFor(page)) await run(page, command)
+}
+
+// solves incidents until the open one matches, leaving it untouched
+async function advanceTo(page, predicate) {
+  for (let guard = 0; guard < 8; guard += 1) {
+    if (predicate(await scenarioOnScreen(page))) return
+    await solve(page)
+  }
+  throw new Error('no matching incident in this shift')
 }
 
 async function run(page, command) {
@@ -151,27 +176,36 @@ test('pauses a timed game while deciding to leave and resumes on stay', async ({
 
 test('animates a briefing demo that never spoils a real shift', async ({ page }) => {
   const answers = new Set(
-    SCENARIOS.map((item) => formatCommand(item.expected.verb, item.expected.target)),
+    SCENARIOS.flatMap((item) => item.steps.map(({ verb, target }) => formatCommand(verb, target))),
   )
-  for (const scene of DEMO_SCENES) expect(answers.has(scene.command)).toBe(false)
+  const lookupKeys = new Set(SCENARIOS.flatMap((item) => Object.keys(item.lookups)))
+  for (const scene of DEMO_SCENES) {
+    expect(answers.has(scene.command)).toBe(false)
+    expect(lookupKeys.has(scene.lookup)).toBe(false)
+  }
   await page.goto('/games/cli-cyber-defender')
   await chooseContext(page)
   const demo = page.locator('.cli-demo-window')
   await expect(demo).toContainText(DEMO_SCENES[0].alert)
-  await expect(demo.locator('.cli-demo-ok')).toContainText(DEMO_SCENES[0].result)
-  await expect(demo).toContainText(DEMO_SCENES[1].alert, { timeout: 8000 })
+  await expect(demo.locator('.cli-demo-found')).toContainText(DEMO_SCENES[0].found, {
+    timeout: 8000,
+  })
+  await expect(demo.locator('.cli-demo-ok')).toContainText(DEMO_SCENES[0].result, {
+    timeout: 10_000,
+  })
+  await expect(demo).toContainText(DEMO_SCENES[1].alert, { timeout: 10_000 })
 })
 
-test('plays a perfect practice shift to 2,100 and replays', async ({ page }) => {
+test('plays a perfect practice shift to 2,700 and replays', async ({ page }) => {
   await startShift(page, 'practice')
   await expect(hud(page)).toContainText('untimed')
   for (let handled = 1; handled <= 8; handled += 1) {
-    await run(page, await expectedCommand(page))
+    await solve(page)
     if (handled < 8) await expect(hud(page)).toContainText(`${handled + 1} / 8`)
   }
   const debrief = page.getByRole('heading', { name: 'Shift debrief' })
   await expect(debrief).toBeFocused()
-  await expect(page.getByText('2,100 / 2,100 points')).toBeVisible()
+  await expect(page.getByText('2,700 / 2,700 points')).toBeVisible()
   await expect(page.locator('.cli-outcome-correct')).toHaveCount(8)
   await expect(page.getByText('Result saved to your account.')).toBeVisible()
   await expect(page.getByRole('link', { name: 'Back to town' })).toHaveCount(1)
@@ -197,7 +231,7 @@ test('keeps the incident open on a typo, closes it on a wrong target', async ({ 
   await run(page, 'blok ip 192.0.2.1')
   await expect(terminal).toContainText('Command not recognised')
   await expect(hud(page)).toContainText('1 / 8')
-  await run(page, await expectedCommand(page))
+  await solve(page)
   await expect(hud(page)).toContainText('2 / 8')
   await run(page, 'isolate host not-the-right-host')
   await expect(terminal).toContainText('[FAIL] isolate host not-the-right-host')
@@ -206,7 +240,7 @@ test('keeps the incident open on a typo, closes it on a wrong target', async ({ 
   await run(page, 'help')
   await expect(terminal).toContainText('local, never sent')
   await useMenu(page, 'End practice')
-  await expect(page.getByText('100 / 2,100 points')).toBeVisible()
+  await expect(page.getByText('100 / 2,700 points')).toBeVisible()
   await expect(page.locator('.cli-outcome-wrong')).toHaveCount(1)
   await expect(page.locator('.cli-outcome-skipped')).toHaveCount(6)
 })
@@ -218,6 +252,76 @@ test('scores a timed incident against the server window', async ({ page }) => {
   await run(page, await expectedCommand(page))
   await expect(page.getByRole('log', { name: 'Terminal output' })).toContainText('+100 (streak 1)')
   await expect(hud(page)).toContainText('100')
+})
+
+test('investigates with lookups before acting, limited to six per incident', async ({ page }) => {
+  await startShift(page, 'practice')
+  const scenario = await scenarioOnScreen(page)
+  const log = page.getByRole('log', { name: 'Terminal output' })
+  const [key, lines] = Object.entries(scenario.lookups)[0]
+  await run(page, key)
+  await expect(log).toContainText(`[${key}] (1/6)`)
+  await expect(log).toContainText(lines[0])
+  await expect(banner(page)).toContainText('Lookups used: 1 of 6')
+  await expect(hud(page)).toContainText('0')
+  for (let index = 2; index <= 6; index += 1) await run(page, `logs lab-${index}`)
+  await expect(banner(page)).toContainText('Lookups used: 6 of 6')
+  await run(page, 'logs lab-9')
+  await expect(log).toContainText('No lookups left for this incident')
+  await solve(page)
+  await expect(hud(page)).toContainText('2 / 8')
+  await expect(banner(page)).toContainText('Lookups used: 0 of 6')
+})
+
+test('dismisses a false alarm and counts containing it as a mistake', async ({ page }) => {
+  await startShift(page, 'practice')
+  await advanceTo(page, (scenario) => scenario.decoy)
+  const log = page.getByRole('log', { name: 'Terminal output' })
+  await run(page, 'block ip 192.0.2.250')
+  await expect(log).toContainText('[FAIL] block ip 192.0.2.250')
+  await expect(log).toContainText('false alarm')
+  await expect(
+    page.getByRole('button', { name: 'Insert dismiss: Close a false alarm' }),
+  ).toBeVisible()
+})
+
+test('dismissing a real incident is a mistake and a false alarm scores', async ({ page }) => {
+  await startShift(page, 'practice')
+  await advanceTo(page, (scenario) => !scenario.decoy)
+  await run(page, 'dismiss')
+  await expect(page.getByRole('log', { name: 'Terminal output' })).toContainText('[FAIL] dismiss')
+  await advanceTo(page, (scenario) => scenario.decoy)
+  await run(page, 'dismiss')
+  await expect(page.getByRole('log', { name: 'Terminal output' })).toContainText('Alert dismissed')
+})
+
+test('keeps a two-step incident open after the first action', async ({ page }) => {
+  await startShift(page, 'practice')
+  await advanceTo(page, (scenario) => scenario.steps.length === 2)
+  const [first, second] = await stepsFor(page)
+  const log = page.getByRole('log', { name: 'Terminal output' })
+  await run(page, second)
+  await expect(log).toContainText('still open')
+  await run(page, first)
+  await expect(log).toContainText('[STEP]')
+  await expect(banner(page)).toContainText('Step 1 done, the incident is still open')
+  await run(page, second)
+  // the last incident of a shift goes straight to the debrief
+  await expect(
+    log
+      .getByText('[ OK ]')
+      .last()
+      .or(page.getByRole('heading', { name: 'Shift debrief' })),
+  ).toBeVisible()
+})
+
+test('cuts five seconds and cues it in a timed game only', async ({ page }) => {
+  await startShift(page, 'timed')
+  await run(page, 'isolate host not-the-right-host')
+  await expect(hud(page).locator('.cli-penalty-cue')).toContainText('-5 s')
+  await expect(page.getByRole('log', { name: 'Terminal output' })).toContainText(
+    '[-5 s] 5 seconds were cut from the clock.',
+  )
 })
 
 async function setHidden(page, hidden) {
@@ -260,6 +364,7 @@ test('never pauses untimed practice', async ({ page }) => {
 
 test('lets touch users insert command templates and recall history', async ({ page }, testInfo) => {
   await startShift(page, 'practice')
+  await advanceTo(page, (scenario) => !scenario.decoy)
   const command = await expectedCommand(page)
   const [verb, noun, target] = command.split(' ')
   const template = page.getByRole('button', { name: new RegExp(`^Insert ${verb} ${noun}`) })
@@ -278,6 +383,7 @@ test('taps an alert name to complete a command and explains the outcome', async 
   page,
 }, testInfo) => {
   await startShift(page, 'practice')
+  await advanceTo(page, (scenario) => !scenario.decoy)
   const command = await expectedCommand(page)
   const [verb, noun, target] = command.split(' ')
   await page.getByRole('button', { name: new RegExp(`^Insert ${verb} ${noun}`) }).click()
@@ -288,6 +394,7 @@ test('taps an alert name to complete a command and explains the outcome', async 
   await expect(commandInput(page)).toHaveValue(command)
   await expect(commandInput(page)).toBeFocused()
   await commandInput(page).press('Enter')
+  // a two-step incident would need its second action before the review shows
   const log = page.getByRole('log', { name: 'Terminal output' })
   await expect(log).toContainText('why:')
   await expect(log).toContainText('Containment')
@@ -472,9 +579,9 @@ test('a class student saves a timed shift and appears on the timed leaderboard',
   const { context, page } = await signedInPage(browser, baseURL, seeded.studentA)
   try {
     await startShift(page, 'timed', seeded.classId)
-    for (let handled = 1; handled <= 8; handled += 1) await run(page, await expectedCommand(page))
+    for (let handled = 1; handled <= 8; handled += 1) await solve(page)
     await expect(page.getByRole('heading', { name: 'Shift debrief' })).toBeFocused()
-    await expect(page.getByText('2,100 / 2,100 points')).toBeVisible()
+    await expect(page.getByText('2,700 / 2,700 points')).toBeVisible()
     await expect(page.getByText('Result saved to your account.')).toBeVisible()
 
     await page.goto(`/leaderboard?game=cli-cyber-defender&class=${seeded.classId}`)

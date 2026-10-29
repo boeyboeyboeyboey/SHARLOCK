@@ -7,6 +7,7 @@ const props = defineProps({ typeMs: { type: Number, default: 60 } })
 
 const index = ref(0)
 const typed = ref('')
+const typedLookup = ref('')
 const stage = ref('alert')
 const scene = computed(() => DEMO_SCENES[index.value])
 let timers = []
@@ -23,11 +24,29 @@ function play() {
   timers.forEach(clearTimeout)
   timers = []
   typed.value = ''
+  typedLookup.value = ''
   stage.value = 'alert'
   later(() => {
-    stage.value = 'typing'
-    typeFrom(0)
+    stage.value = 'lookup'
+    typeLookup(0)
   }, 900)
+}
+
+// the lookup comes first: type it, show what it found, then type the action
+function typeLookup(position) {
+  const { lookup } = scene.value
+  typedLookup.value = lookup.slice(0, position)
+  if (position < lookup.length) {
+    later(() => typeLookup(position + 1), props.typeMs)
+    return
+  }
+  later(() => {
+    stage.value = 'found'
+    later(() => {
+      stage.value = 'typing'
+      typeFrom(0)
+    }, 1000)
+  }, 300)
 }
 
 function typeFrom(position) {
@@ -61,6 +80,7 @@ function sync() {
 onMounted(() => {
   if (globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
     typed.value = scene.value.command
+    typedLookup.value = scene.value.lookup
     stage.value = 'done'
     return
   }
@@ -91,7 +111,24 @@ onBeforeUnmount(() => {
       </div>
       <div :key="index" class="cli-demo-body">
         <p class="cli-demo-alert"><CliIcon name="alert" :size="14" />{{ scene.alert }}</p>
-        <p class="cli-demo-prompt">
+        <p
+          class="cli-demo-prompt"
+          :style="{ visibility: stage === 'alert' ? 'hidden' : 'visible' }"
+        >
+          <span class="cli-demo-host">soc@sharlock:~$</span>
+          <span class="cli-demo-lookup">{{ typedLookup }}</span
+          ><span v-if="stage === 'lookup'" class="cli-demo-caret">_</span>
+        </p>
+        <p
+          class="cli-demo-found"
+          :style="{ visibility: ['alert', 'lookup'].includes(stage) ? 'hidden' : 'visible' }"
+        >
+          &gt; {{ scene.found }}
+        </p>
+        <p
+          class="cli-demo-prompt"
+          :style="{ visibility: ['typing', 'done'].includes(stage) ? 'visible' : 'hidden' }"
+        >
           <span class="cli-demo-host">soc@sharlock:~$</span>
           <span class="cli-demo-typed">{{ typed }}</span
           ><span v-if="stage !== 'done'" class="cli-demo-caret">_</span>
@@ -109,7 +146,8 @@ onBeforeUnmount(() => {
       </div>
     </div>
     <figcaption class="visually-hidden">
-      Demo: an alert appears, the analyst types one command, and the incident is contained.
+      Demo: an alert appears, the analyst looks something up, then types one command and the
+      incident is resolved.
     </figcaption>
   </figure>
 </template>

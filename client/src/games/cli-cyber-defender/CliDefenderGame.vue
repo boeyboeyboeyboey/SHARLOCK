@@ -54,6 +54,7 @@ const {
   paused,
   resuming,
   lastReview,
+  penalty,
   hinting,
   saving,
   runContext,
@@ -101,7 +102,7 @@ function insertTemplate(template) {
 function insertTarget(target) {
   const typed = draft.value.trimStart().toLowerCase()
   const template = COMMAND_TEMPLATES.find((item) => typed.startsWith(item.template.trim()))
-  draft.value = template ? `${template.template}${target}` : target
+  draft.value = template && !template.noTarget ? `${template.template}${target}` : target
   terminal.value?.focus()
 }
 
@@ -194,6 +195,7 @@ watch([phase, paused], async ([next, isPaused]) => {
         :mode="mode"
         :history="snapshot?.history ?? []"
         :current-index="current?.index ?? null"
+        :penalty="penalty"
       />
       <div :class="['cli-stage', { 'is-paused': paused }]">
         <PausedPanel v-if="paused" :pending="resuming" @resume="resume" />

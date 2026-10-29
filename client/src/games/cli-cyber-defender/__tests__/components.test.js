@@ -8,6 +8,7 @@ import ConceptTags from '../components/ConceptTags.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import IncidentBanner from '../components/IncidentBanner.vue'
 import PausedPanel from '../components/PausedPanel.vue'
+import ReviewNote from '../components/ReviewNote.vue'
 import ScoreHud from '../components/ScoreHud.vue'
 import ShiftDebrief from '../components/ShiftDebrief.vue'
 import TerminalPanel from '../components/TerminalPanel.vue'
@@ -118,13 +119,56 @@ describe('cli defender components', () => {
   it('inserts command templates for touch users', async () => {
     const wrapper = mount(CommandReference)
     const buttons = wrapper.findAll('button')
-    expect(buttons).toHaveLength(3)
+    expect(buttons).toHaveLength(6)
     for (const button of buttons) await button.trigger('click')
     expect(wrapper.emitted('insert-template')).toEqual([
       ['block ip '],
       ['disable user '],
       ['isolate host '],
+      ['logs '],
+      ['whois '],
+      ['dismiss'],
     ])
+    expect(wrapper.text()).toContain('Read the log of a host')
+  })
+
+  it('shows lookup use and step progress without revealing the step count', () => {
+    const incident = {
+      incidentId: 'incident-07',
+      windowSeconds: 25,
+      stepsDone: 1,
+      lookups: { used: 2, limit: 6, results: [] },
+      alert: { title: 'Sweep', severity: 'high', source: 'Sensor', lines: ['a b'] },
+    }
+    const wrapper = mount(IncidentBanner, { props: { incident, remainingMs: 20_000 } })
+    expect(wrapper.text()).toContain('Lookups used: 2 of 6')
+    expect(wrapper.text()).toContain('Step 1 done, the incident is still open')
+    expect(wrapper.text()).not.toMatch(/of 2|two/i)
+  })
+
+  it('cues a time penalty visibly and for screen readers', () => {
+    const wrapper = mount(ScoreHud, {
+      props: { remainingMs: 12_000, penalty: { key: 1, seconds: 5 } },
+    })
+    expect(wrapper.get('.cli-penalty-cue').text()).toBe('-5 s')
+    expect(wrapper.get('[role="status"]').text()).toBe('5 seconds cut from the clock.')
+    expect(mount(ScoreHud).find('.cli-penalty-cue').exists()).toBe(false)
+  })
+
+  it('shows the decoy label in the last incident note', () => {
+    const wrapper = mount(ReviewNote, {
+      props: {
+        review: {
+          outcome: 'wrong',
+          expectedCommand: 'dismiss',
+          decoy: true,
+          explanation: 'Planned work.',
+          concepts: { attack: null, cia: [], stage: 'Containment' },
+        },
+      },
+    })
+    expect(wrapper.text()).toContain('false alarm')
+    expect(wrapper.text()).toContain('dismiss')
   })
 
   it('describes the incident and its window in text', () => {
@@ -281,9 +325,39 @@ describe('cli defender components', () => {
               title: 'Port sweep',
               outcome: 'missed',
               yourCommand: null,
+              yourCommands: [],
+              lookupsUsed: 2,
+              decoy: false,
               expectedCommand: 'block ip 192.0.2.66',
+              expectedCommands: ['block ip 192.0.2.66'],
               explanation: 'Block the scanner.',
               pointsAwarded: 0,
+            },
+            {
+              incidentId: 'incident-02',
+              title: 'Backup upload',
+              outcome: 'wrong',
+              yourCommand: 'isolate host backup-srv',
+              yourCommands: ['isolate host backup-srv'],
+              lookupsUsed: 1,
+              decoy: true,
+              expectedCommand: 'dismiss',
+              expectedCommands: ['dismiss'],
+              explanation: 'Planned backup.',
+              pointsAwarded: 0,
+            },
+            {
+              incidentId: 'incident-03',
+              title: 'Sweep',
+              outcome: 'correct',
+              yourCommand: 'disable user svc-print',
+              yourCommands: ['isolate host kiosk-04', 'disable user svc-print'],
+              lookupsUsed: 3,
+              decoy: false,
+              expectedCommand: 'isolate host kiosk-04 then disable user svc-print',
+              expectedCommands: ['isolate host kiosk-04', 'disable user svc-print'],
+              explanation: 'Isolate first.',
+              pointsAwarded: 300,
             },
           ],
         },
@@ -292,6 +366,11 @@ describe('cli defender components', () => {
     })
     expect(wrapper.text()).toContain('MISSED')
     expect(wrapper.text()).toContain('block ip 192.0.2.66')
+    // decoy label, both ordered steps and the lookup count are shown as text
+    expect(wrapper.text()).toContain('false alarm')
+    expect(wrapper.text()).toContain('isolate host kiosk-04')
+    expect(wrapper.text()).toContain('disable user svc-print')
+    expect(wrapper.text()).toContain('Lookups used')
     expect(wrapper.text()).not.toContain('Result saved to your account.')
     expect(wrapper.get('[role="alert"]').text()).toContain('Class unavailable.')
     await wrapper.get('[role="alert"] button').trigger('click')

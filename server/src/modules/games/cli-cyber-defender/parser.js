@@ -14,7 +14,10 @@ export function isIpv4(value) {
   return parts.length === 4 && parts.every((part) => OCTET.test(part) && Number(part) <= 255)
 }
 
+export const LOOKUPS = ['logs', 'whois']
+
 export function formatCommand(verb, target) {
+  if (verb === 'dismiss') return 'dismiss'
   return `${VERBS[verb].template} ${target}`
 }
 
@@ -25,6 +28,25 @@ export function parseCommand(input) {
   const tokens = input.trim().split(/\s+/).filter(Boolean)
   if (!tokens.length) return { ok: false, reason: 'empty' }
   const [first, second, target, ...extra] = tokens
+  const word = first.toLowerCase()
+  if (word === 'dismiss') {
+    if (tokens.length > 1) return { ok: false, reason: 'extra-arguments' }
+    return { ok: true, kind: 'dismiss', verb: 'dismiss', target: null, normalized: 'dismiss' }
+  }
+  if (LOOKUPS.includes(word)) {
+    if (!second) return { ok: false, reason: 'missing-target' }
+    if (tokens.length > 2) return { ok: false, reason: 'extra-arguments' }
+    const lookupTarget = second.toLowerCase()
+    if (word === 'whois' && !isIpv4(lookupTarget)) return { ok: false, reason: 'invalid-ip' }
+    if (word === 'logs' && !NAME.test(lookupTarget)) return { ok: false, reason: 'invalid-name' }
+    return {
+      ok: true,
+      kind: 'lookup',
+      verb: word,
+      target: lookupTarget,
+      normalized: `${word} ${lookupTarget}`,
+    }
+  }
   const verb = Object.keys(VERBS).find((key) => {
     const [keyword, noun] = VERBS[key].keywords
     return first.toLowerCase() === keyword && second?.toLowerCase() === noun
@@ -38,6 +60,7 @@ export function parseCommand(input) {
     return { ok: false, reason: 'invalid-name' }
   return {
     ok: true,
+    kind: 'action',
     verb,
     target: normalizedTarget,
     normalized: formatCommand(verb, normalizedTarget),
@@ -47,9 +70,10 @@ export function parseCommand(input) {
 export const SYNTAX_HINTS = {
   empty: 'Type a command, or "help" for the reference.',
   'too-long': `Commands are limited to ${MAX_COMMAND_LENGTH} characters.`,
-  'unknown-command': 'Command not recognised. Use block ip, disable user or isolate host.',
-  'missing-target': 'Add a target, for example "block ip 192.0.2.10".',
-  'extra-arguments': 'Too many arguments. Each command takes exactly one target.',
+  'unknown-command':
+    'Command not recognised. Use logs, whois, block ip, disable user, isolate host or dismiss.',
+  'missing-target': 'Add a target, for example "block ip 192.0.2.10" or "logs lab-02".',
+  'extra-arguments': 'Too many arguments. Each command takes at most one target.',
   'invalid-ip': 'That is not a valid IPv4 address, for example 192.0.2.10.',
   'invalid-name': 'Names use lowercase letters, digits and hyphens, for example lab-02.',
 }
