@@ -411,7 +411,6 @@ No active implementation task.
 - **Tests:** new `__tests__/howToPlay.test.js` in all four games (first visit opens, dismissed stays closed, button reopens); Phishing and Social mount tests now use Pinia with a dismissed user; SQL gets its first client test (course-alignment gap #5 partly addressed). E2E: `progress`, `leaderboard` and `class-results` specs pre-dismiss the guides for the users they create; `auth.spec.js` now walks the real first-visit guide for CLI and Phishing ("Start playing").
 - **Docs:** the four module READMEs (presentation summary + files), README "Using the app".
 - **Checks (27 October 2026):** `pnpm test:unit` 119 files, 1325/1325, exit 0; eslint on the games, shared dialog and changed specs exit 0; prettier clean on changed files. E2E (`--workers=1`): `auth` 6/6; `phishing-post-mortem` + `auth` 31 passed, 1 skipped; `social-engineering-simulator` 4/4; `sql-injection-arcade` + `progress` + `leaderboard` + `class-results` 21 passed, 1 skipped; `cli-cyber-defender` passed in the part 1 run. Screenshots of each guide at 1200 px viewed (Social tab row after the accuracy fix not re-viewed).
-- **CLI acceptance (30 October 2026):** the CLI Cyber Defender part is accepted by its module owner, Xin Lei. The other games' and shared parts stay in Review until their owners accept them.
 
 **E2E-03 — Flaky full-run journeys** · Status: **Review** · Contributor: **Boey** · Branch: `e2e-03-flaky-journeys` · Approved by Boey on 27 October 2026.
 
