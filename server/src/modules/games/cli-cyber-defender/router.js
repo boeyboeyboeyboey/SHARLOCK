@@ -91,7 +91,7 @@ export function createCliDefenderRouter({
   const playerOf = (response) => response.locals.authUser.id
 
   // session and csrf middleware run first; their errors reach the shared error handler below
-  function route(method, path, ...actions) {
+  function route(method, path, handler) {
     const guards = method === 'get' ? requireSession : [...requireSession, ...requireMutation]
     router[method](
       path,
@@ -103,7 +103,7 @@ export function createCliDefenderRouter({
       async (request, response) => {
         try {
           if (!allow(`${request.ip || 'unknown'}:${playerOf(response)}`)) throw rateLimited()
-          response.json(await actions[0](request, response))
+          response.json(await handler(request, response))
         } catch (error) {
           fail(response, error)
         }

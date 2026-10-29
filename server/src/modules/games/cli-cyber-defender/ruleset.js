@@ -57,16 +57,23 @@ export function scoreIncidents(incidents) {
   return score
 }
 
-export function topicOutcomesFor(incidents) {
+// shared by the live debrief and saved attempts so both judge a topic the same way
+export function outcomesByTopic(items) {
   return Object.keys(TOPICS)
-    .filter((topic) => incidents.some((item) => TOPIC_OF.get(item.scenarioId) === topic))
+    .filter((topic) => items.some((item) => item.topic === topic))
     .map((topic) => {
-      const achieved = incidents
-        .filter((item) => TOPIC_OF.get(item.scenarioId) === topic)
+      const achieved = items
+        .filter((item) => item.topic === topic)
         .every((item) => item.outcome === 'correct')
       const code = topic.toUpperCase().replace(/-/g, '_')
       return { topic, achieved, feedbackCode: `CLI_${code}_${achieved ? 'ACHIEVED' : 'MISSED'}` }
     })
+}
+
+export function topicOutcomesFor(incidents) {
+  return outcomesByTopic(
+    incidents.map((item) => ({ topic: TOPIC_OF.get(item.scenarioId), outcome: item.outcome })),
+  )
 }
 
 export const cliRuleset = {

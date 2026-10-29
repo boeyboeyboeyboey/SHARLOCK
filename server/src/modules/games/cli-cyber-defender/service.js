@@ -20,6 +20,7 @@ import {
   runNotFound,
 } from './policy.js'
 import { RESPONSE_STAGE, SCENARIOS, TIER_PLAN, TOPICS } from './scenarios.js'
+import { outcomesByTopic } from './ruleset.js'
 import { deriveProgress, generateWindows } from './schedule.js'
 
 const MAX_RUNS = 500
@@ -113,6 +114,11 @@ function concepts(scenario) {
     cia: [...(scenario.concepts?.cia ?? [])],
     stage: RESPONSE_STAGE,
   }
+}
+
+// open and pending incidents are still in play; every other outcome is settled
+function isResolved(item) {
+  return !['open', 'pending'].includes(item.outcome)
 }
 
 function countEvents(incident, kind) {
@@ -218,51 +224,53 @@ export function createCliDefenderService({
     return wall - run.pausedTotal - (run.pausedAt === null ? 0 : wall - run.pausedAt)
   }
 
+  function runStatus(run, progress) {
+    if (run.completion) return 'completed'
+    return progress.finished ? 'finished' : 'active'
+  }
+
   function snapshot(run, at) {
     const progress = deriveProgress(run, at)
-    const scenario = progress.current && run.incidents[progress.current.index].scenario
+    const incident = progress.current && run.incidents[progress.current.index]
+    const scenario = incident?.scenario
+    const resolved = progress.incidents.filter(isResolved)
     return {
       gameId: GAME_ID,
       rulesetVersion: RULESET_VERSION,
       runId: run.runId,
       mode: run.mode,
-      status: run.completion ? 'completed' : progress.finished ? 'finished' : 'active',
+      status: runStatus(run, progress),
       serverNow: at,
       paused: run.pausedAt !== null,
       incidentCount: run.incidents.length,
-      resolvedCount: progress.incidents.filter(
-        (item) => !['open', 'pending'].includes(item.outcome),
-      ).length,
+      resolvedCount: resolved.length,
       current: progress.current && {
         incidentId: progress.current.incidentId,
         index: progress.current.index,
         opensAt: progress.current.opensAt,
         closesAt: progress.current.closesAt,
-        windowSeconds:
-          run.mode === 'timed' ? run.incidents[progress.current.index].windowSeconds : null,
+        windowSeconds: run.mode === 'timed' ? incident.windowSeconds : null,
         alert: run.pausedAt === null ? publicAlert(scenario) : null,
-        hintLine: run.incidents[progress.current.index].hintUsed ? scenario.keyLine : null,
-        hintLookup: run.incidents[progress.current.index].hintUsed ? scenario.hintLookup : null,
+        hintLine: incident.hintUsed ? scenario.keyLine : null,
+        hintLookup: incident.hintUsed ? scenario.hintLookup : null,
         stepsDone: progress.current.stepsDone,
         mistakes: progress.current.mistakes,
         penaltySeconds: progress.current.penaltySeconds,
         lookups: {
-          used: run.incidents[progress.current.index].lookups.length,
+          used: incident.lookups.length,
           limit: MAX_LOOKUPS_PER_INCIDENT,
-          results: run.incidents[progress.current.index].lookups.map((item) => ({
+          results: incident.lookups.map((item) => ({
             command: item.command,
             lines: [...item.lines],
           })),
         },
       },
-      history: progress.incidents
-        .filter((item) => !['open', 'pending'].includes(item.outcome))
-        .map(({ incidentId: id, index, outcome, pointsAwarded }) => ({
-          incidentId: id,
-          index,
-          outcome,
-          pointsAwarded,
-        })),
+      history: resolved.map(({ incidentId: id, index, outcome, pointsAwarded }) => ({
+        incidentId: id,
+        index,
+        outcome,
+        pointsAwarded,
+      })),
       score: progress.score,
       streak: progress.streak,
       multiplier: progress.multiplier,
@@ -428,20 +436,12 @@ export function createCliDefenderService({
       }
     })
 
-    const topicOutcomes = Object.keys(TOPICS)
-      .filter((topic) => debrief.some((item) => item.topic === topic))
-      .map((topic) => {
-        const achieved = debrief
-          .filter((item) => item.topic === topic)
-          .every((item) => item.outcome === 'correct')
-        const code = topic.toUpperCase().replace(/-/g, '_')
-        return {
-          topic,
-          label: TOPICS[topic],
-          achieved,
-          feedbackCode: `CLI_${code}_${achieved ? 'ACHIEVED' : 'MISSED'}`,
-        }
-      })
+    const topicOutcomes = outcomesByTopic(debrief).map(({ topic, achieved, feedbackCode }) => ({
+      topic,
+      label: TOPICS[topic],
+      achieved,
+      feedbackCode,
+    }))
 
     const correct = count('correct')
     run.completion = {
