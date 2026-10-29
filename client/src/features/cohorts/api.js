@@ -4,6 +4,7 @@ import { requestCsrfToken } from '../auth/api.js'
 const SAFE_MESSAGES = Object.freeze({
   COHORT_INVALID_CODE: 'That class code is invalid, expired, or no longer active.',
   COHORT_CONFLICT: 'This class changed while you were viewing it. Refresh and try again.',
+  COHORT_ALREADY_IN_CLASS: "You're already in a class. Leave it before joining another.",
   COHORT_STALE_REQUEST: 'This class request changed. Refresh the list and try again.',
   COHORT_STALE_CODE: 'The invitation code changed. Refresh before making another change.',
   COHORT_CODE_UNAVAILABLE: 'A class code could not be issued. Refresh and try again.',

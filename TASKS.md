@@ -142,7 +142,8 @@ Move the task's active record rather than duplicating it across board states. Re
 - **Difficulty and checks:** complexity 2; unit, integration (second request, approval race, pending blocks, removed allows) and `cohorts.spec.js`.
 - **Collision check (30 Oct):** no TASKS record, branch or code for this feature (rg over TASKS.md, `client/src`, `server/src`, remote branches); DESIGN.md:110 and the HUB-01 follow-ups listed it as needing its own approval, now given. Teammate worktrees were not inspected.
 - **Docs impact:** cohorts server README, README "Using the app", this record.
-- **Next action:** implement in batch order (COH-04, UX-01, NPC-02, NPC-03, MP-01, INT-01, AUDIO-04).
+- **Verification (30 Oct):** `pnpm exec vitest run client/src/features/cohorts` 5 files, 24 tests pass; `node scripts/run-with-test-db.mjs integration server/tests/integration/cohorts --replica-set --no-file-parallelism` 2 files, 18 tests pass (3 new: second class blocked while pending/active, removal allows a new class, approval refused with another active class, staff unaffected); `node scripts/run-with-test-db.mjs e2e --replica-set tests/e2e/cohorts.spec.js --workers=1` 2 passed (mobile and desktop); eslint clean on changed files.
+- **Next action:** review the diff, then continue the batch order (UX-01, NPC-02, NPC-03, MP-01, INT-01, AUDIO-04).
 
 **UX-01 — UI/UX overhaul** · Status: **In Progress** · Contributor: **Boey** (implemented by Claude Code) · Branch: `ux-01-menu-overlays` · Plan approved by Boey on 30 October 2026 (mega-batch, `.local-handover/MEGA-BATCH-PLAN-2026-10-30.md`); Boey states the team has consented to this feature. Pre-approved for the batch: branch, commit and `--no-ff` merge into local `main` after checks; no push.
 
