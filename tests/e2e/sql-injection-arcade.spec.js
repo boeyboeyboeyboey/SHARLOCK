@@ -30,7 +30,8 @@ test('plays a practice run with a wrong try, a hint, replay and a saved review',
   test.setTimeout(180_000)
   const exceptions = []
   page.on('pageerror', (error) => exceptions.push(error.message))
-  await page.goto('/about')
+  // the town and its overlays have no navbar, so read the header on a regular page
+  await page.goto('/join-class')
   const sharedHeaderColor = await page
     .locator('.portal-header')
     .evaluate((element) => getComputedStyle(element).backgroundColor)
@@ -80,7 +81,7 @@ test('plays a practice run with a wrong try, a hint, replay and a saved review',
     .click()
   await expect(page).toHaveURL(/\/$/)
   expect(await page.locator('.sql-game').count()).toBe(0)
-  await page.goto('/about')
+  await page.goto('/join-class')
   expect(
     await page
       .locator('.portal-header')

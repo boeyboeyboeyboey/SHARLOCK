@@ -54,14 +54,20 @@ test.describe('signed out', () => {
   }
 })
 
-test('the sidebar does not scroll on the profile and classes pages', async ({ page }) => {
+test('the profile and classes overlays stay inside the window', async ({ page }) => {
   for (const route of ['/profile', '/classes']) {
     await page.goto(route)
     await page.waitForLoadState('networkidle')
-    const overflow = await page.evaluate(() => {
-      const menu = document.querySelector('#portal-menu')
-      return menu.scrollHeight - menu.clientHeight
+    const box = await page.getByTestId('menu-overlay').evaluate((el) => {
+      const rect = el.getBoundingClientRect()
+      return {
+        fitsHeight: rect.top >= 0 && rect.bottom <= innerHeight,
+        fitsWidth: rect.left >= 0 && rect.right <= innerWidth,
+        pageScroll: document.documentElement.scrollWidth - innerWidth,
+      }
     })
-    expect(overflow, `sidebar overflow on ${route}`).toBeLessThanOrEqual(0)
+    expect(box.fitsHeight, `overlay height on ${route}`).toBe(true)
+    expect(box.fitsWidth, `overlay width on ${route}`).toBe(true)
+    expect(box.pageScroll, `page overflow on ${route}`).toBeLessThanOrEqual(0)
   }
 })

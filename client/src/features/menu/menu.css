@@ -1,0 +1,450 @@
+/* smoked glass for the site menu, the floating controls and the overlay panels; the variables sit on
+   each component root (not :root) and mirror the hub's --hub-glass-* look */
+.immersive-controls,
+.site-menu,
+.menu-overlay {
+  --hub-glass-bg: rgb(20 32 46 / 72%);
+  --hub-glass-solid: #14202e;
+  --hub-glass-edge: rgb(243 238 221 / 28%);
+  --hub-glass-ink: #f3eedd;
+  --hub-glass-muted: #c9c5b6;
+  --hub-glass-shadow: 0 8px 26px rgb(0 0 0 / 40%);
+  --hub-glass-radius: 10px;
+  --hub-glass-focus: #ffd479;
+  --hub-glass-btn: rgb(255 255 255 / 8%);
+  --hub-glass-btn-hover: rgb(255 255 255 / 16%);
+  --hub-glass-filter: blur(12px) saturate(1.15);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .immersive-controls,
+  .site-menu,
+  .menu-overlay {
+    --hub-glass-bg: var(--hub-glass-solid);
+    --hub-glass-filter: none;
+  }
+}
+@media (forced-colors: active) {
+  .immersive-controls,
+  .site-menu,
+  .menu-overlay {
+    --hub-glass-bg: Canvas;
+    --hub-glass-ink: CanvasText;
+    --hub-glass-muted: CanvasText;
+    --hub-glass-edge: ButtonBorder;
+    --hub-glass-focus: Highlight;
+    --hub-glass-shadow: none;
+    --hub-glass-btn: ButtonFace;
+    --hub-glass-btn-hover: ButtonFace;
+    --hub-glass-filter: none;
+  }
+}
+
+.glass-surface {
+  border: 1px solid var(--hub-glass-edge);
+  border-radius: var(--hub-glass-radius);
+  background: var(--hub-glass-bg);
+  color: var(--hub-glass-ink);
+  box-shadow: var(--hub-glass-shadow);
+  -webkit-backdrop-filter: var(--hub-glass-filter);
+  backdrop-filter: var(--hub-glass-filter);
+}
+.glass-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 4px 14px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.glass-button:hover {
+  background: color-mix(in srgb, var(--hub-glass-ink) 16%, var(--hub-glass-bg));
+}
+.glass-button:focus-visible,
+.menu-link:focus-visible,
+.overlay-tab:focus-visible,
+.overlay-close:focus-visible {
+  outline: 3px solid var(--hub-glass-focus);
+  outline-offset: 2px;
+}
+
+/* floating controls */
+.controls-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.immersive-sound {
+  display: flex;
+}
+.immersive-controls .immersive-sound .sound-button {
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--hub-glass-edge);
+  border-radius: var(--hub-glass-radius);
+  background: var(--hub-glass-bg);
+  color: var(--hub-glass-ink);
+  box-shadow: var(--hub-glass-shadow);
+  -webkit-backdrop-filter: var(--hub-glass-filter);
+  backdrop-filter: var(--hub-glass-filter);
+  transform: none;
+}
+.immersive-controls .immersive-sound .sound-button span {
+  display: none;
+}
+.immersive-controls .immersive-sound .sound-button:hover:not(:disabled),
+.immersive-controls .immersive-sound .sound-button:active:not(:disabled) {
+  background: color-mix(in srgb, var(--hub-glass-ink) 16%, var(--hub-glass-bg));
+  box-shadow: var(--hub-glass-shadow);
+  transform: none;
+}
+.immersive-controls .immersive-sound .sound-button:focus-visible {
+  outline: 3px solid var(--hub-glass-focus);
+  outline-offset: 2px;
+}
+.immersive-controls .immersive-sound .sound-button:disabled {
+  opacity: 0.55;
+}
+.immersive-controls {
+  position: fixed;
+  inset: 12px 12px auto;
+  z-index: 1020;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  pointer-events: none;
+}
+.immersive-controls > * {
+  pointer-events: auto;
+}
+.menu-hint {
+  padding: 1px 6px;
+  border: 1px solid var(--hub-glass-edge);
+  border-radius: 6px;
+  color: var(--hub-glass-muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+.mode-switch {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+}
+.mode-switch button {
+  min-width: 44px;
+  min-height: 38px;
+  padding: 2px 12px;
+  border: 0;
+  border-radius: calc(var(--hub-glass-radius) - 3px);
+  background: transparent;
+  color: var(--hub-glass-muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.mode-switch button[aria-pressed='true'] {
+  background: var(--hub-glass-ink);
+  color: var(--hub-glass-solid);
+}
+.mode-switch button:not([aria-pressed='true']):hover:not(:disabled) {
+  background: var(--hub-glass-btn-hover);
+}
+.mode-switch button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.mode-switch button:focus-visible {
+  outline: 3px solid var(--hub-glass-focus);
+  outline-offset: 1px;
+}
+@media (max-width: 767.98px) {
+  .menu-hint {
+    display: none;
+  }
+}
+
+/* site menu drawer */
+.site-menu {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: min(320px, 100vw);
+  max-width: 100vw;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border-width: 0 1px 0 0;
+  border-radius: 0 var(--hub-glass-radius) var(--hub-glass-radius) 0;
+  background: var(--hub-glass-solid);
+  color: var(--hub-glass-ink);
+  box-shadow: var(--hub-glass-shadow);
+  overflow-y: auto;
+}
+.site-menu::backdrop,
+.menu-overlay::backdrop {
+  background: rgb(8 14 22 / 55%);
+}
+.site-menu-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 100%;
+  padding: 16px;
+}
+.menu-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.menu-head img {
+  flex: none;
+}
+.menu-title {
+  flex: 1;
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+.menu-close {
+  flex: none;
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid var(--hub-glass-edge);
+  border-radius: calc(var(--hub-glass-radius) - 2px);
+  background: var(--hub-glass-btn);
+  color: var(--hub-glass-ink);
+  font-size: 20px;
+  line-height: 1;
+}
+.menu-close:hover {
+  background: var(--hub-glass-btn-hover);
+}
+.menu-close:focus-visible {
+  outline: 3px solid var(--hub-glass-focus);
+  outline-offset: 2px;
+}
+.menu-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--hub-glass-edge);
+  border-radius: var(--hub-glass-radius);
+  background: var(--hub-glass-btn);
+}
+.menu-user strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.menu-user small {
+  color: var(--hub-glass-muted);
+  font-size: 12px;
+}
+.menu-list {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.menu-list hr {
+  margin: 6px 0;
+  border-color: var(--hub-glass-edge);
+  opacity: 1;
+}
+.menu-link {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 12px;
+  border: 1px solid transparent;
+  border-radius: calc(var(--hub-glass-radius) - 2px);
+  background: transparent;
+  color: var(--hub-glass-ink);
+  font: inherit;
+  font-size: 15px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.menu-link:hover {
+  background: var(--hub-glass-btn-hover);
+  color: var(--hub-glass-ink);
+}
+.menu-link[aria-current='page'] {
+  border-color: var(--hub-glass-edge);
+  background: var(--hub-glass-btn);
+}
+.menu-link:disabled {
+  opacity: 0.6;
+}
+
+/* overlay panel */
+.menu-overlay {
+  width: min(760px, calc(100vw - 24px));
+  max-width: none;
+  max-height: calc(100dvh - 24px);
+  margin: auto;
+  padding: 0;
+  background: var(--hub-glass-solid);
+  overflow: hidden;
+}
+.menu-overlay[open] {
+  display: flex;
+  flex-direction: column;
+}
+.overlay-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px 10px 18px;
+  border-bottom: 1px solid var(--hub-glass-edge);
+}
+.overlay-title {
+  flex: 1;
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+.overlay-close {
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid var(--hub-glass-edge);
+  border-radius: calc(var(--hub-glass-radius) - 2px);
+  background: var(--hub-glass-btn);
+  color: var(--hub-glass-ink);
+  font-size: 20px;
+  line-height: 1;
+}
+.overlay-close:hover {
+  background: var(--hub-glass-btn-hover);
+}
+.overlay-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 16px 18px 20px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+/* the shared pages keep their own light palette inside a paper card */
+.overlay-paper {
+  padding: 16px;
+  border-radius: var(--hub-glass-radius);
+  background: var(--surface, #fffdf5);
+  color: var(--text-main, #334155);
+}
+.overlay-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 8px 18px 0;
+}
+.overlay-tab {
+  min-height: 44px;
+  padding: 4px 16px;
+  border: 1px solid var(--hub-glass-edge);
+  border-bottom: 0;
+  border-radius: calc(var(--hub-glass-radius) - 2px) calc(var(--hub-glass-radius) - 2px) 0 0;
+  background: transparent;
+  color: var(--hub-glass-muted);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.overlay-tab[aria-selected='true'] {
+  background: var(--hub-glass-ink);
+  color: var(--hub-glass-solid);
+}
+.settings-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.settings-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--hub-glass-edge);
+  border-radius: var(--hub-glass-radius);
+  background: var(--hub-glass-btn);
+  color: var(--hub-glass-ink);
+}
+.settings-list .settings-keys {
+  display: flex;
+  flex: 1 0 100%;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0;
+  padding: 0;
+  font-size: 13px;
+  list-style: none;
+}
+.settings-list .settings-keys li {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.settings-keys kbd {
+  padding: 0 5px;
+  border: 1px solid var(--hub-glass-edge);
+  border-radius: 4px;
+  background: var(--hub-glass-btn);
+  color: inherit;
+  font: inherit;
+}
+.settings-list select {
+  min-height: 44px;
+  padding: 4px 10px;
+  border: 1px solid var(--hub-glass-edge);
+  border-radius: calc(var(--hub-glass-radius) - 2px);
+  background: var(--hub-glass-solid);
+  color: var(--hub-glass-ink);
+  color-scheme: dark;
+}
+
+@media (max-width: 575.98px) {
+  .site-menu {
+    width: 100vw;
+    border-radius: 0;
+    border-width: 0;
+  }
+  .menu-overlay {
+    width: 100vw;
+    height: 100dvh;
+    max-height: none;
+    border-radius: 0;
+    border-width: 0;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .site-menu[open] {
+    animation: menu-slide 0.18s ease-out;
+  }
+  .menu-overlay[open] {
+    animation: menu-fade 0.16s ease-out;
+  }
+}
+@keyframes menu-slide {
+  from {
+    transform: translateX(-24px);
+    opacity: 0;
+  }
+}
+@keyframes menu-fade {
+  from {
+    opacity: 0;
+  }
+}

@@ -30,6 +30,11 @@ describe('evaluateDevice', () => {
     expect(evaluateDevice({ ...good, baseTier: 'compact', deviceMemory: 8, cores: 8 }).tier).toBe('compact')
   })
 
+  it('opens the 2d map on a phone, after the webgl checks', () => {
+    expect(evaluateDevice({ ...good, phone: true })).toEqual({ verdict: '2d', tier: 'desktop', reasons: ['phone'] })
+    expect(evaluateDevice({ ...good, webgl2: false, phone: true }).reasons).toEqual(['no-webgl2'])
+  })
+
   it('picks 2d without webgl2', () => {
     expect(evaluateDevice({ ...good, webgl2: false })).toMatchObject({ verdict: '2d', reasons: ['no-webgl2'] })
   })

@@ -86,9 +86,15 @@ async function createStudentThroughRegistration(page, identity) {
   await expect(page).toHaveURL(/\/join-class\?onboarding=1$/)
   await page.getByRole('button', { name: 'Skip and explore Sharlock' }).click()
   await expect(page).toHaveURL('/')
-  await expect(
-    page.locator('.town-player').getByText(identity.username, { exact: true }),
-  ).toBeVisible()
+  await expectSignedInAs(page, identity.username)
+}
+
+// the town has no profile tile; the site menu header names the signed-in user
+async function expectSignedInAs(page, username) {
+  await page.getByTestId('menu-button').click()
+  await expect(page.getByTestId('site-menu').getByText(username, { exact: true })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('site-menu')).toBeHidden()
 }
 
 async function signInWithUi(page, identity) {
@@ -186,7 +192,7 @@ test('admin recovery revokes sessions and requires normal sign-in', async ({
     await expect(prepareButton).toBeFocused()
 
     const secondLink = await issueAdminLink(page, student, origin)
-    await page.goto('/about')
+    await page.goto('/join-class')
     await expect(page.locator('main h1, h1').first()).toBeVisible()
     await expect(page.getByRole('dialog')).toHaveCount(0)
     await expect(page.locator('#recovery-link-value')).toHaveCount(0)
@@ -379,9 +385,7 @@ test('admin recovery revokes sessions and requires normal sign-in', async ({
     await loginPage.getByLabel('Password', { exact: true }).fill(newPassword)
     await loginPage.getByRole('button', { name: 'Sign in' }).click()
     await expect(loginPage).toHaveURL('/')
-    await expect(
-      loginPage.locator('.town-player').getByText(student.username, { exact: true }),
-    ).toBeVisible()
+    await expectSignedInAs(loginPage, student.username)
     await loginPage.goto('/about')
     await expect(loginPage.locator('main h1, h1').first()).toBeVisible()
     const finalBoundary = await loginPage.evaluate(() => ({

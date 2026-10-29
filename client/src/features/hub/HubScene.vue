@@ -2,12 +2,12 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { GRAPHICS_TO_TIER } from './scenes/shared/quality.js'
 import HubMinimap from './HubMinimap.vue'
-import KeyLegend from './KeyLegend.vue'
+import ControlsHint from './ControlsHint.vue'
+import { isInteractKey } from './controls.js'
 import NpcDialogue from './NpcDialogue.vue'
 import { useNpcDialogue } from './useNpcDialogue.js'
 import { npcs } from './scenes/wharf/npcs.js'
 import { announceChange } from './announce.js'
-import { PhFilmSlate } from '@phosphor-icons/vue'
 import LoreIntro from './intro/LoreIntro.vue'
 import { useLoreIntro } from './intro/useLoreIntro.js'
 import { decidePerf, perfRecord, writePerf } from './perfWatch.js'
@@ -85,7 +85,10 @@ const status = computed(() => {
   return announcement.value
 })
 const devStats = computed(() => (isDev && view.ready ? `Engine ${view.engine}, ${view.fps} fps, ${view.drawCalls} draws` : ''))
-const keysOpen = ref(false)
+const controlsHint = ref(null)
+// the destination list starts open on wide screens and collapsed below them
+const wideQuery = typeof matchMedia === 'function' ? matchMedia('(min-width: 992px)') : null
+const destOpen = ref(wideQuery ? wideQuery.matches : true)
 const talk = useNpcDialogue()
 const talkNpc = computed(() => npcs.find((npc) => npc.id === view.nearNpc) ?? null)
 const showTalk = computed(() => view.ready && view.mode === 'explore' && !paused.value && Boolean(talkNpc.value))
@@ -107,6 +110,19 @@ async function openTalk() {
   say(`Talking to ${npc.name}`)
   await nextTick()
   dialogue.value?.focus()
+}
+
+// the one interact path: E talks to a nearby townsperson; discoveries hook in here later
+function interact() {
+  if (!showTalk.value || talk.open.value) return false
+  openTalk()
+  return true
+}
+
+function onInteractKey(event) {
+  if (!isInteractKey(event)) return
+  if (paused.value || view.mode !== 'explore') return
+  if (interact()) event.preventDefault()
 }
 
 function closeTalk({ restoreFocus = true } = {}) {
@@ -167,6 +183,8 @@ function choose(id) {
   const next = view.selected === id ? null : id
   view.selected = next
   hub?.select(next)
+  // below the wide breakpoint the list gets out of the way once a place is picked
+  if (next && !wideQuery?.matches) destOpen.value = false
   moveFocusAfterPick(origin, next, id)
 }
 
@@ -202,15 +220,14 @@ function onEscape(event) {
   const target = event.target
   if (target?.closest?.('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) return
   if (paused.value) return
-  if (keysOpen.value) {
-    keysOpen.value = false
-    return
-  }
+  // a handled escape is marked so the site menu does not also open
   if (talk.open.value) {
+    event.preventDefault()
     closeTalk()
     return
   }
   if (view.mode !== 'explore' || !view.selected) return
+  event.preventDefault()
   choose(view.selected)
 }
 
@@ -336,6 +353,7 @@ function rebuildHub() {
 
 onMounted(() => {
   window.addEventListener('keydown', onEscape)
+  window.addEventListener('keydown', onInteractKey)
   motionQuery?.addEventListener?.('change', onMotionChange)
   if (!lore.hasSeen()) lore.start()
   mapTimer = setInterval(samplePlayer, 100)
@@ -344,6 +362,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onEscape)
+  window.removeEventListener('keydown', onInteractKey)
   motionQuery?.removeEventListener?.('change', onMotionChange)
   gone = true
   clearInterval(mapTimer)
@@ -366,11 +385,21 @@ watch(
 )
 
 async function focusDestination(id) {
+  destOpen.value = true
   await nextTick()
   destList.value?.querySelector(`[data-testid="dest-${id}"]`)?.focus()
 }
 
-defineExpose({ focusDestination })
+function showControls() {
+  controlsHint.value?.show()
+}
+
+defineExpose({
+  focusDestination,
+  showControls,
+  interact,
+  resetCamera: () => hub?.resetCamera(),
+})
 </script>
 
 <template>
@@ -393,35 +422,22 @@ defineExpose({ focusDestination })
         {{ status }}
       </p>
       <p v-if="devStats" class="hub-status hub-glass" data-testid="hub-stats">{{ devStats }}</p>
-      <button
-        v-if="view.ready"
-        type="button"
-        class="btn btn-secondary btn-sm hub-reset hub-glass-btn hub-glass"
-        data-testid="hub-reset-camera"
-        aria-label="Reset camera behind Sharlock"
-        title="Reset camera (R)"
-        :disabled="paused || view.mode !== 'explore'"
-        @click="hub?.resetCamera()"
-      >
-        Reset camera
-      </button>
-      <button
-        v-if="view.ready"
-        type="button"
-        class="btn btn-secondary btn-sm hub-replay hub-glass-btn hub-glass"
-        data-testid="hub-replay-intro"
-        aria-label="Replay intro"
-        title="Replay intro"
-        :disabled="paused"
-        @click="lore.replay()"
-      >
-        <PhFilmSlate :size="18" aria-hidden="true" />
-      </button>
-      <KeyLegend v-if="view.ready" v-model:open="keysOpen" />
     </div>
+    <ControlsHint ref="controlsHint" :held="introPlaying" />
     <div class="hub-dock">
       <nav class="hub-dest hub-glass" aria-label="Destinations">
-        <ul ref="destList" class="hub-dest-list">
+        <button
+          type="button"
+          class="btn btn-secondary btn-sm hub-glass-btn hub-destinations-toggle"
+          data-testid="destinations-toggle"
+          aria-controls="hub-dest-list"
+          :aria-expanded="String(destOpen)"
+          @click="destOpen = !destOpen"
+        >
+          Destinations
+          <span aria-hidden="true">{{ destOpen ? '▾' : '▸' }}</span>
+        </button>
+        <ul v-show="destOpen" id="hub-dest-list" ref="destList" class="hub-dest-list">
           <li v-for="game in games" :key="game.id">
             <button
               type="button"
@@ -544,11 +560,6 @@ defineExpose({ focusDestination })
   padding: 4px 10px;
   font-size: 13px;
 }
-.hub-replay {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 8px;
-}
 .hub-status[hidden] {
   display: none;
 }
@@ -564,10 +575,17 @@ defineExpose({ focusDestination })
   overflow-y: auto;
   padding: 6px;
 }
+.hub-destinations-toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
 .hub-dest-list {
   display: grid;
   gap: 4px;
-  margin: 0;
+  margin: 6px 0 0;
   padding: 0;
   list-style: none;
 }

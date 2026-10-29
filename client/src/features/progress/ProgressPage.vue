@@ -11,6 +11,8 @@ import AttemptHistory from './components/AttemptHistory.vue'
 import ProgressSummary from './components/ProgressSummary.vue'
 import './progress.css'
 
+// embedded: shown inside the profile overlay, which has its own way back to town
+defineProps({ embedded: { type: Boolean, default: false } })
 const auth = useAuthStore()
 const errorMessage = computed(() => auth.requestError?.message || 'Unable to check your account.')
 const avatar = computed(() => avatarFor(auth.user?.avatarId))
@@ -142,7 +144,7 @@ async function retrySession() {
           <span class="title-pill">YOUR ACCOUNT</span>
           <h2>{{ auth.user.username }}</h2>
         </div>
-        <RouterLink to="/" class="btn btn-secondary">
+        <RouterLink v-if="!embedded" to="/" class="btn btn-secondary">
           Town map <PixelIcon name="arrow" :size="18" aria-hidden="true" />
         </RouterLink>
       </section>

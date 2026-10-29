@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { alphaBehind, nearestAlpha, wrapAngle } from '../scenes/shared/orbit.js'
+import { alphaBehind, createOrbitKeys, nearestAlpha, wrapAngle } from '../scenes/shared/orbit.js'
 
 const turn = Math.PI * 2
 
@@ -42,5 +42,30 @@ describe('alphaBehind', () => {
 
   it('puts the camera west of a character walking east', () => {
     expect(wrapAngle(alphaBehind(Math.PI / 2) - Math.PI)).toBeCloseTo(0)
+  })
+})
+
+describe('createOrbitKeys', () => {
+  const press = (type, code, init = {}) => window.dispatchEvent(new KeyboardEvent(type, { code, bubbles: true, ...init }))
+
+  it('turns the camera with Z and C and resets with R, and ignores Q and E', () => {
+    const camera = { alpha: 0 }
+    let resets = 0
+    const keys = createOrbitKeys({ camera, enabled: () => true, onReset: () => resets++ , rate: 1 })
+    press('keydown', 'KeyC')
+    keys.update(1)
+    expect(camera.alpha).toBe(1)
+    press('keyup', 'KeyC')
+    press('keydown', 'KeyZ')
+    keys.update(2)
+    expect(camera.alpha).toBe(-1)
+    press('keyup', 'KeyZ')
+    press('keydown', 'KeyQ')
+    press('keydown', 'KeyE')
+    keys.update(1)
+    expect(camera.alpha).toBe(-1)
+    press('keydown', 'KeyR')
+    expect(resets).toBe(1)
+    keys.dispose()
   })
 })

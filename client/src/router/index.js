@@ -1,7 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { reactive, readonly } from 'vue'
 import Dashboard from '../views/Dashboard.vue'
-import Profile from '../features/profile/ProfilePage.vue'
 import ComingSoon from '../views/ComingSoon.vue'
 
 const RESET_PASSWORD_PATH = '/reset-password'
@@ -58,7 +57,7 @@ export const routes = [
     path: '/',
     name: 'town',
     component: Dashboard,
-    meta: { title: 'Sharlock Town', theme: 'town', requiresAccount: true },
+    meta: { title: 'Sharlock Town', theme: 'town', requiresAccount: true, immersive: true },
     children: [
       {
         path: '/games/threat-briefing',
@@ -66,19 +65,47 @@ export const routes = [
         component: () => import('../games/threat-briefing/NewsDialog.vue'),
         meta: { title: 'The Sharlock Times', newsDialog: true },
       },
+      // menu overlays open over the town like the Times; each keeps the meta it had as a page
+      {
+        path: '/profile',
+        name: 'profile',
+        component: () => import('../features/menu/overlays/ProfileOverlay.vue'),
+        meta: {
+          title: 'Detective profile',
+          overlay: true,
+          requiresAccount: false,
+          accountAware: true,
+          hideAccountSummary: true,
+        },
+      },
+      {
+        path: '/leaderboard',
+        name: 'leaderboard',
+        component: () => import('../features/menu/overlays/LeaderboardOverlay.vue'),
+        meta: { title: 'Leaderboards', overlay: true, requiresAccount: true },
+      },
+      {
+        path: '/classes',
+        name: 'classes',
+        component: () => import('../features/menu/overlays/ClassesOverlay.vue'),
+        meta: { title: 'Your classes', overlay: true, requiresAccount: true },
+      },
+      {
+        path: '/settings',
+        name: 'settings',
+        component: () => import('../features/menu/overlays/SettingsOverlay.vue'),
+        meta: { title: 'Settings', overlay: true, requiresAccount: true },
+      },
+      {
+        path: '/about',
+        name: 'about',
+        component: () => import('../features/menu/overlays/AboutOverlay.vue'),
+        meta: { title: 'About Sharlock', overlay: true, requiresAccount: false },
+      },
     ],
   },
   { path: '/dashboard', redirect: (to) => ({ path: '/', query: to.query, hash: to.hash }) },
-  {
-    path: '/profile',
-    component: Profile,
-    meta: { title: 'Detective profile', accountAware: true, hideAccountSummary: true },
-  },
-  {
-    path: '/progress',
-    component: () => import('../features/progress/ProgressPage.vue'),
-    meta: { title: 'Learning progress', accountAware: true },
-  },
+  { path: '/progress', redirect: (to) => ({ path: '/profile', query: { ...to.query, tab: 'progress' } }) },
   {
     path: '/login',
     component: () => import('../features/auth/pages/LoginPage.vue'),
@@ -106,11 +133,6 @@ export const routes = [
     path: '/join-class',
     component: () => import('../features/cohorts/pages/JoinClassPage.vue'),
     meta: { title: 'Join a class' },
-  },
-  {
-    path: '/classes',
-    component: () => import('../features/cohorts/pages/MembershipsPage.vue'),
-    meta: { title: 'Your classes', requiresAccount: true },
   },
   {
     path: '/instructor',
@@ -170,16 +192,6 @@ export const routes = [
     path: '/games/:gameId',
     component: () => import('../views/GamePreview.vue'),
     meta: { title: 'Case preview', requiresAccount: true },
-  },
-  {
-    path: '/leaderboard',
-    component: () => import('../features/leaderboard/LeaderboardPage.vue'),
-    meta: { title: 'Leaderboards', requiresAccount: true },
-  },
-  {
-    path: '/about',
-    component: () => import('../views/About.vue'),
-    meta: { title: 'About Sharlock' },
   },
   {
     path: '/forbidden',

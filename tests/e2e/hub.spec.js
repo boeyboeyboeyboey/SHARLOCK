@@ -46,6 +46,8 @@ test.beforeEach(async ({ page }) => {
     // software rendering is slow by nature, so the runtime watch only reacts to simulated fps
     localStorage.setItem('sharlock.hubWatchManual', '1')
     localStorage.setItem('sharlock.loreIntroSeen', '1')
+    // the controls hint has its own test; elsewhere it counts as already seen
+    localStorage.setItem('sharlock.controlsHintSeen', '3')
   })
   await page.route(/fonts\.(googleapis|gstatic)\.com/, (route) =>
     route.fulfill({ contentType: 'text/css', body: '' }),
@@ -54,7 +56,20 @@ test.beforeEach(async ({ page }) => {
   await page.route('**/api/news**', (route) => route.fulfill({ json: newsFixture() }))
 })
 
+async function openSettings(page) {
+  await page.getByTestId('menu-button').click()
+  await page.getByRole('link', { name: 'Settings' }).click()
+  await expect(page.getByRole('dialog', { name: 'Settings' })).toBeVisible()
+}
+
 // a failed start shows its status text, so a broken hub fails fast instead of timing out
+// below 992px the destination list starts collapsed
+async function pickDest(page, id) {
+  const toggle = page.getByTestId('destinations-toggle')
+  if ((await toggle.getAttribute('aria-expanded')) === 'false') await toggle.click()
+  await page.getByTestId(`dest-${id}`).click()
+}
+
 async function hubReady(page) {
   await page.waitForFunction(
     () => window.__hub?.state.ready === true || /unavailable/.test(document.body.innerText),
@@ -97,7 +112,7 @@ test('lists every game, walks, and enters a game route', async ({ page }) => {
   await expect.poll(() => moved(page, before), slow).toBeGreaterThan(0.2)
   await page.keyboard.up('KeyW')
 
-  await page.getByTestId('dest-cli-cyber-defender').click()
+  await pickDest(page, 'cli-cyber-defender')
   await expect(page.getByTestId('dest-cli-cyber-defender')).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByTestId('enter')).toHaveText('Enter CLI Cyber Defender')
   await page.getByTestId('enter').click()
@@ -159,7 +174,7 @@ test('a destination picked from the west promenade is reached and entered', asyn
 test('a destination picked during the enter swoop is ignored', async ({ page }) => {
   await page.goto('/')
   await hubReady(page)
-  await page.getByTestId('dest-cli-cyber-defender').click()
+  await pickDest(page, 'cli-cyber-defender')
   await page.getByTestId('enter').click()
   await expect.poll(() => page.evaluate(() => window.__hub.state.mode)).toBe('entering')
   await page.evaluate(() => window.__hub.select('sql-injection-arcade'))
@@ -170,7 +185,7 @@ test('a destination picked during the enter swoop is ignored', async ({ page }) 
 test('returns to the door of the building that was entered', async ({ page }) => {
   await page.goto('/')
   await hubReady(page)
-  await page.getByTestId('dest-cli-cyber-defender').click()
+  await pickDest(page, 'cli-cyber-defender')
   await page.getByTestId('enter').click()
   await expect(page).toHaveURL(/\/games\/cli-cyber-defender$/, slow)
 
@@ -189,7 +204,7 @@ test('returns to the door of the building that was entered', async ({ page }) =>
   await expect(page.getByTestId('dest-cli-cyber-defender')).toHaveAttribute('aria-pressed', 'false')
 
   // walking off the selected building's ring deselects it
-  await page.getByTestId('dest-cli-cyber-defender').click()
+  await pickDest(page, 'cli-cyber-defender')
   await expect(page.getByTestId('dest-cli-cyber-defender')).toHaveAttribute('aria-pressed', 'true')
   await expect
     .poll(() => page.evaluate(() => window.__hub.state.nearDoor), slow)
@@ -255,26 +270,25 @@ test('Escape clears a pick even when focus is on the page body', async ({ page }
   await expect(page.getByTestId('hub-status')).toHaveText('Selection cleared')
 })
 
-test('the key legend toggles with aria-expanded and closes on Escape without dropping a pick', async ({
-  page,
-}) => {
+test('the controls hint shows on the first visit and hides on a key', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('sharlock.controlsHintSeen', '0'))
+  await page.goto('/')
+  // the software renderer is slow, so look before the wharf finishes loading
+  const hint = page.getByTestId('controls-hint')
+  await expect(hint).toContainText('E talk')
+  await expect(hint).toContainText('Z/C rotate')
+  await page.keyboard.press('KeyA')
+  await expect(hint).toBeHidden()
+  expect(await page.evaluate(() => localStorage.getItem('sharlock.controlsHintSeen'))).toBe('1')
+})
+
+test('Settings "Show controls" reopens the hint', async ({ page }) => {
   await page.goto('/')
   await hubReady(page)
-  const keys = page.getByTestId('hub-keys')
-  const list = page.getByTestId('hub-keys-list')
-  await expect(keys).toHaveAttribute('aria-expanded', 'false')
-  await expect(list).toBeHidden()
-
-  await keys.click()
-  await expect(keys).toHaveAttribute('aria-expanded', 'true')
-  await expect(list).toBeVisible()
-  await expect(list).toContainText('Enter go in')
-
-  await page.getByTestId('dest-cli-cyber-defender').click()
-  await keys.focus()
-  await page.keyboard.press('Escape')
-  await expect(keys).toHaveAttribute('aria-expanded', 'false')
-  await expect(page.getByTestId('dest-cli-cyber-defender')).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByTestId('controls-hint')).toHaveCount(0)
+  await openSettings(page)
+  await page.getByTestId('settings-controls').click()
+  await expect(page.getByTestId('controls-hint')).toBeVisible()
 })
 
 test('fills the window below the navbar without sideways scroll', async ({ page }) => {
@@ -282,7 +296,7 @@ test('fills the window below the navbar without sideways scroll', async ({ page 
   await hubReady(page)
   const metrics = await page.evaluate(() => ({
     viewport: window.innerHeight,
-    navbar: document.querySelector('.portal-header').getBoundingClientRect().bottom,
+    navbar: document.querySelector('.portal-header')?.getBoundingClientRect().bottom ?? 0,
     hub: document.querySelector('.hub-scene').getBoundingClientRect().height,
     scrollWidth: document.documentElement.scrollWidth,
     clientWidth: document.documentElement.clientWidth,
@@ -296,7 +310,7 @@ test('fills the window below the navbar without sideways scroll', async ({ page 
 test('remounts the hub after leaving it and keeps the news dialog usable', async ({ page }) => {
   await page.goto('/')
   await hubReady(page)
-  await page.getByTestId('dest-cli-cyber-defender').click()
+  await pickDest(page, 'cli-cyber-defender')
   await page.getByTestId('enter').click()
   await expect(page).toHaveURL(/\/games\/cli-cyber-defender$/, slow)
   await expect(page.locator('canvas.hub-canvas')).toHaveCount(0)
@@ -311,7 +325,7 @@ test('remounts the hub after leaving it and keeps the news dialog usable', async
   expect(counts).toEqual({ mounts: 2, disposals: 1 })
   await expect(page.locator('canvas.hub-canvas')).toHaveCount(1)
 
-  await page.getByTestId('dest-threat-briefing').click()
+  await pickDest(page, 'threat-briefing')
   await page.getByTestId('enter').click()
   await expect(page.getByRole('dialog', { name: 'The Sharlock Times' })).toBeVisible(slow)
   expect(await page.evaluate(() => window.__hub.state.inputPaused)).toBe(true)
@@ -335,9 +349,9 @@ test('switches between the 3D wharf and the 2D town and remembers the choice', a
   const town = page.getByRole('region', { name: 'Interactive town map' })
   await page.goto('/')
   await hubReady(page)
-  await expect(toggle).toHaveText('2D map')
-  await expect(toggle).toHaveAccessibleName('Switch to 2D map')
-  await expect(toggle).not.toHaveAttribute('aria-pressed')
+  await expect(toggle).toHaveText('2D')
+  await expect(toggle).toHaveAccessibleName('2D map')
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false')
   await expect(town).toHaveCount(0)
   // the 3D hub plays its own ambience loop, never the town music
   await expect(page.locator('audio')).toHaveCount(1)
@@ -351,13 +365,13 @@ test('switches between the 3D wharf and the 2D town and remembers the choice', a
   await expect(page.getByRole('button', { name: /hub sound$/ })).toHaveCount(0)
   await expect(page.locator('canvas.hub-canvas')).toHaveCount(0)
   expect(await page.evaluate(() => window.__hub)).toBeUndefined()
-  await expect(toggle).toHaveText('3D wharf')
-  await expect(toggle).toHaveAccessibleName('Switch to 3D wharf')
-  await expect(toggle).not.toHaveAttribute('aria-pressed')
+  await expect(toggle).toHaveText('3D')
+  await expect(toggle).toHaveAccessibleName('3D wharf')
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false')
 
   await page.reload()
   await expect(town).toBeVisible()
-  await expect(toggle).toHaveText('3D wharf')
+  await expect(toggle).toHaveText('3D')
   expect(await page.evaluate(() => localStorage.getItem('sharlock.townMode'))).toBe('2d')
 
   await toggle.click()
@@ -367,7 +381,7 @@ test('switches between the 3D wharf and the 2D town and remembers the choice', a
   await expect(page.locator('audio')).toHaveAttribute('src', '/audio/hub-ambience.mp3')
   await page.reload()
   await hubReady(page)
-  await expect(toggle).toHaveText('2D map')
+  await expect(toggle).toHaveText('2D')
 })
 
 test('rebuilds the hub at the low tier from the Graphics setting and remembers it', async ({
@@ -375,6 +389,7 @@ test('rebuilds the hub at the low tier from the Graphics setting and remembers i
 }) => {
   await page.goto('/')
   await hubReady(page)
+  await openSettings(page)
   const graphics = page.getByTestId('hub-graphics')
   await expect(graphics).toHaveAccessibleName(/graphics/i)
   await expect(graphics).toHaveValue('auto')
@@ -390,10 +405,10 @@ test('rebuilds the hub at the low tier from the Graphics setting and remembers i
   expect(await page.evaluate(() => localStorage.getItem('sharlock.graphics'))).toBe('low')
   expect(await page.evaluate(() => window.__hub.state.look.mirror)).toBe(false)
   await expect(page.locator('canvas.hub-canvas')).toHaveCount(1)
-  await expect(graphics).toBeFocused()
 
-  await page.reload()
+  await page.goto('/')
   await hubReady(page)
+  await openSettings(page)
   await expect(graphics).toHaveValue('low')
   expect(await page.evaluate(() => window.__hub.state.tier)).toBe('low')
 })
@@ -408,25 +423,28 @@ const offBehind = (page) =>
     return Math.abs(diff - Math.PI * 2 * Math.round(diff / (Math.PI * 2)))
   })
 
-test('turns the camera with Q and brings it back with the reset button and R', async ({ page }) => {
+test('turns the camera with Z and C and brings it back with the Settings row and R', async ({
+  page,
+}) => {
   await page.goto('/')
   await hubReady(page)
   const start = await cameraAlpha(page)
 
   // the software renderer is slow, so keep the key down until the camera has visibly turned
-  await page.keyboard.down('KeyQ')
+  await page.keyboard.down('KeyZ')
   await expect
     .poll(async () => Math.abs((await cameraAlpha(page)) - start), slow)
     .toBeGreaterThan(0.15)
-  await page.keyboard.up('KeyQ')
+  await page.keyboard.up('KeyZ')
   await expect.poll(() => offBehind(page), slow).toBeGreaterThan(0.1)
 
-  await page.getByTestId('hub-reset-camera').click()
+  await openSettings(page)
+  await page.getByTestId('settings-reset-camera').click()
   await expect.poll(() => offBehind(page), slow).toBeLessThan(0.15)
 
-  await page.keyboard.down('KeyE')
+  await page.keyboard.down('KeyC')
   await expect.poll(() => offBehind(page), slow).toBeGreaterThan(0.15)
-  await page.keyboard.up('KeyE')
+  await page.keyboard.up('KeyC')
   await page.keyboard.press('KeyR')
   await expect.poll(() => offBehind(page), slow).toBeLessThan(0.15)
 })

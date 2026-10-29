@@ -51,7 +51,7 @@ async function signedInPage(browser, baseURL, identity) {
 test('a student changes username and avatar and the change persists', async ({
   browser,
   baseURL,
-}, testInfo) => {
+}) => {
   const student = await createStudent('save')
   const newName = `${student.username}-new`
   const { context, page } = await signedInPage(browser, baseURL, student)
@@ -75,12 +75,12 @@ test('a student changes username and avatar and the change persists', async ({
     await expect(overview.getByRole('heading', { name: newName })).toBeVisible()
     await expect(overview.getByRole('img', { name: 'Blue Cap' })).toBeVisible()
 
-    // the compact mobile shell hides the account link by design
-    if (!testInfo.project.use.isMobile) {
-      const accountLink = page.getByRole('link', { name: `Your profile: ${newName}` })
-      await expect(accountLink).toBeVisible()
-      await expect(accountLink.getByRole('img', { name: 'Blue Cap' })).toBeVisible()
-    }
+    // the site menu header shows the saved name and avatar
+    await page.keyboard.press('Escape')
+    await page.getByRole('button', { name: /^Menu/ }).click()
+    const menu = page.getByTestId('site-menu')
+    await expect(menu.getByText(newName)).toBeVisible()
+    await expect(menu.getByRole('img', { name: 'Blue Cap' })).toBeVisible()
   } finally {
     await context.close()
   }

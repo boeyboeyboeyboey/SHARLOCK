@@ -11,11 +11,11 @@ export const alphaBehind = (heading) => Math.atan2(-Math.cos(heading), -Math.sin
 
 const typing = (target) => target instanceof HTMLElement && (/^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName) || target.isContentEditable);
 
-// Q and E turn the camera while held, R asks for the reset. enabled() is false while an overlay owns the keyboard
+// Z and C turn the camera while held, R asks for the reset. enabled() is false while an overlay owns the keyboard
 export function createOrbitKeys({ camera, enabled, onReset, rate = Math.PI / 2 }) {
   const held = new Set();
   const onKey = (event, isDown) => {
-    if (event.code !== 'KeyQ' && event.code !== 'KeyE' && event.code !== 'KeyR') return;
+    if (event.code !== 'KeyZ' && event.code !== 'KeyC' && event.code !== 'KeyR') return;
     if (typing(event.target)) return;
     if (!isDown) {
       held.delete(event.code);
@@ -43,8 +43,8 @@ export function createOrbitKeys({ camera, enabled, onReset, rate = Math.PI / 2 }
         held.clear();
         return;
       }
-      // q swings the camera to the left of the target, e to the right
-      camera.alpha += ((held.has('KeyE') ? 1 : 0) - (held.has('KeyQ') ? 1 : 0)) * rate * dt;
+      // z swings the camera to the left of the target, c to the right
+      camera.alpha += ((held.has('KeyC') ? 1 : 0) - (held.has('KeyZ') ? 1 : 0)) * rate * dt;
     },
     dispose() {
       window.removeEventListener('keydown', down);

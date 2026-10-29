@@ -1,8 +1,9 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, reactive, ref } from 'vue'
 import PixelIcon from '../../components/town/PixelIcon.vue'
 import { useLandingMusic } from '../../composables/useLandingMusic.js'
 import { useLoreIntro } from './intro/useLoreIntro.js'
+import { useTownControls } from '../menu/townControls.js'
 const props = defineProps({ suspended: Boolean })
 const audio = ref(null)
 const { playing: introPlaying } = useLoreIntro()
@@ -13,6 +14,14 @@ const { isMuted, starting, errorMessage, toggle, failPlayback } = useLandingMusi
   audio,
   () => held.value,
 )
+// the settings overlay reads and toggles this same sound
+const controls = useTownControls()
+// the button moves into the floating controls when they offer a slot
+const slot = computed(() => controls?.soundSlot?.value ?? null)
+const unregister = controls?.sound.register(
+  reactive({ muted: isMuted, busy: computed(() => starting.value || held.value), toggle }),
+)
+onBeforeUnmount(() => unregister?.())
 const soundLabel = computed(() => {
   if (starting.value) return 'Starting…'
   if (isMuted.value) return 'Sound off'
@@ -28,16 +37,18 @@ const soundLabel = computed(() => {
       preload="none"
       @error="failPlayback"
     ></audio>
-    <button
-      class="pixel-button sound-button"
-      type="button"
-      :aria-label="isMuted ? 'Turn on hub sound' : 'Mute hub sound'"
-      :aria-pressed="!isMuted"
-      :disabled="starting || held"
-      @click="toggle"
-    >
-      <PixelIcon :name="isMuted ? 'mute' : 'sound'" :size="20" /><span>{{ soundLabel }}</span>
-    </button>
+    <Teleport :to="slot" :disabled="!slot">
+      <button
+        class="pixel-button sound-button"
+        type="button"
+        :aria-label="isMuted ? 'Turn on hub sound' : 'Mute hub sound'"
+        :aria-pressed="!isMuted"
+        :disabled="starting || held"
+        @click="toggle"
+      >
+        <PixelIcon :name="isMuted ? 'mute' : 'sound'" :size="20" /><span>{{ soundLabel }}</span>
+      </button>
+    </Teleport>
     <p v-if="errorMessage" class="audio-error" role="status">{{ errorMessage }}</p>
   </div>
 </template>

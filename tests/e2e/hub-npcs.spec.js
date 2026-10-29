@@ -9,11 +9,19 @@ test.beforeEach(async ({ page }) => {
     localStorage.setItem('sharlock.hubForce3d', '1')
     localStorage.setItem('sharlock.hubWatchManual', '1')
     localStorage.setItem('sharlock.loreIntroSeen', '1')
+    localStorage.setItem('sharlock.controlsHintSeen', '3')
   })
   await page.route(/fonts\.(googleapis|gstatic)\.com/, (route) =>
     route.fulfill({ contentType: 'text/css', body: '' }),
   )
 })
+
+// below 992px the destination list starts collapsed
+async function pickDest(page, id) {
+  const toggle = page.getByTestId('destinations-toggle')
+  if ((await toggle.getAttribute('aria-expanded')) === 'false') await toggle.click()
+  await page.getByTestId(`dest-${id}`).click()
+}
 
 async function hubReady(page) {
   await page.waitForFunction(
@@ -30,7 +38,7 @@ test('talks to a game keeper, reads every line and goes in', async ({ page }) =>
   const lines = await page.evaluate(() => window.__hub.debug.npcs())
   expect(lines).toHaveLength(9)
 
-  await page.getByTestId('dest-cli-cyber-defender').click()
+  await pickDest(page, 'cli-cyber-defender')
   await expect
     .poll(() => page.evaluate(() => window.__hub.state.nearNpc), slow)
     .toBe('telegraph-clerk')
@@ -69,7 +77,7 @@ test('talks to a game keeper, reads every line and goes in', async ({ page }) =>
 test('Escape closes the talk panel first and returns focus to Talk', async ({ page }) => {
   await page.goto('/')
   await hubReady(page)
-  await page.getByTestId('dest-cli-cyber-defender').click()
+  await pickDest(page, 'cli-cyber-defender')
   await expect(page.getByTestId('talk')).toBeVisible(slow)
   await page.getByTestId('talk').click()
   await expect(page.getByTestId('npc-dialogue')).toBeVisible()
@@ -80,6 +88,18 @@ test('Escape closes the talk panel first and returns focus to Talk', async ({ pa
   await expect(page.getByTestId('dest-cli-cyber-defender')).toHaveAttribute('aria-pressed', 'true')
   await page.keyboard.press('Escape')
   await expect(page.getByTestId('dest-cli-cyber-defender')).toHaveAttribute('aria-pressed', 'false')
+})
+
+test('E talks to the nearby keeper and E does nothing when nobody is near', async ({ page }) => {
+  await page.goto('/')
+  await hubReady(page)
+  await page.keyboard.press('KeyE')
+  await expect(page.getByTestId('npc-dialogue')).toHaveCount(0)
+  await pickDest(page, 'cli-cyber-defender')
+  await expect(page.getByTestId('talk')).toBeVisible(slow)
+  await page.keyboard.press('KeyE')
+  await expect(page.getByTestId('npc-dialogue')).toBeVisible()
+  await expect(page.getByTestId('hub-status')).toHaveText('Talking to Telegraph clerk')
 })
 
 test('a wanderer talks, then says bye', async ({ page }) => {

@@ -86,7 +86,9 @@ test('Replay intro shows the intro again after it was seen', async ({ page }) =>
   await page.goto('/')
   await hubReady(page)
   await expect(intro(page)).toHaveCount(0)
-  await page.getByRole('button', { name: 'Replay intro', exact: true }).click()
+  await page.getByTestId('menu-button').click()
+  await page.getByRole('link', { name: 'Settings' }).click()
+  await page.getByTestId('settings-replay-intro').click()
   await expect(intro(page).getByText(FIRST_CARD)).toBeVisible()
 })
 
