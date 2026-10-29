@@ -149,8 +149,8 @@ No active implementation task.
 - **Docs impact:** `client/src/features/legacy-town/README.md` ("Art and motion"), this record, `docs/boey-todo.md`.
 - **Implementation:** `townArt.js` exports `capyFurs` (six fur pairs: three existing plus sand, cocoa and ash), `capyProps` (crate, basket, flat cap, felt hat, bowler, apron, newspaper, neckerchief, split into props drawn behind and in front of the body, so front props such as the apron now show) and `townCapys` (one distinct combination per capybara). The old hidden red scarf is gone. The crane is lowered so nothing is drawn above unit 2 (8px). The second gull moved from the west tower to open sky between the crane and the scaffold (`gull(880, 40, 60, 14)`). New `__tests__/townArt.test.js`.
 - **Tests (30 Oct 2026):** legacy-town vitest 30/30 (incl. 5 new); eslint clean; prettier clean on both files; E2E `portal.spec.js` 20/20 (mobile and desktop, incl. breakpoints, reduced motion and camera bounds). Local preview screenshots at 1280 and 375 px show the crane clear of the top edge, the gull off the tower, and the cocoa/neckerchief, ash/apron, honey/basket and chestnut/crate capybaras; the bowler and newspaper variants were not seen close up.
-- **Commit / merge:** committed on `town-02-town-polish` and merged into local `main` with `--no-ff`, both with Boey's OK on 30 October 2026. Not pushed.
-- **Next action:** Boey's browser review (bowler and newspaper variants, crane boom); push `main` with his OK (fetch first).
+- **Commit / merge:** committed on `town-02-town-polish` and merged into local `main` with `--no-ff`, both with Boey's OK on 30 October 2026; pushed to `origin/main` at `a69546d` with his OK the same day.
+- **Next action:** Boey's browser review (bowler and newspaper variants, crane boom).
 
 **HUB-08 — Glass HUD** · Status: **Review** · Contributor: **Boey** · Branch: `hub-08-glass-hud` (cut from `origin/main` at `f64a3c5`, 29 October 2026, upstream unset) · Plan approved by Boey on 29 October 2026 (stage 1 with HUB-09 and TOWN-02, `.local-handover/STAGE1-PLAN-2026-10-29.md`); Boey chose the smoked-glass variant from a local mockup.
 
@@ -160,8 +160,8 @@ No active implementation task.
 - **Collision check (29 Oct):** no TASKS record for a HUD restyle or destination restyle; HUB-05/06/07, NPC-01 and SKIN-01 (all editing `HubScene.vue`) are merged; teammate remote branches `e2e-06-clearance-howto-settle`, `fmt-01-dashboard-prettier` and `fmt-02-hub-specs-prettier` are already ancestors of `main`.
 - **Docs impact:** hub README (HUD), DESIGN.md (3D hub landing HUD treatment and fallbacks), this record, `docs/boey-todo.md`.
 - **Tests (30 Oct 2026):** hub vitest 158/158 (incl. new `glass.test.js`); eslint clean on `client/src/features/hub` and `Dashboard.vue`; hub E2E (`hub.spec.js`, `hub-npcs.spec.js`, `hub-auto.spec.js`, `--workers=1`) 45 passed / 4 failed / 5 skipped, the 4 mobile failures (`hub.spec.js:170, :208, :245, :258`) ran while the laptop slept and all 4 passed on rerun. Screenshots on the local preview stack (desktop, dialogue, 375 px) show the glass panels; the mobile Jump button and a real GPU were not checked.
-- **Commit / merge:** committed as `dd201f5` with Boey's OK; merged into local `main` with `--no-ff` as `c420565` with Boey's OK on 30 October 2026. Not pushed.
-- **Next action:** push `main` with Boey's OK (fetch first); check the "News vendor" heading (the mobile Jump button was seen at 375 px on 30 October 2026).
+- **Commit / merge:** committed as `dd201f5` with Boey's OK; merged into local `main` with `--no-ff` as `c420565` with Boey's OK on 30 October 2026; pushed to `origin/main` at `a69546d` with his OK the same day.
+- **Next action:** check the "News vendor" heading (the mobile Jump button was seen at 375 px on 30 October 2026).
 
 **CODE-28 — Repository structure clean-up** · Status: **Review** · Maintenance contributor: **Xin Lei** · Branch: `code-28-structure-cleanup` (cut from `origin/main` at `bac13af`, 29 October 2026).
 
