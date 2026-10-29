@@ -6,6 +6,7 @@ import Navbar from '../components/portal/Navbar.vue'
 import PixelIcon from '../components/town/PixelIcon.vue'
 import AccountSummary from '../features/auth/components/AccountSummary.vue'
 import { useAuthStore } from '../features/auth/store.js'
+import { provideSignOut } from '../features/menu/townControls.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -16,6 +17,9 @@ const requestErrorMessage = computed(() =>
 const panel = ref(null)
 const navbar = ref(null)
 const isTown = computed(() => route.meta.theme === 'town')
+// the town and its overlays carry their own menu instead of the navbar and sidebar
+const immersive = computed(() => Boolean(route.meta.immersive))
+const isOverlayRoute = (target) => Boolean(target.meta.overlay || target.meta.newsDialog)
 const menuOpen = ref(false)
 let offcanvas
 let media
@@ -63,6 +67,7 @@ async function signOut() {
     // the auth store provides safe feedback and preserves a retryable session
   }
 }
+provideSignOut(signOut)
 async function retrySession() {
   try {
     await auth.restoreSession({ force: true })
@@ -88,14 +93,33 @@ function onHidden() {
 function onBreakpoint(event) {
   if (event.matches) closeMenu()
 }
+function bindPanel(el) {
+  offcanvas = new Offcanvas(el)
+  el.addEventListener('show.bs.offcanvas', showState)
+  el.addEventListener('hide.bs.offcanvas', hideState)
+  el.addEventListener('hidden.bs.offcanvas', onHidden)
+}
+function unbindPanel(el) {
+  el.removeEventListener('show.bs.offcanvas', showState)
+  el.removeEventListener('hide.bs.offcanvas', hideState)
+  el.removeEventListener('hidden.bs.offcanvas', onHidden)
+  offcanvas?.dispose()
+  offcanvas = undefined
+  menuOpen.value = false
+}
 onMounted(() => {
-  offcanvas = new Offcanvas(panel.value)
   media = window.matchMedia('(min-width: 768px)')
   media.addEventListener('change', onBreakpoint)
-  panel.value.addEventListener('show.bs.offcanvas', showState)
-  panel.value.addEventListener('hide.bs.offcanvas', hideState)
-  panel.value.addEventListener('hidden.bs.offcanvas', onHidden)
 })
+// the sidebar only exists outside the town, so its offcanvas follows the element
+watch(
+  panel,
+  (el, previous) => {
+    if (previous) unbindPanel(previous)
+    if (el) bindPanel(el)
+  },
+  { flush: 'post' },
+)
 watch(
   () => route.fullPath,
   async (_path, previousPath) => {
@@ -104,30 +128,32 @@ watch(
       closeMenu()
       return
     }
-    if (route.meta.newsDialog) return
-    const returningToTownFromNews =
-      route.name === 'town' && previousPath?.split(/[?#]/)[0] === '/games/threat-briefing'
-    if (returningToTownFromNews) return
+    if (isOverlayRoute(route)) return
+    const returningToTownFromOverlay =
+      route.name === 'town' && previousPath && isOverlayRoute(router.resolve(previousPath))
+    if (returningToTownFromOverlay) return
     await nextTick()
     focusPage()
   },
 )
 onBeforeUnmount(() => {
   media?.removeEventListener('change', onBreakpoint)
-  panel.value?.removeEventListener('show.bs.offcanvas', showState)
-  panel.value?.removeEventListener('hide.bs.offcanvas', hideState)
-  panel.value?.removeEventListener('hidden.bs.offcanvas', onHidden)
-  offcanvas?.dispose()
+  if (panel.value) unbindPanel(panel.value)
 })
 </script>
 
 <template>
   <div
     class="portal-shell"
-    :class="{ 'is-town': isTown, 'is-utility': route.meta.theme === 'utility' }"
+    :class="{
+      'is-town': isTown,
+      'is-immersive': immersive,
+      'is-utility': route.meta.theme === 'utility',
+    }"
   >
     <a href="#main-content" class="skip-link">Skip to content</a>
     <Navbar
+      v-if="!immersive"
       ref="navbar"
       :town="isTown"
       :menu-open="menuOpen"
@@ -137,6 +163,7 @@ onBeforeUnmount(() => {
       @sign-out="signOut"
     />
     <aside
+      v-if="!immersive"
       id="portal-menu"
       ref="panel"
       class="portal-sidebar offcanvas-md offcanvas-start"

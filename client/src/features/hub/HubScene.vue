@@ -202,15 +202,19 @@ function onEscape(event) {
   const target = event.target
   if (target?.closest?.('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) return
   if (paused.value) return
+  // a handled escape is marked so the site menu does not also open
   if (keysOpen.value) {
+    event.preventDefault()
     keysOpen.value = false
     return
   }
   if (talk.open.value) {
+    event.preventDefault()
     closeTalk()
     return
   }
   if (view.mode !== 'explore' || !view.selected) return
+  event.preventDefault()
   choose(view.selected)
 }
 
@@ -370,7 +374,11 @@ async function focusDestination(id) {
   destList.value?.querySelector(`[data-testid="dest-${id}"]`)?.focus()
 }
 
-defineExpose({ focusDestination })
+function openKeys() {
+  keysOpen.value = true
+}
+
+defineExpose({ focusDestination, openKeys })
 </script>
 
 <template>

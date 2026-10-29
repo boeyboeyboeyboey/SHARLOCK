@@ -1,13 +1,19 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, reactive, ref } from 'vue'
 import PixelIcon from '../../components/town/PixelIcon.vue'
 import { useLandingMusic } from '../../composables/useLandingMusic.js'
+import { useTownControls } from '../menu/townControls.js'
 const props = defineProps({ suspended: Boolean })
 const audio = ref(null)
 const { isMuted, starting, errorMessage, toggle, failPlayback } = useLandingMusic(
   audio,
   () => props.suspended,
 )
+// the settings overlay reads and toggles this same sound
+const unregister = useTownControls()?.sound.register(
+  reactive({ muted: isMuted, busy: computed(() => starting.value || props.suspended), toggle }),
+)
+onBeforeUnmount(() => unregister?.())
 const soundLabel = computed(() => {
   if (starting.value) return 'Starting…'
   if (isMuted.value) return 'Sound off'

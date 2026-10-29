@@ -194,60 +194,62 @@ test('starts the soundtrack on arrival or the first interaction, remembers a mut
   await expect(page.getByRole('button', { name: 'Mute town sound' })).toBeVisible()
   expect(await page.evaluate(() => sessionStorage.getItem('sharlock.musicMuted'))).toBeNull()
   const handle = await audio.elementHandle()
-  await page.getByRole('link', { name: 'View your detective profile' }).click()
+  await page.getByRole('button', { name: /^Menu/ }).click()
+  await page.getByRole('link', { name: 'Profile & progress' }).click()
   await expect(page).toHaveURL(/\/profile$/)
   await expect(
     page.getByRole('heading', { name: 'A curious mind looks good on you.' }),
   ).toBeVisible()
+  // the overlay sits over the mounted town, so the soundtrack keeps playing until the town is left
+  expect(await handle.evaluate((el) => !el.paused && !el.muted)).toBe(true)
+  await page.evaluate(() =>
+    document
+      .querySelector('#app')
+      .__vue_app__.config.globalProperties.$router.push('/games/sql-injection-arcade'),
+  )
+  await expect(page).toHaveURL(/\/games\/sql-injection-arcade$/)
   expect(await handle.evaluate((el) => el.paused && el.muted)).toBe(true)
   await page.goto('/dashboard')
   await expect(page.locator('audio')).toHaveCount(1)
 })
 
-test('navigates to the profile and handles mobile focus and dismissal', async ({
-  page,
-}, testInfo) => {
+test('opens the profile from the menu and handles focus and dismissal', async ({ page }) => {
   await page.goto('/dashboard')
-  if (testInfo.project.name === 'mobile-chromium') {
-    const opener = page.getByRole('button', { name: 'Open navigation and profile' })
-    const drawer = page.getByRole('dialog', { name: 'Your detective desk' })
-    // the layout may not be mounted yet, so retry the tap; never click while the drawer is already open
-    await expect(async () => {
-      if (!(await drawer.isVisible())) await opener.click({ timeout: 2000 })
-      await expect(drawer).toHaveClass(/(^|\s)show(\s|$)/, { timeout: 3000 })
-    }).toPass({ timeout: 15_000 })
-    await expect(drawer).toBeVisible()
-    await expect(drawer.getByText('Results are not saved')).toBeVisible()
-    await expect.poll(() => drawer.evaluate((el) => el.contains(document.activeElement))).toBe(true)
-    await page.keyboard.press('Escape')
-    await expect(drawer).toBeHidden()
-    await expect(opener).toBeFocused()
-    await expect(async () => {
-      if (!(await drawer.isVisible())) await opener.click({ timeout: 2000 })
-      await expect(drawer).toHaveClass(/(^|\s)show(\s|$)/, { timeout: 3000 })
-    }).toPass({ timeout: 15_000 })
-    await drawer.getByRole('link', { name: 'Detective profile', exact: true }).click()
-    await expect(drawer).toBeHidden()
-  } else await page.getByRole('link', { name: 'Profile', exact: true }).click()
+  const opener = page.getByRole('button', { name: /^Menu/ })
+  const menu = page.getByRole('dialog', { name: 'Sharlock Hub' })
+  // the layout may not be mounted yet, so retry the click; never click while the menu is already open
+  await expect(async () => {
+    if (!(await menu.isVisible())) await opener.click({ timeout: 2000 })
+    await expect(menu).toBeVisible({ timeout: 3000 })
+  }).toPass({ timeout: 15_000 })
+  await expect(menu.getByText('Results are not saved')).toBeVisible()
+  await expect.poll(() => menu.evaluate((el) => el.contains(document.activeElement))).toBe(true)
+  await page.keyboard.press('Escape')
+  await expect(menu).toBeHidden()
+  await expect(opener).toBeFocused()
+  await opener.click()
+  await menu.getByRole('link', { name: 'Profile & progress' }).click()
+  await expect(menu).toBeHidden()
   await expect(page).toHaveURL(/\/profile$/)
-  await expect(page.getByRole('heading', { level: 1 })).toBeFocused()
+  await expect(page.getByRole('heading', { name: 'Profile & progress' })).toBeFocused()
   await expect(page.getByRole('heading', { name: 'Your trophy case' })).toBeVisible()
   await expect(page.getByText('Your first badge is waiting')).toBeVisible()
-  await page.reload()
+  await page.keyboard.press('Escape')
+  await expect(page).toHaveURL(/\/$/)
+  await expect(opener).toBeFocused()
+  await page.goto('/profile')
   await expect(page.getByRole('heading', { name: 'Your trophy case' })).toBeVisible()
 })
 
-test('uses pixel page artwork, keeps the 3D navbar logo, and recovers from a missing page', async ({
+test('uses pixel page artwork, keeps the 3D menu and navbar logo, and recovers from a missing page', async ({
   page,
 }) => {
   await page.goto('/')
-  await page.getByRole('link', { name: 'About Sharlock', exact: true }).click()
+  await page.getByRole('button', { name: /^Menu/ }).click()
+  const menu = page.getByTestId('site-menu')
+  await expect(menu.getByRole('img', { name: /3D-style capybara/ })).toBeVisible()
+  await menu.getByRole('link', { name: 'About Sharlock', exact: true }).click()
   await expect(page).toHaveURL('/about')
-  await expect(page.locator('.navbar-mascot')).toHaveAttribute(
-    'alt',
-    /3D-style capybara mascot wearing a monocle/,
-  )
-  await expect(page.locator('.navbar-mascot')).toHaveCSS('image-rendering', 'auto')
   await expect(page.locator('.hero-mascot')).toHaveAttribute(
     'alt',
     /pixel-art capybara wearing a mint scarf/,
@@ -260,13 +262,19 @@ test('uses pixel page artwork, keeps the 3D navbar logo, and recovers from a mis
   await expect(page.getByRole('tooltip')).toBeHidden()
   await page.goto('/a-missing-clue')
   await expect(page.getByRole('heading', { name: 'A little off the trail?' })).toBeVisible()
+  await expect(page.locator('.navbar-mascot')).toHaveAttribute(
+    'alt',
+    /3D-style capybara mascot wearing a monocle/,
+  )
+  await expect(page.locator('.navbar-mascot')).toHaveCSS('image-rendering', 'auto')
   await page.getByRole('link', { name: 'Back to town' }).click()
   await expect(page).toHaveURL('/')
+  await page.goto('/a-missing-clue')
   await page.getByRole('link', { name: 'Sharlock Hub home' }).click()
   await expect(page).toHaveURL('/')
 })
 
-test('fits supported breakpoints with readable pixel buildings and responsive branding', async ({
+test('fits supported breakpoints with readable pixel buildings and responsive menu controls', async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
@@ -294,9 +302,10 @@ test('fits supported breakpoints with readable pixel buildings and responsive br
     expect(layout.animation).toBe('none')
     expect(layout.clipping).toBe('clip')
     expect(layout.nativeScroll).toBe(0)
-    await expect(page.locator('.navbar-mascot')).toBeVisible()
-    if (width < 768) await expect(page.locator('.brand-title')).toBeHidden()
-    else await expect(page.locator('.brand-title')).toBeVisible()
+    await expect(page.getByRole('button', { name: /^Menu/ })).toBeVisible()
+    await expect(page.getByRole('group', { name: 'View mode' })).toBeVisible()
+    if (width < 768) await expect(page.locator('.menu-hint')).toBeHidden()
+    else await expect(page.locator('.menu-hint')).toBeVisible()
     await expect(page.getByRole('button', { name: /^(Turn on|Mute) town sound$/ })).toBeVisible()
   }
 })
@@ -452,7 +461,9 @@ test('supports pinch zoom and wheel panning while retaining camera bounds after 
       .toBe(true)
   }
   await page.goto('/profile')
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'A curious mind looks good on you.' }),
+  ).toBeVisible()
   await page.goto('/dashboard')
   await expect(page.getByLabel('Map zoom level')).toHaveText('100%')
 })

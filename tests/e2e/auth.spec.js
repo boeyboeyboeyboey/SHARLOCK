@@ -8,18 +8,29 @@ test.skip(
   'The account journey includes transactional onboarding; run with --replica-set.',
 )
 
-// openMenu() is a no-op until the layout mounts or while a transition runs, so retry the tap until the drawer settles
-async function signOutFromDetectiveDesk(page) {
-  const opener = page.getByRole('button', { name: 'Open navigation and profile' })
-  const detectiveDesk = page.getByRole('dialog', { name: 'Your detective desk' })
+// the Menu button is a no-op until the layout mounts, so retry the click until the menu is open
+async function openSiteMenu(page) {
+  const menu = page.getByRole('dialog', { name: 'Sharlock Hub' })
   await expect(async () => {
-    await opener.click({ timeout: 2000 })
-    // bootstrap marks the drawer as a dialog before its slide-in ends, so wait for the settled show state
-    await expect(detectiveDesk).toHaveClass(/(^|\s)show(\s|$)/, { timeout: 3000 })
+    if (!(await menu.isVisible())) {
+      await page.getByRole('button', { name: /^Menu/ }).click({ timeout: 2000 })
+    }
+    await expect(menu).toBeVisible({ timeout: 3000 })
   }).toPass({ timeout: 15_000 })
-  await expect(detectiveDesk).toBeVisible()
-  await expect(detectiveDesk).not.toHaveClass(/(^|\s)showing(\s|$)/)
-  await detectiveDesk.getByRole('button', { name: 'Sign out' }).click()
+  return menu
+}
+
+async function signOutFromMenu(page) {
+  const menu = await openSiteMenu(page)
+  await menu.getByRole('button', { name: 'Sign out' }).click()
+}
+
+async function expectMenuAccount(page, username, avatar = 'Detective') {
+  const menu = await openSiteMenu(page)
+  await expect(menu.getByText(username, { exact: true })).toBeVisible()
+  await expect(menu.getByRole('img', { name: avatar })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(menu).toBeHidden()
 }
 
 test.beforeEach(async ({ page }) => {
@@ -52,7 +63,7 @@ test('registers, restores, signs out, signs in, and stops a protected action aft
   })
 
   await page.goto('/about')
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  await expect(page.getByTestId('menu-overlay').getByRole('heading', { level: 1 })).toBeVisible()
   await page.goto('/games/threat-briefing')
   await expect(page).toHaveURL(/\/login/)
   await expect(page.getByRole('heading', { name: 'Sign in to Sharlock' })).toBeVisible()
@@ -103,16 +114,12 @@ test('registers, restores, signs out, signs in, and stops a protected action aft
   await expect(page).toHaveURL('/join-class?onboarding=1')
   await page.getByRole('button', { name: 'Skip and explore Sharlock' }).click()
   await expect(page).toHaveURL('/')
-  const townPlayer = page.locator('.town-player')
-  await expect(townPlayer.getByText(username, { exact: true })).toBeVisible()
-  await expect(townPlayer.getByRole('img', { name: 'Detective' })).toBeVisible()
+  await expectMenuAccount(page, username)
   expect(registrationPosts).toBe(1)
   expect(registrationKeys).toEqual(['avatarId', 'email', 'password', 'username'])
 
   await page.reload()
-  const restoredTownPlayer = page.locator('.town-player')
-  await expect(restoredTownPlayer.getByText(username, { exact: true })).toBeVisible()
-  await expect(restoredTownPlayer.getByRole('img', { name: 'Detective' })).toBeVisible()
+  await expectMenuAccount(page, username)
 
   await page.goto('/games/threat-briefing')
   await expect(page.getByRole('dialog', { name: 'The Sharlock Times' })).toBeVisible()
@@ -125,28 +132,13 @@ test('registers, restores, signs out, signs in, and stops a protected action aft
   await phishGuide.getByRole('button', { name: 'Start playing' }).click()
   await expect(phishGuide).toBeHidden()
 
-  // /profile hides the account box in the mobile menu, so sign out from a page that shows it
-  await page.goto('/progress')
-  const header = page.getByRole('banner')
-  const desktopSignOut = header.getByRole('button', { name: 'Sign out' })
-  // the header fills in once the session is restored; wait for either route before choosing one
-  await expect
-    .poll(
-      async () =>
-        (await desktopSignOut.isVisible()) ||
-        (await page.getByRole('button', { name: 'Open navigation and profile' }).isVisible()),
-    )
-    .toBe(true)
-  if (await desktopSignOut.isVisible()) {
-    await desktopSignOut.click()
-  } else {
-    await signOutFromDetectiveDesk(page)
-  }
+  await page.goto('/')
+  await signOutFromMenu(page)
   await expect(page).toHaveURL(/\/login/)
   await expect(page.getByRole('heading', { name: 'Sign in to Sharlock' })).toBeVisible()
 
   await page.goto('/about')
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  await expect(page.getByTestId('menu-overlay').getByRole('heading', { level: 1 })).toBeVisible()
   await page.goto('/games/cli-cyber-defender')
   await expect(page).toHaveURL(/\/login/)
 
@@ -160,7 +152,7 @@ test('registers, restores, signs out, signs in, and stops a protected action aft
   await page.getByLabel('Password', { exact: true }).fill(PASSWORD)
   await page.getByRole('button', { name: 'Sign in' }).click()
   await expect(page).toHaveURL('/')
-  await expect(page.locator('.town-player').getByText(username, { exact: true })).toBeVisible()
+  await expectMenuAccount(page, username)
 
   await page.goto('/games/cli-cyber-defender')
   await expect(page.getByRole('heading', { name: 'CLI Cyber Defender', exact: true })).toBeVisible()
@@ -208,22 +200,10 @@ test('signing out with a lapsed session cookie still lands on the sign-in page',
   await page.getByRole('button', { name: 'Skip and explore Sharlock' }).click()
   await expect(page).toHaveURL('/')
 
-  await page.goto('/progress')
+  await page.goto('/')
+  const menu = await openSiteMenu(page)
   await context.clearCookies({ name: 'sharlock.sid' })
-
-  const desktopSignOut = page.getByRole('banner').getByRole('button', { name: 'Sign out' })
-  await expect
-    .poll(
-      async () =>
-        (await desktopSignOut.isVisible()) ||
-        (await page.getByRole('button', { name: 'Open navigation and profile' }).isVisible()),
-    )
-    .toBe(true)
-  if (await desktopSignOut.isVisible()) {
-    await desktopSignOut.click()
-  } else {
-    await signOutFromDetectiveDesk(page)
-  }
+  await menu.getByRole('button', { name: 'Sign out' }).click()
   await expect(page).toHaveURL(/\/login/)
   await expect(page.getByRole('heading', { name: 'Sign in to Sharlock' })).toBeVisible()
   await expect(page.getByText('Your security check expired')).toHaveCount(0)
@@ -265,9 +245,7 @@ test('signs in with a mixed-case username instead of the email', async ({
     await loginPage.getByLabel('Password', { exact: true }).fill(PASSWORD)
     await loginPage.getByRole('button', { name: 'Sign in' }).click()
     await expect(loginPage).toHaveURL('/')
-    await expect(
-      loginPage.locator('.town-player').getByText(username, { exact: true }),
-    ).toBeVisible()
+    await expectMenuAccount(loginPage, username, 'Mint Scarf')
   } finally {
     await freshContext.close()
   }

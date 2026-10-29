@@ -223,10 +223,10 @@ Games open a **How to play** guide on your first visit. Tick "Don't show again" 
 - Townsfolk: a keeper stands beside each building and three wanderers roam the wharf. Near one, **Talk to <name>** opens a few lines of dialogue (Next, then Go in for a game keeper or Bye); Esc closes it. Talking is optional: Enter still works.
 - Standing still for a while, Sharlock looks around, sits down and yawns.
 - Wardrobe: achievements unlock scarf colours, hats, monocle frames and a magnifying glass. Equip them under **Wardrobe** on `/profile`; Sharlock wears them in the 3D hub. Locked items say which achievement unlocks them.
-- Staff reach their areas from the header (768px and up) or the sidebar: admins see an **Admin** button and instructors an **Instructor** button; students see neither.
+- **Menu and overlays (UX-01).** The town has no top bar: the **Menu** button (top left) or **Esc** opens the site menu with Profile & progress, Leaderboard, Your classes (students), Settings, About Sharlock, Class enrollment (instructors and admins), Administrator workspace (admins) and Sign out. Profile & progress, Leaderboard, Your classes, Settings and About open as panels over the dimmed town; X or Esc closes them. Esc still deselects, closes the Keys legend or dialogue first. The **3D | 2D** switch (top right) changes the town view in both modes, and Settings holds Graphics, Sound, View, Replay intro and Show controls. Other pages (games, class enrollment, admin) keep the top navbar.
 - The daily briefing newsstand opens the newspaper as an overlay on the hub. Closing it returns to the hub, and hub input is paused while it is open.
 
-**2D mode** (the "2D map" toggle; the choice is remembered)
+**2D mode** (the 3D | 2D switch at the top right, or Settings; the choice is remembered)
 
 - Drag or swipe to pan; pinch or Ctrl/Cmd + wheel to zoom (a plain wheel pans); arrow keys pan; + and - zoom; 0 resets. On-screen zoom and Reset view buttons do the same.
 - Hover or focus a building for its card; Esc dismisses the card.

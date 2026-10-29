@@ -6,24 +6,33 @@ import HubScene from '../features/hub/HubScene.vue'
 import HubAmbience from '../features/hub/HubAmbience.vue'
 import TownMap from '../features/legacy-town/TownMap.vue'
 import Hub3dWarning from '../features/legacy-town/Hub3dWarning.vue'
-import { GRAPHICS_OPTIONS, readGraphics, writeGraphics } from '../features/hub/graphics.js'
+import { readGraphics, writeGraphics } from '../features/hub/graphics.js'
 import { writePerf } from '../features/hub/perfWatch.js'
 import { useTownMode } from '../features/legacy-town/useTownMode.js'
 import PixelIcon from '../components/town/PixelIcon.vue'
+import ImmersiveControls from '../features/menu/ImmersiveControls.vue'
+import {
+  createSoundRegistry,
+  provideTownControls,
+  useSignOut,
+} from '../features/menu/townControls.js'
+import { useLoreIntro } from '../features/hub/intro/useLoreIntro.js'
 import { gameCatalog } from '../data/gameCatalog.js'
 import { useAuthStore } from '../features/auth/store.js'
-import { avatarFor } from '../features/auth/avatars.js'
 const auth = useAuthStore()
-const avatar = computed(() => avatarFor(auth.user?.avatarId))
 const route = useRoute()
 const router = useRouter()
 const hubScene = ref(null)
 const townMap = ref(null)
+const controls = ref(null)
+const menuOpen = ref(false)
+const signOut = useSignOut()
+const lore = useLoreIntro()
 const townMode = useTownMode()
 const is3d = computed(() => townMode.mode.value === '3d')
 const graphics = ref(readGraphics())
-function setGraphics(event) {
-  graphics.value = event.target.value
+function setGraphics(value) {
+  graphics.value = value
   writeGraphics(graphics.value)
   // choosing auto again forgets the measured outcome so the device is measured afresh
   if (graphics.value === 'auto') writePerf(null)
@@ -38,26 +47,60 @@ const noticeText = computed(() => {
     return 'The 3D wharf could not start on this device, so you are seeing the 2D map.'
   return 'You are seeing the 2D map because this device may not run the 3D wharf smoothly.'
 })
-const toggleLabel = computed(() => (is3d.value ? 'Switch to 2D map' : 'Switch to 3D wharf'))
+// the Times and the menu overlays share one open, close and focus contract
+const overlayNames = new Set(
+  router
+    .getRoutes()
+    .filter((record) => record.meta.overlay || record.meta.newsDialog)
+    .map((record) => record.name),
+)
+const isOverlay = computed(() => overlayNames.has(route.name))
+const escapeHeld = computed(() => isOverlay.value || lore.playing.value || townMode.warning.value)
+let afterClose = null
+function replayIntro() {
+  afterClose = () => lore.replay()
+  closeOverlay()
+}
+function showControls() {
+  afterClose = () => hubScene.value?.openKeys()
+  closeOverlay()
+}
+provideTownControls({
+  townMode,
+  graphics,
+  setGraphics,
+  sound: createSoundRegistry(),
+  replayIntro,
+  showControls,
+})
 let openedFromTown = false
 watch(
   () => route.name,
   async (name, previous) => {
-    if (name === 'news') {
+    const opening = overlayNames.has(name)
+    const wasOpen = overlayNames.has(previous)
+    if (opening && !wasOpen) {
       openedFromTown = previous === 'town'
       townMap.value?.dismiss()
-    } else if (name === 'town' && previous === 'news') {
+    } else if (name === 'town' && wasOpen) {
       openedFromTown = false
       await nextTick()
+      if (afterClose) {
+        const run = afterClose
+        afterClose = null
+        run()
+        return
+      }
       // skip the restore if a newly opened card already took focus
       if (document.activeElement?.closest('.game-info-card')) return
-      if (is3d.value) hubScene.value?.focusDestination('threat-briefing')
+      if (previous !== 'news') controls.value?.focusMenu()
+      else if (is3d.value) hubScene.value?.focusDestination('threat-briefing')
       else townMap.value?.focusBuilding('threat-briefing')
     }
   },
 )
-function closeNewspaper() {
-  // only go back when this mounted town created the newspaper history entry
+function closeOverlay() {
+  // only go back when this mounted town created the overlay history entry
   if (openedFromTown) router.back()
   else router.replace({ name: 'town' })
 }
@@ -73,25 +116,6 @@ function closeNewspaper() {
           Pick a building. Follow your curiosity. Every adventure is open.
           <RouterLink to="/about">About Sharlock</RouterLink>
         </p>
-      </div>
-      <div class="town-intro-actions">
-        <button
-          v-if="!townMode.locked.value"
-          type="button"
-          class="pixel-button"
-          data-testid="town-mode-toggle"
-          :aria-label="toggleLabel"
-          @click="townMode.toggle"
-        >
-          {{ is3d ? '2D map' : '3D wharf' }}
-        </button>
-        <RouterLink to="/profile" class="town-player" aria-label="View your detective profile">
-          <img :src="avatar.path" width="80" height="80" :alt="avatar.label" class="avatar-image" />
-          <span
-            ><strong>{{ auth.user?.username }}</strong
-            ><span>Results are not saved</span></span
-          >
-        </RouterLink>
       </div>
     </section>
     <template v-if="!is3d">
@@ -142,7 +166,7 @@ function closeNewspaper() {
       ref="hubScene"
       fill
       :games="gameCatalog"
-      :input-paused="route.name === 'news'"
+      :input-paused="isOverlay || menuOpen"
       :quality="graphics"
       :explicit3d="townMode.explicit3d.value"
       :wardrobe="auth.user?.wardrobe ?? null"
@@ -151,41 +175,7 @@ function closeNewspaper() {
       @slow="townMode.markSlow"
     >
       <div class="hud-row">
-        <button
-          type="button"
-          class="pixel-button hud-toggle"
-          data-testid="town-mode-toggle"
-          :aria-label="toggleLabel"
-          @click="townMode.toggle"
-        >
-          2D map
-        </button>
-        <label class="hud-graphics">
-          <span>Graphics</span>
-          <select
-            class="form-select form-select-sm"
-            data-testid="hub-graphics"
-            aria-label="Graphics quality"
-            :value="graphics"
-            @change="setGraphics"
-          >
-            <option v-for="option in GRAPHICS_OPTIONS" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
-        </label>
         <HubAmbience :suspended="route.name === 'news'" />
-        <RouterLink
-          to="/profile"
-          class="town-player hud-player"
-          aria-label="View your detective profile"
-        >
-          <img :src="avatar.path" width="40" height="40" :alt="avatar.label" class="avatar-image" />
-          <span
-            ><strong>{{ auth.user?.username }}</strong
-            ><span class="hud-note">Results are not saved</span></span
-          >
-        </RouterLink>
       </div>
       <p v-if="route.query.classRequest === 'pending'" class="hud-alert" role="status">
         Your class request is pending staff approval. You can explore on your own while you wait.
@@ -211,19 +201,23 @@ function closeNewspaper() {
       @cancel="townMode.cancel3d"
       @confirm="townMode.confirm3d"
     />
-    <RouterView @request-close="closeNewspaper" />
+    <ImmersiveControls
+      ref="controls"
+      v-model:menu-open="menuOpen"
+      :mode="townMode.mode.value"
+      :locked="townMode.locked.value"
+      :suppressed="escapeHeld"
+      :user="auth.user"
+      :logout-pending="auth.logoutPending"
+      @toggle-mode="townMode.toggle"
+      @sign-out="signOut"
+    />
+    <RouterView @request-close="closeOverlay" />
   </div>
 </template>
 
 <style scoped>
-.town-intro-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-}
-
-/* 3d landing: the wharf fills the window below the navbar, so the shared page padding and footer step aside */
+/* 3d landing: the wharf fills the window, so the shared page padding and footer step aside */
 .town-dashboard.is-hub {
   position: relative;
   display: block;
@@ -235,6 +229,21 @@ function closeNewspaper() {
   min-height: 0;
   padding: 0;
 }
+/* no navbar or sidebar on the town: the shell loses their space and the floating controls take a strip at the top */
+:global(.portal-shell.is-immersive) {
+  --header-height: 0px;
+  --shell-chrome: 64px;
+}
+:global(.portal-shell.is-immersive .portal-workspace) {
+  margin-left: 0;
+}
+.town-dashboard:not(.is-hub) {
+  padding-top: 52px;
+}
+:global(.portal-shell.is-immersive .hub-hud),
+:global(.portal-shell.is-immersive .hub-dest) {
+  top: 64px;
+}
 :global(.portal-shell:has(.town-dashboard.is-hub) .portal-footer) {
   display: none;
 }
@@ -243,7 +252,6 @@ function closeNewspaper() {
   align-items: center;
   gap: 8px;
 }
-.hud-row .hud-toggle,
 .hud-row :deep(.sound-button) {
   min-width: 44px;
   min-height: 44px;
@@ -259,8 +267,6 @@ function closeNewspaper() {
   font-weight: 600;
   transform: none;
 }
-.hud-row .hud-toggle:hover,
-.hud-row .hud-toggle:active,
 .hud-row :deep(.sound-button:hover),
 .hud-row :deep(.sound-button:active) {
   background: color-mix(in srgb, var(--hub-glass-ink) 16%, var(--hub-glass-bg));
@@ -268,63 +274,12 @@ function closeNewspaper() {
   box-shadow: 0 4px 14px rgb(0 0 0 / 35%);
   transform: none;
 }
-.hud-row .hud-toggle:focus-visible,
-.hud-row :deep(.sound-button:focus-visible),
-.hud-graphics:focus-within,
-.hud-player:focus-visible {
+.hud-row :deep(.sound-button:focus-visible) {
   outline: 3px solid var(--hub-glass-focus);
   outline-offset: 2px;
 }
 .hud-row :deep(.sound-button:disabled) {
   opacity: 0.55;
-}
-.hud-graphics {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-  padding: 2px 8px;
-  border: 1px solid var(--hub-glass-edge);
-  border-radius: calc(var(--hub-glass-radius) - 2px);
-  background: var(--hub-glass-bg);
-  color: var(--hub-glass-ink);
-  box-shadow: 0 4px 14px rgb(0 0 0 / 35%);
-  -webkit-backdrop-filter: var(--hub-glass-filter);
-  backdrop-filter: var(--hub-glass-filter);
-  font-size: 13px;
-}
-.hud-graphics select {
-  width: auto;
-  min-height: 36px;
-  border: 1px solid var(--hub-glass-edge);
-  background-color: var(--hub-glass-btn);
-  color: var(--hub-glass-ink);
-  color-scheme: dark;
-}
-.hud-row .hud-player {
-  min-height: 44px;
-  gap: 8px;
-  padding: 2px 12px 2px 2px;
-  border: 1px solid var(--hub-glass-edge);
-  border-radius: calc(var(--hub-glass-radius) - 2px);
-  background: var(--hub-glass-bg);
-  color: var(--hub-glass-ink);
-  box-shadow: 0 4px 14px rgb(0 0 0 / 35%);
-  -webkit-backdrop-filter: var(--hub-glass-filter);
-  backdrop-filter: var(--hub-glass-filter);
-  min-width: 0;
-}
-.hud-player img {
-  width: 40px;
-  height: 40px;
-}
-.hud-player strong {
-  font-size: 14px;
-  overflow-wrap: anywhere;
-}
-.hud-note {
-  color: var(--hub-glass-muted);
-  font-size: 12px;
 }
 .hud-alert {
   max-width: 320px;
@@ -345,20 +300,6 @@ function closeNewspaper() {
 @media (max-width: 575.98px) {
   .hud-row {
     flex-wrap: wrap;
-  }
-  .hud-graphics > span {
-    display: none;
-  }
-  .hud-player > span {
-    gap: 0;
-  }
-  .hud-note {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
   }
   .hud-alert {
     max-width: 240px;
