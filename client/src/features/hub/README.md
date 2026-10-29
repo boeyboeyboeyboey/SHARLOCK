@@ -86,7 +86,7 @@ See `tests/e2e/portal.spec.js:6`.
 - Announcements: the `hub-status` live region (`role="status"`, `aria-live="polite"`, visually hidden while empty, cleared after 5 s) carries load and failure text first, then one message per transition, built by `announce.js`: `<Game> selected`, `Arrived at <Game>. Press Enter to go in` (the player is on the picked door's ring, whether by auto-walk or by hand), `Entering <Game>` and `Selection cleared` (a pick dropped while exploring). Nothing is announced per frame. The dev engine/fps line moved to its own `hub-stats` element so it no longer feeds the live region.
 - Focus after a pick: a pick from the destination list or the minimap moves focus to the **Enter** button once it renders, only when focus was on that control. Escape (or re-picking) with focus on Enter returns focus to that destination's list button.
 - Focus on return: coming back from a game (remount with `sharlock.hubReturn`), focus goes to that destination's list button once the hub is ready, unless something else already holds focus. The newspaper close is restored separately by `Dashboard.vue` (`focusDestination('threat-briefing')`), which `HubScene` exposes.
-- Key legend: a **Keys** button (`KeyLegend.vue`, `data-testid="hub-keys"`, `aria-expanded`, `aria-controls`) in the HUD under Reset camera and Replay intro. Closed by default; Escape closes it before it deselects anything. It lists WASD / arrows move, Space jump, Q / E rotate, R reset camera, Enter go in, Esc deselect.
+- Key legend: a **Keys** button (`KeyLegend.vue`, `data-testid="hub-keys"`, `aria-expanded`, `aria-controls`) in the HUD under Reset camera and Replay intro. Closed by default; Escape closes it before it deselects anything. Escape is one `window` keydown listener in `HubScene.vue` (added on mount, removed on unmount), so it works with focus on the page body; it ignores typing targets, handled events, the lore intro and a paused hub (Times open), and the full-screen map stops its own Escape. It lists WASD / arrows move, Space jump, Q / E rotate, R reset camera, Enter go in, Esc deselect.
 - Camera clip at the Customs House (SQL Injection Arcade): not reproduced. With the arcade picked and the player on its door ring, the follow camera sat at radius 19.2 (wanted 22) and outside every blocker box. Orbiting with Q and E while standing at the door, 28 samples never put the camera inside a blocker, but 11 pulled the spring arm in to a radius of 1 to 2 (the 1 unit minimum), so the camera hugs the facade right behind Sharlock. No scene change was made; if a clip is seen again, it is that near-wall pull-in, and raising `minRadius` or the Customs blocker pad in `scenes/shared/cameraCollision.js` and `wharf/buildings.js` is the place to look.
 
 ## Assets and adding a building
@@ -98,6 +98,7 @@ See `tests/e2e/portal.spec.js:6`.
 
 - Crates, chimneys and signs have no camera collision (the crane tower has one; the jib does not).
 - The desktop destination list covers the right edge of selection views.
+- The Clearance Tower view (`views.js`) stands about 34 m back at a slight angle (`alphaOffset` -0.4, `beta` 1.34, `focusY` 10.5) so the door, signboard and clock tower fill the frame; the spring arm may pull it in a little.
 - Minimap context blocks are approximate.
 - Not verified on real phones or low-end hardware.
 

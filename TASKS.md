@@ -140,6 +140,14 @@ No active implementation task.
 
 ## Review
 
+**HUB-07 — Hub Escape at window level and Clearance view** · Status: **Review** · Contributor: **Boey** · Branch: `hub-07-escape-clearance` (cut from `origin/main` at `740e58b`, 30 October 2026, upstream unset) · Plan approved by Boey on 30 October 2026 (batch with NPC-01 and SKIN-01, `.local-handover/BATCH-PLAN-2026-10-30.md`).
+
+- **Escape:** the hub's Escape handler moved from the root `<section>` to one `window` keydown listener (added on mount, removed on unmount), so Escape deselects even when focus is on the page body. It ignores inputs, `defaultPrevented` events and the paused hub (lore intro, Times); the minimap overlay stops its own Escape. Order unchanged: close the Keys legend, then deselect.
+- **Clearance view:** `scenes/wharf/views.js` `clearance-tower` retuned from radius 31 / offset -0.8 / focusY 17 to radius 34 / offset -0.4 / focusY 10.5 / beta 1.34 / shift -0.8; the facade, sign and door fill the frame instead of empty ground. The top of the tower and its clock are partly cut off; a full tower would need a different arm or blocker limit (Boey to judge).
+- **Collision check (30 Oct 2026):** Boey's own hub module; no other branch or record touches hub Escape or selection views.
+- **Docs impact:** hub README, this record.
+- **Verification (30 Oct 2026):** vitest `client/src/features/hub` 14 files 116/116; eslint clean; E2E `hub.spec.js` 33 passed, 1 skipped (+1 test: Escape with focus on body). Clearance framing checked in 3 screenshots at 1280×800 against the pub view. Not verified: Escape while the mobile nav offcanvas is open on `/` (it may also deselect).
+
 **SQL-02 — SQL Injection Arcade as a run of generated cases (ruleset `sql-2`)** · Status: **Review** · Contributor: **Boey** (module owner: Keane) · Branch: `sql-02-arcade-run` (cut from `origin/main` at `c070ac8`, 29 October 2026, upstream unset) · Plan approved by Boey on 29 October 2026 (overnight batch with HUB-05, CLI-03, HUB-06; Boey chose all five case types and the PHISH-01 mode pattern).
 
 - **Owner agreement:** Boey reports Keane's redesign is covered by the team owner agreement (`docs/boey-todo.md` "Waiting on" and §D); the agreement text itself is not in the repo. Boey to notify Keane. `llm/` untouched.

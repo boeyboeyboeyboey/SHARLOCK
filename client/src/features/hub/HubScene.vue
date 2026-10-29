@@ -144,12 +144,16 @@ function samplePlayer() {
   }
 }
 
-function onEscape() {
+function onEscape(event) {
+  if (event.key !== 'Escape' || event.defaultPrevented) return
+  const target = event.target
+  if (target?.closest?.('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) return
+  if (paused.value) return
   if (keysOpen.value) {
     keysOpen.value = false
     return
   }
-  if (paused.value || view.mode !== 'explore' || !view.selected) return
+  if (view.mode !== 'explore' || !view.selected) return
   choose(view.selected)
 }
 
@@ -269,6 +273,7 @@ function rebuildHub() {
 }
 
 onMounted(() => {
+  window.addEventListener('keydown', onEscape)
   motionQuery?.addEventListener?.('change', onMotionChange)
   if (!lore.hasSeen()) lore.start()
   mapTimer = setInterval(samplePlayer, 100)
@@ -276,6 +281,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onEscape)
   motionQuery?.removeEventListener?.('change', onMotionChange)
   gone = true
   clearInterval(mapTimer)
@@ -310,7 +316,6 @@ defineExpose({ focusDestination })
     class="hub-scene"
     :class="{ 'is-fill': fill }"
     aria-label="Thames Wharf"
-    @keydown.esc="onEscape"
   >
     <div ref="stage" class="hub-stage"></div>
     <div class="hub-fade" :class="{ on: faded }" aria-hidden="true"></div>
