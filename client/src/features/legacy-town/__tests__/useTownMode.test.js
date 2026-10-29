@@ -14,6 +14,22 @@ const ok = { verdict: '3d', tier: 'desktop', reasons: [] }
 const software = { verdict: '2d', tier: 'desktop', reasons: ['software-renderer'] }
 const noWebgl2 = { verdict: '2d', tier: 'desktop', reasons: ['no-webgl2'] }
 
+const phone = { verdict: '2d', tier: 'desktop', reasons: ['phone'] }
+
+describe('phone default', () => {
+  it('starts on 2d, lets a stored 3d choice win and asks before switching', () => {
+    expect(resolveMode({ stored: null, device: phone, failed: false })).toEqual({ mode: '2d', forced: true, auto: true, locked: false })
+    expect(resolveMode({ stored: '3d', device: phone, failed: false })).toMatchObject({ mode: '3d', forced: false })
+    const town = useTownMode({ device: phone })
+    expect(town.mode.value).toBe('2d')
+    town.toggle()
+    expect(town.warning.value).toBe(true)
+    expect(readStoredMode()).toBeNull()
+    town.confirm3d()
+    expect(town.mode.value).toBe('3d')
+  })
+})
+
 describe('town mode', () => {
   it('defaults to 3d and honours a stored choice', () => {
     expect(resolveMode({ stored: null, device: ok, failed: false })).toMatchObject({ mode: '3d', forced: false })

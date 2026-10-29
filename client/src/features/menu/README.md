@@ -8,11 +8,11 @@
 - Components: `ImmersiveControls.vue` (button, switch, Escape), `SiteMenu.vue` (native modal dialog drawer), `OverlayPanel.vue` (route-backed modal), `overlays/*` (one wrapper per route), `townControls.js` (provide/inject for mode, graphics, sound, replay intro, sign out).
 - Routes: overlays are child routes of `town` with absolute paths (`/profile`, `/leaderboard`, `/classes`, `/settings`, `/about`); `meta.overlay` marks them and `meta.immersive` (inherited from the town) hides the navbar and sidebar. `/progress` redirects to `/profile?tab=progress`.
 - Data: none stored; the sound and graphics choices keep their existing keys.
-- Status: see the UX-01 record in TASKS.md. Stage 2 (HUD clean-up, controls hint, E/Z/C keys, phones default to 2D) is not part of this module yet.
+- Stage 2: the Sound button now lives in `ImmersiveControls.vue` beside the 3D | 2D switch (the sound components teleport their button into `soundSlot`), and Settings gains a Controls list and a Reset camera row. See the UX-01 record in TASKS.md for status.
 
 ## Behaviour notes
 
-- Escape priority: the Times and overlays are modal dialogs and close themselves; the hub marks an Escape it handled (Keys legend, dialogue, deselect) with `preventDefault`; the menu opens only on an Escape left unhandled, checked one task later, and not while an overlay, the intro or the 3D warning is open.
+- Escape priority: the Times and overlays are modal dialogs and close themselves; the hub marks an Escape it handled (dialogue, deselect) with `preventDefault`; the menu opens only on an Escape left unhandled, checked one task later, and not while an overlay, the intro or the 3D warning is open.
 - Opening the menu or an overlay pauses hub input through the `input-paused` prop in `Dashboard.vue`.
 - Overlay panels teleport into `.portal-shell` so page rules keyed on `.portal-main:has(...)` do not shift the town.
 - The Settings overlay reaches the on-screen sound (`HubAmbience.vue` or `TownAudio.vue`) through the sound registry in `townControls.js`; one sound source per mode still applies.

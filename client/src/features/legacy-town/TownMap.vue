@@ -272,29 +272,42 @@ onBeforeUnmount(() => {
           >SHARLOCK TOWN<small>All {{ games.length }} activities open</small></span
         >
       </div>
+      <div class="map-tools">
+        <label class="map-jump" for="find-building"
+          >Jump to
+          <select id="find-building" :value="selectedId || ''" @change="findBuilding">
+            <option value="">Choose a building</option>
+            <option v-for="game in games" :key="game.id" :value="game.id">{{ game.name }}</option>
+          </select></label
+        >
+        <div class="map-zoom-controls" role="group" aria-label="Map zoom">
+          <button
+            class="pixel-button zoom-step"
+            type="button"
+            aria-label="Zoom out"
+            :disabled="scale <= minScale + 0.001"
+            @click="zoomBy(-0.25)"
+          >
+            −
+          </button>
+          <output aria-label="Map zoom level" aria-live="off"
+            >{{ Math.round(scale * 100) }}%</output
+          >
+          <button
+            class="pixel-button zoom-step"
+            type="button"
+            aria-label="Zoom in"
+            :disabled="scale >= maxScale - 0.001"
+            @click="zoomBy(0.25)"
+          >
+            +
+          </button>
+          <button class="pixel-button reset-view" type="button" @click="resetCamera">
+            Reset view
+          </button>
+        </div>
+      </div>
       <TownAudio :suspended="soundSuspended" />
-    </div>
-    <div class="map-zoom-controls" role="group" aria-label="Map zoom">
-      <button
-        class="pixel-button zoom-step"
-        type="button"
-        aria-label="Zoom out"
-        :disabled="scale <= minScale + 0.001"
-        @click="zoomBy(-0.25)"
-      >
-        −
-      </button>
-      <output aria-label="Map zoom level" aria-live="off">{{ Math.round(scale * 100) }}%</output>
-      <button
-        class="pixel-button zoom-step"
-        type="button"
-        aria-label="Zoom in"
-        :disabled="scale >= maxScale - 0.001"
-        @click="zoomBy(0.25)"
-      >
-        +
-      </button>
-      <button class="pixel-button reset-view" type="button" @click="resetCamera">Reset view</button>
     </div>
     <div
       ref="frame"
@@ -365,18 +378,9 @@ onBeforeUnmount(() => {
         @pointerleave="scheduleClose"
       />
     </div>
-    <div class="map-controls">
-      <p id="map-instructions">
-        <span class="map-key">↔ ↕</span> Drag or swipe to explore. Pinch or use +/− to zoom.
-        <span class="map-keyboard-help">Keyboard: arrows to pan, +/− to zoom, 0 to reset.</span>
-      </p>
-      <label for="find-building"
-        >Jump to
-        <select id="find-building" :value="selectedId || ''" @change="findBuilding">
-          <option value="">Choose a building</option>
-          <option v-for="game in games" :key="game.id" :value="game.id">{{ game.name }}</option>
-        </select></label
-      >
-    </div>
+    <p id="map-instructions" class="visually-hidden">
+      Drag or swipe to pan. Pinch or use +/− to zoom. Keyboard: arrows to pan, +/− to zoom, 0 to
+      reset.
+    </p>
   </section>
 </template>

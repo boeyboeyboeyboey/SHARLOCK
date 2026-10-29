@@ -2,6 +2,7 @@
 defineOptions({ name: 'SharlockImmersiveControls' })
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import SiteMenu from './SiteMenu.vue'
+import { useTownControls } from './townControls.js'
 import './menu.css'
 
 const props = defineProps({
@@ -16,6 +17,8 @@ const props = defineProps({
 })
 const emit = defineEmits(['update:menuOpen', 'toggle-mode', 'sign-out'])
 const menuButton = ref(null)
+const soundSlot = ref(null)
+const controls = useTownControls()
 
 function select(target) {
   if (target !== props.mode) emit('toggle-mode')
@@ -34,8 +37,14 @@ function onKeydown(event) {
     emit('update:menuOpen', true)
   }, 0)
 }
-onMounted(() => window.addEventListener('keydown', onKeydown))
-onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
+onMounted(() => {
+  window.addEventListener('keydown', onKeydown)
+  if (controls?.soundSlot) controls.soundSlot.value = soundSlot.value
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKeydown)
+  if (controls?.soundSlot) controls.soundSlot.value = null
+})
 defineExpose({ focusMenu: () => menuButton.value?.focus() })
 </script>
 
@@ -53,26 +62,29 @@ defineExpose({ focusMenu: () => menuButton.value?.focus() })
     >
       <span aria-hidden="true">&#9776;</span> Menu <kbd class="menu-hint">Esc</kbd>
     </button>
-    <div class="glass-surface mode-switch" role="group" aria-label="View mode">
-      <button
-        type="button"
-        aria-label="3D wharf"
-        :aria-pressed="String(mode === '3d')"
-        :disabled="locked"
-        :data-testid="mode === '3d' ? 'mode-3d' : 'town-mode-toggle'"
-        @click="select('3d')"
-      >
-        3D
-      </button>
-      <button
-        type="button"
-        aria-label="2D map"
-        :aria-pressed="String(mode === '2d')"
-        :data-testid="mode === '2d' ? 'mode-2d' : 'town-mode-toggle'"
-        @click="select('2d')"
-      >
-        2D
-      </button>
+    <div class="controls-right">
+      <div ref="soundSlot" class="immersive-sound" data-testid="sound-slot"></div>
+      <div class="glass-surface mode-switch" role="group" aria-label="View mode">
+        <button
+          type="button"
+          aria-label="3D wharf"
+          :aria-pressed="String(mode === '3d')"
+          :disabled="locked"
+          :data-testid="mode === '3d' ? 'mode-3d' : 'town-mode-toggle'"
+          @click="select('3d')"
+        >
+          3D
+        </button>
+        <button
+          type="button"
+          aria-label="2D map"
+          :aria-pressed="String(mode === '2d')"
+          :data-testid="mode === '2d' ? 'mode-2d' : 'town-mode-toggle'"
+          @click="select('2d')"
+        >
+          2D
+        </button>
+      </div>
     </div>
     <SiteMenu
       id="site-menu"

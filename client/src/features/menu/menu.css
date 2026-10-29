@@ -73,6 +73,45 @@
 }
 
 /* floating controls */
+.controls-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.immersive-sound {
+  display: flex;
+}
+.immersive-controls .immersive-sound .sound-button {
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--hub-glass-edge);
+  border-radius: var(--hub-glass-radius);
+  background: var(--hub-glass-bg);
+  color: var(--hub-glass-ink);
+  box-shadow: var(--hub-glass-shadow);
+  -webkit-backdrop-filter: var(--hub-glass-filter);
+  backdrop-filter: var(--hub-glass-filter);
+  transform: none;
+}
+.immersive-controls .immersive-sound .sound-button span {
+  display: none;
+}
+.immersive-controls .immersive-sound .sound-button:hover:not(:disabled),
+.immersive-controls .immersive-sound .sound-button:active:not(:disabled) {
+  background: color-mix(in srgb, var(--hub-glass-ink) 16%, var(--hub-glass-bg));
+  box-shadow: var(--hub-glass-shadow);
+  transform: none;
+}
+.immersive-controls .immersive-sound .sound-button:focus-visible {
+  outline: 3px solid var(--hub-glass-focus);
+  outline-offset: 2px;
+}
+.immersive-controls .immersive-sound .sound-button:disabled {
+  opacity: 0.55;
+}
 .immersive-controls {
   position: fixed;
   inset: 12px 12px auto;
@@ -342,6 +381,29 @@
   border-radius: var(--hub-glass-radius);
   background: var(--hub-glass-btn);
   color: var(--hub-glass-ink);
+}
+.settings-list .settings-keys {
+  display: flex;
+  flex: 1 0 100%;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0;
+  padding: 0;
+  font-size: 13px;
+  list-style: none;
+}
+.settings-list .settings-keys li {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.settings-keys kbd {
+  padding: 0 5px;
+  border: 1px solid var(--hub-glass-edge);
+  border-radius: 4px;
+  background: var(--hub-glass-btn);
+  color: inherit;
+  font: inherit;
 }
 .settings-list select {
   min-height: 44px;

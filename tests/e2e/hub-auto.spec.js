@@ -9,6 +9,7 @@ const shots =
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('sharlock.hubWatchManual', '1'))
   await page.addInitScript(() => localStorage.setItem('sharlock.loreIntroSeen', '1'))
+  await page.addInitScript(() => localStorage.setItem('sharlock.controlsHintSeen', '3'))
   await page.route(/fonts\.(googleapis|gstatic)\.com/, (route) =>
     route.fulfill({ contentType: 'text/css', body: '' }),
   )
@@ -52,7 +53,7 @@ test('asks before trying 3D and persists a confirmed choice', async ({ page }) =
   await page.goto('/')
   const toggle = page.getByTestId('town-mode-toggle')
   const warning = page.getByTestId('hub-3d-warning')
-  await expect(toggle).toHaveText('3D wharf')
+  await expect(toggle).toHaveText('3D')
 
   await toggle.click()
   await expect(warning).toBeVisible()
@@ -161,6 +162,8 @@ test.describe('runtime performance watch', () => {
   test('a manual setting turns the watch off and Auto clears the memory', async ({ page }) => {
     await page.goto('/')
     await ready(page, 'desktop')
+    await page.getByTestId('menu-button').click()
+    await page.getByRole('link', { name: 'Settings' }).click()
     await page.getByTestId('hub-graphics').selectOption('low')
     await ready(page, 'low')
     await simulate(page, 1)

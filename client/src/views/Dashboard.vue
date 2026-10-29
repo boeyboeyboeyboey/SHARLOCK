@@ -1,6 +1,6 @@
 <script setup>
 defineOptions({ name: 'SharlockDashboard' })
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import HubScene from '../features/hub/HubScene.vue'
 import HubAmbience from '../features/hub/HubAmbience.vue'
@@ -27,6 +27,8 @@ const townMap = ref(null)
 const controls = ref(null)
 const menuOpen = ref(false)
 const signOut = useSignOut()
+// the floating controls offer this slot to whichever sound component is mounted
+const soundSlot = shallowRef(null)
 const lore = useLoreIntro()
 const townMode = useTownMode()
 const is3d = computed(() => townMode.mode.value === '3d')
@@ -41,6 +43,8 @@ const noticeText = computed(() => {
   const reasons = townMode.reasons.value
   if (reasons.includes('no-webgl2'))
     return 'This browser does not support WebGL 2, so you are seeing the 2D map.'
+  if (reasons.includes('phone'))
+    return 'Phones open the 2D map by default. You can switch to 3D from the top right.'
   if (reasons.includes('slow-runtime'))
     return 'Your device was struggling to run the 3D wharf, so we switched to the 2D map.'
   if (reasons.includes('failed'))
@@ -62,7 +66,11 @@ function replayIntro() {
   closeOverlay()
 }
 function showControls() {
-  afterClose = () => hubScene.value?.openKeys()
+  afterClose = () => hubScene.value?.showControls()
+  closeOverlay()
+}
+function resetCamera() {
+  afterClose = () => hubScene.value?.resetCamera()
   closeOverlay()
 }
 provideTownControls({
@@ -72,6 +80,8 @@ provideTownControls({
   sound: createSoundRegistry(),
   replayIntro,
   showControls,
+  resetCamera,
+  soundSlot,
 })
 let openedFromTown = false
 watch(
@@ -174,9 +184,7 @@ function closeOverlay() {
       @failed="townMode.markFailed"
       @slow="townMode.markSlow"
     >
-      <div class="hud-row">
-        <HubAmbience :suspended="route.name === 'news'" />
-      </div>
+      <HubAmbience :suspended="route.name === 'news'" />
       <p v-if="route.query.classRequest === 'pending'" class="hud-alert" role="status">
         Your class request is pending staff approval. You can explore on your own while you wait.
         <RouterLink to="/classes">View your classes</RouterLink>
@@ -247,40 +255,6 @@ function closeOverlay() {
 :global(.portal-shell:has(.town-dashboard.is-hub) .portal-footer) {
   display: none;
 }
-.hud-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.hud-row :deep(.sound-button) {
-  min-width: 44px;
-  min-height: 44px;
-  padding: 4px 12px;
-  border: 1px solid var(--hub-glass-edge);
-  border-radius: calc(var(--hub-glass-radius) - 2px);
-  background: var(--hub-glass-bg);
-  color: var(--hub-glass-ink);
-  box-shadow: 0 4px 14px rgb(0 0 0 / 35%);
-  -webkit-backdrop-filter: var(--hub-glass-filter);
-  backdrop-filter: var(--hub-glass-filter);
-  font-size: 13px;
-  font-weight: 600;
-  transform: none;
-}
-.hud-row :deep(.sound-button:hover),
-.hud-row :deep(.sound-button:active) {
-  background: color-mix(in srgb, var(--hub-glass-ink) 16%, var(--hub-glass-bg));
-  color: var(--hub-glass-ink);
-  box-shadow: 0 4px 14px rgb(0 0 0 / 35%);
-  transform: none;
-}
-.hud-row :deep(.sound-button:focus-visible) {
-  outline: 3px solid var(--hub-glass-focus);
-  outline-offset: 2px;
-}
-.hud-row :deep(.sound-button:disabled) {
-  opacity: 0.55;
-}
 .hud-alert {
   max-width: 320px;
   margin: 0;
@@ -298,9 +272,6 @@ function closeOverlay() {
   color: var(--hub-glass-ink);
 }
 @media (max-width: 575.98px) {
-  .hud-row {
-    flex-wrap: wrap;
-  }
   .hud-alert {
     max-width: 240px;
     font-size: 12px;

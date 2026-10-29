@@ -205,7 +205,7 @@ pnpm test:e2e          # Playwright journeys on a phone and a desktop viewport
 **Troubleshooting:**
 
 - Blank page with `504 Outdated Optimize Dep` in the console: stop `pnpm dev`, run `rm -rf client/node_modules/.vite`, then restart.
-- 3D view will not load or runs slowly: the hub falls back to the 2D map on devices without WebGL2 or with a software renderer. Use the "2D map" toggle or set Graphics to Low.
+- 3D view will not load or runs slowly: the hub falls back to the 2D map on devices without WebGL2 or with a software renderer. Use the 3D | 2D switch or set Graphics to Low. Phones (a touch screen narrower than 768px) also open the 2D map by default; the switch asks before sending them to 3D.
 
 ### Using the app
 
@@ -215,23 +215,23 @@ Games open a **How to play** guide on your first visit. Tick "Don't show again" 
 
 **3D controls**
 
-- Keyboard: WASD or arrow keys walk; Space jumps; hold Q or E to rotate the camera; R resets the camera behind Sharlock; Esc deselects the building (or first closes the **Keys** legend). Keys are ignored while you type in an input. The **Keys** button under "Reset camera" lists these keys.
+- Keyboard: WASD or arrow keys walk; Space jumps; E talks to the nearby townsperson (Enter still goes in); hold Z or C to rotate the camera; R resets the camera behind Sharlock; Esc deselects the building, then opens the menu. Keys are ignored while you type in an input. A short controls hint fades in on your first three visits; **Settings > Show controls** brings it back and lists the keys.
 - Screen readers and keyboard: picking a destination announces it and moves focus to "Enter <building>"; arriving and entering are announced too. Esc from Enter puts focus back on that destination, as does returning from a game.
-- Mouse: click the ground to walk there; drag to orbit; scroll to zoom. A destination list button walks Sharlock to that building, and on arrival "Enter <building>" opens it. "Reset camera" is a button. On desktop the minimap (bottom right) travels to a building when you click its pin.
-- Lore intro (first visit, or the **Replay intro** film-slate icon beside "Reset camera"): Enter or a click advances a card; Space or Esc skips the whole intro, as does the faint bottom-right "Press Space to skip" button (or "Tap to skip" on touch screens). The top-right sound toggle mutes the intro for the browser session, shared with the hub and town music. If the browser blocks autoplay, click or press Enter to begin. With reduced motion, use **Continue** to advance.
+- Mouse: click the ground to walk there; drag to orbit; scroll to zoom. A destination list button walks Sharlock to that building, and on arrival "Enter <building>" opens it. **Settings > Reset camera** (or R) puts the camera behind Sharlock. The destination list is a panel that collapses to a "Destinations" button (open by default from 992px wide). On desktop the minimap (bottom right) travels to a building when you click its pin.
+- Lore intro (first visit, or **Settings > Replay intro**): Enter or a click advances a card; Space or Esc skips the whole intro, as does the faint bottom-right "Press Space to skip" button (or "Tap to skip" on touch screens). The top-right sound toggle mutes the intro for the browser session, shared with the hub and town music. If the browser blocks autoplay, click or press Enter to begin. With reduced motion, use **Continue** to advance.
 - Touch (phones and tablets): the joystick at the top right walks, and the "Jump" button next to the joystick jumps; drag to orbit; pinch to zoom. The "Map" button opens a full-screen map (Esc closes it) whose pins travel to a building.
 - Townsfolk: a keeper stands beside each building and three wanderers roam the wharf. Near one, **Talk to <name>** opens a few lines of dialogue (Next, then Go in for a game keeper or Bye); Esc closes it. Talking is optional: Enter still works.
 - Standing still for a while, Sharlock looks around, sits down and yawns.
 - Wardrobe: achievements unlock scarf colours, hats, monocle frames and a magnifying glass. Equip them under **Wardrobe** on `/profile`; Sharlock wears them in the 3D hub. Locked items say which achievement unlocks them.
-- **Menu and overlays (UX-01).** The town has no top bar: the **Menu** button (top left) or **Esc** opens the site menu with Profile & progress, Leaderboard, Your classes (students), Settings, About Sharlock, Class enrollment (instructors and admins), Administrator workspace (admins) and Sign out. Profile & progress, Leaderboard, Your classes, Settings and About open as panels over the dimmed town; X or Esc closes them. Esc still deselects, closes the Keys legend or dialogue first. The **3D | 2D** switch (top right) changes the town view in both modes, and Settings holds Graphics, Sound, View, Replay intro and Show controls. Other pages (games, class enrollment, admin) keep the top navbar.
+- **Menu and overlays (UX-01).** The town has no top bar: the **Menu** button (top left) or **Esc** opens the site menu with Profile & progress, Leaderboard, Your classes (students), Settings, About Sharlock, Class enrollment (instructors and admins), Administrator workspace (admins) and Sign out. Profile & progress, Leaderboard, Your classes, Settings and About open as panels over the dimmed town; X or Esc closes them. Esc still deselects or closes the dialogue first. The **3D | 2D** switch (top right) changes the town view in both modes, and The round **Sound** button beside the switch mutes the music in both modes; Settings holds Graphics, Sound, View, Replay intro, Show controls and Reset camera. Other pages (games, class enrollment, admin) keep the top navbar.
 - The daily briefing newsstand opens the newspaper as an overlay on the hub. Closing it returns to the hub, and hub input is paused while it is open.
 
 **2D mode** (the 3D | 2D switch at the top right, or Settings; the choice is remembered)
 
-- Drag or swipe to pan; pinch or Ctrl/Cmd + wheel to zoom (a plain wheel pans); arrow keys pan; + and - zoom; 0 resets. On-screen zoom and Reset view buttons do the same.
+- Drag or swipe to pan; pinch or Ctrl/Cmd + wheel to zoom (a plain wheel pans); arrow keys pan; + and - zoom; 0 resets. The toolbar above the map holds **Jump to**, the zoom buttons with their percentage and **Reset view**.
 - Hover or focus a building for its card; Esc dismisses the card.
 - The town is a wharf with the newsstand on the pier, a cobbled street to a fountain plaza and generic capybaras and gulls going about their day; the animation stops when your system asks for reduced motion.
-- on the 2D map, background music (at half volume) tries to start on arrival; on the 3D wharf, a seaside ambience loop does the same. If the browser blocks either, it starts on your first click, key press or tap. The Sound on/off button (map toolbar in 2D, HUD row in 3D) mutes whichever is playing, the mute is shared by both, and it is remembered only until you close the tab.
+- on the 2D map, background music (at half volume) tries to start on arrival; on the 3D wharf, a seaside ambience loop does the same. If the browser blocks either, it starts on your first click, key press or tap. The round Sound on/off button (top right, beside the 3D | 2D switch) mutes whichever is playing, the mute is shared by both, and it is remembered only until you close the tab.
 
 **Graphics** (Auto, High, Medium or Low; remembered). Auto checks the device: no WebGL2 or a software renderer selects 2D; save-data, 2 GB of memory or less, or 2 CPU cores or fewer selects Low. It then watches the frame rate, stepping quality down and finally to 2D, unless you explicitly chose 3D. An automatic-2D notice offers "Try 3D anyway" with a warning.
 

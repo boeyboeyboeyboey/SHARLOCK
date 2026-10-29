@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import OverlayPanel from '../OverlayPanel.vue'
 import { GRAPHICS_OPTIONS } from '../../hub/graphics.js'
+import { HUB_KEYS } from '../../hub/controls.js'
 import { useTownControls } from '../townControls.js'
 
 defineEmits(['request-close'])
@@ -76,6 +77,23 @@ const soundBusy = computed(() => !sound.value || sound.value.busy)
           @click="controls.showControls()"
         >
           Show controls
+        </button>
+        <ul class="settings-keys" aria-label="Controls">
+          <li v-for="[key, action] in HUB_KEYS" :key="key">
+            <kbd>{{ key }}</kbd> {{ action }}
+          </li>
+        </ul>
+      </li>
+      <li v-if="is3d">
+        <span id="settings-camera-label">Camera</span>
+        <button
+          type="button"
+          class="glass-surface glass-button"
+          data-testid="settings-reset-camera"
+          aria-describedby="settings-camera-label"
+          @click="controls.resetCamera()"
+        >
+          Reset camera
         </button>
       </li>
     </ul>

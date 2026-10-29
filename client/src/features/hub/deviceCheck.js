@@ -6,9 +6,11 @@ const FORCE_KEY = 'sharlock.hubForce3d';
 let signalsProbe;
 
 // pure decision from already gathered signals
-export function evaluateDevice({ webgl2, softwareRenderer = false, saveData = false, deviceMemory, cores, baseTier = 'desktop' }) {
+export function evaluateDevice({ webgl2, softwareRenderer = false, phone = false, saveData = false, deviceMemory, cores, baseTier = 'desktop' }) {
   if (!webgl2) return { verdict: '2d', tier: baseTier, reasons: ['no-webgl2'] };
   if (softwareRenderer) return { verdict: '2d', tier: baseTier, reasons: ['software-renderer'] };
+  // a phone opens the 2d map unless the player chooses 3d
+  if (phone) return { verdict: '2d', tier: baseTier, reasons: ['phone'] };
   const reasons = [];
   if (saveData) reasons.push('save-data');
   if (typeof deviceMemory === 'number' && deviceMemory <= 2) reasons.push('low-memory');
@@ -66,6 +68,11 @@ export function heuristicTier() {
   return window.matchMedia('(pointer: fine)').matches && window.innerWidth >= 900 ? 'desktop' : 'compact';
 }
 
+// a touch screen narrower than a tablet
+export function isPhone() {
+  return typeof matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches && window.innerWidth < 768;
+}
+
 // dev and test builds only: lets headless software rendering keep exercising the 3d hub
 function forced3d() {
   if (!import.meta.env.DEV) return false;
@@ -85,8 +92,9 @@ export function applyPerf(base, perf) {
 
 export function getDeviceCheck() {
   signalsProbe ??= { ...probeGraphics(), ...readHardware() };
-  const signals = forced3d() ? { ...signalsProbe, webgl2: true, softwareRenderer: false } : signalsProbe;
-  const base = evaluateDevice({ ...signals, baseTier: heuristicTier() });
+  const force = forced3d();
+  const signals = force ? { ...signalsProbe, webgl2: true, softwareRenderer: false } : signalsProbe;
+  const base = evaluateDevice({ ...signals, phone: !force && isPhone(), baseTier: heuristicTier() });
   // an earlier visit measured this device as struggling
   return applyPerf(base, readPerf());
 }
