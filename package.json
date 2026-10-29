@@ -20,7 +20,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test:unit": "vitest run --project client --project server",
-    "test:integration": "node scripts/run-with-test-db.mjs integration",
+    "test:integration": "node scripts/run-with-test-db.mjs integration --replica-set",
     "test:e2e": "node scripts/run-with-test-db.mjs e2e --replica-set",
     "test": "pnpm test:unit && pnpm test:integration && pnpm test:e2e"
   },
