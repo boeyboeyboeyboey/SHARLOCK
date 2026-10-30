@@ -27,6 +27,11 @@ async function mountAt(path) {
             component: Game,
             meta: { interior: 'cli-cyber-defender' },
           },
+          {
+            path: '/games/phishing-post-mortem',
+            component: Game,
+            meta: { interior: 'phishing-post-mortem' },
+          },
         ],
       },
     ],
@@ -104,6 +109,18 @@ describe('InteriorLayout in 2d mode', () => {
     const wrapper = await mountAt('/games/cli-cyber-defender')
     expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled()
     expect(wrapper.get('[data-testid="interior-sound"]').attributes('aria-pressed')).toBe('false')
+    wrapper.unmount()
+  })
+})
+
+describe('hero layout fallback', () => {
+  it('keeps the centred desk in 2d mode even for a hero room', async () => {
+    localStorage.setItem('sharlock.townMode', '2d')
+    const wrapper = await mountAt('/games/phishing-post-mortem')
+    const desk = wrapper.get('[data-testid="interior-desk"]')
+    expect(desk.classes()).not.toContain('is-hero')
+    expect(desk.attributes('style')).toBeUndefined()
+    expect(wrapper.get('[data-testid="interior"]').attributes('data-hero')).toBeUndefined()
     wrapper.unmount()
   })
 })

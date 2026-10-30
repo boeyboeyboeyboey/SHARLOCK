@@ -2,6 +2,7 @@ import { Color4 } from '@babylonjs/core/Maths/math.color.js'
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode.js'
 import { Batch, rgb } from '../../hub/scenes/shared/geometry.js'
 import { glowMaterial, toonMaterial } from '../../hub/scenes/wharf/toon.js'
+import { phishingHero } from './heroes.js'
 import { hemi, labelAtlas, lamp, resident, shell } from './kit.js'
 
 // royal mail post office sorting room, 1880: daylight through tall windows over red, gold and cream
@@ -57,6 +58,57 @@ function sortingFrame(b) {
       })
     }
   b.box({ c: [0, y0 + h + 0.2, 4.3], s: [w + 0.5, 0.12, 0.5], color: rgb(C.walnut, 1.1) })
+}
+
+// the postmaster's inspection board: the panel sits on its paper surface (see heroes.js for the corners)
+function inspectionBoard(b, g) {
+  const [tl, , br] = phishingHero.corners
+  const z = tl[2]
+  const w = br[0] - tl[0]
+  const top = tl[1]
+  const bottom = br[1]
+  const cy = (top + bottom) / 2
+  const h = top - bottom
+  b.box({ c: [0, cy, z + 0.05], s: [w, h, 0.05], color: rgb(C.cream, 0.9) })
+  // walnut frame with a brass lip, rails over the paper edges
+  b.box({ c: [0, top + 0.12, z], s: [w + 0.5, 0.24, 0.16], color: rgb(C.walnut, 1.05) })
+  b.box({ c: [0, bottom - 0.12, z], s: [w + 0.5, 0.24, 0.16], color: rgb(C.walnut, 1.05) })
+  for (const x of [-1, 1]) {
+    b.box({ c: [x * (w / 2 + 0.12), cy, z], s: [0.24, h + 0.48, 0.16], color: rgb(C.walnut, 1.05) })
+    b.box({ c: [x * (w / 2 + 0.01), cy, z - 0.07], s: [0.03, h, 0.03], color: rgb(C.brass, 1.1) })
+    // finials and feet
+    b.cylinder({
+      c: [x * (w / 2 + 0.12), top + 0.3, z],
+      r: 0.09,
+      rTop: 0.05,
+      h: 0.14,
+      seg: 8,
+      color: rgb(C.brass, 1.1),
+    })
+    b.box({ c: [x * (w / 2 + 0.12), 0.05, z], s: [0.3, 0.1, 0.9], color: rgb(C.walnut, 0.8) })
+  }
+  b.box({ c: [0, top - 0.01, z - 0.07], s: [w, 0.03, 0.03], color: rgb(C.brass, 1.1) })
+  b.box({ c: [0, bottom + 0.01, z - 0.07], s: [w, 0.03, 0.03], color: rgb(C.brass, 1.1) })
+  // ledge with a letter stack and an inkwell
+  b.box({ c: [0, bottom - 0.3, z - 0.2], s: [w + 0.5, 0.06, 0.42], color: rgb(C.walnut, 1.2) })
+  for (let i = 0; i < 4; i += 1)
+    b.box({
+      c: [-1.0 + i * 0.03, bottom - 0.25 + i * 0.012, z - 0.2],
+      s: [0.3, 0.012, 0.2],
+      color: rgb(PAPER[i], 1),
+      yaw: i * 0.2 - 0.3,
+    })
+  b.cylinder({ c: [1.1, bottom - 0.2, z - 0.2], r: 0.05, h: 0.1, seg: 8, color: rgb(C.dark, 1.4) })
+  b.bar([1.2, bottom - 0.14, z - 0.2], [1.38, bottom + 0.1, z - 0.2], 0.012, {
+    color: rgb(C.cream, 1.2),
+  })
+  // lamp arms over the top rail with a warm glow
+  for (const x of [-1, 1]) {
+    b.bar([x * 1.3, top + 0.24, z], [x * 1.3, top + 0.4, z - 0.12], 0.025, {
+      color: rgb(C.brass, 1),
+    })
+    g.box({ c: [x * 1.3, top + 0.46, z - 0.14], s: [0.16, 0.12, 0.16], color: rgb('#ffe2a0', 1.5) })
+  }
 }
 
 // tall windows flanking the frame, with mullions
@@ -233,17 +285,25 @@ export function buildPostRoom({ scene, budget, reduced }) {
   pillarBox(solid, glow)
   sacks(solid)
   desk(solid)
+  inspectionBoard(solid, glow)
 
   const atlas = labelAtlas(scene, 'post-atlas', [
     [['ROYAL MAIL', 'POST OFFICE'], C.red, '#fff0c0'],
     [['DEAD LETTER OFFICE'], '#2a1c16', '#e4b84a'],
     [['LETTERS & PARCELS'], '#f1e3b8', '#6a2a24'],
+    [['INSPECTION', 'OF MAILS'], '#2a1c16', '#e4b84a'],
   ])
   const labels = new Batch()
   const plaque = (i, c, s, yaw) =>
     labels.box({ c, s, yaw, uv: atlas.uv(i), color: rgb('#ffffff', 0.85) })
   plaque(0, [0, 3.3, 4.42], [2.6, 0.42, 0.05], 0)
   plaque(2, [3.2, 2.45, 0.8], [0.05, 0.3, 1.1], Math.PI / 2)
+  plaque(
+    3,
+    [0, phishingHero.corners[0][1] + 0.12, phishingHero.corners[0][2] - 0.09],
+    [1.5, 0.17, 0.02],
+    0,
+  )
   deadLetters(solid, { plaque })
 
   const material = toonMaterial(scene, 'post-room', { twoSided: true, options: ROOM_TOON })
@@ -317,7 +377,7 @@ export function buildPostRoom({ scene, budget, reduced }) {
 
   const animate = budget.animate && !reduced()
   return {
-    camera: { pos: [0, 1.55, -3.6], target: [0, 1.5, 3], fov: 1.1, drift: [0.22, 0.06, 44] },
+    camera: { ...phishingHero.camera, drift: [0, 0, 44] },
     update(dt, time) {
       if (!animate) return
       postmaster.update(dt)

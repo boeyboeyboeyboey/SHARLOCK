@@ -12,6 +12,7 @@ import { getTier } from '../hub/scenes/shared/quality.js'
 import ImmersiveControls from '../menu/ImmersiveControls.vue'
 import { useSignOut, useTownControls } from '../menu/townControls.js'
 import { readStoredMode, resolveMode } from '../legacy-town/useTownMode.js'
+import { heroActive } from './heroRect.js'
 import { decideRender, fallbackGradient, stillUrl } from './renderMode.js'
 import { roomFor } from './rooms/index.js'
 import { createInterior } from './useInteriorEngine.js'
@@ -65,6 +66,29 @@ const renderMode = computed(() =>
 const gradient = computed(() => fallbackGradient(room.value?.palette))
 const stage = computed(() => (renderMode.value === 'still' ? 'still' : '3d'))
 
+// a hero room seats the desk panel on its prop; narrow screens and the still keep the centred desk
+const wideQuery = window.matchMedia('(min-width: 768px)')
+const wide = ref(wideQuery.matches)
+const syncWide = () => (wide.value = wideQuery.matches)
+wideQuery.addEventListener?.('change', syncWide)
+onBeforeUnmount(() => wideQuery.removeEventListener?.('change', syncWide))
+const heroRect = ref(null)
+const heroOn = computed(() =>
+  heroActive({ hero: room.value?.hero, stage: stage.value, wide: wide.value }),
+)
+const deskStyle = computed(() => {
+  if (!heroOn.value) return null
+  const r = heroRect.value
+  if (!r) return { visibility: 'hidden' }
+  return {
+    left: `${r.left}px`,
+    top: `${r.top}px`,
+    width: `${r.width}px`,
+    height: `${r.height}px`,
+    '--shell-chrome': `calc(100dvh - ${r.height}px + 2rem)`,
+  }
+})
+
 let interior = null
 const manualWatch = realSamplingOff()
 let sampler = null
@@ -72,6 +96,7 @@ let sampler = null
 function stop() {
   interior?.dispose()
   interior = null
+  heroRect.value = null
 }
 
 async function start() {
@@ -96,6 +121,7 @@ async function start() {
     tier,
     renderMode: renderMode.value,
     onFailed: () => (failed.value = true),
+    onHero: room.value?.hero ? (rect) => (heroRect.value = rect) : null,
     onPerf: (ms) => sampler?.frame(ms, !document.hidden),
   })
 }
@@ -148,6 +174,7 @@ onBeforeUnmount(() => clearTimeout(chromeTimer))
     :data-room="roomId"
     :data-stage="stage"
     :data-tier="tier.name"
+    :data-hero="heroOn ? 'on' : null"
     data-testid="interior"
   >
     <div class="interior-stage" aria-hidden="true">
@@ -223,7 +250,12 @@ onBeforeUnmount(() => clearTimeout(chromeTimer))
       @confirm="confirmLeave"
       @cancel="cancelLeave"
     />
-    <div class="interior-desk" data-testid="interior-desk">
+    <div
+      class="interior-desk"
+      :class="{ 'is-hero': heroOn }"
+      :style="deskStyle"
+      data-testid="interior-desk"
+    >
       <RouterView />
     </div>
   </div>
@@ -323,6 +355,25 @@ onBeforeUnmount(() => clearTimeout(chromeTimer))
     0 10px 40px rgb(0 0 0 / 0.45);
   min-width: 0;
   padding: var(--pt) var(--gutter) var(--pb);
+}
+
+/* a hero room sits the panel on its prop: the prop frame is the border, the room stays sharp around it */
+.interior[data-hero='on'] .interior-canvas {
+  filter: none;
+  transform: none;
+}
+
+.interior-desk.is-hero {
+  --gutter: 1.25rem;
+  --pt: 1rem;
+  --pb: 1rem;
+  position: absolute;
+  margin: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  box-shadow:
+    inset 0 0 0 1px rgb(0 0 0 / 0.4),
+    inset 0 0 22px rgb(0 0 0 / 0.28);
 }
 
 /* phones: the room is a header band above the game panel */

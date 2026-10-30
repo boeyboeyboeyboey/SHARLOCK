@@ -40,6 +40,13 @@ Owner: Boey. Integration-sensitive: the router (five game routes are children of
 - Leaving: Exit game, and any site menu link, open `components/common/ConfirmDialog.vue` ("Leave the game?", Leave game / Keep playing; Escape cancels, focus returns to the opener). The menu guard is a flag set on the menu's `navigate` plus `onBeforeRouteLeave`, so the games' own links (for example Back to town) are never guarded. Sign out from the menu is not guarded.
 - Space: a 60px `--top-band` above the desk keeps the controls clear of the panel; `--shell-chrome` is that band, the bottom room gap and the desk padding.
 
+## Hero props (INT-02 stage 2a)
+
+- A room can seat the game panel on one prop. Add `hero: { corners, camera }` to its `rooms/index.js` entry (data lives in `rooms/heroes.js`, free of babylon): `corners` are four world points `[x, y, z]` of the prop's usable surface in TL, TR, BR, BL order; `camera` is `{ pos, target, fov }` and replaces the room's own camera. A hero room has no camera drift, so the panel never lags its prop.
+- `useInteriorEngine.js` projects the corners after the frame that follows each resize and calls `onHero(rect)`; `heroRect.js` (`rectFromCorners`, pure) takes the inscribed axis-aligned rect, grows it to 420 x 320 px at least and keeps it in the stage. `InteriorLayout.vue` positions `.interior-desk.is-hero` at that rect (hidden until the first rect), sets `--shell-chrome` so fitted games match the panel height, and drops the canvas blur and scale.
+- Fallback: the centred desk is used with no hero, in the still or 2D mode, without WebGL (`heroActive`) and below 768px. The panel keeps its own scroll; a game depends on the rect only through its size.
+- The prop must be drawn as a flat, camera-facing surface with its frame outside the corners, so the frame reads as the panel border. Phishing is the pilot (`inspectionBoard` in `rooms/phishing.js`); the other four rooms still use the centred desk. Regenerate the room's 2D still after changing its camera.
+
 ## Budgets and tiers
 
 Desktop: loop, resident NPC rig, at most 150 draw calls. Compact: loop, static NPC, at most 100. Low, or reduced motion: one frame, then the render loop stops (60 draw calls on Low). No shadows on any tier. The five rooms measure about 16 to 20 active meshes on desktop and 7 to 8 on compact and low.

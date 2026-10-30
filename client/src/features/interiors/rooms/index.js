@@ -1,6 +1,8 @@
 // registry of interior rooms keyed by game id; each entry lazily loads its builder
 // a builder is (ctx) => { camera, update(dt, time), dispose() } where ctx has scene, engine, tier, budget, reduced
 
+import { phishingHero } from './heroes.js'
+
 export const ROOM_IDS = [
   'cli-cyber-defender',
   'phishing-post-mortem',
@@ -10,6 +12,7 @@ export const ROOM_IDS = [
 ]
 
 // palette is [top, bottom, accent] and also feeds the still fallback
+// an optional hero (see heroes.js) pins the camera and tells the layout where the desk panel sits
 export const rooms = {
   'cli-cyber-defender': {
     id: 'cli-cyber-defender',
@@ -21,6 +24,7 @@ export const rooms = {
     id: 'phishing-post-mortem',
     label: 'Post Office, sorting room',
     palette: ['#6a4a3a', '#2c1c16', '#e0b04a'],
+    hero: phishingHero,
     load: () => import('./phishing.js').then((m) => m.buildPostRoom),
   },
   'sql-injection-arcade': {
