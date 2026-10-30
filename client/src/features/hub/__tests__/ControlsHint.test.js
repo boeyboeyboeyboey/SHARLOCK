@@ -2,7 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import ControlsHint from '../ControlsHint.vue'
-import { HINT_SEEN_KEY, HUB_KEYS, isEnterKey, isInteractKey, keyboardHint } from '../controls.js'
+import {
+  HINT_SEEN_KEY,
+  HUB_KEYS,
+  isEnterKey,
+  isInteractKey,
+  isSprintKey,
+  keyboardHint,
+} from '../controls.js'
 
 function stubMedia({ reduce = false, coarse = false } = {}) {
   vi.stubGlobal('matchMedia', (query) => ({
@@ -120,11 +127,45 @@ describe('hub keys', () => {
   })
 })
 
+describe('isSprintKey', () => {
+  const press = (init = {}, target = document.body) => {
+    let result
+    target.addEventListener('keydown', (e) => (result = isSprintKey(e)), { once: true })
+    target.dispatchEvent(
+      new KeyboardEvent('keydown', { code: 'ShiftLeft', bubbles: true, ...init }),
+    )
+    return result
+  }
+
+  it('lists Shift in the key legend and hint', () => {
+    expect(HUB_KEYS).toContainEqual(['Shift', 'sprint'])
+    expect(keyboardHint()).toContain('Shift sprint')
+  })
+  it('accepts a first Shift press only', () => {
+    expect(press()).toBe(true)
+    expect(press({ code: 'ShiftRight' })).toBe(true)
+    expect(press({ repeat: true })).toBe(false)
+    expect(press({ code: 'KeyA' })).toBe(false)
+  })
+  it('ignores fields and dialogs', () => {
+    const input = document.createElement('input')
+    const dialog = document.createElement('div')
+    dialog.setAttribute('role', 'dialog')
+    document.body.append(input, dialog)
+    expect(press({}, input)).toBe(false)
+    expect(press({}, dialog)).toBe(false)
+    input.remove()
+    dialog.remove()
+  })
+})
+
 describe('isEnterKey', () => {
   const press = (init = {}, target) => {
     const event = new KeyboardEvent('keydown', { code: 'Enter', bubbles: true, ...init })
     let result
-    ;(target ?? document.body).addEventListener('keydown', (e) => (result = isEnterKey(e)), { once: true })
+    ;(target ?? document.body).addEventListener('keydown', (e) => (result = isEnterKey(e)), {
+      once: true,
+    })
     ;(target ?? document.body).dispatchEvent(event)
     return result
   }

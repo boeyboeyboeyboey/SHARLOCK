@@ -200,6 +200,13 @@ Move the task's active record rather than duplicating it across board states. Re
 - **Stage 3d-ii (audio and How to play) done, 31 Oct 2026:** client only, `client/src/games/botnet-tag/audio/` (`soundCues.js`, `useTagSound.js` procedural WebAudio effects, no files), `howToPlay.js`, `components/HowToPlayScene.vue`, wired in `BotnetTagGame.vue` (Sound button, How to play button, `useGameAudio('botnet-tag')` round loop). Music file and the last-30-s tense layer pending Boey's Gemini track. Evidence: `pnpm exec vitest run client/src/games/botnet-tag` green (64), eslint and prettier clean on changed files. Not run: E2E, real-browser audio check.
 - **Next action:** stage 3b (Babylon arena in `tag-arena`, movement sync, tag and station interaction, sprint), then puzzles, How to play, audio.
 
+**HUB-10 — Sprint in the 3D hub** · Status: **Review** · Contributor: **Boey** (implemented by Claude Code) · Branch: `hub-10-sprint` · Approved by Boey, 31 October 2026.
+
+- **Scope:** Shift or the Sprint HUD button gives 1.6x speed for 2.5 s, then a 6 s cooldown (`SPRINT` in `client/src/features/hub/scenes/shared/sprint.js`, same values as the botnet tag rules). `player.js` uses a live speed for movement, gait and stall checks; `HubScene.vue` holds the button; `controls.js` adds the Shift legend entry and `isSprintKey`; `engine.js`/`a-wharf.js` carry sprint state and `debug.sprint*`.
+- **Presence:** no server change; `server/src/modules/presence/protocol.js` clamps positions to the wharf bounds and checks no speed.
+- **Verification:** `vitest run client/src/features/hub client/src/features/menu` passes (new `sprint.test.js`, `isSprintKey` cases); `hub.spec.js` gains the Shift sprint test (desktop project); eslint clean on changed files.
+- **Docs impact:** `client/src/features/hub/README.md`, `README.md` (Using the app), `DESIGN.md`, this record.
+
 **FIX-03 — Scaffold E2E after UX-02 and a reachable session retry** · Status: **Review** · Contributor: **Boey** (implemented by Claude Code) · Branch: `fix-03-e2e-scaffold` (cut from `main` `cbefb51`, 31 October 2026) · Part of the overnight batch Boey approved on 31 October 2026.
 
 - **Found by:** full E2E on `cbefb51` (31 Oct): 288 passed / 5 failed / 21 skipped. Four failures were `scaffold.spec.js` looking for the About "Connection check" box removed in UX-02 S4; `recovery.spec.js:410` passes alone (load-related).
