@@ -7,6 +7,7 @@ import { useGameAudio } from '../../composables/useGameAudio.js'
 import { useHowToPlay } from '../../composables/useHowToPlay.js'
 import { listManagedCohorts, listMemberships } from '../../features/cohorts/api.js'
 import { useAuthStore } from '../../features/auth/store.js'
+import { isEnterKey, isInteractKey } from '../../features/hub/controls.js'
 import { getDeviceCheck } from '../../features/hub/deviceCheck.js'
 import { readGraphics } from '../../features/hub/graphics.js'
 import ImmersiveControls from '../../features/menu/ImmersiveControls.vue'
@@ -18,10 +19,20 @@ import NeedsThreeD from './components/NeedsThreeD.vue'
 import TagHud from './components/TagHud.vue'
 import TagLobby from './components/TagLobby.vue'
 import TagResults from './components/TagResults.vue'
+import TouchControls from './components/TouchControls.vue'
+import UsePrompt from './components/UsePrompt.vue'
 import PuzzlePanel from './puzzles/PuzzlePanel.vue'
 import PuzzleResult from './puzzles/PuzzleResult.vue'
 import { HOW_TO_PLAY } from './howToPlay.js'
-import { msUntil } from './tagRules.js'
+import {
+  TAG_GAP_MS,
+  TOAST_MS,
+  USE_GAP_MS,
+  msUntil,
+  nearestStation,
+  nearestTarget,
+  sprintPhase,
+} from './tagRules.js'
 import { useTagSocket } from './useTagSocket.js'
 import './tag.css'
 
@@ -55,12 +66,21 @@ const immunityMs = computed(() =>
   me.value?.immuneUntil ? msUntil(me.value.immuneUntil, clock.value, state.offset) : 0,
 )
 const nameOf = (sid) => state.players.find((player) => player.sid === sid)?.username ?? ''
-const toast = computed(() => {
+// toasts come from server events only, and fade out after a few seconds
+const toastEvent = computed(() => {
   const event = state.events.at(-1)
-  if (!event || state.phase !== 'playing') return ''
-  if (event.type === 'tag') return `${nameOf(event.from)} tagged ${nameOf(event.to)}`
-  if (event.type === 'patch') return `${nameOf(event.sid)} patched`
-  return ''
+  if (!event || state.phase !== 'playing' || !['tag', 'patch'].includes(event.type)) return null
+  return clock.value + state.offset - event.at > TOAST_MS ? null : event
+})
+const toast = computed(() => {
+  const event = toastEvent.value
+  if (!event) return ''
+  if (event.type === 'tag') {
+    if (event.from === state.sid) return `Tagged ${nameOf(event.to)}!`
+    if (event.to === state.sid) return `${nameOf(event.from)} tagged you!`
+    return `${nameOf(event.from)} tagged ${nameOf(event.to)}`
+  }
+  return `${nameOf(event.sid)} patched`
 })
 
 // closing only hides the panel: the protocol has no cancel, so the server keeps the puzzle until its deadline
@@ -79,6 +99,58 @@ const puzzleOpen = computed(
   () => Boolean(puzzle.value) && puzzleKey.value !== dismissed.value && !state.blocked,
 )
 watch(puzzleOpen, (open) => arena?.setInputEnabled(!open))
+
+// a clean player beside a ready station gets the Use prompt
+const nearStation = computed(() =>
+  state.phase === 'playing' && me.value && !me.value.infected
+    ? nearestStation(me.value, state.stations, clock.value + state.offset)
+    : null,
+)
+const showUse = computed(() => Boolean(nearStation.value) && !puzzleOpen.value && !state.blocked)
+let lastUseAt = 0
+function useStation() {
+  if (!showUse.value || lockMs.value > 0) return
+  if (puzzle.value) {
+    dismissed.value = ''
+    return
+  }
+  const t = Date.now()
+  if (t - lastUseAt < USE_GAP_MS) return
+  lastUseAt = t
+  tag.station(nearStation.value.id)
+}
+function onKeydown(event) {
+  if (howToOpen.value || menuOpen.value) return
+  if (isInteractKey(event) || isEnterKey(event)) useStation()
+}
+
+// infected players tag by touching: the nearest clean player in reach, at a capped rate
+let lastTagAt = 0
+const tagTimer = setInterval(() => {
+  if (state.phase !== 'playing' || state.blocked || !me.value?.infected) return
+  const t = Date.now()
+  if (t - lastTagAt < TAG_GAP_MS) return
+  const target = nearestTarget(me.value, state.players, t + state.offset)
+  if (target) {
+    lastTagAt = t
+    tag.tag(target)
+  }
+}, 120)
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onBeforeUnmount(() => {
+  clearInterval(tagTimer)
+  window.removeEventListener('keydown', onKeydown)
+})
+
+// touch sprint button: the ring follows this tab's own sprint, the server keeps the real cooldown
+const sprintAt = ref(0)
+const sprintNow = computed(() => sprintPhase(sprintAt.value, clock.value))
+function onSprint() {
+  sprintAt.value = Date.now()
+  sound.play('sprint')
+  return tag.sprint()
+}
+const touchOn = computed(() => state.phase === 'playing' && !state.blocked && !puzzleOpen.value)
 const patchedUntil = ref(0)
 const patched = computed(() => clock.value < patchedUntil.value)
 watch(
@@ -170,7 +242,7 @@ async function mountArena() {
     arena = createArena({
       container: arenaEl.value,
       getState: () => state,
-      send: { move: tag.move, sprint: tag.sprint },
+      send: { move: tag.move, sprint: onSprint },
       quality: readGraphics(),
       wardrobe: auth.user?.wardrobe ?? null,
       params: import.meta.env.DEV ? new URLSearchParams(location.search) : new URLSearchParams(),
@@ -183,6 +255,7 @@ async function mountArena() {
 }
 function unmountArena() {
   arenaToken += 1
+  sprintAt.value = 0
   arena?.dispose()
   arena = null
 }
@@ -301,6 +374,7 @@ const blockedText = {
         :immunity-ms="immunityMs"
         :self-infected="Boolean(me?.infected)"
         :toast="toast"
+        :toast-key="toastEvent?.at ?? 0"
       />
       <TagResults
         v-else-if="state.phase === 'results' && state.results"
@@ -321,6 +395,15 @@ const blockedText = {
         :ms-left="puzzleMs"
         @submit="submitPuzzle"
         @close="dismissed = puzzleKey"
+      />
+      <UsePrompt v-if="state.phase === 'playing' && showUse" :lock-ms="lockMs" @use="useStation" />
+      <TouchControls
+        v-if="touchOn"
+        :sprint-phase="sprintNow"
+        :sprint-at="sprintAt"
+        @joystick="(x, y) => arena?.setJoystick(x, y)"
+        @jump="arena?.jump()"
+        @sprint="arena?.sprint()"
       />
       <PuzzleResult v-if="state.phase === 'playing'" :patched="patched" :lock-ms="lockMs" />
     </template>

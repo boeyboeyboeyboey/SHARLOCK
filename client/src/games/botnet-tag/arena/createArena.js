@@ -322,6 +322,7 @@ export function createArena({
     },
     jump: () => built.local()?.jump(),
     sprint: () => built.local()?.sprint(),
+    setJoystick: (x, y) => built.local()?.setJoystick(x, y),
     tier: () => tier.name,
     dispose() {
       if (disposed) return
@@ -353,6 +354,7 @@ export function createArena({
         players: () =>
           [...built.players.entries.values()].map((e) => ({
             sid: e.sid,
+            me: e.sid === getState().sid,
             username: e.username,
             x: Math.round(e.x * 100) / 100,
             z: Math.round(e.z * 100) / 100,
@@ -365,6 +367,7 @@ export function createArena({
           const p = built.local()?.position()
           return p ? { x: Math.round(p.x * 100) / 100, z: Math.round(p.z * 100) / 100 } : null
         },
+        walkTo: (x, z) => built.local()?.walkTo(x, z),
         arm: () => built.arm(),
         scene: () => built.scene,
         camera: () => ({

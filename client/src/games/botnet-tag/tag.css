@@ -598,3 +598,198 @@
   border-color: rgb(138 147 160 / 55%);
   color: #aab2bd;
 }
+
+/* station prompt, toast burst and touch controls (stage 3b-ii) */
+.botnet-tag-game .tag-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.botnet-tag-game .tag-use {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  margin: 0;
+  padding: 8px 22px;
+  font: inherit;
+  font-size: 17px;
+  font-weight: 700;
+  transform: translateX(-50%);
+  cursor: pointer;
+}
+.botnet-tag-game .tag-use.is-locked {
+  cursor: default;
+  color: var(--game-warn);
+}
+.botnet-tag-game .tag-use:focus-visible {
+  outline: 3px solid var(--game-focus);
+  outline-offset: 3px;
+}
+.botnet-tag-game .tag-use kbd {
+  padding: 0 7px;
+  border: 1px solid var(--game-edge);
+  border-radius: 4px;
+  background: rgb(255 255 255 / 10%);
+  color: inherit;
+  font:
+    600 13px/22px ui-monospace,
+    monospace;
+}
+.botnet-tag-game .tag-toast {
+  animation: tag-pop 0.35s ease-out;
+}
+@keyframes tag-pop {
+  from {
+    transform: translateX(-50%) scale(1.35);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(-50%) scale(1);
+    opacity: 1;
+  }
+}
+.botnet-tag-game .tag-touch {
+  display: none;
+}
+.botnet-tag-game .tag-joystick {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  display: grid;
+  place-items: center;
+  width: 112px;
+  height: 112px;
+  border: 2px solid rgb(243 238 221 / 55%);
+  border-radius: 50%;
+  background: rgb(20 32 46 / 45%);
+  touch-action: none;
+}
+.botnet-tag-game .tag-joystick-knob {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgb(243 238 221 / 85%);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 35%);
+}
+.botnet-tag-game .tag-jump,
+.botnet-tag-game .tag-sprint {
+  position: fixed;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  padding: 0;
+  border: 2px solid rgb(243 238 221 / 55%);
+  border-radius: 50%;
+  background: rgb(20 32 46 / 70%);
+  color: var(--game-ink);
+  font: inherit;
+  font-weight: 700;
+  touch-action: manipulation;
+}
+.botnet-tag-game .tag-jump {
+  right: 16px;
+  bottom: 96px;
+}
+.botnet-tag-game .tag-sprint {
+  right: 92px;
+  bottom: 24px;
+}
+.botnet-tag-game .tag-jump:focus-visible,
+.botnet-tag-game .tag-sprint:focus-visible {
+  outline: 3px solid var(--game-focus);
+  outline-offset: 3px;
+}
+.botnet-tag-game .tag-sprint[aria-disabled='true'] {
+  opacity: 0.7;
+}
+.botnet-tag-game .tag-sprint-ring {
+  width: 44px;
+  height: 44px;
+  transform: rotate(-90deg);
+}
+.botnet-tag-game .tag-sprint-track,
+.botnet-tag-game .tag-sprint-fill {
+  fill: none;
+  stroke-width: 3;
+}
+.botnet-tag-game .tag-sprint-track {
+  stroke: rgb(243 238 221 / 25%);
+}
+.botnet-tag-game .tag-sprint-fill {
+  stroke: currentcolor;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 0;
+}
+.botnet-tag-game .tag-sprint[data-state='active'] .tag-sprint-fill {
+  animation: tag-sprint-drain var(--sprint-ms) linear forwards;
+}
+.botnet-tag-game .tag-sprint[data-state='cooldown'] .tag-sprint-fill {
+  animation: tag-sprint-fill var(--sprint-ms) linear forwards;
+}
+.botnet-tag-game .tag-sprint-bolt {
+  fill: currentcolor;
+  transform: rotate(90deg);
+  transform-origin: 18px 18px;
+}
+@keyframes tag-sprint-drain {
+  to {
+    stroke-dashoffset: 100;
+  }
+}
+@keyframes tag-sprint-fill {
+  from {
+    stroke-dashoffset: 100;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@media (pointer: coarse) {
+  .botnet-tag-game .tag-touch {
+    display: block;
+  }
+  .botnet-tag-game .tag-use {
+    bottom: 150px;
+    left: auto;
+    right: 16px;
+    transform: none;
+  }
+  .botnet-tag-game .tag-use kbd {
+    display: none;
+  }
+  .botnet-tag-game .tag-toast {
+    top: 130px;
+    bottom: auto;
+  }
+  .botnet-tag-game .tag-immunity {
+    top: 100px;
+    bottom: auto;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .botnet-tag-game .tag-toast {
+    animation: none;
+  }
+}
+@media (forced-colors: active) {
+  .botnet-tag-game .tag-joystick,
+  .botnet-tag-game .tag-jump,
+  .botnet-tag-game .tag-sprint {
+    border-color: CanvasText;
+    background: Canvas;
+    color: CanvasText;
+  }
+  .botnet-tag-game .tag-joystick-knob {
+    background: CanvasText;
+    box-shadow: none;
+  }
+}

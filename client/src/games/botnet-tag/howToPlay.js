@@ -7,11 +7,11 @@ export const HOW_TO_PLAY = Object.freeze({
     },
     {
       title: 'Patch a station',
-      text: 'Reach a station, press E and solve its task. Patched means 15 seconds of immunity.',
+      text: 'Reach a station, press E (or tap Use) and solve its task. Patched means 15 seconds of immunity.',
     },
     {
       title: 'Spread the botnet',
-      text: 'Infected? Get close to a survivor and press E to infect them.',
+      text: 'Infected? Touch a survivor to infect them. Immune players cannot be infected.',
     },
     {
       title: 'Beat the clock',
@@ -30,7 +30,7 @@ export const HOW_TO_PLAY = Object.freeze({
     { keys: 'W A S D or arrows', action: 'move' },
     { keys: 'Shift', action: 'sprint' },
     { keys: 'Space', action: 'jump' },
-    { keys: 'E', action: 'use a station or infect' },
+    { keys: 'E', action: 'use a station' },
     { keys: 'Escape', action: 'close a task or this guide' },
   ],
 })

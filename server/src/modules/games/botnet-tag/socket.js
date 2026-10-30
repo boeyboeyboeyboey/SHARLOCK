@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { WebSocketServer } from 'ws'
 import { hasExpectedOrigin } from '../../auth/csrf.js'
+import { publicLook } from '../../presence/look.js'
 import { roleFor } from '../../presence/protocol.js'
 import { createRoomResolver } from '../../presence/rooms.js'
 import { createRound } from './rounds.js'
@@ -163,6 +164,7 @@ export function createBotnetTagService(
       sid: connection.sid,
       username: connection.username,
       avatarId: connection.avatarId,
+      look: publicLook(connection.user),
       isStaff: connection.isStaff,
     }
   }

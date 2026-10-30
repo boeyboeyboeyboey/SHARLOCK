@@ -12,7 +12,7 @@ Close codes: 4401 session ended (`replaced` after a newer login, SESS-01, or sig
 
 Client to server, with per-second limits: `join {cohortId}` (staff only, 3), `ready {ready}` (5), `move {x,z,yaw}` (25), `sprint {}` (3), `tag {target}` (10), `station {id}` (5), `submit {submission}` (5, at most 2 KB), `leave {}` (3, closes the socket). Unknown, malformed or over-limit messages are dropped and count as strikes (30 in 10 s closes 4408). Moves, tags, sprints and puzzles are validated by the round rules, so a rejected move simply keeps the last accepted position.
 
-Server to client: `snapshot` (`sid` is your per-connection id, plus the round snapshot: phase, players, stations, `you` with only your own puzzle) at 15 Hz while playing and at most 2 Hz in the lobby (also at once on join, ready, station and submit), `events` (tags, patches, start, end), `results` (all players' scores, no ids beyond the per-connection sid), `saved {saved, score?, maxScore?}` to each saved player. No email, user id or puzzle answer is ever sent.
+Server to client: `snapshot` (`sid` is your per-connection id, plus the round snapshot: phase, players (each with a public `look`: wardrobe item ids only, built by `presence/look.js` the same way presence builds it; bots get the default outfit), stations, `you` with only your own puzzle) at 15 Hz while playing and at most 2 Hz in the lobby (also at once on join, ready, station and submit), `events` (tags, patches, start, end), `results` (all players' scores, no ids beyond the per-connection sid), `saved {saved, score?, maxScore?}` to each saved player. No email, user id or puzzle answer is ever sent.
 
 ## Saving
 

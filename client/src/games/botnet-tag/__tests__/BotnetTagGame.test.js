@@ -120,4 +120,67 @@ describe('botnet tag page', () => {
     await flushPromises()
     expect(wrapper.get('[data-testid="tag-notice"]').text()).toContain('Open in another tab')
   })
+
+  async function playing(players, stations = [], you = { lockedUntil: 0, puzzle: null }) {
+    const wrapper = mountGame()
+    await flushPromises()
+    const socket = FakeSocket.all[0]
+    socket.readyState = 1
+    socket.onopen()
+    socket.onmessage({
+      data: JSON.stringify({
+        type: 'snapshot',
+        sid: 'me',
+        phase: 'playing',
+        now: Date.now(),
+        phaseEndsAt: Date.now() + 180000,
+        roundMs: 180000,
+        players,
+        stations,
+        you,
+      }),
+    })
+    await flushPromises()
+    return { wrapper, socket }
+  }
+  const person = (extra) => ({
+    username: 'p',
+    x: 0,
+    z: 0,
+    infected: false,
+    immuneUntil: 0,
+    ...extra,
+  })
+
+  it('an infected player tags a clean player in reach by touching', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      const { socket } = await playing([
+        person({ sid: 'me', infected: true }),
+        person({ sid: 'bot-1', x: 1, isBot: true }),
+      ])
+      await vi.advanceTimersByTimeAsync(300)
+      expect(socket.sent).toContainEqual({ type: 'tag', target: 'bot-1' })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('a clean player beside a ready station can use it with the prompt', async () => {
+    const station = { id: 'st-patch', kind: 'patch', x: 1, z: 0, coolingUntil: 0 }
+    const { wrapper, socket } = await playing([person({ sid: 'me' })], [station])
+    await wrapper.get('[data-testid="tag-use"]').trigger('click')
+    expect(socket.sent).toContainEqual({ type: 'station', id: 'st-patch' })
+  })
+
+  it('hides the prompt while infected or when no station is ready', async () => {
+    const station = { id: 'st-patch', kind: 'patch', x: 1, z: 0, coolingUntil: 0 }
+    const sick = await playing([person({ sid: 'me', infected: true })], [station])
+    expect(sick.wrapper.find('[data-testid="tag-use"]').exists()).toBe(false)
+    const cooling = await playing(
+      [person({ sid: 'me' })],
+      [{ ...station, coolingUntil: Date.now() + 60000 }],
+    )
+    expect(cooling.wrapper.find('[data-testid="tag-use"]').exists()).toBe(false)
+  })
 })

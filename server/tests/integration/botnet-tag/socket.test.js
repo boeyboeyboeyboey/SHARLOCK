@@ -393,6 +393,7 @@ describe('botnet tag play rules', () => {
         'immuneUntil',
         'isBot',
         'isStaff',
+        'look',
         'ready',
         'sid',
         'sprinting',

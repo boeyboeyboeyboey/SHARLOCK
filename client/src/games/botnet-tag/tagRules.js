@@ -34,3 +34,51 @@ export function formatClock(ms) {
 export function isUrgent(ms) {
   return ms > 0 && ms <= URGENT_MS
 }
+
+export const AUTO_TAG_REACH = 1.7
+export const STATION_REACH = 1.8
+export const TAG_GAP_MS = 350
+export const USE_GAP_MS = 400
+export const TOAST_MS = 3000
+export const SPRINT_MS = 2500
+export const SPRINT_COOLDOWN_MS = 6000
+
+const gap = (a, b) => Math.hypot(a.x - b.x, a.z - b.z)
+
+// the nearest clean, non-immune player in reach; the server still decides whether the tag counts
+export function nearestTarget(me, players, serverNow, reach = AUTO_TAG_REACH) {
+  let best = null
+  let bestGap = reach
+  for (const other of players) {
+    if (other.sid === me.sid || other.infected || (other.immuneUntil ?? 0) > serverNow) continue
+    const d = gap(me, other)
+    if (d <= bestGap) {
+      best = other.sid
+      bestGap = d
+    }
+  }
+  return best
+}
+
+// the nearest station that is ready and in reach, or null
+export function nearestStation(me, stations, serverNow, reach = STATION_REACH) {
+  let best = null
+  let bestGap = reach
+  for (const station of stations) {
+    if ((station.coolingUntil ?? 0) > serverNow) continue
+    const d = gap(me, station)
+    if (d <= bestGap) {
+      best = station
+      bestGap = d
+    }
+  }
+  return best
+}
+
+// ready, active or cooldown for the touch sprint button, from when this tab last started one
+export function sprintPhase(startedAt, clockNow) {
+  if (!startedAt) return 'ready'
+  const age = clockNow - startedAt
+  if (age < SPRINT_MS) return 'active'
+  return age < SPRINT_MS + SPRINT_COOLDOWN_MS ? 'cooldown' : 'ready'
+}

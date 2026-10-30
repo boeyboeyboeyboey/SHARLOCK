@@ -38,6 +38,8 @@ export function createLocalPlayer({ spawn, camera, reduced, onSprint = () => {} 
   let vy = 0
   const lastDir = { x: 0, z: 1 }
   let sprintPhase = 'ready'
+  // dev and test only: walk straight at a spot through the normal movement rules
+  let auto = null
 
   const startSprint = () => {
     if (!enabled || !sprint.start()) return false
@@ -90,6 +92,14 @@ export function createLocalPlayer({ spawn, camera, reduced, onSprint = () => {} 
       const dir = worldDirection(ix / len, iy / len, { x: fx / fl, z: fz / fl })
       dx = dir.x
       dz = dir.z
+    }
+    if (!manual && auto && enabled) {
+      const gap = Math.hypot(auto.x - pos.x, auto.z - pos.z)
+      if (gap < 0.25) auto = null
+      else {
+        dx = (auto.x - pos.x) / gap
+        dz = (auto.z - pos.z) / gap
+      }
     }
     const moving = dx !== 0 || dz !== 0
     let diff = 0
@@ -160,6 +170,9 @@ export function createLocalPlayer({ spawn, camera, reduced, onSprint = () => {} 
         pad.x = 0
         pad.y = 0
       }
+    },
+    walkTo(x, z) {
+      auto = x === null ? null : { x, z }
     },
     teleport(x, z) {
       pos.x = x

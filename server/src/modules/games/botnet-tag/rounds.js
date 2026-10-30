@@ -1,3 +1,4 @@
+import { publicLook } from '../../presence/look.js'
 import { ARENA, stationById } from './arena.js'
 import { generatePuzzle, checkPuzzle, shuffle, submissionFor } from './puzzles.js'
 import {
@@ -62,6 +63,8 @@ export function createRound({ id, cohortId, now = 0, rng = Math.random, withBots
       sid: info.sid,
       username: String(info.username ?? '').slice(0, MAX_NAME),
       avatarId: typeof info.avatarId === 'string' ? info.avatarId : null,
+      // public outfit ids only; bots and unknown accounts get the default outfit
+      look: info.look ? { ...info.look } : publicLook(null),
       isStaff: info.isStaff === true,
       isBot,
       ready: isBot,
@@ -411,6 +414,7 @@ export function createRound({ id, cohortId, now = 0, rng = Math.random, withBots
           sid: player.sid,
           username: player.username,
           avatarId: player.avatarId,
+          look: player.look,
           x: round2(player.x),
           z: round2(player.z),
           yaw: player.yaw,

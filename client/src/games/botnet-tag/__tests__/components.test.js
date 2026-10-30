@@ -4,6 +4,8 @@ import NeedsThreeD from '../components/NeedsThreeD.vue'
 import TagHud from '../components/TagHud.vue'
 import TagLobby from '../components/TagLobby.vue'
 import TagResults from '../components/TagResults.vue'
+import TouchControls from '../components/TouchControls.vue'
+import UsePrompt from '../components/UsePrompt.vue'
 
 const link = { RouterLink: { props: ['to'], template: '<a :href="to"><slot /></a>' } }
 const players = [
@@ -148,5 +150,28 @@ describe('needs 3d', () => {
     const wrapper = mount(NeedsThreeD, { global: { stubs: link } })
     expect(wrapper.get('h1').text()).toBe('Needs 3D')
     expect(wrapper.get('[data-testid="tag-back"]').attributes('href')).toBe('/')
+  })
+})
+
+describe('use prompt', () => {
+  it('emits use when clicked and shows the lock seconds instead while locked', async () => {
+    const ready = mount(UsePrompt)
+    await ready.get('[data-testid="tag-use"]').trigger('click')
+    expect(ready.emitted('use')).toHaveLength(1)
+    const locked = mount(UsePrompt, { props: { lockMs: 2400 } })
+    expect(locked.get('[data-testid="tag-locked"]').text()).toBe('Locked 3s')
+    expect(locked.find('[data-testid="tag-use"]').exists()).toBe(false)
+  })
+})
+
+describe('touch controls', () => {
+  it('emits jump and sprint taps and shows the sprint state', async () => {
+    const wrapper = mount(TouchControls, { props: { sprintPhase: 'cooldown', sprintAt: 5 } })
+    await wrapper.get('[data-testid="tag-jump"]').trigger('click')
+    await wrapper.get('[data-testid="tag-sprint"]').trigger('click')
+    expect(wrapper.emitted('jump')).toHaveLength(1)
+    expect(wrapper.emitted('sprint')).toHaveLength(1)
+    expect(wrapper.get('[data-testid="tag-sprint"]').attributes('aria-disabled')).toBe('true')
+    expect(wrapper.text()).toContain('Sprint recharging')
   })
 })

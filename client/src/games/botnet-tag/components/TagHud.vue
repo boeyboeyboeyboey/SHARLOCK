@@ -9,6 +9,7 @@ const props = defineProps({
   immunityMs: { type: Number, default: 0 },
   selfInfected: { type: Boolean, default: false },
   toast: { type: String, default: '' },
+  toastKey: { type: Number, default: 0 },
 })
 
 const urgent = computed(() => isUrgent(props.msLeft))
@@ -47,7 +48,13 @@ const status = computed(() => (props.selfInfected ? 'Infected' : immune.value ? 
       </b>
       <div class="tag-bar"><i :style="{ width: `${immunePct}%` }" /></div>
     </div>
-    <p v-if="toast" class="tag-toast tag-glass" role="status" data-testid="tag-toast">
+    <p
+      v-if="toast"
+      :key="toastKey"
+      class="tag-toast tag-glass"
+      role="status"
+      data-testid="tag-toast"
+    >
       {{ toast }}
     </p>
   </div>

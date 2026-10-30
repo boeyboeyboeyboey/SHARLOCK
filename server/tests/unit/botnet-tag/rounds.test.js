@@ -323,6 +323,17 @@ describe('round end and results', () => {
     expect(round.leave('s1', 0)).toBe(false)
   })
 
+  it('snapshot carries a public look, defaulting for bots and unknown outfits', () => {
+    const round = lobby(1, { withBots: true })
+    round.join({ sid: 'dressed', username: 'Dee', look: { hat: 'hat-flat-cap' } }, 0)
+    round.setReady('s1', true, 0)
+    const players = round.snapshot('s1', 0).players
+    expect(players.find((p) => p.sid === 'dressed').look).toEqual({ hat: 'hat-flat-cap' })
+    const bot = players.find((p) => p.isBot)
+    expect(Object.keys(bot.look).length).toBeGreaterThan(0)
+    expect(JSON.stringify(players)).not.toMatch(/email|userId/)
+  })
+
   it('snapshot hides internals and keeps counters bounded', () => {
     const { round } = setup()
     const snap = round.snapshot('s1', COUNTDOWN_MS)
@@ -333,6 +344,7 @@ describe('round end and results', () => {
         'immuneUntil',
         'isBot',
         'isStaff',
+        'look',
         'ready',
         'sid',
         'sprinting',
