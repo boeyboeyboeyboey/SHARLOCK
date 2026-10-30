@@ -454,6 +454,13 @@ onBeforeUnmount(() => clearTimeout(chromeTimer))
   }
 }
 
+/* small phones: only the strip the floating Menu and Exit controls need, so the game starts above the fold */
+@media (max-width: 575.98px) {
+  .interior-stage {
+    height: var(--top-band);
+  }
+}
+
 @media (min-width: 768px) {
   .interior {
     padding: var(--top-band) 0 var(--room-gap-y);

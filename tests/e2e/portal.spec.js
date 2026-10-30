@@ -22,7 +22,7 @@ test('explores every building without prerequisites while showing account state'
   test.setTimeout(90_000)
   await page.goto('/')
   await expect(page).toHaveURL('/')
-  await expect(page.getByRole('button', { name: /^Explore / })).toHaveCount(6)
+  await expect(page.getByRole('button', { name: /^Explore / })).toHaveCount(gameCatalog.length)
   for (const game of gameCatalog) {
     const building = page.getByRole('button', { name: `Explore ${game.name}`, exact: true })
     await expect(building).toBeEnabled()
@@ -66,9 +66,7 @@ test('explores every building without prerequisites while showing account state'
     if (game.id === 'social-engineering-simulator') {
       await card.getByRole('link', { name: 'Enter activity' }).click()
       await expect(page).toHaveURL(new RegExp(`${game.route}$`))
-      await expect(
-        page.getByRole('heading', { name: 'LLM Social Engineering Simulator' }),
-      ).toBeVisible()
+      await expect(page.getByRole('heading', { name: 'Help Desk Shift', level: 1 })).toBeVisible()
       await page.getByRole('link', { name: 'Back to town' }).click()
       await expect(page).toHaveURL('/')
       continue
@@ -108,9 +106,7 @@ test('explores every building without prerequisites while showing account state'
   // the social-engineering legacy url now redirects to the playable game, not a preview
   await page.goto('/games/access-control')
   await expect(page).toHaveURL('/games/social-engineering-simulator')
-  await expect(
-    page.getByRole('heading', { name: 'LLM Social Engineering Simulator' }),
-  ).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Help Desk Shift', level: 1 })).toBeVisible()
 })
 
 test('opens details by pointer, touch, and keyboard and restores focus on Escape', async ({

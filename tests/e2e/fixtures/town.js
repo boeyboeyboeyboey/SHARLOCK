@@ -7,7 +7,7 @@ export async function jumpToBuilding(page, id) {
   await page.getByTestId('menu-button').click()
   await page
     .getByRole('navigation', { name: 'Places' })
-    .getByRole('button', { name: game.name, exact: true })
+    .getByRole('button', { name: game.needs3d ? `${game.name}, needs 3D` : game.name, exact: true })
     .click()
   await expect(page.getByTestId('site-menu')).toBeHidden()
 }

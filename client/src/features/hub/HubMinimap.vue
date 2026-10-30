@@ -332,8 +332,8 @@ function onKeydown(event) {
     width: 184px;
   }
 }
-/* phones and short windows: a Map button opens the map over the whole scene */
-@media (max-width: 575.98px), (max-height: 639.98px) {
+/* phones, touch screens and short windows: a Map button opens the map over the whole scene, with 44px pins */
+@media (max-width: 575.98px), (max-height: 639.98px), (pointer: coarse) {
   .hub-map-toggle {
     position: absolute;
     right: 8px;

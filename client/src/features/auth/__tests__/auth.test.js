@@ -616,6 +616,18 @@ describe('auth forms and account summary', () => {
     wrapper.unmount()
   })
 
+  it('keeps no helper text under the sign-in fields and links an error to its field', async () => {
+    const wrapper = mount(LoginForm)
+    expect(wrapper.findAll('small')).toHaveLength(0)
+    expect(wrapper.get('#login-identifier').attributes('aria-describedby')).toBeUndefined()
+    expect(wrapper.get('#login-password').attributes('aria-describedby')).toBeUndefined()
+    await wrapper.get('form').trigger('submit')
+    expect(wrapper.get('#login-identifier').attributes('aria-describedby')).toBe(
+      'login-identifier-error',
+    )
+    wrapper.unmount()
+  })
+
   it('does not truncate valid Unicode passwords', async () => {
     const wrapper = mount(LoginForm)
     const password = '🔐'.repeat(15)
