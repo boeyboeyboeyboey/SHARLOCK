@@ -523,3 +523,32 @@ export function sharlockMarkup(facing = 'down', frame = 0) {
       : sharlockFront(frame, facing === 'up')
   return `<svg class="town-hero-art" width="56" height="44" viewBox="0 0 14 11" shape-rendering="crispEdges">${body}</svg>`
 }
+
+// townsfolk in their outfits: a cap and neckerchief in the hub style colours (given as 0 to 1 rgb), lifted so they read against the ink outline
+const hexOf = (rgb) =>
+  '#' +
+  rgb
+    .map((v) =>
+      Math.round((v * 0.7 + 0.3) * 255)
+        .toString(16)
+        .padStart(2, '0'),
+    )
+    .join('')
+const HUB_FURS = { dockA: 'chestnut', dockB: 'honey', dockC: 'ash' }
+
+// walkers carry the three leg frames; the town css shows the one in data-frame
+export function townNpcMarkup(style) {
+  const [fur, dark] = capyFurs[HUB_FURS[style.fur] ?? 'sand']
+  return capybara({
+    fur,
+    dark,
+    walk: true,
+    back: R(8, 0, 4, 2, INK) + R(9, 0, 2, 1, hexOf(style.cap)),
+    front: R(8, 4, 1, 2, hexOf(style.scarf)),
+  })
+}
+
+// a small found object (note, stick, bill) with a gold glint
+export function townFindMarkup() {
+  return `<svg class="town-find-art" width="32" height="32" viewBox="0 0 8 8" shape-rendering="crispEdges">${B(1, 3, 6, 4, '#fff8df') + R(2, 4, 4, 1, '#b9b29a') + R(2, 5, 3, 1, '#b9b29a') + R(6, 0, 1, 2, '#d9a441') + R(5, 1, 3, 1, '#d9a441')}</svg>`
+}

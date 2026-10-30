@@ -1,11 +1,16 @@
 <script setup>
-import { ref, computed, nextTick, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, nextTick, onMounted, onBeforeUnmount, watch } from 'vue'
 import Panzoom from '@panzoom/panzoom'
 import { TOWN_SIZE } from '../../data/gameCatalog.js'
 import { clampPan, fitScale, panToCenter, stepZoom, viewCenter } from './townZoom.js'
-import { sharlockMarkup } from './townArt.js'
+import { sharlockMarkup, townFindMarkup, townNpcMarkup } from './townArt.js'
 import { createTownWalk, doorPoint } from './townWalk.js'
 import { useTownWalker } from './useTownWalker.js'
+import { useTownNpcs } from './useTownNpcs.js'
+import { fixedNpcBlocks, footBlock, TALK_RANGE, townFinds, townNpcs } from './townNpcs.js'
+import NpcDialogue from '../hub/NpcDialogue.vue'
+import { advanceTalk, useNpcDialogue } from '../hub/useNpcDialogue.js'
+import { useDiscoveries } from '../hub/discoveries.js'
 import { isEnterKey, isInteractKey, isSprintKey } from '../hub/controls.js'
 import PixelIcon from '../../components/town/PixelIcon.vue'
 import TownScenery from './TownScenery.vue'
@@ -45,12 +50,53 @@ let closeTimer
 let resizeObserver
 let following = true
 let camCenter = null
-const walk = createTownWalk(props.games)
 const reducedMotion = () =>
   typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+const npcState = useTownNpcs({
+  npcs: townNpcs,
+  target: () => ({ x: walker.x.value, y: walker.y.value }),
+  paused: () => props.paused || talk.open.value,
+  reducedMotion,
+})
+const walk = createTownWalk(props.games, {
+  fixed: fixedNpcBlocks,
+  dynamic: () => npcState.list.value.map((npc) => footBlock(npc.x, npc.y)),
+})
+const talk = useNpcDialogue()
+const discoveries = useDiscoveries()
+const dialogue = ref(null)
+const talkNote = ref('')
+const npcArt = Object.fromEntries(townNpcs.map((npc) => [npc.id, townNpcMarkup(npc.style)]))
+const npcDefs = new Map(townNpcs.map((npc) => [npc.id, npc]))
+const findArt = townFindMarkup()
 const walker = useTownWalker({ walk, reducedMotion, afterMove: stepCamera })
 const heroMarkup = computed(() => sharlockMarkup(walker.facing.value, walker.frame.value))
-const doorGame = computed(() => (props.paused ? null : walker.doorGame.value))
+const doorGame = computed(() => (props.paused || nearTalk.value ? null : walker.doorGame.value))
+const nearTalk = computed(() => {
+  if (props.paused) return null
+  const here = { x: walker.x.value, y: walker.y.value }
+  let best = null
+  let bestDistance = TALK_RANGE
+  const consider = (kind, def, x, y) => {
+    const distance = Math.hypot(here.x - x, here.y - y)
+    if (distance < bestDistance) {
+      best = { kind, def, x, y }
+      bestDistance = distance
+    }
+  }
+  for (const npc of npcState.list.value) consider('npc', npcDefs.get(npc.id), npc.x, npc.y)
+  for (const find of townFinds) consider('find', find, find.x, find.y)
+  return best
+})
+const talkStyle = computed(() => ({
+  left: `${nearTalk.value.x}px`,
+  top: `${nearTalk.value.y - 44}px`,
+}))
+const talkLabel = computed(() =>
+  nearTalk.value.kind === 'find'
+    ? `Look at ${nearTalk.value.def.name}`
+    : `Talk to ${nearTalk.value.def.name}`,
+)
 const doorStyle = computed(() => {
   const door = doorPoint(doorGame.value)
   return { left: `${door.x}px`, top: `${door.y - 40}px` }
@@ -148,6 +194,40 @@ function openBuilding(game) {
     emit('activate', game.route)
   } else reveal(game, true)
 }
+async function openTalk() {
+  const near = nearTalk.value
+  if (!near || talk.open.value) return
+  dismiss()
+  if (near.kind === 'find') {
+    talk.begin({ ...near.def, kind: 'discovery' })
+    const first = discoveries.mark(near.def.id)
+    talkNote.value = first
+      ? `Discovery ${discoveries.count.value} of ${discoveries.total}: ${near.def.name}`
+      : near.def.name
+  } else {
+    talk.begin(near.def)
+    talkNote.value = `Talking to ${near.def.name}`
+  }
+  await nextTick()
+  dialogue.value?.focus()
+}
+function closeTalk(restoreFocus = true) {
+  if (!talk.open.value) return
+  talk.close()
+  talkNote.value = ''
+  if (restoreFocus) viewport.value?.focus({ preventScroll: true })
+}
+function goInFromTalk() {
+  const game = props.games.find((item) => item.id === talk.npc.value?.gameId)
+  closeTalk(false)
+  if (game) openBuilding(game)
+}
+watch(
+  () => [nearTalk.value?.def.id, props.paused],
+  ([id, isPaused]) => {
+    if (talk.open.value && (id !== talk.npc.value.id || isPaused)) closeTalk(false)
+  },
+)
 function selectBuilding(event, game) {
   if (suppressClick && event.detail !== 0) return
   openBuilding(game)
@@ -188,6 +268,12 @@ function releaseCamera() {
 }
 function walkingKey(event) {
   if (props.paused || event.defaultPrevented) return
+  // E steps on or closes an open conversation, even with focus inside its dialog
+  if (talk.open.value && isInteractKey(event)) {
+    event.preventDefault()
+    advanceTalk(talk, closeTalk)
+    return
+  }
   if (
     event.target?.closest?.(
       'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="dialog"], dialog, .game-info-card',
@@ -197,6 +283,11 @@ function walkingKey(event) {
   if (document.querySelector('[aria-modal="true"], dialog[open]')) return
   if (isSprintKey(event)) {
     walker.startSprint()
+    return
+  }
+  if (isInteractKey(event) && nearTalk.value) {
+    event.preventDefault()
+    openTalk()
     return
   }
   if (isInteractKey(event) || isEnterKey(event)) {
@@ -363,6 +454,7 @@ onMounted(() => {
   world.value.addEventListener('panzoomchange', cameraChanged)
   syncFloor()
   window.addEventListener('keydown', walkingKey)
+  npcState.start()
   window.addEventListener('keyup', walkingKeyUp)
   viewport.value.addEventListener('wheel', wheelCamera, { passive: false })
   document.addEventListener('pointermove', moveGesture)
@@ -380,6 +472,7 @@ onBeforeUnmount(() => {
   cancelClose()
   cancelAnimationFrame(resizeFrame)
   walker.dispose()
+  npcState.dispose()
   window.removeEventListener('keydown', walkingKey)
   window.removeEventListener('keyup', walkingKeyUp)
   resizeObserver?.disconnect()
@@ -490,8 +583,38 @@ onBeforeUnmount(() => {
               </button>
             </li>
           </ul>
-          <!-- sharlock is trusted static svg from townArt.js -->
+          <!-- townsfolk, finds and sharlock are trusted static svg from townArt.js -->
           <!-- eslint-disable vue/no-v-html -->
+          <div
+            v-for="npc in npcState.list.value"
+            :key="npc.id"
+            class="town-npc"
+            :data-testid="`town-npc-${npc.id}`"
+            :data-frame="npc.frame"
+            :style="{ left: `${npc.x}px`, top: `${npc.y}px`, zIndex: Math.round(npc.y) + 1 }"
+            aria-hidden="true"
+          >
+            <div
+              class="town-npc-flip"
+              :class="{ 'is-left': npc.facing === 'left' }"
+              v-html="npcArt[npc.id]"
+            />
+          </div>
+          <div
+            v-for="find in townFinds"
+            :key="find.id"
+            class="town-find"
+            :class="{ 'is-found': discoveries.has(find.id) }"
+            :data-testid="`town-find-${find.id}`"
+            :style="{ left: `${find.x}px`, top: `${find.y}px`, zIndex: Math.round(find.y) + 1 }"
+            aria-hidden="true"
+          >
+            <div
+              class="town-npc-flip"
+              :class="{ 'is-left': find.facing === 'left' }"
+              v-html="find.kind === 'npc' ? npcArt[find.id] : findArt"
+            />
+          </div>
           <div
             class="town-hero"
             data-testid="town-player"
@@ -513,6 +636,18 @@ onBeforeUnmount(() => {
           </div>
           <!-- eslint-enable vue/no-v-html -->
           <button
+            v-if="nearTalk && !talk.open.value"
+            type="button"
+            class="town-door-prompt"
+            data-testid="talk-prompt"
+            :aria-label="talkLabel"
+            :style="talkStyle"
+            @pointerdown.stop
+            @click="openTalk"
+          >
+            E
+          </button>
+          <button
             v-if="doorGame"
             type="button"
             class="town-door-prompt"
@@ -526,6 +661,21 @@ onBeforeUnmount(() => {
           </button>
         </div>
       </div>
+      <NpcDialogue
+        v-if="talk.open.value && talk.npc.value"
+        ref="dialogue"
+        class="town-talk"
+        :name="talk.npc.value.name"
+        :line="talk.line.value"
+        :last="talk.isLast.value"
+        :can-enter="talk.npc.value.kind === 'game'"
+        :close-label="talk.npc.value.kind === 'discovery' ? 'Got it' : 'Bye'"
+        @keydown.esc.stop.prevent="closeTalk()"
+        @next="talk.next()"
+        @enter="goInFromTalk"
+        @close="closeTalk()"
+      />
+      <p class="visually-hidden" role="status">{{ talkNote }}</p>
       <GameInfoCard
         v-if="selectedGame"
         ref="infoCard"
