@@ -11,14 +11,12 @@ import {
 } from './protocol.js'
 import { createRoomResolver } from './rooms.js'
 
-export const MAX_CONNECTIONS_PER_USER = 3
 const STRIKE_LIMIT = 30
 const STRIKE_WINDOW_MS = 10000
 
 const REJECTIONS = Object.freeze({
   401: 'Unauthorized',
   403: 'Forbidden',
-  429: 'Too Many Requests',
 })
 
 function reject(socket, status) {
@@ -164,6 +162,12 @@ export function createPresenceService(
       strikeWindowStart: now(),
       alive: true,
     }
+    // one presence per account: the newest socket wins and leaves no ghost peer behind
+    for (const older of connections) {
+      if (older.userId !== connection.userId) continue
+      leaveRoom(older)
+      older.ws.close(4409, 'superseded')
+    }
     connections.add(connection)
     ws.on('pong', () => {
       connection.alive = true
@@ -200,11 +204,6 @@ export function createPresenceService(
       const session = await resolveSessionUser(request)
       if (!session) {
         reject(socket, 401)
-        return
-      }
-      const owned = [...connections].filter((entry) => entry.userId === session.user.id)
-      if (owned.length >= MAX_CONNECTIONS_PER_USER) {
-        reject(socket, 429)
         return
       }
       const role = roleFor(session.user.globalRoles)

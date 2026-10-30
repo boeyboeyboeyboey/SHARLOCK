@@ -141,14 +141,60 @@ describe('presence connection', () => {
     presence.stop()
   })
 
-  it.each([4401, 4403, 4408])('does not reconnect after %i', async (code) => {
-    const { presence } = make()
+  it.each([4401, 4403, 4408, 4409])('does not reconnect after %i', async (code) => {
+    const { presence } = make({
+      staff: code === 4403,
+      loadClasses: async () => [{ cohortId: 'c1' }],
+    })
     await presence.start()
     FakeSocket.all[0].open()
     FakeSocket.all[0].drop(code)
     vi.advanceTimersByTime(60000)
     expect(FakeSocket.all).toHaveLength(1)
-    expect(usePresenceRoster().state.active).toBe(false)
+    expect(usePresenceRoster().state.active).toBe(code === 4403)
+  })
+
+  it('retries a student with no class every 60 s, up to 10 times', async () => {
+    const { presence } = make()
+    await presence.start()
+    for (let n = 1; n <= 10; n += 1) {
+      FakeSocket.all.at(-1).open()
+      FakeSocket.all.at(-1).drop(4403)
+      vi.advanceTimersByTime(59000)
+      expect(FakeSocket.all).toHaveLength(n)
+      vi.advanceTimersByTime(1000)
+      expect(FakeSocket.all).toHaveLength(n + 1)
+    }
+    FakeSocket.all.at(-1).open()
+    FakeSocket.all.at(-1).drop(4403)
+    vi.advanceTimersByTime(600000)
+    expect(FakeSocket.all).toHaveLength(11)
+    presence.stop()
+  })
+
+  it('joins after a slow retry once the student has a class', async () => {
+    const { presence } = make()
+    await presence.start()
+    FakeSocket.all[0].open()
+    FakeSocket.all[0].drop(4403)
+    vi.advanceTimersByTime(60000)
+    FakeSocket.all[1].open()
+    FakeSocket.all[1].say({ type: 'snapshot', you: 'me', peers: [peer('a')] })
+    expect(usePresenceRoster().state.active).toBe(true)
+    expect(presence.peers.size).toBe(1)
+    presence.stop()
+  })
+
+  it('stops quietly on 4409 and flags the tab notice', async () => {
+    const onSessionEnded = vi.fn()
+    const { presence } = make({ onSessionEnded })
+    await presence.start()
+    FakeSocket.all[0].open()
+    FakeSocket.all[0].drop(4409, 'superseded')
+    vi.advanceTimersByTime(120000)
+    expect(FakeSocket.all).toHaveLength(1)
+    expect(onSessionEnded).not.toHaveBeenCalled()
+    expect(usePresenceRoster().state.superseded).toBe(true)
   })
 
   it('calls onSessionEnded on 4401 only', async () => {

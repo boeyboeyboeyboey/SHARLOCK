@@ -2,13 +2,18 @@ export const MOVE_GAP_MS = 100
 export const KEEPALIVE_MS = 1000
 export const MAX_DRAWN = 20
 export const MAX_FAILED_CONNECTS = 10
+export const NO_CLASS_RETRY_MS = 60000
+export const MAX_NO_CLASS_RETRIES = 10
 const MOVED = 0.02
 const TAU = Math.PI * 2
 
-// close codes the server uses on purpose: 4401 session ended, 4403 no class access, 4408 too many bad messages
-export function closeDecision(code) {
+// close codes the server uses on purpose: 4401 session ended, 4403 no class access, 4408 too many bad messages, 4409 superseded by a newer tab
+// a student with no class yet retries slowly so an approval is picked up without a reload
+export function closeDecision(code, staff = false) {
   if (code === 4401) return 'stop-quiet'
-  if (code === 4403 || code === 4408) return 'stop'
+  if (code === 4409) return 'superseded'
+  if (code === 4403) return staff ? 'stop' : 'slow-retry'
+  if (code === 4408) return 'stop'
   return 'retry'
 }
 

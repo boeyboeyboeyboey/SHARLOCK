@@ -2,6 +2,8 @@ import { onBeforeUnmount, watch } from 'vue'
 import { listManagedCohorts } from '../../cohorts/api.js'
 import {
   MAX_FAILED_CONNECTS,
+  MAX_NO_CLASS_RETRIES,
+  NO_CLASS_RETRY_MS,
   closeDecision,
   isMoving,
   reconnectDelay,
@@ -33,6 +35,7 @@ export function createPresence({
   let tick = null
   let retry = null
   let failures = 0
+  let noClassTries = 0
   let last = null
   let sample = null
   let stopped = true
@@ -65,6 +68,8 @@ export function createPresence({
       return
     }
     if (message?.type === 'snapshot' && Array.isArray(message.peers)) {
+      noClassTries = 0
+      state.active = true
       peers.clear()
       for (const peer of message.peers)
         if (peer?.sid && peer.sid !== message.you) peers.set(peer.sid, peer)
@@ -120,11 +125,21 @@ export function createPresence({
       if (socket !== mine) return
       halt()
       clearPeers()
-      const decision = closeDecision(event.code)
+      const decision = closeDecision(event.code, staff)
       if (decision === 'stop-quiet') {
         stopped = true
         state.active = false
         onSessionEnded(event.reason)
+      } else if (decision === 'superseded') {
+        stopped = true
+        state.active = false
+        state.superseded = true
+      } else if (decision === 'slow-retry') {
+        state.active = false
+        if (noClassTries < MAX_NO_CLASS_RETRIES) {
+          retry = setTimeout(connect, NO_CLASS_RETRY_MS)
+          noClassTries += 1
+        } else stopped = true
       } else if (decision === 'stop') {
         stopped = true
         if (!staff) state.active = false
@@ -138,6 +153,8 @@ export function createPresence({
   async function start() {
     stopped = false
     state.active = true
+    state.superseded = false
+    noClassTries = 0
     state.staff = staff
     if (staff) {
       try {

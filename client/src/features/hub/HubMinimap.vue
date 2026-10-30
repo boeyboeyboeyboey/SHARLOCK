@@ -7,6 +7,8 @@ const props = defineProps({
   // { x, z, heading } in world metres, or null before the first sample
   player: { type: Object, default: null },
   selected: { type: String, default: null },
+  // classmates as { sid, x, z, staff }, drawn as small unnamed dots
+  peers: { type: Array, default: () => [] },
 })
 const emit = defineEmits(['choose'])
 
@@ -49,6 +51,12 @@ const pins = computed(() => {
     ]
   })
 })
+const others = computed(() =>
+  props.peers.map((peer) => {
+    const p = project(peer.x, peer.z)
+    return { sid: peer.sid, x: p.x, y: p.y, staff: Boolean(peer.staff) }
+  }),
+)
 const me = computed(() => {
   if (!props.player) return null
   const p = project(props.player.x, props.player.z)
@@ -147,6 +155,15 @@ function onKeydown(event) {
               v-bind="pin.rect"
               :style="{ '--accent': pin.accent }"
             />
+            <circle
+              v-for="peer in others"
+              :key="peer.sid"
+              class="m-peer"
+              :class="{ 'is-staff': peer.staff }"
+              :cx="peer.x"
+              :cy="peer.y"
+              r="1.7"
+            />
             <g v-if="me" class="m-me">
               <polygon class="m-wedge" :points="me.wedge" />
               <circle class="m-dot" :cx="me.x" :cy="me.y" r="2.3" />
@@ -242,6 +259,14 @@ function onKeydown(event) {
   stroke: #fff8df;
   stroke-width: 1.6;
   paint-order: stroke;
+}
+.m-peer {
+  fill: #d9822b;
+  stroke: #fff8df;
+  stroke-width: 0.6;
+}
+.m-peer.is-staff {
+  fill: #8a3fd0;
 }
 .m-wedge {
   fill: #2f6fdc;

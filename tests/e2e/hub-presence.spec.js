@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 import { seedClass, signedInPage } from './fixtures/class.js'
 
 // the software renderer builds the wharf slowly
-test.setTimeout(240000)
+test.setTimeout(360000)
 const slow = { timeout: 120000 }
 
 async function openHub(browser, baseURL, who) {

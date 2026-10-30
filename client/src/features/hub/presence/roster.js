@@ -3,6 +3,7 @@ import { computed, reactive } from 'vue'
 // shared between the hub (writes) and the site menu (reads); the 2d town never activates it
 const state = reactive({
   active: false,
+  superseded: false,
   peers: [],
   classes: [],
   selectedCohortId: '',
@@ -22,6 +23,7 @@ export function usePresenceRoster() {
 
 export function resetRoster() {
   state.active = false
+  state.superseded = false
   state.peers = []
   state.classes = []
   state.selectedCohortId = ''
