@@ -3,9 +3,9 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } 
 import { GRAPHICS_TO_TIER } from './scenes/shared/quality.js'
 import HubMinimap from './HubMinimap.vue'
 import ControlsHint from './ControlsHint.vue'
-import { isInteractKey } from './controls.js'
+import { isEnterKey, isInteractKey } from './controls.js'
 import NpcDialogue from './NpcDialogue.vue'
-import { useNpcDialogue } from './useNpcDialogue.js'
+import { advanceTalk, useNpcDialogue } from './useNpcDialogue.js'
 import { npcs } from './scenes/wharf/npcs.js'
 import { finds } from './scenes/wharf/finds.js'
 import { useDiscoveries } from './discoveries.js'
@@ -202,7 +202,20 @@ function interact() {
 function onInteractKey(event) {
   if (!isInteractKey(event)) return
   if (paused.value || view.mode !== 'explore') return
+  // E in an open talk steps on or closes it
+  if (advanceTalk(talk, closeTalk)) {
+    event.preventDefault()
+    return
+  }
   if (interact()) event.preventDefault()
+}
+
+// Enter goes in while the Enter button shows; a focused button or link keeps its own activation
+function onEnterKey(event) {
+  if (!isEnterKey(event)) return
+  if (paused.value || view.mode !== 'explore' || talk.open.value || !canEnter.value) return
+  event.preventDefault()
+  enterSelected()
 }
 
 function closeTalk({ restoreFocus = true } = {}) {
@@ -458,6 +471,7 @@ function rebuildHub() {
 onMounted(() => {
   window.addEventListener('keydown', onEscape)
   window.addEventListener('keydown', onInteractKey)
+  window.addEventListener('keydown', onEnterKey)
   motionQuery?.addEventListener?.('change', onMotionChange)
   if (!lore.hasSeen()) lore.start()
   mapTimer = setInterval(samplePlayer, 100)
@@ -468,6 +482,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onEscape)
   window.removeEventListener('keydown', onInteractKey)
+  window.removeEventListener('keydown', onEnterKey)
   motionQuery?.removeEventListener?.('change', onMotionChange)
   gone = true
   clearInterval(mapTimer)
@@ -548,7 +563,7 @@ defineExpose({
           <li v-for="game in games" :key="game.id">
             <button
               type="button"
-              class="btn btn-secondary btn-sm"
+              class="btn btn-secondary btn-sm hub-glass-btn hub-dest-btn"
               :data-testid="`dest-${game.id}`"
               :aria-pressed="String(view.selected === game.id)"
               @click="choose(game.id)"
@@ -582,6 +597,7 @@ defineExpose({
           @click="openTalk"
         >
           Talk to {{ talkNpc.name }}
+          <kbd class="hub-key" aria-hidden="true">E</kbd>
         </button>
         <button
           v-if="showFind"
@@ -593,6 +609,7 @@ defineExpose({
           @click="openFind"
         >
           {{ nearFind.kind === 'npc' ? 'Talk to' : 'Look at' }} {{ nearFind.name }}
+          <kbd class="hub-key" aria-hidden="true">E</kbd>
         </button>
         <button
           v-if="selectedGame"
@@ -603,6 +620,7 @@ defineExpose({
           @click="enterSelected"
         >
           Enter {{ selectedGame.name }}
+          <kbd class="hub-key" aria-hidden="true">Enter</kbd>
         </button>
       </div>
     </div>
@@ -736,9 +754,28 @@ defineExpose({
   width: 100%;
   text-align: left;
 }
-.hub-dest-list .btn[aria-pressed='true'] {
-  background: var(--accent-primary);
-  box-shadow: inset 0 0 0 2px var(--town-edge);
+.portal-shell .hub-scene .hub-dest-list .hub-dest-btn[aria-pressed='true'] {
+  border-color: var(--hub-glass-ink);
+  background: var(--hub-glass-btn-active);
+  box-shadow: inset 0 0 0 1px var(--hub-glass-ink);
+}
+.portal-shell .hub-scene .hub-dest-list .hub-dest-btn[aria-pressed='true']::before {
+  content: '\2713';
+  margin-right: 6px;
+}
+.hub-key {
+  margin-left: 8px;
+  padding: 0 6px;
+  border: 1px solid var(--hub-glass-edge);
+  border-radius: 4px;
+  background: rgb(255 255 255 / 10%);
+  color: inherit;
+  font: 600 11px/18px ui-monospace, monospace;
+}
+@media (hover: none) and (pointer: coarse) {
+  .hub-key {
+    display: none;
+  }
 }
 .hub-actions {
   position: absolute;

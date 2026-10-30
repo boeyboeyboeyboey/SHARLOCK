@@ -319,7 +319,15 @@ test('zooms with controls and keyboard, resets the camera, and keeps buildings r
   const zoomOut = page.getByRole('button', { name: 'Zoom out', exact: true })
   const level = page.getByLabel('Map zoom level')
   await expect(level).toHaveText('100%')
+  // zoom-out now goes below 100% down to the fit-the-town floor
+  await expect(zoomOut).toBeEnabled()
+  // the keyboard steps down to the floor without racing the button's disabled state
+  await map.focus()
+  for (let i = 0; i < 8; i++) await page.keyboard.press('-')
   await expect(zoomOut).toBeDisabled()
+  expect(Number((await level.innerText()).replace('%', ''))).toBeLessThan(100)
+  await page.getByRole('button', { name: 'Reset view' }).click()
+  await expect(level).toHaveText('100%')
   for (let i = 0; i < 4; i++) await zoomIn.click()
   await expect(level).toHaveText('200%')
   await expect(zoomIn).toBeDisabled()
@@ -449,11 +457,14 @@ test('supports pinch zoom and wheel panning while retaining camera bounds after 
         map.evaluate((el) => {
           const world = el.querySelector('.town-world').getBoundingClientRect()
           const view = el.getBoundingClientRect()
+          // each axis either covers the view or, when the town is smaller, sits centred in it
+          const axis = (lo, hi, vlo, vhi) =>
+            hi - lo >= vhi - vlo - 1
+              ? lo <= vlo + 1 && hi >= vhi - 1
+              : Math.abs(lo - vlo - (vhi - hi)) <= 2
           return (
-            world.left <= view.left + 1 &&
-            world.top <= view.top + 1 &&
-            world.right >= view.right - 1 &&
-            world.bottom >= view.bottom - 1 &&
+            axis(world.left, world.right, view.left, view.right) &&
+            axis(world.top, world.bottom, view.top, view.bottom) &&
             document.documentElement.scrollWidth <= innerWidth
           )
         }),

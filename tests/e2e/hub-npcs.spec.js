@@ -36,14 +36,14 @@ test('talks to a game keeper, reads every line and goes in', async ({ page }) =>
   await page.goto('/')
   await hubReady(page)
   const lines = await page.evaluate(() => window.__hub.debug.npcs())
-  expect(lines).toHaveLength(9)
+  expect(lines).toHaveLength(12)
 
   await pickDest(page, 'cli-cyber-defender')
   await expect
     .poll(() => page.evaluate(() => window.__hub.state.nearNpc), slow)
     .toBe('telegraph-clerk')
   const talk = page.getByTestId('talk')
-  await expect(talk).toHaveText('Talk to Telegraph clerk')
+  await expect(talk).toHaveAccessibleName('Talk to Telegraph clerk')
   await talk.click()
 
   const dialogue = page.getByTestId('npc-dialogue')

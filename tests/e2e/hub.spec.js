@@ -119,7 +119,7 @@ test('lists every game, walks, and enters a game route', async ({ page }) => {
 
   await pickDest(page, 'cli-cyber-defender')
   await expect(page.getByTestId('dest-cli-cyber-defender')).toHaveAttribute('aria-pressed', 'true')
-  await expect(page.getByTestId('enter')).toHaveText('Enter CLI Cyber Defender')
+  await expect(page.getByTestId('enter')).toHaveAccessibleName('Enter CLI Cyber Defender')
   await page.getByTestId('enter').click()
   await expect(page).toHaveURL(/\/games\/cli-cyber-defender$/, slow)
 })

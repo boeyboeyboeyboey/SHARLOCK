@@ -45,3 +45,13 @@ export function isInteractKey(event) {
     'input, textarea, select, [contenteditable]:not([contenteditable="false"])',
   )
 }
+
+// a plain Enter press that is free to go in: not in a field, a control that activates itself or a dialog
+export function isEnterKey(event) {
+  if (event.code !== 'Enter' && event.code !== 'NumpadEnter') return false
+  if (event.repeat || event.defaultPrevented) return false
+  if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return false
+  return !event.target?.closest?.(
+    'input, textarea, select, button, summary, a[href], [role="button"], [role="dialog"], [aria-modal="true"], dialog, [contenteditable]:not([contenteditable="false"])',
+  )
+}

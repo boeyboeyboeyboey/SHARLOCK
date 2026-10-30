@@ -95,12 +95,16 @@ describe('stepPatrol', () => {
 })
 
 describe('holdsStill', () => {
-  const base = { frozen: false, calm: false, dist: 10, range: 25, near: 4, talking: false }
+  const base = { frozen: false, calm: false, dist: 10, range: 25, near: 1.5, talking: false }
   it('walks when nothing holds it', () => expect(holdsStill(base)).toBe(false))
   it('stops under the freeze flag', () => expect(holdsStill({ ...base, frozen: true })).toBe(true))
   it('stays at its post under reduced motion', () =>
     expect(holdsStill({ ...base, calm: true })).toBe(true))
-  it('stops when the player is near', () => expect(holdsStill({ ...base, dist: 3.9 })).toBe(true))
+  it('keeps walking until the player is within reach', () => {
+    expect(holdsStill({ ...base, dist: 3.9 })).toBe(false)
+    expect(holdsStill({ ...base, dist: 1.6 })).toBe(false)
+  })
+  it('stops when the player is within reach', () => expect(holdsStill({ ...base, dist: 1.4 })).toBe(true))
   it('stops while a talk is open', () => expect(holdsStill({ ...base, talking: true })).toBe(true))
   it('does not move outside the update range', () =>
     expect(holdsStill({ ...base, dist: 26 })).toBe(true))

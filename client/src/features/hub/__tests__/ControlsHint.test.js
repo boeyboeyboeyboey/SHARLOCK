@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import ControlsHint from '../ControlsHint.vue'
-import { HINT_SEEN_KEY, HUB_KEYS, isInteractKey, keyboardHint } from '../controls.js'
+import { HINT_SEEN_KEY, HUB_KEYS, isEnterKey, isInteractKey, keyboardHint } from '../controls.js'
 
 function stubMedia({ reduce = false, coarse = false } = {}) {
   vi.stubGlobal('matchMedia', (query) => ({
@@ -117,5 +117,38 @@ describe('hub keys', () => {
     input.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyE', bubbles: true }))
     expect(seen).toBe(false)
     input.remove()
+  })
+})
+
+describe('isEnterKey', () => {
+  const press = (init = {}, target) => {
+    const event = new KeyboardEvent('keydown', { code: 'Enter', bubbles: true, ...init })
+    let result
+    ;(target ?? document.body).addEventListener('keydown', (e) => (result = isEnterKey(e)), { once: true })
+    ;(target ?? document.body).dispatchEvent(event)
+    return result
+  }
+
+  it('accepts a plain Enter on the page', () => expect(press()).toBe(true))
+  it('ignores repeats and modifiers', () => {
+    expect(press({ repeat: true })).toBe(false)
+    expect(press({ shiftKey: true })).toBe(false)
+    expect(press({ ctrlKey: true })).toBe(false)
+  })
+  it('leaves fields, buttons, links and dialogs alone', () => {
+    for (const html of [
+      '<input>',
+      '<textarea></textarea>',
+      '<button>b</button>',
+      '<a href="/x">l</a>',
+      '<div role="dialog"><span tabindex="0">x</span></div>',
+    ]) {
+      const host = document.createElement('div')
+      host.innerHTML = html
+      document.body.append(host)
+      const el = host.firstElementChild.firstElementChild ?? host.firstElementChild
+      expect(press({}, el), html).toBe(false)
+      host.remove()
+    }
   })
 })

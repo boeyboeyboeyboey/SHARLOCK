@@ -2209,6 +2209,16 @@ The following records preserve checks and coordination from earlier tasks. They 
 - **Fix:** one import in `client/src/features/hub/engine.js` next to `instancedMesh.js`.
 - **Verified (31 Oct, local preview, SwiftShader):** instance counts present (crates 55, barrels 32, lamp heads 34, bollards 14, workers 8, gulls 9), origin clear, 309 draws (298 before, on Boey's WebGPU); hub vitest 223/223. Not run: hub E2E, real GPU after the fix.
 
+**HUD-02 — Hub controls, walkers, interface size and 2D zoom-out** · Status: **Review** · Contributor: **Boey** · Branch: `hud-02-controls-ui-size` (cut from local `main` at `52e6ecf`, 31 October 2026) · Plan approved by Boey on 31 October 2026 (`.local-handover/REVIEW-FIXES-PLAN-2026-10-31.md`, package C, plus Boey's 2D zoom-out request).
+
+- **3D controls:** glass destination rows (selected row: brighter edge and a check mark, `aria-pressed` kept); aria-hidden E / Enter badges on Talk, Inspect and Enter (hidden on touch); E advances an open conversation and closes it on the last line; Enter goes in when "Enter <building>" shows (not from inputs, buttons, links, dialogs or overlays).
+- **Walkers:** wanderers keep walking until the player is within 1.5 m or a talk starts; three more on the main street (street sweeper, chimney sweep, flower seller); `quality.js` `wanderers` 6 on desktop/compact, 3 on low.
+- **Interface size:** Settings radio Small 0.75 / Medium 0.85 (default) / Large 1.0, stored in `localStorage` `sharlock.uiScale`, applied as `--ui-scale` + CSS `zoom` on the immersive controls, menu and overlays, the hub HUD layers and the 2D toolbar (never the canvas or game panels); touch keeps at least 1.
+- **2D zoom:** floor is "whole town fits" (65% at 1280×800), steps 50/75/90 above it, up to 200%; the world is centred when smaller than the viewport (custom `setTransform` + `clampPan`). agents.md §8 zoom rule updated.
+- **Verified (31 Oct):** hub vitest 253/253; menu, legacy-town and composables vitest 89/89; eslint clean; headless screenshots of the 3D HUD at Medium, Settings and the fitted 2D town on the preview stack. E2E (desktop + hub-desktop): portal, news, hub, hub-npcs, hub-discoveries all pass after updates; portal also 10/10 on mobile.
+- **Spec updates:** hub/hub-npcs button names checked by accessible name (badges are aria-hidden); NPC count 9 → 12; portal zoom test steps down to the new floor with the keyboard; pinch test accepts a centred town on axes where it is smaller than the view; the discovery spec reads the 5 s announcement first (the heavier HUB-10 scene made the old order miss it under SwiftShader).
+- **Bug found by E2E and fixed:** a resize recomputed the floor but kept a stale pan, leaving the town off-centre; `syncFloor` now re-clamps the pan.
+
 **SESS-01 — One login per account** · Status: **Review** · Contributor: **Boey** · Branch: `sess-01-one-login` (cut from local `main` at `857045b`, 31 October 2026) · Plan approved by Boey on 31 October 2026 (`.local-handover/REVIEW-FIXES-PLAN-2026-10-31.md`, package A).
 
 - **Policy:** the newest login wins. Blocking a second login was rejected because whoever signed in first (a stale lab session or an attacker) would lock the owner out. agents.md §6 records the rule.

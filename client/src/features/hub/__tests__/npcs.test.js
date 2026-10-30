@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { npcs } from '../scenes/wharf/npcs.js';
 import { destinations, paths, walkable } from '../scenes/wharf/layout.js';
+import { getTier } from '../scenes/shared/quality.js';
 import { doorSpot } from '../scenes/shared/doors.js';
 
 const segmentDistance = (px, pz, a, b) => {
@@ -11,10 +12,10 @@ const segmentDistance = (px, pz, a, b) => {
 };
 
 describe('hub npcs', () => {
-  it('has unique ids and six game plus three wanderer npcs', () => {
+  it('has unique ids and six game plus six wanderer npcs', () => {
     expect(new Set(npcs.map((n) => n.id)).size).toBe(npcs.length);
     expect(npcs.filter((n) => n.kind === 'game')).toHaveLength(6);
-    expect(npcs.filter((n) => n.kind === 'wanderer')).toHaveLength(3);
+    expect(npcs.filter((n) => n.kind === 'wanderer')).toHaveLength(6);
   });
 
   it('gives each game npc one destination and no two share it', () => {
@@ -51,7 +52,29 @@ describe('hub npcs', () => {
     }
   });
 
+  it('keeps the original three wanderers first and the new ones on the main street', () => {
+    const wanderers = npcs.filter((n) => n.kind === 'wanderer');
+    expect(wanderers.slice(0, 3).map((n) => n.id)).toEqual(['fisherman', 'lamplighter', 'gull-feeder']);
+    for (const n of wanderers.slice(3)) {
+      for (const [x, z] of n.route) {
+        expect(x, n.id).toBeGreaterThanOrEqual(-9);
+        expect(x, n.id).toBeLessThanOrEqual(9);
+        expect(z, n.id).toBeGreaterThanOrEqual(-40);
+        expect(z, n.id).toBeLessThanOrEqual(28);
+      }
+    }
+  });
+
   it('gives every game npc a game id and no wanderer one', () => {
     for (const n of npcs) expect(Boolean(n.gameId)).toBe(n.kind === 'game');
+  });
+});
+
+describe('wanderer count by tier', () => {
+  it('casts all six on desktop and compact and the original three on low', () => {
+    const count = (setting) => getTier(new URLSearchParams(), setting).wanderers;
+    expect(count('high')).toBe(6);
+    expect(count('medium')).toBe(6);
+    expect(count('low')).toBe(3);
   });
 });
