@@ -193,6 +193,7 @@ Move the task's active record rather than duplicating it across board states. Re
 - **Presence:** no server change; `server/src/modules/presence/protocol.js` clamps positions to the wharf bounds and checks no speed.
 - **Verification:** `vitest run client/src/features/hub client/src/features/menu` passes (new `sprint.test.js`, `isSprintKey` cases); `hub.spec.js` gains the Shift sprint test (desktop project); eslint clean on changed files.
 - **Docs impact:** `client/src/features/hub/README.md`, `README.md` (Using the app), `DESIGN.md`, this record.
+- **Verification (1 Nov 2026):** `hub.spec.js` on `hub-desktop-chromium`: the Sprint test and the three Settings tests pass (4/4) after fixing the sprint speed getter. The earlier full-spec failures were load: the software renderer ran at about 1 fps, and the same Settings tests failed on `main` under that load. Client vitest hub + menu 299/299.
 - **Task ID:** renamed from HUB-10 on 31 Oct 2026 (HUB-10 was already used by the thin-instanced props fix); the branch keeps the name `hub-10-sprint`.
 
 **FIX-03 — Scaffold E2E after UX-02 and a reachable session retry** · Status: **Review** · Contributor: **Boey** (implemented by Claude Code) · Branch: `fix-03-e2e-scaffold` (cut from `main` `cbefb51`, 31 October 2026) · Part of the overnight batch Boey approved on 31 October 2026.
