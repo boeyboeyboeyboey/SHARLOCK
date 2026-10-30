@@ -2,6 +2,8 @@
 defineOptions({ name: 'SharlockSiteMenu' })
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { avatarFor } from '../auth/avatars.js'
+import { gameCatalog } from '../../data/gameCatalog.js'
+import { useTownControls } from './townControls.js'
 import { useDiscoveries } from '../hub/discoveries.js'
 import { usePresenceRoster } from '../hub/presence/roster.js'
 import './menu.css'
@@ -23,6 +25,16 @@ const avatar = computed(() => avatarFor(props.user?.avatarId))
 const discoveries = useDiscoveries()
 const { state: presence, count: onlineCount } = usePresenceRoster()
 const onlineOpen = ref(false)
+// the 2d town registers its jump function; other pages offer no Places
+const controls = useTownControls()
+const jumpTo = computed(() => controls?.jumpTo?.value ?? null)
+async function goTo(id) {
+  const jump = jumpTo.value
+  emit('navigate')
+  // let the menu close before the card takes focus
+  await nextTick()
+  jump?.(id)
+}
 
 function sync() {
   const el = dialog.value
@@ -112,6 +124,16 @@ watch(() => props.open, sync)
           </li>
         </ul>
       </div>
+      <nav v-if="jumpTo" aria-label="Places" data-testid="menu-places">
+        <h3 class="menu-section">Places</h3>
+        <ul class="menu-list">
+          <li v-for="game in gameCatalog" :key="game.id">
+            <button type="button" class="menu-link" @click="goTo(game.id)">
+              {{ game.name }}
+            </button>
+          </li>
+        </ul>
+      </nav>
       <nav aria-label="Site menu">
         <ul class="menu-list">
           <template v-if="user">

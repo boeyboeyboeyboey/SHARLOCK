@@ -1,10 +1,10 @@
 /* interface size: scales only the hud layers of the landing page, never the canvas or games */
-.town-map .map-toolbar,
+.town-map .map-zoom-controls,
 .hub-scene :is(.hub-hud, .hub-dest, .hub-actions, .hub-talk-panel, .hub-map, .controls-hint) {
   zoom: var(--ui-scale, 1);
 }
 @media (pointer: coarse) {
-  .town-map .map-toolbar,
+  .town-map .map-zoom-controls,
   .hub-scene :is(.hub-hud, .hub-dest, .hub-actions, .hub-talk-panel, .hub-map, .controls-hint) {
     zoom: max(1, var(--ui-scale, 1));
   }

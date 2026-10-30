@@ -4,6 +4,7 @@ import { seedClass, signedInPage } from './fixtures/class.js'
 import { formatCommand } from '../../server/src/modules/games/cli-cyber-defender/parser.js'
 import { SCENARIOS } from '../../server/src/modules/games/cli-cyber-defender/scenarios.js'
 import { DEMO_SCENES } from '../../client/src/games/cli-cyber-defender/cliDefender.js'
+import { jumpToBuilding } from './fixtures/town.js'
 
 test.beforeEach(async ({ page }) => {
   // these specs exercise the 2D pixel town
@@ -570,7 +571,7 @@ test('enters from the town card and leaves no styles behind', async ({ page }) =
     const style = getComputedStyle(document.body)
     return { font: style.fontFamily, background: style.backgroundColor }
   })
-  await page.getByLabel('Jump to').selectOption('cli-cyber-defender')
+  await jumpToBuilding(page, 'cli-cyber-defender')
   const card = page.getByRole('region', { name: 'CLI Cyber Defender', exact: true })
   await card.getByRole('link', { name: 'Enter activity' }).click()
   await expect(page).toHaveURL('/games/cli-cyber-defender')

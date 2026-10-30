@@ -156,7 +156,7 @@ Dev only: `__hub.debug.sharlockLook()` returns the applied rig options, and `/?w
 
 ## Menu controls (UX-01 stage 1)
 
-The 2D town toggle, the Graphics select and the player tile left the hub HUD row. The floating Menu button and 3D | 2D switch (`client/src/features/menu/`) replace them; Graphics, Sound, View, Replay intro, Show controls and Reset camera now live in the Settings overlay (`/settings`). `HubScene.vue` marks an Escape it handles with `preventDefault` (so the site menu does not also open) and exposes `showControls()`, `resetCamera()` and `interact()`. The hub HUD and destination list sit 64px from the top to clear the floating controls. Opening the menu or an overlay pauses hub input through the `input-paused` prop. See the [menu README](../menu/README.md).
+The 2D town toggle, the Graphics select and the player tile left the hub HUD row. The floating Menu button and 3D | 2D switch (`client/src/features/menu/`) replace them; Graphics, Sound, View, Replay intro, Show controls and Reset camera now live in the Settings overlay (`/settings`). `HubScene.vue` marks an Escape it handles with `preventDefault` (so the site menu does not also open) and exposes `showControls()`, `resetCamera()` and `interact()`. The hub HUD and destination list sit 64px from the top to clear the floating controls. Opening the menu or an overlay pauses hub input through the `input-paused` prop. The shared `ImmersiveControls` takes `skin` (`glass` in the hub and game rooms, `pixel` in the 2D town, UX-02). See the [menu README](../menu/README.md).
 
 ### Minimap classmate dots (MP-02)
 

@@ -6,11 +6,12 @@ import { clampPan, fitScale, stepZoom } from './townZoom.js'
 import PixelIcon from '../../components/town/PixelIcon.vue'
 import TownScenery from './TownScenery.vue'
 import TownBuildingArt from './TownBuildingArt.vue'
-import TownAudio from './TownAudio.vue'
 import GameInfoCard from './GameInfoCard.vue'
+import { useTownControls } from '../menu/townControls.js'
 
 const emit = defineEmits(['activate'])
-const props = defineProps({ games: { type: Array, required: true }, soundSuspended: Boolean })
+const props = defineProps({ games: { type: Array, required: true } })
+const controls = useTownControls()
 const frame = ref(null)
 const viewport = ref(null)
 const world = ref(null)
@@ -43,7 +44,8 @@ function placeCard() {
   const card = infoCard.value?.$el
   if (!button || !frame.value || !card) return
   if (frame.value.clientWidth < 640) {
-    cardStyle.value = { left: '12px', right: '12px', bottom: '12px' }
+    // leave room for the zoom stack at the bottom right
+    cardStyle.value = { left: '12px', right: '68px', bottom: '12px' }
     return
   }
   // keep cards inside the visible frame after camera transforms
@@ -126,8 +128,9 @@ function selectBuilding(event, game) {
     emit('activate', game.route)
   } else reveal(game, true)
 }
-function findBuilding(event) {
-  const game = props.games.find((item) => item.id === event.target.value)
+// the menu's Places list calls this through the shared town controls
+function jumpTo(id) {
+  const game = props.games.find((item) => item.id === id)
   if (!game) return
   centerBuilding(game)
   reveal(game, true)
@@ -278,8 +281,10 @@ onMounted(() => {
   window.addEventListener('blur', cancelGestures)
   resizeObserver = new ResizeObserver(resizeCamera)
   resizeObserver.observe(viewport.value)
+  if (controls?.jumpTo) controls.jumpTo.value = jumpTo
 })
 onBeforeUnmount(() => {
+  if (controls?.jumpTo?.value === jumpTo) controls.jumpTo.value = null
   cancelClose()
   cancelAnimationFrame(resizeFrame)
   resizeObserver?.disconnect()
@@ -297,48 +302,34 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="town-map" aria-label="Explore Sharlock Town">
-    <div class="map-toolbar">
-      <div class="map-location">
-        <PixelIcon name="map" :size="22" /><span
-          >SHARLOCK TOWN<small>All {{ games.length }} activities open</small></span
-        >
-      </div>
-      <div class="map-tools">
-        <label class="map-jump" for="find-building"
-          >Jump to
-          <select id="find-building" :value="selectedId || ''" @change="findBuilding">
-            <option value="">Choose a building</option>
-            <option v-for="game in games" :key="game.id" :value="game.id">{{ game.name }}</option>
-          </select></label
-        >
-        <div class="map-zoom-controls" role="group" aria-label="Map zoom">
-          <button
-            class="pixel-button zoom-step"
-            type="button"
-            aria-label="Zoom out"
-            :disabled="scale <= minScale + 0.001"
-            @click="zoomStep(-1)"
-          >
-            −
-          </button>
-          <output aria-label="Map zoom level" aria-live="off"
-            >{{ Math.round(scale * 100) }}%</output
-          >
-          <button
-            class="pixel-button zoom-step"
-            type="button"
-            aria-label="Zoom in"
-            :disabled="scale >= maxScale - 0.001"
-            @click="zoomStep(1)"
-          >
-            +
-          </button>
-          <button class="pixel-button reset-view" type="button" @click="resetCamera">
-            Reset view
-          </button>
-        </div>
-      </div>
-      <TownAudio :suspended="soundSuspended" />
+    <div class="map-zoom-controls" role="group" aria-label="Map zoom">
+      <button
+        class="pixel-button zoom-step"
+        type="button"
+        aria-label="Zoom in"
+        :disabled="scale >= maxScale - 0.001"
+        @click="zoomStep(1)"
+      >
+        +
+      </button>
+      <output aria-label="Map zoom level" aria-live="off">{{ Math.round(scale * 100) }}%</output>
+      <button
+        class="pixel-button zoom-step"
+        type="button"
+        aria-label="Zoom out"
+        :disabled="scale <= minScale + 0.001"
+        @click="zoomStep(-1)"
+      >
+        −
+      </button>
+      <button
+        class="pixel-button zoom-step reset-view"
+        type="button"
+        aria-label="Reset view"
+        @click="resetCamera"
+      >
+        <PixelIcon name="map" :size="20" />
+      </button>
     </div>
     <div
       ref="frame"

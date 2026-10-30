@@ -1,5 +1,12 @@
 import { test, expect } from './fixtures/auth.js'
 import { gameCatalog } from '../../client/src/data/gameCatalog.js'
+import { jumpToBuilding } from './fixtures/town.js'
+
+// the town now starts at max(100%, fit); a window this size keeps the start at 100% with pan room on both axes
+async function useSmallDesktop(page, testInfo) {
+  if (testInfo.project.name === 'desktop-chromium')
+    await page.setViewportSize({ width: 1000, height: 600 })
+}
 
 test.beforeEach(async ({ page }) => {
   // these specs exercise the 2D pixel town
@@ -19,7 +26,7 @@ test('explores every building without prerequisites while showing account state'
   for (const game of gameCatalog) {
     const building = page.getByRole('button', { name: `Explore ${game.name}`, exact: true })
     await expect(building).toBeEnabled()
-    await page.getByLabel('Jump to').selectOption(game.id)
+    await jumpToBuilding(page, game.id)
     const card = page.getByRole('region', { name: game.name, exact: true })
     await expect(card).toBeVisible()
     await expect(card.getByRole('heading', { name: game.name, exact: true })).toBeFocused()
@@ -122,7 +129,8 @@ test('opens details by pointer, touch, and keyboard and restores focus on Escape
     await expect(card).toBeVisible()
     await card.hover()
     await expect(card).toBeVisible()
-    await page.getByRole('heading', { level: 1 }).hover()
+    // a neutral map point away from buildings, the card and the floating controls
+    await page.mouse.move(8, page.viewportSize().height - 8)
     await expect(card).toBeHidden()
     await building.focus()
     await expect(card).toBeVisible()
@@ -145,12 +153,16 @@ test('opens details by pointer, touch, and keyboard and restores focus on Escape
   await expect(card).toBeHidden()
   await expect(building).toBeFocused()
   await page.keyboard.press('Enter')
-  await card.getByRole('button', { name: 'Close activity details' }).click()
+  const close = card.getByRole('button', { name: 'Close activity details' })
+  // touch closes with a tap: a mouse click would leave a hover pointer over the building revealed beneath the card
+  if (testInfo.project.name === 'desktop-chromium') await close.click()
+  else await close.tap()
   await expect(card).toBeHidden()
   await expect(building).toBeFocused()
 })
 
-test('keeps the camera bounded and supports keyboard panning', async ({ page }) => {
+test('keeps the camera bounded and supports keyboard panning', async ({ page }, testInfo) => {
+  await useSmallDesktop(page, testInfo)
   await page.goto('/dashboard')
   const map = page.getByRole('region', { name: 'Interactive town map' })
   const offset = () =>
@@ -162,7 +174,7 @@ test('keeps the camera bounded and supports keyboard panning', async ({ page }) 
   await map.focus()
   await page.keyboard.press('ArrowDown')
   await expect.poll(offset).toBeLessThan(-50)
-  await page.getByLabel('Jump to').selectOption('clearance-tower')
+  await jumpToBuilding(page, 'clearance-tower')
   await expect(page.getByRole('region', { name: 'Clearance Tower', exact: true })).toBeVisible()
   await expect.poll(offset).toBeLessThan(-100)
 })
@@ -295,24 +307,41 @@ test('fits supported breakpoints with readable pixel buildings and responsive me
       clipping: getComputedStyle(el).overflow,
       nativeScroll: el.scrollTop + el.scrollLeft,
       worldWidth: el.querySelector('.town-world').getBoundingClientRect().width,
+      worldBaseWidth: el.querySelector('.town-world').offsetWidth,
+      scale: new DOMMatrix(getComputedStyle(el.querySelector('.town-world')).transform).a,
       animation: getComputedStyle(el.querySelector('.building-sprite')).animationName,
     }))
     expect(layout.fits, `overflow at ${width}px`).toBe(true)
-    expect(layout.worldWidth).toBe(1120)
+    // the world is 1120 wide unscaled; the camera scale (start is max(100%, fit)) sets the rendered width
+    expect(layout.worldBaseWidth).toBe(1120)
+    expect(layout.worldWidth).toBeCloseTo(1120 * layout.scale, 0)
+    expect(layout.scale).toBeGreaterThanOrEqual(0.3)
     expect(layout.animation).toBe('none')
     expect(layout.clipping).toBe('clip')
     expect(layout.nativeScroll).toBe(0)
     await expect(page.getByRole('button', { name: /^Menu/ })).toBeVisible()
     await expect(page.getByRole('group', { name: 'View mode' })).toBeVisible()
-    if (width < 768) await expect(page.locator('.menu-hint')).toBeHidden()
-    else await expect(page.locator('.menu-hint')).toBeVisible()
+    // below 768px the Esc hint is clipped away but stays in the accessible name "Menu Esc"
+    const hint = page.locator('.menu-hint')
+    if (width < 768) {
+      const style = await hint.evaluate((el) => {
+        const css = getComputedStyle(el)
+        return { position: css.position, overflow: css.overflow, clip: css.clip }
+      })
+      expect(style).toEqual({
+        position: 'absolute',
+        overflow: 'hidden',
+        clip: 'rect(0px, 0px, 0px, 0px)',
+      })
+    } else await expect(hint).toBeVisible()
     await expect(page.getByRole('button', { name: /^(Turn on|Mute) town sound$/ })).toBeVisible()
   }
 })
 
 test('zooms with controls and keyboard, resets the camera, and keeps buildings reachable', async ({
   page,
-}) => {
+}, testInfo) => {
+  await useSmallDesktop(page, testInfo)
   await page.goto('/dashboard')
   const map = page.getByRole('region', { name: 'Interactive town map' })
   const zoomIn = page.getByRole('button', { name: 'Zoom in', exact: true })
@@ -336,7 +365,7 @@ test('zooms with controls and keyboard, resets the camera, and keeps buildings r
   await page.keyboard.press('+')
   await expect(page.locator('.town-world')).toHaveAttribute('style', limitTransform)
   for (const game of gameCatalog) {
-    await page.getByLabel('Jump to').selectOption(game.id)
+    await jumpToBuilding(page, game.id)
     const heading = page.getByRole('heading', { name: game.name, exact: true })
     await expect(heading).toBeFocused()
     const button = page.getByRole('button', { name: `Explore ${game.name}`, exact: true })
@@ -377,6 +406,7 @@ test('zooms with controls and keyboard, resets the camera, and keeps buildings r
 test('drags without opening a building and still selects with a fresh tap or click', async ({
   page,
 }, testInfo) => {
+  await useSmallDesktop(page, testInfo)
   await page.goto('/dashboard')
   const map = page.getByRole('region', { name: 'Interactive town map' })
   await map.scrollIntoViewIfNeeded()
@@ -413,7 +443,8 @@ test('drags without opening a building and still selects with a fresh tap or cli
 
 test('supports pinch zoom and wheel panning while retaining camera bounds after resize', async ({
   page,
-}) => {
+}, testInfo) => {
+  await useSmallDesktop(page, testInfo)
   await page.goto('/dashboard')
   const map = page.getByRole('region', { name: 'Interactive town map' })
   await map.scrollIntoViewIfNeeded()
@@ -439,7 +470,8 @@ test('supports pinch zoom and wheel panning while retaining camera bounds after 
   await expect(page.locator('.game-info-card')).toHaveCount(0)
   await page.getByRole('button', { name: 'Reset view' }).click()
   await expect(page.getByLabel('Map zoom level')).toHaveText('100%')
-  await map.hover({ position: { x: 20, y: 20 } })
+  // centre-left keeps the pointer clear of the Menu tab and the zoom stack
+  await page.mouse.move(bounds.x + 20, bounds.y + bounds.height / 2)
   await page.mouse.wheel(5000, 5000)
   await expect
     .poll(() =>

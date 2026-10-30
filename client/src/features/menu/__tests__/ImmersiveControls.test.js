@@ -92,3 +92,25 @@ describe('menu button and Escape', () => {
     expect(document.activeElement).toBe(wrapper.get('[data-testid="menu-button"]').element)
   })
 })
+
+describe('pixel skin', () => {
+  it('keeps the same controls, names and test ids as the glass skin', () => {
+    const glass = mountControls({ mode: '2d' })
+    const pixel = mountControls({ mode: '2d', skin: 'pixel' })
+    const ids = (wrapper) =>
+      wrapper.findAll('[data-testid]').map((node) => node.attributes('data-testid'))
+    const names = (wrapper) => wrapper.findAll('button').map((node) => node.text())
+    expect(ids(pixel)).toEqual(ids(glass))
+    expect(names(pixel)).toEqual(names(glass))
+    expect(pixel.get('[data-testid="menu-button"]').text()).toContain('Menu')
+    expect(pixel.get('[data-testid="mode-2d"]').attributes('aria-pressed')).toBe('true')
+    expect(pixel.find('[data-testid="sound-slot"]').exists()).toBe(true)
+  })
+
+  it('rejects an unknown skin', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    mountControls({ skin: 'neon' })
+    expect(warn).toHaveBeenCalled()
+    warn.mockRestore()
+  })
+})

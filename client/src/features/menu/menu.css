@@ -177,6 +177,67 @@
   }
 }
 
+/* pixel skin: the 2d town's paper surfaces, hard shadows and square corners */
+.immersive-controls.skin-pixel {
+  --hub-glass-bg: var(--town-paper);
+  --hub-glass-ink: var(--town-ink);
+  --hub-glass-muted: var(--town-ink);
+  --hub-glass-edge: var(--town-edge);
+  --hub-glass-shadow: 3px 3px 0 var(--town-edge);
+  --hub-glass-radius: 0;
+  --hub-glass-focus: var(--town-ink);
+  --hub-glass-btn-hover: var(--town-sky);
+  --hub-glass-solid: var(--town-paper);
+  --hub-glass-filter: none;
+  font-family: var(--font-pixel);
+}
+.skin-pixel .glass-surface {
+  border-width: 2px;
+}
+.skin-pixel .glass-button {
+  font-family: var(--font-pixel);
+  font-size: 16px;
+}
+.skin-pixel .glass-button:hover,
+.skin-pixel .mode-switch button:not([aria-pressed='true']):hover:not(:disabled) {
+  background: var(--town-sky);
+}
+.skin-pixel .mode-switch button {
+  font-family: var(--font-pixel);
+  font-size: 15px;
+  border-radius: 0;
+}
+.skin-pixel .mode-switch button[aria-pressed='true'] {
+  background: var(--town-ink);
+  color: var(--town-paper);
+}
+.skin-pixel .menu-hint {
+  padding: 0 5px;
+  border: 1px solid var(--town-edge);
+  border-radius: 0;
+  background: var(--town-paper);
+  color: var(--town-ink);
+  font-family: var(--font-pixel);
+  font-size: 12px;
+  font-weight: 400;
+}
+.skin-pixel .town-audio .sound-button {
+  width: 44px;
+  padding: 0;
+}
+.skin-pixel .town-audio .sound-button span {
+  display: none;
+}
+@media (forced-colors: active) {
+  .immersive-controls.skin-pixel {
+    --hub-glass-bg: Canvas;
+    --hub-glass-ink: CanvasText;
+    --hub-glass-edge: ButtonBorder;
+    --hub-glass-focus: Highlight;
+    --hub-glass-shadow: none;
+  }
+}
+
 /* site menu drawer */
 .site-menu {
   position: fixed;
@@ -283,6 +344,15 @@
   margin: 6px 0;
   border-color: var(--hub-glass-edge);
   opacity: 1;
+}
+.menu-section {
+  margin: 0 0 4px;
+  padding: 0 12px;
+  color: var(--hub-glass-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 .menu-link {
   display: flex;

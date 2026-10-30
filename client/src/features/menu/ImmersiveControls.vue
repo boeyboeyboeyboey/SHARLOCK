@@ -7,6 +7,12 @@ import './menu.css'
 
 const props = defineProps({
   mode: { type: String, default: '3d' },
+  // glass floats over a 3d scene; pixel matches the 2d town
+  skin: {
+    type: String,
+    default: 'glass',
+    validator: (value) => ['glass', 'pixel'].includes(value),
+  },
   // the 3d option is unavailable when the wharf cannot start at all
   locked: { type: Boolean, default: false },
   menuOpen: { type: Boolean, default: false },
@@ -71,7 +77,7 @@ defineExpose({ focusMenu: () => menuButton.value?.focus() })
 </script>
 
 <template>
-  <div class="immersive-controls" data-testid="immersive-controls">
+  <div class="immersive-controls" :class="`skin-${skin}`" data-testid="immersive-controls">
     <button
       ref="menuButton"
       type="button"
