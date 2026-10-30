@@ -1,33 +1,18 @@
 <script setup>
-import { bargesMarkup, groundMarkup, lampsMarkup, lifeMarkup, propsMarkup } from './townArt.js'
+import {
+  bargesMarkup,
+  groundMarkup,
+  lampsMarkup,
+  lifeMarkup,
+  propsMarkup,
+  townBushes as bushes,
+  townTrees as trees,
+} from './townArt.js'
 const ground = groundMarkup()
 const props = propsMarkup()
 const lamps = lampsMarkup()
 const barges = bargesMarkup()
 const life = lifeMarkup()
-// z-index follows the foot of each image so lower sprites overlap higher ones
-const trees = [
-  { x: 0, y: 230 },
-  { x: 0, y: 470 },
-  { x: 0, y: 650 },
-  { x: 0, y: 725 },
-  { x: 80, y: 735 },
-  { x: 300, y: 735 },
-  { x: 1056, y: 250 },
-  { x: 1056, y: 420 },
-  { x: 1056, y: 500 },
-]
-const bushes = [
-  { x: 176, y: 470 },
-  { x: 176, y: 640 },
-  { x: 70, y: 470 },
-  { x: 960, y: 395 },
-  { x: 1000, y: 530 },
-  { x: 900, y: 335 },
-  { x: 200, y: 750 },
-  { x: 700, y: 640 },
-  { x: 1056, y: 770 },
-]
 const zFor = (y, h) => Math.round(y + h)
 </script>
 <template>

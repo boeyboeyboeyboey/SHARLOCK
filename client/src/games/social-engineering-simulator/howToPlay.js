@@ -1,36 +1,32 @@
 export const HOW_TO_PLAY = Object.freeze({
-  title: 'LLM Social Engineering Simulator',
+  title: 'Help Desk Shift',
   steps: [
     {
-      title: 'Read the pressure',
-      text: 'A fictional colleague messages you and pushes for your synthetic reset code. You have 8 turns to talk to them.',
+      title: 'Take the call',
+      text: 'A caller wants a secret code. Chat to find out who they are.',
     },
     {
-      title: 'Spot the tactic',
-      text: 'Urgency, authority and flattery are pressure tactics. Name the one being used before you answer.',
+      title: 'Check the desk',
+      text: 'Directory, Ticket and Call back show the records. Ask your colleague twice per call.',
     },
     {
-      title: 'Check independently',
-      text: 'Check with the real colleague in their tab first, chatting up to 5 messages (where offered). Without a colleague model the game shows a one-click verify instead.',
+      title: 'Decide',
+      text: 'Grant, Call back, Refuse or Escalate. Some callers are genuine.',
     },
-    {
-      title: 'Make your decision',
-      text: 'Then end the call: Refuse and end, or Share the code. Sharing the code ends the run as compromised.',
-    },
+    { title: 'Read the tells', text: 'Review the red flags, then take the next of 4 calls.' },
   ],
   learn:
     'social engineering and impersonation, and verifying a request through an independent channel (course reference index, social engineering topic).',
   rules: [
-    'Scoring is up to 100: 60 for not leaking the code, 25 for verifying, 15 for efficiency.',
-    'Some requests are genuine, so check before you refuse everything.',
-    'Typing the code into any message counts as a leak.',
-    'Class runs reach the class leaderboard as untimed practice best scores. Personal practice does not. Everything here is synthetic.',
+    'Never type real personal details: messages may go to Google Gemini.',
+    'Typing the code is a strike. Granting an attacker is a strike. 3 strikes end the shift.',
+    'Checking first earns points. Ask Sharlock costs 10.',
+    'Class shifts reach the class leaderboard as untimed practice best scores. Everything here is synthetic.',
   ],
   controls: [
     { keys: 'Enter', action: 'send your message' },
     { keys: 'Shift+Enter', action: 'start a new line' },
-    { keys: 'ArrowLeft and ArrowRight', action: 'switch between conversation tabs' },
-    { keys: 'Tab and Shift+Tab', action: 'move between controls and decisions' },
+    { keys: 'Tab and Shift+Tab', action: 'move between controls' },
     { keys: 'Escape', action: 'close this guide' },
   ],
 })

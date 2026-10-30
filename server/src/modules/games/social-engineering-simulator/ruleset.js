@@ -42,6 +42,8 @@ const SUMMARIES = {
 export const socialEngineeringRuleset = {
   id: GAME_ID,
   rulesetVersion: RULESET_VERSION,
+  // earlier single-call ruleset: kept registered so saved results still read
+  current: false,
   learningObjective:
     'Recognise pressure tactics, protect a reset code and confirm unexpected requests through a separate channel before helping.',
   topicTags: ['protecting-secrets', 'out-of-band-verification', 'social-engineering'],

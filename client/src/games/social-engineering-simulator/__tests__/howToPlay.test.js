@@ -41,7 +41,7 @@ describe('social engineering how to play guide', () => {
     const wrapper = await mountGame([])
     const dialog = wrapper.get('dialog.howto-dialog')
     expect(dialog.attributes('open')).toBeDefined()
-    expect(dialog.text()).toContain('How to play: LLM Social Engineering Simulator')
+    expect(dialog.text()).toContain('How to play: Help Desk Shift')
   })
 
   it('stays closed when dismissed and reopens from the button', async () => {

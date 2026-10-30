@@ -194,6 +194,7 @@ function closeOverlay() {
       ref="townMap"
       class="town-canvas"
       :games="gameCatalog"
+      :paused="isOverlay || townMode.warning.value"
       @activate="router.push($event)"
     />
     <Hub3dWarning

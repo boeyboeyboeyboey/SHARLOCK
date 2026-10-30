@@ -437,3 +437,132 @@ export function lifeMarkup() {
     gull(880, 40, 60, 14),
   ].join('')
 }
+
+// tree and bush sprites (top-left, 64 x 80 and 64 x 40); the scenery draws them and the walk map blocks them
+export const townTrees = [
+  { x: 0, y: 230 },
+  { x: 0, y: 470 },
+  { x: 0, y: 650 },
+  { x: 0, y: 725 },
+  { x: 80, y: 735 },
+  { x: 300, y: 735 },
+  { x: 1056, y: 250 },
+  { x: 1056, y: 420 },
+  { x: 1056, y: 500 },
+]
+export const townBushes = [
+  { x: 176, y: 470 },
+  { x: 176, y: 640 },
+  { x: 70, y: 470 },
+  { x: 960, y: 395 },
+  { x: 1000, y: 530 },
+  { x: 900, y: 335 },
+  { x: 200, y: 750 },
+  { x: 700, y: 640 },
+  { x: 1056, y: 770 },
+]
+
+// sharlock, 14 x 11 units: deerstalker, monocle and red scarf on a capybara
+// frame 0 is the still pose with four feet down; frames 1 and 2 swap the feet while walking
+const SH = {
+  fur: '#b5733f',
+  dark: '#7a4a26',
+  tweed: '#8c7a4e',
+  band: '#6b5b38',
+  gold: '#d9a441',
+  red: '#c4443a',
+  redDark: '#9a3028',
+}
+
+function sharlockSide(frame) {
+  const feet = frame === 0 ? [2, 4, 6, 8] : frame === 1 ? [2, 6] : [4, 8]
+  return (
+    feet.map((x) => R(x, 9, 1, 1, INK)).join('') +
+    R(1, 4, 8, 5, INK) +
+    R(8, 3, 5, 5, INK) +
+    R(2, 5, 6, 3, SH.fur) +
+    R(9, 4, 3, 3, SH.fur) +
+    R(2, 7, 6, 1, SH.dark) +
+    B(6, 5, 3, 3, SH.red) +
+    R(5, 7, 2, 2, SH.red) +
+    R(5, 8, 2, 1, SH.redDark) +
+    R(9, 4, 3, 1, SH.gold) +
+    R(9, 6, 3, 1, SH.gold) +
+    R(9, 5, 1, 1, SH.gold) +
+    R(11, 5, 1, 1, SH.gold) +
+    R(10, 5, 1, 1, INK) +
+    R(9, 7, 1, 1, SH.gold) +
+    B(12, 3, 2, 1, SH.band) +
+    B(6, 3, 2, 1, SH.band) +
+    B(8, 1, 5, 2, SH.tweed) +
+    R(8, 2, 5, 1, SH.band)
+  )
+}
+
+function sharlockFront(frame, back) {
+  const left = R(4, 10, 2, 1, INK)
+  const right = R(8, 10, 2, 1, INK)
+  const feet = frame === 0 ? left + right : frame === 1 ? left : right
+  const face = back
+    ? R(4, 3, 6, 3, SH.fur) + B(5, 3, 4, 1, SH.band)
+    : R(4, 3, 6, 3, SH.fur) +
+      R(5, 4, 1, 1, INK) +
+      R(7, 3, 3, 1, SH.gold) +
+      R(7, 5, 3, 1, SH.gold) +
+      R(7, 4, 1, 1, SH.gold) +
+      R(9, 4, 1, 1, SH.gold) +
+      R(8, 4, 1, 1, INK) +
+      R(6, 5, 1, 1, SH.dark)
+  const tail = back
+    ? R(4, 8, 2, 2, SH.red) + R(4, 9, 2, 1, SH.redDark)
+    : R(8, 8, 2, 2, SH.red) + R(8, 9, 2, 1, SH.redDark)
+  return (
+    feet +
+    R(3, 7, 8, 3, INK) +
+    R(4, 8, 6, 1, SH.fur) +
+    R(3, 2, 8, 5, INK) +
+    face +
+    R(3, 6, 8, 2, SH.red) +
+    tail +
+    B(4, 1, 6, 2, SH.tweed) +
+    R(4, 2, 6, 1, SH.band)
+  )
+}
+
+// facing is left, right, up or down; left uses the right-hand art mirrored by the caller
+export function sharlockMarkup(facing = 'down', frame = 0) {
+  const body =
+    facing === 'left' || facing === 'right'
+      ? sharlockSide(frame)
+      : sharlockFront(frame, facing === 'up')
+  return `<svg class="town-hero-art" width="56" height="44" viewBox="0 0 14 11" shape-rendering="crispEdges">${body}</svg>`
+}
+
+// townsfolk in their outfits: a cap and neckerchief in the hub style colours (given as 0 to 1 rgb), lifted so they read against the ink outline
+const hexOf = (rgb) =>
+  '#' +
+  rgb
+    .map((v) =>
+      Math.round((v * 0.7 + 0.3) * 255)
+        .toString(16)
+        .padStart(2, '0'),
+    )
+    .join('')
+const HUB_FURS = { dockA: 'chestnut', dockB: 'honey', dockC: 'ash' }
+
+// walkers carry the three leg frames; the town css shows the one in data-frame
+export function townNpcMarkup(style) {
+  const [fur, dark] = capyFurs[HUB_FURS[style.fur] ?? 'sand']
+  return capybara({
+    fur,
+    dark,
+    walk: true,
+    back: R(8, 0, 4, 2, INK) + R(9, 0, 2, 1, hexOf(style.cap)),
+    front: R(8, 4, 1, 2, hexOf(style.scarf)),
+  })
+}
+
+// a small found object (note, stick, bill) with a gold glint
+export function townFindMarkup() {
+  return `<svg class="town-find-art" width="32" height="32" viewBox="0 0 8 8" shape-rendering="crispEdges">${B(1, 3, 6, 4, '#fff8df') + R(2, 4, 4, 1, '#b9b29a') + R(2, 5, 3, 1, '#b9b29a') + R(6, 0, 1, 2, '#d9a441') + R(5, 1, 3, 1, '#d9a441')}</svg>`
+}

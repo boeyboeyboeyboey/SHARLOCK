@@ -226,6 +226,99 @@
 .gull-down {
   display: none;
 }
+/* townsfolk, finds and the conversation box in the 2d town */
+.town-npc,
+.town-find {
+  position: absolute;
+  width: 48px;
+  height: 32px;
+  margin: -32px 0 0 -24px;
+  pointer-events: none;
+}
+.town-find {
+  width: 32px;
+  height: 32px;
+  margin: -32px 0 0 -16px;
+}
+.town-find.is-found {
+  opacity: 0.55;
+}
+.town-npc-flip {
+  display: block;
+}
+.town-npc-flip.is-left {
+  transform: scaleX(-1);
+}
+.town-find-art {
+  display: block;
+  max-width: none;
+}
+.town-npc[data-frame='1'] .cap-f0,
+.town-npc[data-frame='2'] .cap-f0 {
+  display: none;
+}
+.town-npc[data-frame='1'] .cap-f1,
+.town-npc[data-frame='2'] .cap-f2 {
+  display: inline;
+}
+.town-talk {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  z-index: 40;
+  transform: translateX(-50%);
+  border: 3px solid var(--town-ink);
+  background: var(--town-paper);
+  color: var(--town-ink);
+  box-shadow: 4px 4px 0 rgb(80 99 77 / 35%);
+}
+@media (max-width: 575.98px) {
+  .town-talk {
+    left: 12px;
+    max-width: calc(100% - 80px);
+    transform: none;
+  }
+}
+
+/* sharlock and the e prompt over a door */
+.town-hero {
+  position: absolute;
+  width: 56px;
+  height: 44px;
+  margin: -44px 0 0 -28px;
+  pointer-events: none;
+}
+.town-hero-flip {
+  display: block;
+  width: 56px;
+  height: 44px;
+}
+.town-hero-flip.is-left {
+  transform: scaleX(-1);
+}
+.town-hero-art {
+  display: block;
+  max-width: none;
+}
+.town-door-prompt {
+  position: absolute;
+  z-index: 3000;
+  min-width: 44px;
+  min-height: 44px;
+  transform: translate(-50%, -100%);
+  border: 3px solid var(--town-ink);
+  background: #f6dea0;
+  color: var(--town-ink);
+  font: inherit;
+  font-size: 20px;
+  font-weight: 700;
+  box-shadow: 3px 3px 0 rgb(80 99 77 / 40%);
+  cursor: pointer;
+}
+.town-door-prompt:hover,
+.town-door-prompt:focus-visible {
+  background: #ffe9a0;
+}
 .town-props {
   position: absolute;
   inset: 0;

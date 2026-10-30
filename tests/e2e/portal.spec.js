@@ -156,7 +156,9 @@ test('opens details by pointer, touch, and keyboard and restores focus on Escape
   await expect(building).toBeFocused()
 })
 
-test('keeps the camera bounded and supports keyboard panning', async ({ page }, testInfo) => {
+test('keeps the camera bounded and follows Sharlock when arrow keys walk', async ({
+  page,
+}, testInfo) => {
   await useSmallDesktop(page, testInfo)
   await page.goto('/dashboard')
   const map = page.getByRole('region', { name: 'Interactive town map' })
@@ -382,17 +384,22 @@ test('zooms with controls and keyboard, resets the camera, and keeps buildings r
   await expect(level).toHaveText('175%')
   await page.keyboard.press('0')
   await expect(level).toHaveText('100%')
-  await page.keyboard.press('ArrowDown')
   await page.getByRole('button', { name: 'Reset view' }).click()
+  // reset view brings Sharlock (at the last door) back into view
   await expect
     .poll(() =>
       map.evaluate((el) => {
-        const world = el.querySelector('.town-world').getBoundingClientRect()
+        const hero = el.querySelector('[data-testid="town-player"]').getBoundingClientRect()
         const bounds = el.getBoundingClientRect()
-        return Math.abs(world.top - bounds.top) + Math.abs(world.left - bounds.left)
+        return (
+          hero.left >= bounds.left &&
+          hero.right <= bounds.right &&
+          hero.top >= bounds.top &&
+          hero.bottom <= bounds.bottom
+        )
       }),
     )
-    .toBeLessThan(1)
+    .toBe(true)
 })
 
 test('drags without opening a building and still selects with a fresh tap or click', async ({

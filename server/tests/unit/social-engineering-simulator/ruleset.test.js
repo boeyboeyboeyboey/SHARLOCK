@@ -17,7 +17,9 @@ const base = {
 describe('social-engineering ruleset', () => {
   it('registers as a server-recorded, non-competitive game', () => {
     const registry = createAttemptRegistry([ruleset])
-    const entry = registry.getCurrent('social-engineering-simulator')
+    const entry = registry.get('social-engineering-simulator', ruleset.rulesetVersion)
+    // the single-call ruleset is kept for saved results; the shift ruleset is current
+    expect(registry.getCurrent('social-engineering-simulator')).toBeUndefined()
     expect(entry.serverRecorded).toBe(true)
     expect(entry.competitive).toBe(false)
     expect(entry.maxScore).toBe(100)

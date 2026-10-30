@@ -34,3 +34,17 @@ export function clampPan(pan, scale, view, world) {
   }
   return { x: axis(pan.x, view.width, world.width), y: axis(pan.y, view.height, world.height) }
 }
+
+// world point shown at the centre of the view for a given pan (inverse of panToCenter)
+export function viewCenter(pan, scale, view, world) {
+  const axis = (value, viewSize, worldSize) =>
+    (viewSize / 2 - (worldSize - worldSize * scale) / 2 - value * scale) / scale
+  return { x: axis(pan.x, view.width, world.width), y: axis(pan.y, view.height, world.height) }
+}
+
+// pan that puts a world point at the centre of the view; clampPan keeps it on the map
+export function panToCenter(point, scale, view, world) {
+  const axis = (value, viewSize, worldSize) =>
+    (viewSize / 2 - value * scale - (worldSize - worldSize * scale) / 2) / scale
+  return { x: axis(point.x, view.width, world.width), y: axis(point.y, view.height, world.height) }
+}

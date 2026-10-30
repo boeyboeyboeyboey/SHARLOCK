@@ -1,8 +1,17 @@
 <script setup>
-import { ref, computed, nextTick, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, nextTick, onMounted, onBeforeUnmount, watch } from 'vue'
 import Panzoom from '@panzoom/panzoom'
 import { TOWN_SIZE } from '../../data/gameCatalog.js'
-import { clampPan, fitScale, stepZoom } from './townZoom.js'
+import { clampPan, fitScale, panToCenter, stepZoom, viewCenter } from './townZoom.js'
+import { sharlockMarkup, townFindMarkup, townNpcMarkup } from './townArt.js'
+import { createTownWalk, doorPoint } from './townWalk.js'
+import { useTownWalker } from './useTownWalker.js'
+import { useTownNpcs } from './useTownNpcs.js'
+import { fixedNpcBlocks, footBlock, TALK_RANGE, townFinds, townNpcs } from './townNpcs.js'
+import NpcDialogue from '../hub/NpcDialogue.vue'
+import { advanceTalk, useNpcDialogue } from '../hub/useNpcDialogue.js'
+import { useDiscoveries } from '../hub/discoveries.js'
+import { isEnterKey, isInteractKey, isSprintKey } from '../hub/controls.js'
 import PixelIcon from '../../components/town/PixelIcon.vue'
 import TownScenery from './TownScenery.vue'
 import TownBuildingArt from './TownBuildingArt.vue'
@@ -10,7 +19,11 @@ import GameInfoCard from './GameInfoCard.vue'
 import { useTownControls } from '../menu/townControls.js'
 
 const emit = defineEmits(['activate'])
-const props = defineProps({ games: { type: Array, required: true } })
+const props = defineProps({
+  games: { type: Array, required: true },
+  // an overlay or dialog is open over the town, so walking keys are ignored
+  paused: { type: Boolean, default: false },
+})
 const controls = useTownControls()
 const frame = ref(null)
 const viewport = ref(null)
@@ -35,6 +48,59 @@ let ignoreFocus = false
 let pointerDown = false
 let closeTimer
 let resizeObserver
+let following = true
+let camCenter = null
+const reducedMotion = () =>
+  typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+const npcState = useTownNpcs({
+  npcs: townNpcs,
+  target: () => ({ x: walker.x.value, y: walker.y.value }),
+  paused: () => props.paused || talk.open.value,
+  reducedMotion,
+})
+const walk = createTownWalk(props.games, {
+  fixed: fixedNpcBlocks,
+  dynamic: () => npcState.list.value.map((npc) => footBlock(npc.x, npc.y)),
+})
+const talk = useNpcDialogue()
+const discoveries = useDiscoveries()
+const dialogue = ref(null)
+const talkNote = ref('')
+const npcArt = Object.fromEntries(townNpcs.map((npc) => [npc.id, townNpcMarkup(npc.style)]))
+const npcDefs = new Map(townNpcs.map((npc) => [npc.id, npc]))
+const findArt = townFindMarkup()
+const walker = useTownWalker({ walk, reducedMotion, afterMove: stepCamera })
+const heroMarkup = computed(() => sharlockMarkup(walker.facing.value, walker.frame.value))
+const doorGame = computed(() => (props.paused || nearTalk.value ? null : walker.doorGame.value))
+const nearTalk = computed(() => {
+  if (props.paused) return null
+  const here = { x: walker.x.value, y: walker.y.value }
+  let best = null
+  let bestDistance = TALK_RANGE
+  const consider = (kind, def, x, y) => {
+    const distance = Math.hypot(here.x - x, here.y - y)
+    if (distance < bestDistance) {
+      best = { kind, def, x, y }
+      bestDistance = distance
+    }
+  }
+  for (const npc of npcState.list.value) consider('npc', npcDefs.get(npc.id), npc.x, npc.y)
+  for (const find of townFinds) consider('find', find, find.x, find.y)
+  return best
+})
+const talkStyle = computed(() => ({
+  left: `${nearTalk.value.x}px`,
+  top: `${nearTalk.value.y - 44}px`,
+}))
+const talkLabel = computed(() =>
+  nearTalk.value.kind === 'find'
+    ? `Look at ${nearTalk.value.def.name}`
+    : `Talk to ${nearTalk.value.def.name}`,
+)
+const doorStyle = computed(() => {
+  const door = doorPoint(doorGame.value)
+  return { left: `${door.x}px`, top: `${door.y - 40}px` }
+})
 
 function cancelClose() {
   clearTimeout(closeTimer)
@@ -105,6 +171,7 @@ function pointerReveal(event, game) {
 function centerBuilding(game) {
   const button = buildingButtons.get(game.id)
   if (!camera || !button) return
+  camCenter = null
   const bounds = viewport.value.getBoundingClientRect()
   const anchor = button.getBoundingClientRect()
   const pan = camera.getPan()
@@ -121,25 +188,142 @@ function focusReveal(game) {
   centerBuilding(game)
   reveal(game)
 }
-function selectBuilding(event, game) {
-  if (suppressClick && event.detail !== 0) return
+function openBuilding(game) {
   if (game.activation === 'direct') {
     dismiss()
     emit('activate', game.route)
   } else reveal(game, true)
 }
+async function openTalk() {
+  const near = nearTalk.value
+  if (!near || talk.open.value) return
+  dismiss()
+  if (near.kind === 'find') {
+    talk.begin({ ...near.def, kind: 'discovery' })
+    const first = discoveries.mark(near.def.id)
+    talkNote.value = first
+      ? `Discovery ${discoveries.count.value} of ${discoveries.total}: ${near.def.name}`
+      : near.def.name
+  } else {
+    talk.begin(near.def)
+    talkNote.value = `Talking to ${near.def.name}`
+  }
+  await nextTick()
+  dialogue.value?.focus()
+}
+function closeTalk(restoreFocus = true) {
+  if (!talk.open.value) return
+  talk.close()
+  talkNote.value = ''
+  if (restoreFocus) viewport.value?.focus({ preventScroll: true })
+}
+function goInFromTalk() {
+  const game = props.games.find((item) => item.id === talk.npc.value?.gameId)
+  closeTalk(false)
+  if (game) openBuilding(game)
+}
+watch(
+  () => [nearTalk.value?.def.id, props.paused],
+  ([id, isPaused]) => {
+    if (talk.open.value && (id !== talk.npc.value.id || isPaused)) closeTalk(false)
+  },
+)
+function selectBuilding(event, game) {
+  if (suppressClick && event.detail !== 0) return
+  openBuilding(game)
+}
 // the menu's Places list calls this through the shared town controls
 function jumpTo(id) {
   const game = props.games.find((item) => item.id === id)
   if (!game) return
+  const door = doorPoint(game)
+  walker.placeAt(door.x, door.y + 8)
+  following = true
+  camCenter = null
   centerBuilding(game)
   reveal(game, true)
 }
+// eases the one panzoom camera towards sharlock; true while it still needs frames
+function stepCamera(dt) {
+  if (!following || !camera || !viewport.value) return false
+  const view = viewSize()
+  const zoom = camera.getScale()
+  const here = { x: walker.x.value, y: walker.y.value }
+  camCenter ??= viewCenter(clampPan(camera.getPan(), zoom, view, TOWN_SIZE), zoom, view, TOWN_SIZE)
+  const k = reducedMotion() ? 1 : 1 - Math.exp(-dt * 7)
+  const want = {
+    x: camCenter.x + (here.x - camCenter.x) * k,
+    y: camCenter.y + (here.y - camCenter.y) * k,
+  }
+  const pan = clampPan(panToCenter(want, zoom, view, TOWN_SIZE), zoom, view, TOWN_SIZE)
+  camera.pan(pan.x, pan.y, { force: true, animate: false })
+  const next = viewCenter(pan, zoom, view, TOWN_SIZE)
+  const shifted = Math.hypot(next.x - camCenter.x, next.y - camCenter.y)
+  camCenter = next
+  return shifted > 0.3 && Math.hypot(here.x - next.x, here.y - next.y) > 0.5
+}
+function releaseCamera() {
+  following = false
+  camCenter = null
+}
+function walkingKey(event) {
+  if (props.paused || event.defaultPrevented) return
+  // E steps on or closes an open conversation, even with focus inside its dialog
+  if (talk.open.value && isInteractKey(event)) {
+    event.preventDefault()
+    advanceTalk(talk, closeTalk)
+    return
+  }
+  if (
+    event.target?.closest?.(
+      'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="dialog"], dialog, .game-info-card',
+    )
+  )
+    return
+  if (document.querySelector('[aria-modal="true"], dialog[open]')) return
+  if (isSprintKey(event)) {
+    walker.startSprint()
+    return
+  }
+  if (isInteractKey(event) && nearTalk.value) {
+    event.preventDefault()
+    openTalk()
+    return
+  }
+  if (isInteractKey(event) || isEnterKey(event)) {
+    if (!doorGame.value) return
+    event.preventDefault()
+    openBuilding(doorGame.value)
+    return
+  }
+  if (walker.keyDown(event)) {
+    event.preventDefault()
+    if (!following) {
+      following = true
+      camCenter = null
+    }
+    if (!pinned) dismiss()
+  }
+}
+function walkingKeyUp(event) {
+  walker.keyUp(event)
+}
+function groundClick(event) {
+  if (suppressClick || props.paused || !world.value) return
+  if (event.target.closest?.('.building-button, .town-door-prompt')) return
+  const bounds = world.value.getBoundingClientRect()
+  const ratio = bounds.width / TOWN_SIZE.width
+  if (!ratio) return
+  following = true
+  camCenter = null
+  walker.walkTo((event.clientX - bounds.left) / ratio, (event.clientY - bounds.top) / ratio)
+}
 function viewSize() {
-  return { width: viewport.value.clientWidth, height: viewport.value.clientHeight }
+  return { width: viewport.value?.clientWidth ?? 0, height: viewport.value?.clientHeight ?? 0 }
 }
 function zoomStep(direction) {
   if (!camera) return
+  camCenter = null
   const target = stepZoom(camera.getScale(), direction, minScale.value)
   if (target === camera.getScale()) return
   const bounds = viewport.value.getBoundingClientRect()
@@ -151,22 +335,13 @@ function zoomStep(direction) {
 function resetCamera() {
   dismiss()
   camera?.reset({ animate: false })
+  following = true
+  camCenter = null
+  stepCamera(1)
 }
-function panWithKeyboard(event) {
+function zoomWithKeyboard(event) {
   if (event.target !== viewport.value) return
-  const offsets = {
-    ArrowLeft: [64, 0],
-    ArrowRight: [-64, 0],
-    ArrowUp: [0, 64],
-    ArrowDown: [0, -64],
-  }
-  if (offsets[event.key]) {
-    event.preventDefault()
-    dismiss()
-    camera?.pan(offsets[event.key][0] / scale.value, offsets[event.key][1] / scale.value, {
-      relative: true,
-    })
-  } else if (['+', '=', '-', '0'].includes(event.key)) {
+  if (['+', '=', '-', '0'].includes(event.key)) {
     event.preventDefault()
     if (event.key === '0') resetCamera()
     else zoomStep(event.key === '-' ? -1 : 1)
@@ -189,6 +364,7 @@ function moveGesture(event) {
   if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > 6) {
     suppressClick = true
     dragging.value = true
+    releaseCamera()
   }
   camera.handleMove(event)
 }
@@ -211,6 +387,7 @@ function wheelCamera(event) {
   if (!camera) return
   dismiss()
   event.preventDefault()
+  releaseCamera()
   if (event.ctrlKey || event.metaKey) {
     camera.zoomWithWheel(event)
     return
@@ -239,6 +416,7 @@ function cameraChanged(event) {
   placeCard()
 }
 function syncFloor() {
+  if (!camera || !viewport.value) return
   const fit = fitScale(viewSize(), TOWN_SIZE)
   minScale.value = fit
   camera.setOptions({ minScale: fit, startScale: Math.max(1, fit) })
@@ -252,7 +430,9 @@ function syncFloor() {
 function resizeCamera() {
   cancelAnimationFrame(resizeFrame)
   resizeFrame = requestAnimationFrame(() => {
+    if (!camera) return
     syncFloor()
+    camCenter = null
     const pan = camera.getPan()
     camera.pan(pan.x, pan.y, { force: true })
     placeCard()
@@ -273,12 +453,16 @@ onMounted(() => {
   })
   world.value.addEventListener('panzoomchange', cameraChanged)
   syncFloor()
+  window.addEventListener('keydown', walkingKey)
+  npcState.start()
+  window.addEventListener('keyup', walkingKeyUp)
   viewport.value.addEventListener('wheel', wheelCamera, { passive: false })
   document.addEventListener('pointermove', moveGesture)
   document.addEventListener('pointerup', endGesture)
   document.addEventListener('pointercancel', endGesture)
   document.addEventListener('pointerleave', cancelGestures)
   window.addEventListener('blur', cancelGestures)
+  window.addEventListener('blur', walker.clearKeys)
   resizeObserver = new ResizeObserver(resizeCamera)
   resizeObserver.observe(viewport.value)
   if (controls?.jumpTo) controls.jumpTo.value = jumpTo
@@ -287,6 +471,10 @@ onBeforeUnmount(() => {
   if (controls?.jumpTo?.value === jumpTo) controls.jumpTo.value = null
   cancelClose()
   cancelAnimationFrame(resizeFrame)
+  walker.dispose()
+  npcState.dispose()
+  window.removeEventListener('keydown', walkingKey)
+  window.removeEventListener('keyup', walkingKeyUp)
   resizeObserver?.disconnect()
   cancelGestures()
   document.removeEventListener('pointermove', moveGesture)
@@ -294,9 +482,11 @@ onBeforeUnmount(() => {
   document.removeEventListener('pointercancel', endGesture)
   document.removeEventListener('pointerleave', cancelGestures)
   window.removeEventListener('blur', cancelGestures)
+  window.removeEventListener('blur', walker.clearKeys)
   viewport.value.removeEventListener('wheel', wheelCamera)
   world.value.removeEventListener('panzoomchange', cameraChanged)
   camera?.destroy()
+  camera = null
 })
 </script>
 
@@ -346,7 +536,8 @@ onBeforeUnmount(() => {
         role="region"
         aria-label="Interactive town map"
         aria-describedby="map-instructions"
-        @keydown="panWithKeyboard"
+        @keydown="zoomWithKeyboard"
+        @click="groundClick"
         @pointerdown="startGesture"
         @dragstart.prevent
       >
@@ -361,7 +552,11 @@ onBeforeUnmount(() => {
               v-for="game in games"
               :key="game.id"
               class="town-building"
-              :style="{ left: `${game.building.x}px`, top: `${game.building.y}px` }"
+              :style="{
+                left: `${game.building.x}px`,
+                top: `${game.building.y}px`,
+                zIndex: game.building.y + 200,
+              }"
             >
               <button
                 :ref="
@@ -388,8 +583,99 @@ onBeforeUnmount(() => {
               </button>
             </li>
           </ul>
+          <!-- townsfolk, finds and sharlock are trusted static svg from townArt.js -->
+          <!-- eslint-disable vue/no-v-html -->
+          <div
+            v-for="npc in npcState.list.value"
+            :key="npc.id"
+            class="town-npc"
+            :data-testid="`town-npc-${npc.id}`"
+            :data-frame="npc.frame"
+            :style="{ left: `${npc.x}px`, top: `${npc.y}px`, zIndex: Math.round(npc.y) + 1 }"
+            aria-hidden="true"
+          >
+            <div
+              class="town-npc-flip"
+              :class="{ 'is-left': npc.facing === 'left' }"
+              v-html="npcArt[npc.id]"
+            />
+          </div>
+          <div
+            v-for="find in townFinds"
+            :key="find.id"
+            class="town-find"
+            :class="{ 'is-found': discoveries.has(find.id) }"
+            :data-testid="`town-find-${find.id}`"
+            :style="{ left: `${find.x}px`, top: `${find.y}px`, zIndex: Math.round(find.y) + 1 }"
+            aria-hidden="true"
+          >
+            <div
+              class="town-npc-flip"
+              :class="{ 'is-left': find.facing === 'left' }"
+              v-html="find.kind === 'npc' ? npcArt[find.id] : findArt"
+            />
+          </div>
+          <div
+            class="town-hero"
+            data-testid="town-player"
+            :data-facing="walker.facing.value"
+            :data-moving="walker.moving.value"
+            :data-sprint="walker.sprintState.value"
+            :style="{
+              left: `${walker.x.value}px`,
+              top: `${walker.y.value}px`,
+              zIndex: Math.round(walker.y.value) + 1,
+            }"
+            aria-hidden="true"
+          >
+            <div
+              class="town-hero-flip"
+              :class="{ 'is-left': walker.facing.value === 'left' }"
+              v-html="heroMarkup"
+            />
+          </div>
+          <!-- eslint-enable vue/no-v-html -->
+          <button
+            v-if="nearTalk && !talk.open.value"
+            type="button"
+            class="town-door-prompt"
+            data-testid="talk-prompt"
+            :aria-label="talkLabel"
+            :style="talkStyle"
+            @pointerdown.stop
+            @click="openTalk"
+          >
+            E
+          </button>
+          <button
+            v-if="doorGame"
+            type="button"
+            class="town-door-prompt"
+            data-testid="door-prompt"
+            :aria-label="`Enter ${doorGame.name}`"
+            :style="doorStyle"
+            @pointerdown.stop
+            @click="openBuilding(doorGame)"
+          >
+            E
+          </button>
         </div>
       </div>
+      <NpcDialogue
+        v-if="talk.open.value && talk.npc.value"
+        ref="dialogue"
+        class="town-talk"
+        :name="talk.npc.value.name"
+        :line="talk.line.value"
+        :last="talk.isLast.value"
+        :can-enter="talk.npc.value.kind === 'game'"
+        :close-label="talk.npc.value.kind === 'discovery' ? 'Got it' : 'Bye'"
+        @keydown.esc.stop.prevent="closeTalk()"
+        @next="talk.next()"
+        @enter="goInFromTalk"
+        @close="closeTalk()"
+      />
+      <p class="visually-hidden" role="status">{{ talkNote }}</p>
       <GameInfoCard
         v-if="selectedGame"
         ref="infoCard"
@@ -401,8 +687,8 @@ onBeforeUnmount(() => {
       />
     </div>
     <p id="map-instructions" class="visually-hidden">
-      Drag or swipe to pan. Pinch or use +/− to zoom. Keyboard: arrows to pan, +/− to zoom, 0 to
-      reset.
+      Drag or swipe to pan. Pinch or use +/− to zoom. Keyboard: WASD or arrows to walk Sharlock,
+      Shift to sprint, E or Enter at a door to go in, +/− to zoom, 0 to reset view.
     </p>
   </section>
 </template>
