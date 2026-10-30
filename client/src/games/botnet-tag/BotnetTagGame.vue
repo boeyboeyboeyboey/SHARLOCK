@@ -8,6 +8,7 @@ import { useHowToPlay } from '../../composables/useHowToPlay.js'
 import { listManagedCohorts, listMemberships } from '../../features/cohorts/api.js'
 import { useAuthStore } from '../../features/auth/store.js'
 import { getDeviceCheck } from '../../features/hub/deviceCheck.js'
+import { readGraphics } from '../../features/hub/graphics.js'
 import ImmersiveControls from '../../features/menu/ImmersiveControls.vue'
 import { useSignOut } from '../../features/menu/townControls.js'
 import { cueView, deriveCues, freshEvents } from './audio/soundCues.js'
@@ -74,6 +75,10 @@ const puzzleMs = computed(() =>
 const lockMs = computed(() =>
   state.you?.lockedUntil ? msUntil(state.you.lockedUntil, clock.value, state.offset) : 0,
 )
+const puzzleOpen = computed(
+  () => Boolean(puzzle.value) && puzzleKey.value !== dismissed.value && !state.blocked,
+)
+watch(puzzleOpen, (open) => arena?.setInputEnabled(!open))
 const patchedUntil = ref(0)
 const patched = computed(() => clock.value < patchedUntil.value)
 watch(
@@ -145,6 +150,53 @@ onMounted(async () => {
   if (!staff) tag.start()
 })
 
+// the 3d yard exists only while a round is on screen; babylon loads the first time it is needed
+const arenaEl = ref(null)
+const arenaOn = computed(
+  () =>
+    capable &&
+    !state.blocked &&
+    ['countdown', 'playing', 'results'].includes(state.phase) &&
+    (!staff || Boolean(cohortId.value)),
+)
+let arena = null
+let arenaToken = 0
+async function mountArena() {
+  const token = ++arenaToken
+  if (typeof WebGL2RenderingContext === 'undefined' || !arenaEl.value) return
+  try {
+    const { createArena } = await import('./arena/createArena.js')
+    if (token !== arenaToken || !arenaEl.value) return
+    arena = createArena({
+      container: arenaEl.value,
+      getState: () => state,
+      send: { move: tag.move, sprint: tag.sprint },
+      quality: readGraphics(),
+      wardrobe: auth.user?.wardrobe ?? null,
+      params: import.meta.env.DEV ? new URLSearchParams(location.search) : new URLSearchParams(),
+    })
+    arena.setInputEnabled(!puzzleOpen.value)
+  } catch (error) {
+    console.warn('tag arena failed to start', error)
+    arena = null
+  }
+}
+function unmountArena() {
+  arenaToken += 1
+  arena?.dispose()
+  arena = null
+}
+watch(
+  arenaOn,
+  (on) => {
+    if (on) mountArena()
+    else unmountArena()
+  },
+  { flush: 'post' },
+)
+onMounted(() => arenaOn.value && mountArena())
+onBeforeUnmount(unmountArena)
+
 function leave() {
   tag.leave()
   router.push('/')
@@ -162,7 +214,7 @@ const blockedText = {
 
 <template>
   <div class="botnet-tag-game" data-testid="botnet-tag">
-    <div class="tag-arena" data-testid="tag-arena" aria-hidden="true"></div>
+    <div ref="arenaEl" class="tag-arena" data-testid="tag-arena" aria-hidden="true"></div>
     <ImmersiveControls
       v-model:menu-open="menuOpen"
       inline

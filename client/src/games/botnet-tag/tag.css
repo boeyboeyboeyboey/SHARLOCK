@@ -538,3 +538,63 @@
     flex-wrap: wrap;
   }
 }
+
+.botnet-tag-game .tag-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  outline: none;
+}
+.botnet-tag-game .tag-labels {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.botnet-tag-game .tag-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  border: 1px solid rgb(243 238 221 / 35%);
+  border-radius: 11px;
+  background: rgb(12 20 30 / 78%);
+  color: var(--game-ink);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 18px;
+  white-space: nowrap;
+}
+.botnet-tag-game .tag-label.is-me {
+  border-color: var(--game-focus);
+}
+.botnet-tag-game .tag-label.is-infected {
+  background: rgb(20 50 12 / 85%);
+  color: #caff9a;
+}
+.botnet-tag-game .tag-label-bug {
+  display: flex;
+  color: var(--game-bad);
+}
+.botnet-tag-game .tag-label-chip {
+  padding: 0 5px;
+  border-radius: 6px;
+  background: rgb(243 238 221 / 18%);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.botnet-tag-game .tag-label.is-station {
+  border-color: rgb(127 230 255 / 55%);
+  color: #9fefff;
+}
+.botnet-tag-game .tag-label.is-station.is-cooling {
+  border-color: rgb(138 147 160 / 55%);
+  color: #aab2bd;
+}
