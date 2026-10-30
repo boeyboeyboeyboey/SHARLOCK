@@ -79,7 +79,10 @@ watch(() => props.open, sync)
       <p class="menu-count" data-testid="menu-discoveries">
         Discoveries <strong>{{ discoveries.count.value }}/{{ discoveries.total }}</strong>
       </p>
-      <div v-if="presence.active" class="menu-online" data-testid="menu-online">
+      <p v-if="presence.superseded" class="menu-count" data-testid="menu-online-elsewhere">
+        Open in another tab
+      </p>
+      <div v-else-if="presence.active" class="menu-online" data-testid="menu-online">
         <label v-if="presence.staff && presence.classes.length" class="menu-online-class">
           Class
           <select v-model="presence.selectedCohortId" data-testid="menu-online-class">

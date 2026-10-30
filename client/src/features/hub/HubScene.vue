@@ -54,6 +54,7 @@ const view = reactive({
   drawCalls: 0,
   lowering: false,
   player: null,
+  peers: [],
 })
 let hub = null
 let gone = false
@@ -288,7 +289,20 @@ async function moveFocusAfterPick(origin, next, id) {
 
 // the engine writes the player's spot into its shared state every frame; the map samples it at 10 Hz
 let mapTimer = null
+let peerTick = 0
+// the map's classmate dots refresh at about 4 Hz
+function samplePeers() {
+  const list = []
+  for (const p of latestPeers.values()) list.push({ sid: p.sid, x: p.x, z: p.z, staff: p.role === 'staff' })
+  const prev = view.peers
+  const same =
+    prev.length === list.length &&
+    prev.every((q, i) => q.sid === list[i].sid && Math.abs(q.x - list[i].x) < 0.3 && Math.abs(q.z - list[i].z) < 0.3 && q.staff === list[i].staff)
+  if (!same) view.peers = list
+}
 function samplePlayer() {
+  peerTick = (peerTick + 1) % 3
+  if (peerTick === 0) samplePeers()
   const at = hub?.state?.player
   if (!at) return
   const last = view.player
@@ -596,6 +610,7 @@ defineExpose({
       v-if="view.ready && !paused"
       :games="games"
       :player="view.player"
+      :peers="view.peers"
       :selected="view.selected"
       @choose="choose"
     />

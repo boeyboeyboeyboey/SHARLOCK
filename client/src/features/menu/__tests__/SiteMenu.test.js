@@ -96,6 +96,15 @@ describe('site menu', () => {
       wrapper.unmount()
     })
 
+    it('says so when another tab took over', async () => {
+      const wrapper = mountMenu()
+      usePresenceRoster().state.superseded = true
+      await wrapper.vm.$nextTick()
+      expect(wrapper.get('[data-testid="menu-online-elsewhere"]').text()).toBe('Open in another tab')
+      expect(wrapper.find('[data-testid="menu-online"]').exists()).toBe(false)
+      wrapper.unmount()
+    })
+
     it('shows the count and a collapsible list of classmates', async () => {
       const { state } = usePresenceRoster()
       state.active = true

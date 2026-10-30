@@ -10,9 +10,17 @@ MP-01 stage A (server). Live positions of classmates on the 3D wharf over one We
 | ------ | --------------------------------------------------------------------------------------- |
 | 403    | Origin (or Referer fallback) is not the configured client origin (`hasExpectedOrigin`)  |
 | 401    | no valid `sharlock.sid` session, expired session, or `findActiveSessionUser` finds none |
-| 429    | the user already has 3 live connections (new one rejected)                              |
 
-The session is read through the existing auth session middleware and store (`resolveSessionUser`, `recheckSession` from the auth router); there is no second session system. After the handshake a student with no active class is closed with code 4403.
+The session is read through the existing auth session middleware and store (`resolveSessionUser`, `recheckSession` from the auth router); there is no second session system. After the handshake a student with no active class is closed with code 4403 (the client retries slowly so an approval is picked up without a reload).
+
+One presence per account: when a user's new socket registers, every older socket of that user leaves its room at once (classmates get `leave`) and is closed with 4409 `superseded`. The newest tab wins, so there is no per-user connection cap and no ghost peer for a second tab; the client treats 4409 as final and does not reconnect.
+
+| Close code | Meaning                                               |
+| ---------- | ----------------------------------------------------- |
+| 4401       | session or account ended (`replaced` or `signed out`) |
+| 4403       | no active class, class changed or class not available |
+| 4408       | too many bad messages                                 |
+| 4409       | superseded by a newer socket of the same account      |
 
 ## Rooms
 

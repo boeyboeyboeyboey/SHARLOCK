@@ -182,11 +182,23 @@ describe('presence upgrade checks', () => {
     expect(await ws.closed).toBe(4403)
   })
 
-  it('rejects a fourth connection for one user', async () => {
+  it('closes the older socket with 4409 when the same user connects again', async () => {
     const cohort = await makeClass('a')
     const account = await student(cohort)
-    for (let index = 0; index < 3; index += 1) await connect(account)
-    expect((await connect(account)).status).toBe(429)
+    const mate = await student(cohort)
+    const watcher = await connect(mate)
+    const first = await connect(account)
+    move(first)
+    await until(() => watcher.messages.some((m) => m.type === 'state'), 'first seen')
+    const second = await connect(account)
+    expect(await first.closed).toBe(4409)
+    expect(first.closeReason).toBe('superseded')
+    await until(() => watcher.messages.some((m) => m.type === 'leave'), 'leave')
+    move(second)
+    await until(() => watcher.messages.filter((m) => m.type === 'state').length > 1, 'second seen')
+    const sids = new Set(watcher.messages.filter((m) => m.type === 'state').map((m) => m.sid))
+    expect(sids.size).toBe(2)
+    expect(second.readyState).toBe(1)
   })
 })
 
