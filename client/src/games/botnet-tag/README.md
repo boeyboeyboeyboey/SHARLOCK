@@ -1,6 +1,6 @@
 # Botnet Tag (client)
 
-Browser half of `botnet-tag` (G-TAG), served at `/games/botnet-tag` from the "Server Yard" warehouse: east lane of the 3D wharf at (40, 20.5), and a `warehouse` building at (240, 600) in the 2D town. The server rules are in [server/src/modules/games/botnet-tag/README.md](../../../../server/src/modules/games/botnet-tag/README.md).
+Browser half of `botnet-tag` (G-TAG), served at `/games/botnet-tag` from the "Server Yard" warehouse: east lane of the 3D wharf at (40, 20.5), and a `warehouse` building at (600, 580) in the 2D town. The server rules are in [server/src/modules/games/botnet-tag/README.md](../../../../server/src/modules/games/botnet-tag/README.md).
 
 ## Presentation summary
 

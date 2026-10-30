@@ -12,9 +12,9 @@ const segmentDistance = (px, pz, a, b) => {
 };
 
 describe('hub npcs', () => {
-  it('has unique ids and six game plus six wanderer npcs', () => {
+  it('has unique ids and seven game plus six wanderer npcs', () => {
     expect(new Set(npcs.map((n) => n.id)).size).toBe(npcs.length);
-    expect(npcs.filter((n) => n.kind === 'game')).toHaveLength(6);
+    expect(npcs.filter((n) => n.kind === 'game')).toHaveLength(7);
     expect(npcs.filter((n) => n.kind === 'wanderer')).toHaveLength(6);
   });
 

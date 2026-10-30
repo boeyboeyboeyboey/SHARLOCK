@@ -164,6 +164,6 @@ export const gameCatalog = defineGameCatalog([
     needs3d: true,
     duration: '3 min round',
     icon: 'people',
-    building: { type: 'warehouse', x: 240, y: 600 },
+    building: { type: 'warehouse', x: 600, y: 580 },
   },
 ])
