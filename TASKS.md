@@ -2209,6 +2209,13 @@ The following records preserve checks and coordination from earlier tasks. They 
 - **Fix:** one import in `client/src/features/hub/engine.js` next to `instancedMesh.js`.
 - **Verified (31 Oct, local preview, SwiftShader):** instance counts present (crates 55, barrels 32, lamp heads 34, bollards 14, workers 8, gulls 9), origin clear, 309 draws (298 before, on Boey's WebGPU); hub vitest 223/223. Not run: hub E2E, real GPU after the fix.
 
+**LORE-02 — In-world lessons and the Discoveries log** · Status: **Review** · Contributor: **Boey** · Branch: `lore-02-in-world-lessons` (cut from local `main` at `7bb1982`, 31 October 2026) · Plan and copy approved by Boey on 31 October 2026 (`.local-handover/LORE-02-DRAFT-2026-10-31.md`, package D).
+
+- **Copy:** the six discoveries' cards and the six game keepers' lines now show a period scene instead of a lecture; each find carries a `note` ("Sharlock's note", the lesson) and a `pocket` (west lane, east yard, jetty). Wanderers unchanged.
+- **Log:** `/discoveries` overlay (child of `/`, `requiresAccount`) lists all six: found ones with name, scene line and Sharlock's note; unfound as "???" and "Somewhere in the <pocket>". The Menu's "Discoveries x/6" row links to it.
+- **Asset guide (same package):** theme prompts name a key and forbid intros/endings/fades; jsfxr is the main route for the five effects with per-sound presets (Lyria as a trimmed fallback); image prompts carry each room's exact sign text and the centre-clear rule; typos fixed.
+- **Verified (31 Oct):** vitest hub + menu + router 296/296; eslint clean; `hub-discoveries.spec.js` 2/2 (desktop) including the new log check.
+
 **HUD-02 — Hub controls, walkers, interface size and 2D zoom-out** · Status: **Review** · Contributor: **Boey** · Branch: `hud-02-controls-ui-size` (cut from local `main` at `52e6ecf`, 31 October 2026) · Plan approved by Boey on 31 October 2026 (`.local-handover/REVIEW-FIXES-PLAN-2026-10-31.md`, package C, plus Boey's 2D zoom-out request).
 
 - **3D controls:** glass destination rows (selected row: brighter edge and a check mark, `aria-pressed` kept); aria-hidden E / Enter badges on Talk, Inspect and Enter (hidden on touch); E advances an open conversation and closes it on the last line; Enter goes in when "Enter <building>" shows (not from inputs, buttons, links, dialogs or overlays).
