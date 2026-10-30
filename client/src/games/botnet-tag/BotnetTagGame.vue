@@ -10,6 +10,8 @@ import NeedsThreeD from './components/NeedsThreeD.vue'
 import TagHud from './components/TagHud.vue'
 import TagLobby from './components/TagLobby.vue'
 import TagResults from './components/TagResults.vue'
+import PuzzlePanel from './puzzles/PuzzlePanel.vue'
+import PuzzleResult from './puzzles/PuzzleResult.vue'
 import { msUntil } from './tagRules.js'
 import { useTagSocket } from './useTagSocket.js'
 import './tag.css'
@@ -51,6 +53,31 @@ const toast = computed(() => {
   if (event.type === 'patch') return `${nameOf(event.sid)} patched`
   return ''
 })
+
+// closing only hides the panel: the protocol has no cancel, so the server keeps the puzzle until its deadline
+const puzzle = computed(() => (state.phase === 'playing' ? (state.you?.puzzle ?? null) : null))
+const puzzleKey = computed(() =>
+  puzzle.value ? `${puzzle.value.stationId}:${puzzle.value.deadline}` : '',
+)
+const dismissed = ref('')
+const puzzleMs = computed(() =>
+  puzzle.value ? msUntil(puzzle.value.deadline, clock.value, state.offset) : 0,
+)
+const lockMs = computed(() =>
+  state.you?.lockedUntil ? msUntil(state.you.lockedUntil, clock.value, state.offset) : 0,
+)
+const patchedUntil = ref(0)
+const patched = computed(() => clock.value < patchedUntil.value)
+watch(
+  () => state.events.at(-1),
+  (event) => {
+    if (event?.type === 'patch' && event.sid === state.sid) patchedUntil.value = Date.now() + 2000
+  },
+)
+function submitPuzzle(submission) {
+  tag.submit(submission)
+  dismissed.value = puzzleKey.value
+}
 
 async function load() {
   if (staff) {
@@ -171,6 +198,16 @@ const blockedText = {
       <p v-else class="tag-panel tag-notice" role="status" data-testid="tag-connecting">
         Connecting
       </p>
+      <PuzzlePanel
+        v-if="puzzle && !state.blocked && puzzleKey !== dismissed && state.phase === 'playing'"
+        :key="puzzleKey"
+        :kind="puzzle.kind"
+        :data="puzzle.public"
+        :ms-left="puzzleMs"
+        @submit="submitPuzzle"
+        @close="dismissed = puzzleKey"
+      />
+      <PuzzleResult v-if="state.phase === 'playing'" :patched="patched" :lock-ms="lockMs" />
     </template>
   </div>
 </template>

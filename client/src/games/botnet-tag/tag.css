@@ -342,3 +342,199 @@
     transition: none !important;
   }
 }
+
+/* patch-station puzzle panels */
+.botnet-tag-game .tag-puzzle {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  gap: 12px;
+  width: min(560px, calc(100% - 24px));
+  max-height: calc(100% - 80px);
+  transform: translate(-50%, -50%);
+}
+.botnet-tag-game .tag-puzzle:focus {
+  outline: none;
+}
+.botnet-tag-game .pz-title {
+  margin: 0;
+  font-size: 20px;
+}
+.botnet-tag-game .pz-time {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+.botnet-tag-game .pz-bar i.is-urgent {
+  background: var(--game-bad);
+}
+.botnet-tag-game .pz-bar i {
+  transition: width 0.25s linear;
+}
+.botnet-tag-game .pz-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 8px;
+}
+.botnet-tag-game .pz-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.botnet-tag-game .pz-row,
+.botnet-tag-game .pz-pick {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 10px;
+  border: 1px solid var(--game-edge);
+  border-radius: var(--game-radius);
+  background: rgb(255 255 255 / 6%);
+  color: var(--game-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.botnet-tag-game .pz-row {
+  cursor: default;
+}
+.botnet-tag-game .pz-pick.is-on,
+.botnet-tag-game .pz-pick:has(input:checked) {
+  border-color: var(--game-good);
+  background: rgb(111 227 154 / 16%);
+}
+.botnet-tag-game .pz-pick:has(input:focus-visible),
+.botnet-tag-game .pz-pick:focus-visible,
+.botnet-tag-game .pz-seg label:has(input:focus-visible) {
+  outline: 3px solid var(--game-focus);
+  outline-offset: 2px;
+}
+.botnet-tag-game .pz-pick input,
+.botnet-tag-game .pz-seg input,
+.botnet-tag-game .pz-cell input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.botnet-tag-game .pz-pick:has(input)::before {
+  content: '○';
+}
+.botnet-tag-game .pz-pick:has(input:checked)::before {
+  content: '●';
+  color: var(--game-good);
+}
+.botnet-tag-game .pz-grow {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.botnet-tag-game .pz-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 14px;
+}
+.botnet-tag-game .pz-hash {
+  word-spacing: 0.4em;
+}
+.botnet-tag-game .pz-ok {
+  color: var(--game-good);
+}
+.botnet-tag-game .pz-seg {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--game-edge);
+  border-radius: var(--game-radius);
+}
+.botnet-tag-game .pz-seg label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 10px;
+  cursor: pointer;
+}
+.botnet-tag-game .pz-seg label.is-on {
+  background: #2a7d4f;
+  color: #fff;
+}
+.botnet-tag-game .pz-seg label:last-child.is-on {
+  background: #a3342b;
+}
+.botnet-tag-game .pz-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.botnet-tag-game .pz-pick:has(.pz-ok) {
+  flex-wrap: wrap;
+}
+.botnet-tag-game .pz-ref {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border: 1px dashed var(--game-edge);
+  border-radius: var(--game-radius);
+  word-spacing: 0.4em;
+}
+.botnet-tag-game .pz-scroll {
+  overflow-x: auto;
+}
+.botnet-tag-game .pz-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.botnet-tag-game .pz-table th,
+.botnet-tag-game .pz-table td {
+  padding: 4px 8px;
+  text-align: left;
+}
+.botnet-tag-game .pz-table tr.is-on {
+  background: rgb(111 227 154 / 16%);
+}
+.botnet-tag-game .pz-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  cursor: pointer;
+}
+.botnet-tag-game .pz-path {
+  overflow-wrap: anywhere;
+}
+.botnet-tag-game .pz-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.botnet-tag-game .pz-result {
+  bottom: 24px;
+}
+.botnet-tag-game .pz-result.is-bad {
+  border-color: var(--game-bad);
+}
+.botnet-tag-game .pz-result.is-good {
+  border-color: var(--game-good);
+}
+.botnet-tag-game .tag-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+@media (max-width: 600px) {
+  .botnet-tag-game .pz-cols {
+    grid-template-columns: 1fr;
+  }
+  .botnet-tag-game .pz-row {
+    flex-wrap: wrap;
+  }
+}
