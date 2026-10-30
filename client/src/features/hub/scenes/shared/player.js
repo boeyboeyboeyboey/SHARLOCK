@@ -4,8 +4,10 @@ import { Vector3 } from '@babylonjs/core/Maths/math.vector.js';
 import { nearestAlpha } from './orbit.js';
 import { LOOK_RANGE, lookYawTo } from './idle.js';
 import { createJump, JUMP_SPEED } from './jump.js';
+import { createSprint } from './sprint.js';
+import { isSprintKey } from '../../controls.js';
 const capsule = { height: 1, radius: 0.3 };
-const speed = 7.2;
+const baseSpeed = 7.2;
 const gravity = new Vector3(0, -9.81, 0);
 const down = new Vector3(0, -1, 0);
 
@@ -36,7 +38,7 @@ function pathGraph(paths) {
 }
 
 // nav: { spawn, heightAt(x, z), walkable(x, z), paths, destinations, door(dest) } supplied by the scene
-export function createPlayer({ scene, canvas, camera, ground, sharlock, reduced, nav, joystick: pad = {} }) {
+export function createPlayer({ scene, canvas, camera, ground, sharlock, reduced, nav, joystick: pad = {}, onSprint = () => {} }) {
   const { destinations, door, heightAt, paths, spawn, walkable } = nav;
   const graph = pathGraph(paths);
   const controller = new PhysicsCharacterController(
@@ -61,6 +63,15 @@ export function createPlayer({ scene, canvas, camera, ground, sharlock, reduced,
   let lastPos = new Vector3();
   let walkBlend = 0;
   const jump = createJump();
+  const sprint = createSprint();
+  // live top speed, base times the sprint multiplier
+  let speed = baseSpeed;
+  let sprintPhase = 'ready';
+  const startSprint = () => {
+    if (!enabled || !sprint.start()) return;
+    sprintPhase = 'active';
+    onSprint({ phase: 'active', at: performance.now() });
+  };
   // last supported height, so the follow camera does not bob with a jump
   let groundY = controller.getPosition().y;
   let curSpeed = 0;
@@ -70,6 +81,10 @@ export function createPlayer({ scene, canvas, camera, ground, sharlock, reduced,
   const feet = () => ({ x: pos().x, z: pos().z });
 
   const onKey = (event, isDown) => {
+    if (event.code === 'ShiftLeft' || event.code === 'ShiftRight') {
+      if (isDown && isSprintKey(event)) startSprint();
+      return;
+    }
     if (event.code === 'Space') {
       if (!isDown || event.repeat) return;
       // buttons and links keep space for their own activation
@@ -161,6 +176,16 @@ export function createPlayer({ scene, canvas, camera, ground, sharlock, reduced,
   const jumpKey = (event) => {
     if (event.detail === 0 && enabled) jump.request();
   };
+  const sprintEl = pad.sprint ?? null;
+  const sprintTap = (event) => {
+    event.preventDefault();
+    startSprint();
+  };
+  const sprintKey = (event) => {
+    if (event.detail === 0) startSprint();
+  };
+  sprintEl?.addEventListener('pointerdown', sprintTap);
+  sprintEl?.addEventListener('click', sprintKey);
   jumpEl?.addEventListener('pointerdown', jumpTap);
   jumpEl?.addEventListener('click', jumpKey);
   joyEl?.addEventListener('pointerdown', joyDown);
@@ -241,6 +266,12 @@ export function createPlayer({ scene, canvas, camera, ground, sharlock, reduced,
   const lookAt = new Vector3();
   function update(dt) {
     const p = pos();
+    speed = baseSpeed * sprint.multiplier();
+    const phase = sprint.state();
+    if (phase !== sprintPhase) {
+      sprintPhase = phase;
+      onSprint({ phase, at: performance.now() });
+    }
     // movement intent: keyboard and joystick win over routes
     let ix = (keys.has('r') ? 1 : 0) - (keys.has('l') ? 1 : 0) + joystick.x;
     let iy = (keys.has('f') ? 1 : 0) - (keys.has('b') ? 1 : 0) + joystick.y;
@@ -411,6 +442,8 @@ export function createPlayer({ scene, canvas, camera, ground, sharlock, reduced,
       if (enabled) jump.request();
     },
     hop: () => jump.hop(),
+    sprint: startSprint,
+    sprintState: () => ({ phase: sprint.state(), left: sprint.cooldownLeft(), speed: baseSpeed * sprint.multiplier() }),
     airborne: () => jump.isAirborne(),
     routeSerial: () => routeSerial,
     teleport(x, z) {
@@ -427,6 +460,8 @@ export function createPlayer({ scene, canvas, camera, ground, sharlock, reduced,
       window.removeEventListener('blur', blur);
       canvas.removeEventListener('pointerdown', onDown);
       canvas.removeEventListener('pointerup', onUp);
+      sprintEl?.removeEventListener('pointerdown', sprintTap);
+      sprintEl?.removeEventListener('click', sprintKey);
       jumpEl?.removeEventListener('pointerdown', jumpTap);
       jumpEl?.removeEventListener('click', jumpKey);
       joyEl?.removeEventListener('pointerdown', joyDown);

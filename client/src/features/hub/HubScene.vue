@@ -18,6 +18,7 @@ import { getDeviceCheck } from './deviceCheck.js'
 import { isSolidHud } from './glass.js'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../auth/store.js'
+import { SPRINT } from './scenes/shared/sprint.js'
 import { usePresence } from './presence/usePresence.js'
 
 const props = defineProps({
@@ -41,6 +42,7 @@ const stage = ref(null)
 const pad = ref(null)
 const knob = ref(null)
 const jumpBtn = ref(null)
+const sprintBtn = ref(null)
 const destList = ref(null)
 const view = reactive({
   ready: false,
@@ -56,6 +58,7 @@ const view = reactive({
   lowering: false,
   player: null,
   peers: [],
+  sprint: { phase: 'ready', at: 0 },
 })
 let hub = null
 let gone = false
@@ -154,6 +157,7 @@ const talk = useNpcDialogue()
 const talkNpc = computed(() => npcs.find((npc) => npc.id === view.nearNpc) ?? null)
 const showTalk = computed(() => view.ready && view.mode === 'explore' && !paused.value && Boolean(talkNpc.value))
 const discoveries = useDiscoveries()
+const sprintText = computed(() => ({ ready: 'Sprint ready', active: 'Sprint active', cooldown: 'Sprint recharging' })[view.sprint.phase])
 const nearFind = computed(() => finds.find((find) => find.id === view.nearFind) ?? null)
 const showFind = computed(() => view.ready && view.mode === 'explore' && !paused.value && Boolean(nearFind.value))
 const talkBtn = ref(null)
@@ -270,6 +274,7 @@ function sync(state) {
   view.engine = state.engine
   view.fps = state.fps
   view.drawCalls = state.drawCalls
+  view.sprint = state.sprint
   if (state.ready) view.lowering = false
 }
 
@@ -423,7 +428,7 @@ async function mountHub(resume = null) {
   const returnDoor = takeDoor()
   const next = createHub({
     container: stage.value,
-    joystick: { el: pad.value, knob: knob.value, jump: jumpBtn.value },
+    joystick: { el: pad.value, knob: knob.value, jump: jumpBtn.value, sprint: sprintBtn.value },
     params,
     spawnAt: returnDoor,
     quality: props.quality === 'auto' && watchedTier.value ? TIER_TO_GRAPHICS[watchedTier.value] : props.quality,
@@ -636,6 +641,32 @@ defineExpose({
     />
     <div ref="pad" class="hub-joystick" aria-hidden="true"><div ref="knob" class="hub-joystick-knob"></div></div>
     <button ref="jumpBtn" type="button" class="hub-jump" data-testid="hub-jump">Jump</button>
+    <button
+      ref="sprintBtn"
+      type="button"
+      class="hub-sprint"
+      data-testid="hub-sprint"
+      :data-state="view.sprint.phase"
+      :aria-disabled="view.sprint.phase !== 'ready'"
+      aria-label="Sprint"
+      aria-describedby="hub-sprint-state"
+    >
+      <svg class="hub-sprint-ring" viewBox="0 0 36 36" aria-hidden="true">
+        <circle class="hub-sprint-track" cx="18" cy="18" r="16" />
+        <circle
+          :key="`${view.sprint.phase}-${view.sprint.at}`"
+          class="hub-sprint-fill"
+          cx="18"
+          cy="18"
+          r="16"
+          pathLength="100"
+          :style="{ '--sprint-ms': `${view.sprint.phase === 'active' ? SPRINT.MS : SPRINT.COOLDOWN_MS}ms` }"
+        />
+        <path class="hub-sprint-bolt" d="M20 6 11 20h6l-2 10 10-15h-6z" />
+      </svg>
+      <kbd class="hub-key" aria-hidden="true">Shift</kbd>
+      <span id="hub-sprint-state" class="hub-sprint-state">{{ sprintText }}</span>
+    </button>
     <LoreIntro
       v-if="introPlaying"
       :reduced-motion="reducedMotion"
@@ -813,6 +844,80 @@ defineExpose({
   font-weight: 700;
   touch-action: none;
 }
+.hub-sprint {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px 6px 6px;
+  border: 1px solid var(--hub-glass-edge);
+  border-radius: 999px;
+  background: var(--hub-glass-bg);
+  color: var(--hub-glass-ink);
+  box-shadow: var(--hub-glass-shadow);
+  -webkit-backdrop-filter: var(--hub-glass-filter);
+  backdrop-filter: var(--hub-glass-filter);
+  touch-action: none;
+}
+.hub-sprint[aria-disabled='true'] {
+  opacity: 0.7;
+}
+.hub-sprint:focus-visible {
+  outline: 3px solid var(--hub-glass-focus);
+  outline-offset: 3px;
+}
+.hub-sprint-ring {
+  width: 32px;
+  height: 32px;
+  transform: rotate(-90deg);
+}
+.hub-sprint-track,
+.hub-sprint-fill {
+  fill: none;
+  stroke-width: 3;
+}
+.hub-sprint-track {
+  stroke: rgb(243 238 221 / 25%);
+}
+.hub-sprint-fill {
+  stroke: currentcolor;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 0;
+}
+.hub-sprint[data-state='active'] .hub-sprint-fill {
+  animation: hub-sprint-drain var(--sprint-ms) linear forwards;
+}
+.hub-sprint[data-state='cooldown'] .hub-sprint-fill {
+  animation: hub-sprint-fill var(--sprint-ms) linear forwards;
+}
+.hub-sprint-bolt {
+  fill: currentcolor;
+  transform: rotate(90deg);
+  transform-origin: 18px 18px;
+}
+.hub-sprint-state {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+@keyframes hub-sprint-drain {
+  to {
+    stroke-dashoffset: 100;
+  }
+}
+@keyframes hub-sprint-fill {
+  from {
+    stroke-dashoffset: 100;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
 .hub-joystick-knob {
   width: 52px;
   height: 52px;
@@ -830,6 +935,10 @@ defineExpose({
   }
   .hub-jump {
     display: inline-flex;
+  }
+  .hub-sprint {
+    left: 228px;
+    bottom: 30px;
   }
 }
 @media (max-width: 575.98px) {
@@ -884,6 +993,12 @@ defineExpose({
     width: 56px;
     height: 56px;
   }
+  .hub-sprint {
+    top: 290px;
+    right: 24px;
+    bottom: auto;
+    left: auto;
+  }
 }
 @media (min-width: 768px) and (min-height: 600px) {
   .hub-scene {
@@ -904,7 +1019,8 @@ defineExpose({
 }
 @media (forced-colors: active) {
   .hub-joystick,
-  .hub-jump {
+  .hub-jump,
+  .hub-sprint {
     border-color: CanvasText;
     background: Canvas;
     color: CanvasText;

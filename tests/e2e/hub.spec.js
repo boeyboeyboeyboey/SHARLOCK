@@ -603,3 +603,27 @@ test('the jump button shows with the joystick on phones only', async ({ page }, 
     await expect(jump).toBeHidden()
   }
 })
+
+test('Shift starts a sprint that recharges and then becomes ready again', async ({ page }) => {
+  await page.goto('/')
+  await hubReady(page)
+  const sprint = page.getByTestId('hub-sprint')
+  await expect(sprint).toHaveAttribute('data-state', 'ready')
+  await expect(sprint).toHaveAttribute('aria-disabled', 'false')
+  await page.keyboard.press('Shift')
+  await expect(sprint).toHaveAttribute('data-state', 'active')
+  await expect(sprint).toHaveAttribute('data-state', 'cooldown', { timeout: 10_000 })
+  await expect(sprint).toHaveAttribute('aria-disabled', 'true')
+  await expect(sprint).toHaveAccessibleDescription('Sprint recharging')
+  // a press while recharging does nothing
+  await page.keyboard.press('Shift')
+  await expect(sprint).toHaveAttribute('data-state', 'cooldown')
+  await expect(sprint).toHaveAttribute('data-state', 'ready', { timeout: 15_000 })
+  await expect(sprint).toHaveAccessibleDescription('Sprint ready')
+  // started and read in one call so a slow software renderer can't let the burst lapse first
+  const speed = await page.evaluate(() => {
+    window.__hub.debug.sprint()
+    return window.__hub.debug.sprintState().speed
+  })
+  expect(speed).toBeCloseTo(11.52)
+})

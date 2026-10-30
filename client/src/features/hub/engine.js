@@ -64,7 +64,7 @@ async function createEngine(canvas, params) {
 // watch: sample real frame rates and report them through onPerf({ fps, tier })
 // resumeAt: { x, z } to start where the player stood before a rebuild
 // params: URLSearchParams with the dev overrides renderer, tier and mirror
-// joystick: { el, knob } elements of the touch pad, owned by the caller
+// joystick: { el, knob, jump, sprint } elements of the touch pad, owned by the caller
 // spawnAt: destination id whose door the player starts beside, for coming back from a game
 export function createHub({ container, joystick = {}, params = new URLSearchParams(), spawnAt = null, quality = 'auto', watch = false, resumeAt = null, wardrobe = null, onPerf = () => {}, onState = () => {} }) {
   const tier = getTier(params, quality);
@@ -85,6 +85,7 @@ export function createHub({ container, joystick = {}, params = new URLSearchPara
     trianglesAllPasses: 0,
     paused: false,
     inputPaused: false,
+    sprint: { phase: 'ready', at: 0 },
     reducedMotion: motionQuery.matches,
     get mounts() {
       return mountCount;
