@@ -1,6 +1,6 @@
 import { createAttemptService } from '../attempts/service.js'
 import { createAttemptRegistry } from '../attempts/registry.js'
-import { deriveAchievements } from './achievements.js'
+import { achievementCatalogue, deriveAchievements } from './achievements.js'
 import { POINTS_PER_GAME, summarizeGame, summarizeTopics } from './points.js'
 
 export const PAGE_SIZE = 10
@@ -41,6 +41,11 @@ export function createProgressService(database, { registry = createAttemptRegist
       achievements: deriveAchievements(attempts, { isCompetitive }).map((item) => ({
         ...item,
         earnedAt: publicTime(item.earnedAt),
+      })),
+      catalogue: achievementCatalogue.map(({ key, name, description }) => ({
+        key,
+        name,
+        description,
       })),
     }
   }

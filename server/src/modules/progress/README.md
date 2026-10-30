@@ -8,7 +8,7 @@ Paths are relative to `/api`. Both need an active cookie session (401 otherwise)
 
 | Method/path                      | Success body                                                                                                                                |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| GET `/me/progress`               | `{ games, savingGameIds, totalPoints, maxPoints, topicOutcomes, achievements }`                                                             |
+| GET `/me/progress`               | `{ games, savingGameIds, totalPoints, maxPoints, topicOutcomes, achievements, catalogue }`                                                  |
 | GET `/me/attempts?gameId=&page=` | `{ attempts: [{ attemptId, gameId, rulesetVersion, contextKind, score, maxScore, completedAt }], page, total }` (10 per page, newest first) |
 
 `games` has one entry per production-registered saving game: `{ gameId, saves: true, completedCount, bestScore, maxScore, points, lastCompletedAt }`. The client merges it with its catalog; catalog games absent from `savingGameIds` are unsaved. `gameId` must be a registered game id and `page` a positive integer up to 10000, as plain strings; arrays, objects and operators return 400.
@@ -27,7 +27,7 @@ Per game, the best attempt is the highest `score / maxScore` among attempts on t
 
 ## Achievements (`achievements.js`)
 
-`earnedAt` is the `completedAt` of the attempt that first satisfied the rule, in completion order.
+`earnedAt` is the `completedAt` of the attempt that first satisfied the rule, in completion order. `achievements` lists earned badges only. `catalogue` lists all 11 as `{ key, name, description }` in definition order (exported as `achievementCatalogue`); it never includes criteria, so the client derives locked badges by subtracting the earned keys.
 
 | key                    | rule                                                        |
 | ---------------------- | ----------------------------------------------------------- |

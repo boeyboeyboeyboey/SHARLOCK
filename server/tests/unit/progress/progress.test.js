@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { deriveAchievements } from '../../../src/modules/progress/achievements.js'
+import {
+  achievementCatalogue,
+  achievementKeys,
+  deriveAchievements,
+} from '../../../src/modules/progress/achievements.js'
 import { summarizeGame, summarizeTopics } from '../../../src/modules/progress/points.js'
 
 let counter = 0
@@ -122,5 +126,17 @@ describe('achievements', () => {
       )
       expect(earned).toMatchObject({ name: 'Against the clock', earnedAt: timed.completedAt })
     })
+  })
+})
+
+describe('achievement catalogue', () => {
+  it('lists every achievement without criteria', () => {
+    expect(achievementCatalogue).toHaveLength(11)
+    expect(achievementCatalogue.map((item) => item.key)).toEqual([...achievementKeys])
+    for (const item of achievementCatalogue) {
+      expect(Object.keys(item).sort()).toEqual(['description', 'key', 'name'])
+      expect(Object.values(item).every((value) => typeof value === 'string' && value)).toBe(true)
+      expect(Object.isFrozen(item)).toBe(true)
+    }
   })
 })
