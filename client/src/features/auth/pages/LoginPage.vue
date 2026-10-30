@@ -22,6 +22,7 @@ const controller = new AbortController()
 onBeforeUnmount(() => controller.abort())
 const introAvatar = '/images/town/capybara-mint.svg'
 const expiredNotice = computed(() => route.query.reason === 'expired')
+const elsewhereNotice = computed(() => route.query.reason === 'elsewhere')
 const passwordResetNotice = computed(() => route.query.passwordReset === '1')
 const fieldErrors = computed(() => auth.requestError?.fieldErrors || {})
 const errorMessage = computed(() => auth.requestError?.message || '')
@@ -116,6 +117,10 @@ async function checkSession() {
 
       <p v-if="passwordResetNotice" class="auth-field-hint" role="status">
         Your password was updated. Sign in with your new password.
+      </p>
+
+      <p v-if="elsewhereNotice" class="auth-field-hint" role="status">
+        You were signed out because your account signed in somewhere else. If that wasn't you, reset your password.
       </p>
 
       <SessionNotice

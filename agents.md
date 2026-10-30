@@ -107,7 +107,7 @@ Every new or edited code comment must be strictly lowercase and minimal, with no
 
 Use maintained Argon2id password hashing with per-password salts and a work factor checked against primary guidance during implementation. Never store recoverable passwords or return password hashes in responses, exports, logs or administrator views.
 
-Use Mongo-backed server sessions with cookie identifiers, `HttpOnly`, `SameSite`, bounded idle/absolute lifetime and rotation/revocation. Restrict the HTTP cookie exception to explicit localhost development. Do not put auth tokens in browser local storage. Apply CSRF and expected-origin checks to state-changing requests, including login/logout; GET must not mutate state.
+Use Mongo-backed server sessions with cookie identifiers, `HttpOnly`, `SameSite`, bounded idle/absolute lifetime and rotation/revocation. An account holds one active session: a new login ends its other sessions and their wharf presence, and the signed-out tab says so (SESS-01, Boey, 31 October 2026; the newest login wins so a stale or stolen session can never lock the owner out). Restrict the HTTP cookie exception to explicit localhost development. Do not put auth tokens in browser local storage. Apply CSRF and expected-origin checks to state-changing requests, including login/logout; GET must not mutate state.
 
 Validate allowed fields, types, IDs, enums and bounds. Construct Mongo filters from validated values rather than accepting arbitrary operators. Rate-limit login, recovery, enrollment and expensive endpoints; bound bodies, upstream time and generated output. Use generic authentication/recovery failures where needed to prevent enumeration, with useful next steps and no stack/configuration leaks.
 

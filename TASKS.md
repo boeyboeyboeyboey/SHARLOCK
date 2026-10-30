@@ -2201,6 +2201,14 @@ The following records preserve checks and coordination from earlier tasks. They 
 - **Cause:** Babylon 9 registers thin instances only through the side-effect module `@babylonjs/core/Meshes/thinInstanceMesh.js`, which the hub never imported. Every thin-instanced mesh (crates, barrels, bollards, piles, mooring rings, lamp heads and pools, hull foam, dock-worker crowd and legs, gulls) drew one base copy at (0, 0) and no instances: the "wooden figure with white arrows" in the middle of the main street, and no visible dock workers.
 - **Fix:** one import in `client/src/features/hub/engine.js` next to `instancedMesh.js`.
 - **Verified (31 Oct, local preview, SwiftShader):** instance counts present (crates 55, barrels 32, lamp heads 34, bollards 14, workers 8, gulls 9), origin clear, 309 draws (298 before, on Boey's WebGPU); hub vitest 223/223. Not run: hub E2E, real GPU after the fix.
+
+**SESS-01 — One login per account** · Status: **Review** · Contributor: **Boey** · Branch: `sess-01-one-login` (cut from local `main` at `857045b`, 31 October 2026) · Plan approved by Boey on 31 October 2026 (`.local-handover/REVIEW-FIXES-PLAN-2026-10-31.md`, package A).
+
+- **Policy:** the newest login wins. Blocking a second login was rejected because whoever signed in first (a stale lab session or an attacker) would lock the owner out. agents.md §6 records the rule.
+- **Server:** login deletes the account's other `auth_sessions` and emits `session-ended` with reason `replaced`; presence closes those sockets with 4401 `replaced` (logout and other endings keep 4401 `signed out`). Additive index on `session.userId` in `auth/storage.js`.
+- **Client:** the hub drops the local session on 4401 and opens `/login?reason=elsewhere` ("You were signed out because your account signed in somewhere else…") only for `replaced`, otherwise the existing `reason=expired` notice. Other pages learn on their next guarded request.
+- **Known limits:** two simultaneous logins can end each other (both must sign in again); an old tab outside the hub only notices on its next request.
+- **Verified (31 Oct):** client vitest (hub + auth) 296/296; eslint clean on changed files; full integration with `--replica-set` 258/258 (without it 7 lifecycle-race tests refuse to run, a fixture guard, unrelated). `auth.test.js` same-user test rewritten to the new rule. E2E (desktop, replica set): auth, recovery, admin-workspace, cohorts, hub-presence 11/11 after giving the presence spec's Menu-count polls the slow timeout (a single read took over 5 s under SwiftShader).
 - **Baseline (SwiftShader, not representative of a GPU):** desktop 5 fps, 281 draws; low tier 15 fps, 78 draws. HUB-08's mobile Jump button is visible at 375 px; its "News vendor" heading was checked on 30 October 2026 (see the HUB-08 record).
 
 ### Town UI review record

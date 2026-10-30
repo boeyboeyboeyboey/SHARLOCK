@@ -48,12 +48,12 @@ test('classmates see each other on the wharf and other classes do not', async ({
     expect(await peers(c.page)).toEqual([])
 
     await openMenu(a.page)
-    await expect.poll(() => count(a.page)).toBe(1)
+    await expect.poll(() => count(a.page), slow).toBe(1)
     await a.page.getByTestId('menu-online-toggle').click()
     await expect(a.page.getByTestId('menu-online-list')).toContainText(one.studentB.username)
 
     await openMenu(c.page)
-    await expect.poll(() => count(c.page)).toBe(0)
+    await expect.poll(() => count(c.page), slow).toBe(0)
   } finally {
     await Promise.all([a, b, c].map((x) => x.context.close()))
   }

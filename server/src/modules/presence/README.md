@@ -32,7 +32,7 @@ A room is a class (cohort) id. A student is placed by the server in their active
 
 - 3 connections per user; a ping every 30 s, terminate on a missed pong.
 - Every 60 s each connection rechecks its session, account and room access; failure closes with 4401 (session or account) or 4403 (class).
-- Logout emits `session-ended` from the auth router and closes that session's sockets at once (4401). A membership decision (`cohorts` `decide`) calls `presence.refresh()` straight away; other class changes are caught by the 60 s recheck.
+- Logout emits `session-ended` from the auth router and closes that session's sockets at once (4401). A newer login by the same account (SESS-01) emits it for every older session, so those sockets close with 4401 and close reason `replaced` (other 4401 closes use `signed out`). Only `replaced` makes the hub show `/login?reason=elsewhere`; other 4401 closes show the `expired` notice. A membership decision (`cohorts` `decide`) calls `presence.refresh()` straight away; other class changes are caught by the 60 s recheck.
 - Idle HTTP sessions still expire after 30 minutes (the socket does not extend them), so a long-idle tab is closed with 4401.
 - `shutdown()` closes every client and the server; `disposeAuth` does the same for tests.
 

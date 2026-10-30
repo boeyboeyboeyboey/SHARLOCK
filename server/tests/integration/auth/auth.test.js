@@ -619,7 +619,7 @@ describe('account and Mongo session HTTP contract', () => {
         { emailNormalized: disabledStudent.email.toLowerCase() },
         { $set: { accountStatus: 'disabled' } },
       )
-    await request(app).get('/api/auth/csrf').set('Cookie', disabledCookie).expect(401)
+    await request(app).get('/api/auth/me').set('Cookie', disabledCookie).expect(401)
     await request(app)
       .post('/api/auth/logout')
       .set('Cookie', disabledSecondCookie)
@@ -646,7 +646,7 @@ describe('account and Mongo session HTTP contract', () => {
     await versionStudent.agent.get('/api/auth/me').expect(401)
   })
 
-  it('rotates login sessions, logs out only the current same-user session and prevents stale restore', async () => {
+  it('rotates login sessions, ends the older same-user session and prevents stale restore', async () => {
     const firstStudent = await registerTestStudent(app, {
       email: 'first@example.test',
       username: 'First_User',
@@ -669,7 +669,18 @@ describe('account and Mongo session HTTP contract', () => {
     expect(logoutResult.status).toBe(204)
     expect([200, 401]).toContain(restoreResult.status)
     await request(app).get('/api/auth/me').set('Cookie', cookie).expect(401)
+  })
+
+  it('ends every other session of the account when it signs in again', async () => {
+    const firstStudent = await registerTestStudent(app, {
+      email: 'newest@example.test',
+      username: 'Newest_User',
+    })
     await firstStudent.agent.get('/api/auth/me').expect(200)
+    const secondSession = await prepareLoginAgent(firstStudent.email, firstStudent.password)
+    expect(secondSession.response.status).toBe(200)
+    await firstStudent.agent.get('/api/auth/me').expect(401)
+    await secondSession.agent.get('/api/auth/me').expect(200)
   })
 
   it('rejects missing auth settings and initializes existing storage safely', async () => {

@@ -24,4 +24,5 @@ export async function initializeAuthStorage(database) {
   const sessions = database.db.collection('auth_sessions')
   await createCollection(database, 'auth_sessions')
   await sessions.createIndex({ expires: 1 }, { expireAfterSeconds: 0 })
+  await sessions.createIndex({ 'session.userId': 1 })
 }

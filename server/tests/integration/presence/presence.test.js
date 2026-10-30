@@ -1,5 +1,6 @@
 import { createServer } from 'node:http'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import request from 'supertest'
 import { WebSocket } from 'ws'
 import { Types } from 'mongoose'
 import { connectDatabase } from '../../../src/config/database.js'
@@ -130,7 +131,12 @@ function connect(account, { origin = authOptions.clientOrigin, cookie = cookieOf
     const ws = new WebSocket(`ws://127.0.0.1:${port}/api/presence`, { headers })
     ws.messages = []
     ws.on('message', (raw) => ws.messages.push(JSON.parse(raw.toString())))
-    ws.closed = new Promise((done) => ws.on('close', (code) => done(code)))
+    ws.closed = new Promise((done) =>
+      ws.on('close', (code, reason) => {
+        ws.closeReason = reason.toString()
+        done(code)
+      }),
+    )
     sockets.push(ws)
     ws.on('open', () => resolve(ws))
     ws.on('unexpected-response', (_request, response) => {
@@ -335,6 +341,27 @@ describe('presence disconnects', () => {
       .set('X-CSRF-Token', account.csrfToken)
       .expect(204)
     expect(await ws.closed).toBe(4401)
+    expect(ws.closeReason).not.toBe('replaced')
+  })
+
+  it('disconnects with 4401 when the same account signs in again elsewhere', async () => {
+    const cohort = await makeClass('a')
+    const account = await student(cohort)
+    const ws = await connect(account)
+    const other = request.agent(app)
+    const csrf = await other
+      .get('/api/auth/csrf')
+      .set('Origin', authOptions.clientOrigin)
+      .expect(200)
+    await other
+      .post('/api/auth/login')
+      .set('Origin', authOptions.clientOrigin)
+      .set('X-CSRF-Token', csrf.body.csrfToken)
+      .send({ identifier: account.email, password: account.password })
+      .expect(200)
+    expect(await ws.closed).toBe(4401)
+    expect(ws.closeReason).toBe('replaced')
+    await other.get('/api/auth/me').expect(200)
   })
 
   it('disconnects when the account is deactivated', async () => {
