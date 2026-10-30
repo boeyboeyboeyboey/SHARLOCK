@@ -1,7 +1,7 @@
 // registry of interior rooms keyed by game id; each entry lazily loads its builder
 // a builder is (ctx) => { camera, update(dt, time), dispose() } where ctx has scene, engine, tier, budget, reduced
 
-import { cliHero, phishingHero, sqlHero } from './heroes.js'
+import { cliHero, clearanceHero, phishingHero, socialHero, sqlHero } from './heroes.js'
 
 export const ROOM_IDS = [
   'cli-cyber-defender',
@@ -39,12 +39,14 @@ export const rooms = {
     id: 'social-engineering-simulator',
     label: 'The snug, The Capybara & Crown',
     palette: ['#5a3a24', '#22140c', '#f0a050'],
+    hero: socialHero,
     load: () => import('./social.js').then((m) => m.buildSnugRoom),
   },
   'clearance-tower': {
     id: 'clearance-tower',
     label: 'Records room, river police tower',
     palette: ['#26344a', '#10151f', '#d8c070'],
+    hero: clearanceHero,
     load: () => import('./clearance.js').then((m) => m.buildClearanceRoom),
   },
 }

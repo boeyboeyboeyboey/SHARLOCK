@@ -54,7 +54,8 @@ Owner: Boey. Integration-sensitive: the router (five game routes are children of
 - `slate` (dark games): a dark glass surface without multiply (it would crush to black), with a faint sheen, a warm lamp glow and a vignette in the overlay.
 - All of it is static, so reduced motion needs nothing. The 2D still, no WebGL, phones under 768px and rooms without a hero keep the plain centred desk and render neither layer.
 - `bleed: true` on a hero keeps the shell paddings instead of the compact hero ones, for a game that bleeds by the shell gutter (SQL injection arcade), so the game fills the panel edge to edge.
-- Rooms with a hero: phishing (inspection board, paper), CLI (operator's console with an "INSTRUMENT ROOM" plaque, sounder and key on the ledge, slate), SQL (registry ledger console with a "BONDED REGISTRY" plaque, dim room, pendant lamp over it, slate). Social and clearance still use the centred desk. `rooms/kit.js` `heroBoard` draws the shared frame, face, rails and ledge. Regenerate the 2D stills of the three hero rooms after the camera change.
+- Rooms with a hero (all five, stage 2c): phishing (inspection board, paper), CLI (operator's console with an "INSTRUMENT ROOM" plaque, sounder and key on the ledge, slate), SQL (registry ledger console with a "BONDED REGISTRY" plaque, dim room, pendant lamp over it, slate, `bleed`), social (the landlord's notice board with a "THE SNUG" plaque, message book, candles and a pint on the ledge, firelight lamp in front, paper), clearance (records case board with a "RECORDS" plaque, folders, nameplate and a banker's lamp on the ledge, cool lamp in front, paper). Social and clearance share the light green game background, so both use `paper`; neither bleeds. `rooms/kit.js` `heroBoard` draws the shared frame, face, rails and ledge.
+- Stills: with every room on a hero camera there is no drift, so `scripts/capture-interiors.mjs` now captures in loop mode (no reduced motion; a single-frame canvas came out black) and also hides `.desk-surface` and `.desk-overlay`. The stills show the empty prop face; the 2D desk covers it.
 
 ## Budgets and tiers
 
@@ -69,11 +70,11 @@ Desktop: loop, resident NPC rig, at most 150 draw calls. Compact: loop, static N
 
 ## 2D stills
 
-`client/public/interiors/<id>.webp` (1600 x 900, about 20 to 30 KB each) is shown in 2D mode, without WebGL and after a perf drop. The stills are rendered from the project's own Babylon rooms, not imported images. Regenerate them after changing a room, with the dev client and API running and a signed-in preview account (the script reads its credentials from `.local-handover/wardrobe-preview/login.txt`, which is gitignored, and never prints them):
+`client/public/interiors/<id>.webp` (1600 x 900, about 13 to 20 KB each) is shown in 2D mode, without WebGL and after a perf drop. The stills are rendered from the project's own Babylon rooms, not imported images. Regenerate them after changing a room, with the dev client and API running and a signed-in preview account (the script reads its credentials from `.local-handover/wardrobe-preview/login.txt`, which is gitignored, and never prints them):
 
 ```bash
 node scripts/capture-interiors.mjs --base http://localhost:5176           # missing stills only
 node scripts/capture-interiors.mjs --base http://localhost:5176 --force   # overwrite all
 ```
 
-The script uses headless Chromium with the software renderer, the desktop tier, reduced motion (camera at its drift start) and the desk panel hidden, and encodes WebP through a canvas, so it needs no extra dependency. It is a developer tool and is not part of the build or the tests.
+The script uses headless Chromium with the software renderer, the desktop tier, the live loop (no drift, since every room is a hero room) and the desk panel and its surface layers hidden, and encodes WebP through a canvas, so it needs no extra dependency. It is a developer tool and is not part of the build or the tests.

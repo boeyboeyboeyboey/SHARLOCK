@@ -2,7 +2,8 @@ import { Color3, Color4 } from '@babylonjs/core/Maths/math.color.js'
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode.js'
 import { Batch, rgb } from '../../hub/scenes/shared/geometry.js'
 import { glowMaterial, toonMaterial } from '../../hub/scenes/wharf/toon.js'
-import { hemi, labelAtlas, lamp, resident, shell } from './kit.js'
+import { clearanceHero } from './heroes.js'
+import { hemi, heroBoard, labelAtlas, lamp, resident, shell } from './kit.js'
 
 // thames river police clearance tower records room, 1880: cool lamplight and police blue
 const C = {
@@ -177,12 +178,44 @@ function gear(batch, r, teeth, color) {
   batch.box({ c: [0, 0, 0], s: [0.14, 0.14, 0.09], color })
 }
 
+// the case board: a cork-toned records face in a walnut frame, with folders and a brass lamp on the ledge
+function caseBoard(b, g) {
+  const { z, bottom, top } = heroBoard(b, clearanceHero, {
+    face: '#cdbf98',
+    faceGain: 1.4,
+    frame: C.walnut,
+    brass: C.brass,
+  })
+  const ly = bottom - 0.27
+  ;[-1.2, -0.95, -0.7].forEach((x, i) =>
+    b.box({
+      c: [x, ly + 0.03 + i * 0.002, z - 0.2],
+      s: [0.22, 0.04 + i * 0.01, 0.3],
+      color: rgb(['#d8cfa8', '#c9b98a', TABS[1]][i], 0.95),
+      yaw: 0.1 * i,
+    }),
+  )
+  // brass nameplate on the ledge and a banker's lamp
+  b.box({ c: [0.3, ly + 0.03, z - 0.2], s: [0.5, 0.05, 0.12], color: rgb(C.brass, 1) })
+  b.cylinder({ c: [1.1, ly + 0.05, z - 0.2], r: 0.07, h: 0.04, seg: 8, color: rgb(C.brass, 0.9) })
+  g.box({ c: [1.1, ly + 0.17, z - 0.2], s: [0.2, 0.09, 0.1], color: rgb('#cfe0ff', 1) })
+  // cool lamps over the top rail
+  for (const x of [-1, 1]) {
+    b.bar([x * 1.3, top + 0.24, z], [x * 1.3, top + 0.4, z - 0.12], 0.025, {
+      color: rgb(C.brass, 1),
+    })
+    g.box({ c: [x * 1.3, top + 0.46, z - 0.14], s: [0.16, 0.12, 0.16], color: rgb('#cfe0ff', 1.5) })
+  }
+}
+
 export function buildClearanceRoom({ scene, budget, reduced }) {
   scene.clearColor = new Color4(0.03, 0.04, 0.07, 1)
   const fill = hemi(scene, { intensity: 0.55, diffuse: [0.6, 0.7, 0.95], ground: [0.2, 0.18, 0.2] })
   const cool = lamp(scene, 'cool', [0, 2.9, 1.8], [0.7, 0.8, 1], 1.5, 12)
   const lanternLight = lamp(scene, 'lantern', [3.6, 2.4, 0.2], [0.35, 0.55, 1], 1.4, 7)
   const warm = lamp(scene, 'warm', [-1, 1.7, 1.4], [1, 0.85, 0.55], 0.7, 6)
+  // cool lamplight on the front of the board
+  const boardLamp = lamp(scene, 'board-cool', [0, 2.4, -2.6], [0.65, 0.78, 1], 1.1, 5)
 
   const solid = new Batch()
   const glow = new Batch()
@@ -199,12 +232,20 @@ export function buildClearanceRoom({ scene, budget, reduced }) {
     [['ADMIN'], '#e8e0c4', '#1c1408'],
     [['AUDIT'], '#e8e0c4', '#1c1408'],
     [['CONFIDENTIAL'], '#e8e0c4', '#b2262a'],
+    [['RECORDS'], '#1b2a4a', '#e8e0c4'],
   ])
   cabinets(solid)
   cage(solid, labels, atlas)
   keyBoard(solid, labels, atlas)
   desks(solid, glow, labels, atlas)
   dutyDesk(solid)
+  caseBoard(solid, glow)
+  labels.box({
+    c: [0, clearanceHero.corners[0][1] + 0.12, clearanceHero.corners[0][2] - 0.09],
+    s: [1.5, 0.17, 0.02],
+    uv: atlas.uv(10),
+    color: rgb('#ffffff', 1.1),
+  })
   // police blue notice strip above the cabinets
   glow.box({ c: [0, 1.15, 4.46], s: [9, 0.025, 0.03], color: rgb('#6a96e8', 0.9) })
 
@@ -264,7 +305,7 @@ export function buildClearanceRoom({ scene, budget, reduced }) {
 
   const animate = budget.animate && !reduced()
   return {
-    camera: { pos: [0, 1.55, -3.6], target: [0, 1.5, 3], fov: 1.1, drift: [0.22, 0.06, 44] },
+    camera: { ...clearanceHero.camera, drift: [0, 0, 44] },
     update(dt, time) {
       if (!animate) return
       policeman.update(dt)
@@ -280,7 +321,7 @@ export function buildClearanceRoom({ scene, budget, reduced }) {
     dispose() {
       policeman.dispose()
       for (const m of meshes) m.dispose()
-      for (const l of [fill, cool, lanternLight, warm]) l.dispose()
+      for (const l of [fill, cool, lanternLight, warm, boardLamp]) l.dispose()
       for (const m of [material, glowMat, labelMat, lanternMat]) m.dispose()
       atlas.texture.dispose()
     },

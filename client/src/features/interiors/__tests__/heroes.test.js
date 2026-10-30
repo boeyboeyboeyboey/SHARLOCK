@@ -4,10 +4,12 @@ import { rooms } from '../rooms/index.js'
 const heroRooms = Object.values(rooms).filter((r) => r.hero)
 
 describe('hero configs', () => {
-  it('seats phishing, cli and sql on a prop', () => {
+  it('seats all five games on a prop', () => {
     expect(heroRooms.map((r) => r.id).sort()).toEqual([
+      'clearance-tower',
       'cli-cyber-defender',
       'phishing-post-mortem',
+      'social-engineering-simulator',
       'sql-injection-arcade',
     ])
   })
@@ -27,9 +29,11 @@ describe('hero configs', () => {
     },
   )
 
-  it('lights dark games on slate and the paper game on paper', () => {
+  it('lights dark games on slate and light games on paper', () => {
     expect(rooms['phishing-post-mortem'].hero.surface).toBe('paper')
     expect(rooms['cli-cyber-defender'].hero.surface).toBe('slate')
     expect(rooms['sql-injection-arcade'].hero.surface).toBe('slate')
+    expect(rooms['social-engineering-simulator'].hero.surface).toBe('paper')
+    expect(rooms['clearance-tower'].hero.surface).toBe('paper')
   })
 })

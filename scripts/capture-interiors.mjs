@@ -38,7 +38,7 @@ const browser = await chromium.launch({
   args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'],
 })
 try {
-  const context = await browser.newContext({ viewport: size, reducedMotion: 'reduce' })
+  const context = await browser.newContext({ viewport: size })
   await context.addInitScript(() => {
     localStorage.setItem('sharlock.hubForce3d', '1')
     localStorage.setItem('sharlock.townMode', '3d')
@@ -69,7 +69,7 @@ try {
     // the live view blurs and scales the canvas and shows the desk panel; the still bakes in neither
     await page.addStyleTag({
       content:
-        '.interior-desk,.modal,.modal-backdrop{display:none!important}.interior-canvas{filter:none!important;transform:none!important}',
+        '.interior-desk,.desk-surface,.desk-overlay,.modal,.modal-backdrop{display:none!important}.interior-canvas{filter:none!important;transform:none!important}',
     })
     await page.waitForTimeout(1500)
     const png = await page.getByTestId('interior-canvas').screenshot({ type: 'png' })

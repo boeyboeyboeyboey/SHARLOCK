@@ -37,3 +37,25 @@ export const sqlHero = {
   ],
   camera: { pos: [0, 1.55, -3.7], target: [0, 1.5, 0], fov: 1.1 },
 }
+
+export const socialHero = {
+  surface: 'paper',
+  corners: [
+    [-1.7, 2.6, -1.1],
+    [1.7, 2.6, -1.1],
+    [1.7, 0.4, -1.1],
+    [-1.7, 0.4, -1.1],
+  ],
+  camera: { pos: [0, 1.55, -3.7], target: [0, 1.5, 0], fov: 1.1 },
+}
+
+export const clearanceHero = {
+  surface: 'paper',
+  corners: [
+    [-1.7, 2.6, -1.1],
+    [1.7, 2.6, -1.1],
+    [1.7, 0.4, -1.1],
+    [-1.7, 0.4, -1.1],
+  ],
+  camera: { pos: [0, 1.55, -3.7], target: [0, 1.5, 0], fov: 1.1 },
+}
