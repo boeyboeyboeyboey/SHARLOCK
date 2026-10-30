@@ -3,6 +3,7 @@ import { test, expect } from './fixtures/auth.js'
 import { findLevel, LEVELS } from '../../server/src/modules/games/clearance-tower/levels.js'
 import { seedClass, signedInPage } from './fixtures/class.js'
 import { SOLUTIONS } from '../../server/tests/unit/clearance-tower/solutions.js'
+import { jumpToBuilding } from './fixtures/town.js'
 
 test.beforeEach(async ({ page }) => {
   // these specs exercise the 2D pixel town
@@ -81,7 +82,7 @@ const pageOverflow = (page) =>
 
 test('solves the matrix case to three stars from the town card', async ({ page }) => {
   await page.goto('/')
-  await page.getByLabel('Jump to').selectOption('clearance-tower')
+  await jumpToBuilding(page, 'clearance-tower')
   const card = page.getByRole('region', { name: 'Clearance Tower', exact: true })
   await card.getByRole('link').click()
   await expect(page).toHaveURL(/\/games\/clearance-tower$/)
@@ -280,7 +281,7 @@ test('keeps the shared town styles after leaving the game', async ({ page }) => 
     })
   await page.goto('/')
   const before = await sharedStyle()
-  await page.getByLabel('Jump to').selectOption('clearance-tower')
+  await jumpToBuilding(page, 'clearance-tower')
   await page.getByRole('region', { name: 'Clearance Tower', exact: true }).getByRole('link').click()
   await startClimb(page)
   await pickCase(page, 'the-matrix')

@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures/auth.js'
 import { seedClass, signedInPage } from './fixtures/class.js'
+import { jumpToBuilding } from './fixtures/town.js'
 import {
   failSteps,
   finishRun,
@@ -209,7 +210,7 @@ test.describe('with a classic vertical scrollbar', () => {
 
 test('enters through the existing town destination and legacy alias', async ({ page }) => {
   await page.goto('/')
-  await page.getByLabel('Jump to').selectOption('sql-injection-arcade')
+  await jumpToBuilding(page, 'sql-injection-arcade')
   const card = page.getByRole('region', { name: 'SQL Injection Arcade', exact: true })
   await card.getByRole('link', { name: 'Enter activity' }).click()
   await expect(page.getByRole('button', { name: 'Open the case' })).toBeVisible()

@@ -1,4 +1,5 @@
 import { test, expect } from './fixtures/auth.js'
+import { jumpToBuilding } from './fixtures/town.js'
 
 function fixture(section = 'cybersecurity', range = 'week', overrides = {}) {
   const now = Date.now()
@@ -69,7 +70,7 @@ test('opens the newspaper directly and preserves town camera, focus, audio and h
   await page.goto('/dashboard')
   await expect(page).toHaveURL('/')
   await page.getByRole('button', { name: 'Zoom in' }).click()
-  await page.getByLabel('Jump to').selectOption('threat-briefing')
+  await jumpToBuilding(page, 'threat-briefing')
   await page.getByRole('button', { name: 'Close activity details' }).click()
   const building = page.getByRole('button', { name: 'Explore The daily briefing', exact: true })
   const transform = await page.locator('.town-world').evaluate((node) => node.style.transform)
@@ -191,7 +192,7 @@ test('handles direct malformed links, keyboard close and leaving without style o
   await expect(page.getByRole('dialog')).toBeVisible()
   await page.getByRole('button', { name: 'Close newspaper' }).click()
   await expect(page).toHaveURL('/')
-  await page.getByLabel('Jump to').selectOption('sql-injection-arcade')
+  await jumpToBuilding(page, 'sql-injection-arcade')
   await page
     .getByRole('region', { name: 'SQL Injection Arcade', exact: true })
     .getByRole('link', { name: 'Enter activity' })
@@ -293,7 +294,7 @@ test('plays the supplied newspaper loop, keeps one player across tabs and restor
   if (!(await mute.isVisible())) await page.mouse.click(1, 1)
   await expect(mute).toBeVisible()
   await expect.poll(() => townAudio.evaluate((el) => !el.paused && !el.muted)).toBe(true)
-  await page.getByLabel('Jump to').selectOption('threat-briefing')
+  await jumpToBuilding(page, 'threat-briefing')
   const mediaResponse = page.waitForResponse((response) =>
     response.url().endsWith('/audio/Lo-fi_8-bit_coffee_s_1-1789752418868.mp3'),
   )
@@ -324,7 +325,7 @@ test('plays the supplied newspaper loop, keeps one player across tabs and restor
     .poll(() => handle.evaluate((el) => el.paused && el.muted && !el.isConnected))
     .toBe(true)
   await expect.poll(() => townAudio.evaluate((el) => !el.paused && !el.muted)).toBe(true)
-  await page.getByLabel('Jump to').selectOption('sql-injection-arcade')
+  await jumpToBuilding(page, 'sql-injection-arcade')
   await page
     .getByRole('region', { name: 'SQL Injection Arcade', exact: true })
     .getByRole('link', { name: 'Enter activity' })

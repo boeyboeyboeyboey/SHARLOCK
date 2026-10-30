@@ -1,6 +1,7 @@
 import { test, expect } from './fixtures/auth.js'
 import { randomBytes } from 'node:crypto'
 import { seedClass, signedInPage } from './fixtures/class.js'
+import { jumpToBuilding } from './fixtures/town.js'
 
 const ACTIONS = /\/api\/attempts\/[^/]+\/actions$/
 const START = /\/api\/games\/phishing-post-mortem\/attempts$/
@@ -197,7 +198,7 @@ test('fits a 375px screen without a horizontal scrollbar mid-run', async ({ page
 
 test('enters from the town and returns to it', async ({ page }) => {
   await page.goto('/')
-  await page.getByLabel('Jump to').selectOption('phishing-post-mortem')
+  await jumpToBuilding(page, 'phishing-post-mortem')
   const card = page.getByRole('region', { name: 'The Phishing Post-Mortem', exact: true })
   await expect(card.getByText('Playable game in development')).toHaveCount(0)
   await card.getByRole('link', { name: 'Enter activity' }).click()

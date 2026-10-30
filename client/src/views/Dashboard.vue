@@ -5,11 +5,11 @@ import { useRoute, useRouter } from 'vue-router'
 import HubScene from '../features/hub/HubScene.vue'
 import HubAmbience from '../features/hub/HubAmbience.vue'
 import TownMap from '../features/legacy-town/TownMap.vue'
+import TownAudio from '../features/legacy-town/TownAudio.vue'
 import Hub3dWarning from '../features/legacy-town/Hub3dWarning.vue'
 import { readGraphics, writeGraphics } from '../features/hub/graphics.js'
 import { writePerf } from '../features/hub/perfWatch.js'
 import { useTownMode } from '../features/legacy-town/useTownMode.js'
-import PixelIcon from '../components/town/PixelIcon.vue'
 import ImmersiveControls from '../features/menu/ImmersiveControls.vue'
 import {
   createSoundRegistry,
@@ -32,6 +32,8 @@ const menuOpen = ref(false)
 const signOut = useSignOut()
 // the floating controls offer this slot to whichever sound component is mounted
 const soundSlot = shallowRef(null)
+// the 2d town registers its jump function here for the menu's Places list
+const jumpTo = shallowRef(null)
 const lore = useLoreIntro()
 const townMode = useTownMode()
 const is3d = computed(() => townMode.mode.value === '3d')
@@ -85,6 +87,7 @@ provideTownControls({
   showControls,
   resetCamera,
   soundSlot,
+  jumpTo,
 })
 let openedFromTown = false
 watch(
@@ -121,17 +124,8 @@ function closeOverlay() {
 <template>
   <div class="town-dashboard" :class="{ 'is-hub': is3d }">
     <h1 v-if="is3d" class="visually-hidden" tabindex="-1">3D town</h1>
-    <section v-else class="town-intro">
-      <div>
-        <p class="town-eyebrow">A SMALL TOWN. A WORLD OF DISCOVERIES.</p>
-        <h1 tabindex="-1">Welcome to Sharlock Town.</h1>
-        <p>
-          Pick a building. Follow your curiosity. Every adventure is open.
-          <RouterLink to="/about">About Sharlock</RouterLink>
-        </p>
-      </div>
-    </section>
-    <template v-if="!is3d">
+    <h1 v-else class="visually-hidden" tabindex="-1">Welcome to Sharlock Town.</h1>
+    <div v-if="!is3d" class="town-notices">
       <p v-if="route.query.classRequest === 'pending'" class="alert alert-success" role="status">
         Your class request is pending staff approval. You can explore on your own while you wait.
         <RouterLink to="/classes">View your classes</RouterLink>
@@ -173,7 +167,7 @@ function closeOverlay() {
           @click="townMode.dismissNotice"
         ></button>
       </div>
-    </template>
+    </div>
     <HubScene
       v-if="is3d"
       ref="hubScene"
@@ -201,12 +195,8 @@ function closeOverlay() {
       ref="townMap"
       class="town-canvas"
       :games="gameCatalog"
-      :sound-suspended="route.name === 'news'"
       @activate="router.push($event)"
     />
-    <p v-if="!is3d" class="town-footnote">
-      <PixelIcon name="star" :size="16" /> Explore at your own pace.
-    </p>
     <Hub3dWarning
       v-if="townMode.warning.value"
       @cancel="townMode.cancel3d"
@@ -216,13 +206,18 @@ function closeOverlay() {
       ref="controls"
       v-model:menu-open="menuOpen"
       :mode="townMode.mode.value"
+      :skin="is3d ? 'glass' : 'pixel'"
       :locked="townMode.locked.value"
       :suppressed="escapeHeld"
       :user="auth.user"
       :logout-pending="auth.logoutPending"
       @toggle-mode="townMode.toggle"
       @sign-out="signOut"
-    />
+    >
+      <template v-if="!is3d" #sound>
+        <TownAudio :suspended="route.name === 'news'" />
+      </template>
+    </ImmersiveControls>
     <RouterView @request-close="closeOverlay" />
   </div>
 </template>
@@ -248,14 +243,42 @@ function closeOverlay() {
 :global(.portal-shell.is-immersive .portal-workspace) {
   margin-left: 0;
 }
+/* 2d town: the map fills the window; the edge tabs and zoom stack float over it */
 .town-dashboard:not(.is-hub) {
-  padding-top: 52px;
+  position: relative;
+  display: block;
+  height: 100dvh;
+  min-height: 0;
+  padding: 0;
+}
+:global(.portal-main:has(> .town-dashboard:not(.is-hub))) {
+  max-width: none;
+  min-height: 0;
+  padding: 0;
+}
+.town-notices {
+  position: absolute;
+  top: 68px;
+  left: 50%;
+  z-index: 15;
+  width: min(560px, calc(100% - 24px));
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.town-notices > * {
+  margin: 0 0 8px;
+  padding: 8px 12px;
+  border: 2px solid var(--town-edge);
+  border-radius: 0;
+  box-shadow: 3px 3px 0 var(--town-edge);
+  font-size: 14px;
+  pointer-events: auto;
 }
 :global(.portal-shell.is-immersive .hub-hud),
 :global(.portal-shell.is-immersive .hub-dest) {
   top: 64px;
 }
-:global(.portal-shell:has(.town-dashboard.is-hub) .portal-footer) {
+:global(.portal-shell:has(.town-dashboard) .portal-footer) {
   display: none;
 }
 .hud-alert {

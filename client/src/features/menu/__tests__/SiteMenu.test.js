@@ -1,6 +1,9 @@
-import { afterEach, describe, expect, it } from 'vitest'
-import { mount, RouterLinkStub } from '@vue/test-utils'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { defineComponent, h, shallowRef } from 'vue'
+import { flushPromises, mount, RouterLinkStub } from '@vue/test-utils'
 import SiteMenu from '../SiteMenu.vue'
+import { provideTownControls } from '../townControls.js'
+import { gameCatalog } from '../../../data/gameCatalog.js'
 import { resetRoster, usePresenceRoster } from '../../hub/presence/roster.js'
 
 const student = { username: 'detective_boey', avatarId: 'capybara', globalRoles: ['student'] }
@@ -109,7 +112,9 @@ describe('site menu', () => {
       const wrapper = mountMenu()
       usePresenceRoster().state.superseded = true
       await wrapper.vm.$nextTick()
-      expect(wrapper.get('[data-testid="menu-online-elsewhere"]').text()).toBe('Open in another tab')
+      expect(wrapper.get('[data-testid="menu-online-elsewhere"]').text()).toBe(
+        'Open in another tab',
+      )
       expect(wrapper.find('[data-testid="menu-online"]').exists()).toBe(false)
       wrapper.unmount()
     })
@@ -122,7 +127,9 @@ describe('site menu', () => {
         { sid: 'b', username: 'mr_lee', staff: true },
       ]
       const wrapper = mountMenu()
-      expect(wrapper.get('[data-testid="menu-online-toggle"]').text()).toBe('Online in your class: 2')
+      expect(wrapper.get('[data-testid="menu-online-toggle"]').text()).toBe(
+        'Online in your class: 2',
+      )
       const toggle = wrapper.get('[data-testid="menu-online-toggle"]')
       expect(toggle.attributes('aria-expanded')).toBe('false')
       expect(wrapper.get('[data-testid="menu-online-list"]').isVisible()).toBe(false)
@@ -138,12 +145,60 @@ describe('site menu', () => {
       const { state } = usePresenceRoster()
       state.active = true
       state.staff = true
-      state.classes = [{ cohortId: 'c1', cohortName: 'One' }, { cohortId: 'c2', cohortName: 'Two' }]
+      state.classes = [
+        { cohortId: 'c1', cohortName: 'One' },
+        { cohortId: 'c2', cohortName: 'Two' },
+      ]
       state.selectedCohortId = 'c1'
       const wrapper = mountMenu({ user: instructor })
       await wrapper.get('[data-testid="menu-online-class"]').setValue('c2')
       expect(state.selectedCohortId).toBe('c2')
       wrapper.unmount()
     })
+  })
+})
+
+describe('places', () => {
+  function mountWithControls(controls) {
+    const Host = defineComponent({
+      setup() {
+        provideTownControls(controls)
+        return () => h(SiteMenu, { open: true, user: student })
+      },
+    })
+    return mount(Host, {
+      attachTo: document.body,
+      global: { stubs: { RouterLink: RouterLinkStub } },
+    })
+  }
+
+  it('lists every building only when the town registered a jump function', async () => {
+    const jump = vi.fn()
+    const wrapper = mountWithControls({ jumpTo: shallowRef(jump) })
+    const places = wrapper.get('nav[aria-label="Places"]')
+    expect(places.find('h3').text()).toBe('Places')
+    expect(places.findAll('button').map((node) => node.text())).toEqual(
+      gameCatalog.map((game) => game.name),
+    )
+    wrapper.unmount()
+  })
+
+  it('shows no places without a registered jump function', () => {
+    const wrapper = mountWithControls({ jumpTo: shallowRef(null) })
+    expect(wrapper.find('nav[aria-label="Places"]').exists()).toBe(false)
+    wrapper.unmount()
+    const bare = mountMenu({ open: true })
+    expect(bare.find('nav[aria-label="Places"]').exists()).toBe(false)
+    bare.unmount()
+  })
+
+  it('closes the menu and jumps to the chosen building', async () => {
+    const jump = vi.fn()
+    const wrapper = mountWithControls({ jumpTo: shallowRef(jump) })
+    await wrapper.get('nav[aria-label="Places"] button').trigger('click')
+    await flushPromises()
+    expect(wrapper.getComponent(SiteMenu).emitted('navigate')).toHaveLength(1)
+    expect(jump).toHaveBeenCalledWith(gameCatalog[0].id)
+    wrapper.unmount()
   })
 })
