@@ -6,6 +6,8 @@ import { Scene } from '@babylonjs/core/scene.js';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector.js';
 import '@babylonjs/core/Physics/physicsEngineComponent.js';
 import '@babylonjs/core/Meshes/instancedMesh.js';
+// without this the thin instanced crowds, gulls and props draw one base copy at the origin
+import '@babylonjs/core/Meshes/thinInstanceMesh.js';
 import { HavokPlugin } from '@babylonjs/core/Physics/v2/Plugins/havokPlugin.js';
 import HavokPhysics from '@babylonjs/havok';
 import havokWasm from '@babylonjs/havok/lib/esm/HavokPhysics.wasm?url';
