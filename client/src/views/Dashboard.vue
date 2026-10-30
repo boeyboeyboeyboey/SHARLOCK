@@ -19,7 +19,10 @@ import {
 import { useLoreIntro } from '../features/hub/intro/useLoreIntro.js'
 import { gameCatalog } from '../data/gameCatalog.js'
 import { useAuthStore } from '../features/auth/store.js'
+import { useUiScale } from '../composables/useUiScale.js'
+import '../assets/styles/ui-scale.css'
 const auth = useAuthStore()
+useUiScale()
 const route = useRoute()
 const router = useRouter()
 const hubScene = ref(null)

@@ -13,13 +13,19 @@ const SIZE = 1.2;
 const UPDATE_RANGE = 25;
 const FACE_RANGE = 4;
 const TALK_RANGE = 2.5;
+// a walking wanderer only stops and turns this close to the player
+const STOP_RANGE = 1.5;
 const TAU = Math.PI * 2;
 
 // builds the npc capybaras: animated rigs on the desktop tier, static meshes elsewhere
 export function buildTownsfolk({ scene, tier, reduced, look }) {
   const toon = (m) => applyToon(m, { rimGain: 1.1 });
   // the hidden discovery npcs stand still and face the player like the rest, but are never offered as a talk target
-  const roster = [...npcs, ...finds.filter((find) => find.kind === 'npc').map((find) => ({ ...find, kind: 'hidden' }))];
+  // the low tier keeps only the original wanderers
+  const wanderers = tier.wanderers ?? Infinity;
+  let kept = 0;
+  const cast = npcs.filter((npc) => npc.kind !== 'wanderer' || (kept++ < wanderers));
+  const roster = [...cast, ...finds.filter((find) => find.kind === 'npc').map((find) => ({ ...find, kind: 'hidden' }))];
   const folk = roster.map((npc, index) => {
     const style = { ...furStyles[npc.style.fur], scarf: npc.style.scarf };
     let root;
@@ -77,7 +83,7 @@ export function buildTownsfolk({ scene, tier, reduced, look }) {
       }
       if (dist > UPDATE_RANGE) continue;
       let walking = false;
-      if (f.patrol && !holdsStill({ frozen, calm, dist, range: UPDATE_RANGE, near: FACE_RANGE, talking: talkId === f.npc.id })) {
+      if (f.patrol && !holdsStill({ frozen, calm, dist, range: UPDATE_RANGE, near: STOP_RANGE, talking: talkId === f.npc.id })) {
         stepPatrol(f.patrol, f.npc.route, f.npc.pause, step);
         walking = f.patrol.moving;
         if (walking) {
@@ -93,7 +99,8 @@ export function buildTownsfolk({ scene, tier, reduced, look }) {
         }
       }
       // ease the body round to face the player when close, else along the walk or back to the post
-      const want = dist < FACE_RANGE || talkId === f.npc.id ? Math.atan2(dx, dz) : f.want;
+      const faces = f.patrol ? dist < STOP_RANGE : dist < FACE_RANGE;
+      const want = faces || talkId === f.npc.id ? Math.atan2(dx, dz) : f.want;
       let diff = want - f.yaw;
       diff -= TAU * Math.round(diff / TAU);
       f.yaw += diff * (calm ? 1 : 1 - Math.exp(-step * 6));

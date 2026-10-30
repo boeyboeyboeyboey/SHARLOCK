@@ -4,7 +4,7 @@
 
 - What it is: the 2D mode of the landing page `/`, a pixel wharf town with six destinations, the newsstand on a pier, a cobbled street to a fountain plaza, and a few generic capybaras and gulls.
 - Not a lesson: it is navigation only, so there are no course citations.
-- Use it: drag or swipe to pan, pinch or +/- to zoom (100 to 200%), arrow keys pan, 0 resets, Jump to centres a building (the toolbar row above the map holds Jump to, the zoom buttons and Reset view), hover, focus or tap a building for its card.
+- Use it: drag or swipe to pan, pinch or +/- to zoom (fit-to-town up to 200%, steps fit, 50, 75, 90, 100, 125, 150, 175, 200; `townZoom.js`), arrow keys pan, 0 resets, Jump to centres a building (the toolbar row above the map holds Jump to, the zoom buttons and Reset view), hover, focus or tap a building for its card.
 - Technical: Vue 3 plus `@panzoom/panzoom` for the one camera; buildings, ground, barges, props and animals are code-drawn SVG from `townArt.js`, positioned from `gameCatalog.js`; animation is CSS only.
 - Status: see the TOWN-01 record in TASKS.md. Limits: decorative figures are not interactive and have no names.
 
@@ -28,7 +28,9 @@ Art and motion:
 4. Animals walk with CSS `transform` keyframes and a two-frame leg swap (no JavaScript timers or listeners). All decorative layers are `aria-hidden` and `pointer-events: none`.
 5. Under `prefers-reduced-motion: reduce` every animation is off and walkers are drawn static with four legs; the rules live in `town.css` under `no-preference`.
 
-Owned files: `TownMap.vue`, `TownBuildingArt.vue`, `townArt.js`, `TownScenery.vue`, `TownAudio.vue`, `GameInfoCard.vue`, `useTownMode.js`, `__tests__/`.
+Zoom: the floor is the scale at which the whole 1120 x 800 world fits the viewport (`fitScale`, recomputed on mount and resize); a custom panzoom `setTransform` clamps the pan with `clampPan` (edge to edge when the world covers the view, centred when it is smaller), replacing panzoom's `contain`. The toolbar follows the interface size (`--ui-scale`, see DESIGN.md).
+
+Owned files: `townZoom.js`, `TownMap.vue`, `TownBuildingArt.vue`, `townArt.js`, `TownScenery.vue`, `TownAudio.vue`, `GameInfoCard.vue`, `useTownMode.js`, `__tests__/`.
 
 ## Audio
 

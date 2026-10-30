@@ -2,6 +2,7 @@
 import { ref, computed, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import Panzoom from '@panzoom/panzoom'
 import { TOWN_SIZE } from '../../data/gameCatalog.js'
+import { clampPan, fitScale, stepZoom } from './townZoom.js'
 import PixelIcon from '../../components/town/PixelIcon.vue'
 import TownScenery from './TownScenery.vue'
 import TownBuildingArt from './TownBuildingArt.vue'
@@ -15,8 +16,10 @@ const viewport = ref(null)
 const world = ref(null)
 const scale = ref(1)
 const dragging = ref(false)
-const minScale = 1
+// the floor is the scale at which the whole town fits the viewport
+const minScale = ref(1)
 const maxScale = 2
+let correcting = false
 const activePointers = new Map()
 let camera
 let suppressClick = false
@@ -129,9 +132,12 @@ function findBuilding(event) {
   centerBuilding(game)
   reveal(game, true)
 }
-function zoomBy(step) {
+function viewSize() {
+  return { width: viewport.value.clientWidth, height: viewport.value.clientHeight }
+}
+function zoomStep(direction) {
   if (!camera) return
-  const target = Math.max(minScale, Math.min(maxScale, camera.getScale() + step))
+  const target = stepZoom(camera.getScale(), direction, minScale.value)
   if (target === camera.getScale()) return
   const bounds = viewport.value.getBoundingClientRect()
   camera.zoomToPoint(target, {
@@ -160,7 +166,7 @@ function panWithKeyboard(event) {
   } else if (['+', '=', '-', '0'].includes(event.key)) {
     event.preventDefault()
     if (event.key === '0') resetCamera()
-    else zoomBy(event.key === '-' ? -0.25 : 0.25)
+    else zoomStep(event.key === '-' ? -1 : 1)
   }
 }
 function startGesture(event) {
@@ -213,15 +219,39 @@ function wheelCamera(event) {
   const y = event.shiftKey && !event.deltaX ? 0 : event.deltaY
   camera.pan((-x * unit) / scale.value, (-y * unit) / scale.value, { relative: true })
 }
+function applyTransform(elem, { x, y, scale: current }) {
+  const clamped = clampPan({ x, y }, current, viewSize(), TOWN_SIZE)
+  elem.style.transform = `scale(${current}) translate(${clamped.x}px, ${clamped.y}px)`
+}
 function cameraChanged(event) {
   scale.value = event.detail.scale
+  const { x, y } = event.detail
+  const clamped = clampPan({ x, y }, event.detail.scale, viewSize(), TOWN_SIZE)
+  // keep panzoom's own pan in step with the clamped transform that is already on screen
+  if (!correcting && (Math.abs(clamped.x - x) > 0.5 || Math.abs(clamped.y - y) > 0.5)) {
+    correcting = true
+    camera.pan(clamped.x, clamped.y, { force: true, animate: false })
+    requestAnimationFrame(() => (correcting = false))
+  }
   placeCard()
+}
+function syncFloor() {
+  const fit = fitScale(viewSize(), TOWN_SIZE)
+  minScale.value = fit
+  camera.setOptions({ minScale: fit, startScale: Math.max(1, fit) })
+  if (camera.getScale() < fit - 0.001) camera.zoom(fit, { animate: false, force: true })
+  // a new viewport size can leave the old pan off the world, so pull it back in
+  const pan = camera.getPan()
+  const clamped = clampPan(pan, camera.getScale(), viewSize(), TOWN_SIZE)
+  if (Math.abs(clamped.x - pan.x) > 0.5 || Math.abs(clamped.y - pan.y) > 0.5)
+    camera.pan(clamped.x, clamped.y, { force: true, animate: false })
 }
 function resizeCamera() {
   cancelAnimationFrame(resizeFrame)
   resizeFrame = requestAnimationFrame(() => {
+    syncFloor()
     const pan = camera.getPan()
-    camera.pan(pan.x, pan.y)
+    camera.pan(pan.x, pan.y, { force: true })
     placeCard()
   })
 }
@@ -230,15 +260,16 @@ onMounted(() => {
   camera = Panzoom(world.value, {
     canvas: true,
     cursor: 'grab',
-    contain: 'outside',
-    minScale,
+    minScale: minScale.value,
     maxScale,
+    setTransform: applyTransform,
     animate: false,
     noBind: true,
     overflow: 'clip',
     handleStartEvent: (event) => event.preventDefault(),
   })
   world.value.addEventListener('panzoomchange', cameraChanged)
+  syncFloor()
   viewport.value.addEventListener('wheel', wheelCamera, { passive: false })
   document.addEventListener('pointermove', moveGesture)
   document.addEventListener('pointerup', endGesture)
@@ -286,7 +317,7 @@ onBeforeUnmount(() => {
             type="button"
             aria-label="Zoom out"
             :disabled="scale <= minScale + 0.001"
-            @click="zoomBy(-0.25)"
+            @click="zoomStep(-1)"
           >
             −
           </button>
@@ -298,7 +329,7 @@ onBeforeUnmount(() => {
             type="button"
             aria-label="Zoom in"
             :disabled="scale >= maxScale - 0.001"
-            @click="zoomBy(0.25)"
+            @click="zoomStep(1)"
           >
             +
           </button>

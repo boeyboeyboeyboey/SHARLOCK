@@ -1,4 +1,4 @@
-// scripted townsfolk: one game keeper beside each door and three easter egg wanderers
+// scripted townsfolk: one game keeper beside each door and six easter egg wanderers, the original three first
 // a wanderer's route starts at its post and loops through 2-4 walkable waypoints, pausing pause seconds at each; game keepers have none
 // yaw is the facing, sin = x and cos = z, like the door faces in layout.js
 // lines are the scripted talk text, edit them here (game keepers 2-4, wanderers 1-2, 140 characters at most)
@@ -13,4 +13,7 @@ export const npcs = [
   { id: 'fisherman', name: 'Fisherman', role: 'fisherman', kind: 'wanderer', x: -2.2, z: 68, yaw: -Math.PI / 2, route: [[-2.2, 68], [-2.2, 63]], pause: 5, lines: ['Nothing biting today. Bit like a phishing line, come to think of it.'], style: { fur: 'dockB', cap: [0.24, 0.36, 0.3], scarf: [0.3, 0.46, 0.36] } },
   { id: 'lamplighter', name: 'Lamplighter', role: 'lamplighter', kind: 'wanderer', x: -14, z: 31.5, yaw: Math.PI / 4, route: [[-14, 31.5], [-19, 31.5], [-19, 33.5]], pause: 3, lines: ['Someone has to keep the lamps lit. Every night, without fail.', 'Mind the step, and the puddles.'], style: { fur: 'dockC', cap: [0.16, 0.14, 0.16], scarf: [0.84, 0.66, 0.24] } },
   { id: 'gull-feeder', name: 'Gull feeder', role: 'gull feeder', kind: 'wanderer', x: 14, z: 42.5, yaw: 0, route: [[14, 42.5], [18, 42.5], [18, 40]], pause: 4, lines: ['The gulls and I have an understanding. Nobody gets any chips.', 'Shoo! Not the crusts, you rascals.'], style: { fur: 'dockA', cap: [0.7, 0.66, 0.56], scarf: [0.56, 0.3, 0.5] } },
+  { id: 'street-sweeper', name: 'Street sweeper', role: 'street sweeper', kind: 'wanderer', x: 3.2, z: 10, yaw: Math.PI, route: [[3.2, 10], [3.2, 4]], pause: 4, lines: ['Sweep it clean at dawn and the carts have muddied it by noon. Such is the trade.'], style: { fur: 'dockC', cap: [0.34, 0.3, 0.22], scarf: [0.5, 0.5, 0.52] } },
+  { id: 'chimney-sweep', name: 'Chimney sweep', role: 'chimney sweep', kind: 'wanderer', x: -3.5, z: 14, yaw: Math.PI, route: [[-3.5, 14], [-3.5, 8], [-5, 8]], pause: 3, lines: ['Mind my brushes, miss. Soot will follow you home if you let it.', 'Good luck to you! They say a sweep brings it.'], style: { fur: 'dockA', cap: [0.08, 0.08, 0.1], scarf: [0.3, 0.3, 0.34] } },
+  { id: 'flower-seller', name: 'Flower seller', role: 'flower seller', kind: 'wanderer', x: 4, z: -12, yaw: Math.PI, route: [[4, -12], [4, -18], [5.5, -18]], pause: 4, lines: ['Violets, fresh violets! A penny a bunch, and sweeter than the river.', 'Take a posy for the lady of the house.'], style: { fur: 'dockB', cap: [0.62, 0.4, 0.5], scarf: [0.4, 0.6, 0.36] } },
 ];

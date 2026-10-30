@@ -23,3 +23,11 @@ export function useNpcDialogue() {
   }
   return { npc, index, open, line, isLast, begin, next, close }
 }
+
+// E in an open talk: next line, or close on the last one
+export function advanceTalk(talk, close) {
+  if (!talk.open.value) return false
+  if (talk.isLast.value) close()
+  else talk.next()
+  return true
+}

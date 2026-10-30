@@ -4,9 +4,11 @@ import OverlayPanel from '../OverlayPanel.vue'
 import { GRAPHICS_OPTIONS } from '../../hub/graphics.js'
 import { HUB_KEYS } from '../../hub/controls.js'
 import { useTownControls } from '../townControls.js'
+import { useUiScale } from '../../../composables/useUiScale.js'
 
 defineEmits(['request-close'])
 const controls = useTownControls()
+const ui = useUiScale()
 const is3d = computed(() => controls?.townMode.mode.value === '3d')
 const sound = computed(() => controls?.sound.current.value ?? null)
 const soundBusy = computed(() => !sound.value || sound.value.busy)
@@ -27,6 +29,21 @@ const soundBusy = computed(() => !sound.value || sound.value.busy)
             {{ option.label }}
           </option>
         </select>
+      </li>
+      <li>
+        <fieldset class="settings-size" data-testid="settings-ui-size">
+          <legend>Interface size</legend>
+          <label v-for="option in ui.options" :key="option.value">
+            <input
+              type="radio"
+              name="settings-ui-size"
+              :value="option.value"
+              :checked="ui.size.value === option.value"
+              @change="ui.setSize(option.value)"
+            />
+            {{ option.label }}
+          </label>
+        </fieldset>
       </li>
       <li>
         <span id="settings-sound-label">Sound</span>

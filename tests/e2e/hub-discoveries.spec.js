@@ -41,11 +41,12 @@ test('E opens a hidden discovery card and the menu counts it', async ({ page }) 
     .poll(() => page.evaluate(() => window.__hub.state.nearFind), slow)
     .toBe('sticky-note')
   await page.keyboard.press('KeyE')
+  // the announcement clears after 5 s, so read it before the slower card checks
+  await expect(page.getByTestId('hub-status')).toHaveText('Discovery 1 of 6: Pinned note')
   const card = page.getByTestId('npc-dialogue')
   await expect(card).toBeVisible()
   await expect(card.getByRole('heading', { name: 'Pinned note' })).toBeVisible()
   await expect(page.getByTestId('npc-line')).toContainText('Safe: 1234')
-  await expect(page.getByTestId('hub-status')).toHaveText('Discovery 1 of 6: Pinned note')
   expect(await page.evaluate(() => localStorage.getItem('sharlock.discoveries'))).toBe(
     '["sticky-note"]',
   )
