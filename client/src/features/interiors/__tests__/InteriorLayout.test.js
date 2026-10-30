@@ -5,7 +5,10 @@ import { createPinia } from 'pinia'
 import InteriorLayout from '../InteriorLayout.vue'
 
 vi.mock('../useInteriorEngine.js', () => ({
-  createInterior: vi.fn(() => ({ state: {}, ready: Promise.resolve(), dispose: vi.fn() })),
+  createInterior: vi.fn((opts) => {
+    opts.onHero?.({ left: 100, top: 80, width: 800, height: 520 })
+    return { state: {}, ready: Promise.resolve(), dispose: vi.fn() }
+  }),
 }))
 
 const Game = { template: '<p>game content</p><a href="#">x</a>' }
@@ -31,6 +34,16 @@ async function mountAt(path) {
             path: '/games/phishing-post-mortem',
             component: Game,
             meta: { interior: 'phishing-post-mortem' },
+          },
+          {
+            path: '/games/sql-injection-arcade',
+            component: Game,
+            meta: { interior: 'sql-injection-arcade' },
+          },
+          {
+            path: '/games/clearance-tower',
+            component: Game,
+            meta: { interior: 'clearance-tower' },
           },
         ],
       },
@@ -121,6 +134,51 @@ describe('hero layout fallback', () => {
     expect(desk.classes()).not.toContain('is-hero')
     expect(desk.attributes('style')).toBeUndefined()
     expect(wrapper.get('[data-testid="interior"]').attributes('data-hero')).toBeUndefined()
+    expect(wrapper.find('.desk-surface').exists()).toBe(false)
+    wrapper.unmount()
+  })
+})
+
+describe('hero surface styles', () => {
+  beforeEach(() => {
+    localStorage.setItem('sharlock.townMode', '3d')
+    localStorage.setItem('sharlock.hubForce3d', '1')
+    vi.stubGlobal('matchMedia', (q) => ({
+      matches: q.includes('min-width'),
+      addEventListener() {},
+      removeEventListener() {},
+    }))
+  })
+
+  it.each([
+    ['phishing-post-mortem', 'paper'],
+    ['cli-cyber-defender', 'slate'],
+    ['sql-injection-arcade', 'slate'],
+  ])('%s blends with a %s surface and a click-through overlay', async (id, surface) => {
+    const wrapper = await mountAt(`/games/${id}`)
+    const root = wrapper.get('[data-testid="interior"]')
+    expect(root.attributes('data-stage')).toBe('3d')
+    expect(root.attributes('data-surface')).toBe(surface)
+    expect(wrapper.get('.desk-surface').exists()).toBe(true)
+    const overlay = wrapper.get('[data-testid="desk-overlay"]')
+    expect(overlay.attributes('aria-hidden')).toBe('true')
+    expect(overlay.attributes('style')).toContain('width: 800px')
+    expect(wrapper.get('[data-testid="interior-desk"]').text()).toContain('game content')
+    wrapper.unmount()
+  })
+
+  it('keeps the shell paddings for a game that bleeds by the gutter', async () => {
+    const wrapper = await mountAt('/games/sql-injection-arcade')
+    expect(wrapper.get('[data-testid="interior"]').attributes('data-stage')).toBe('3d')
+    expect(wrapper.get('[data-testid="interior-desk"]').classes()).toContain('is-bleed')
+    wrapper.unmount()
+  })
+
+  it('has no surface layers for a room without a hero', async () => {
+    const wrapper = await mountAt('/games/clearance-tower')
+    expect(wrapper.get('[data-testid="interior"]').attributes('data-surface')).toBeUndefined()
+    expect(wrapper.find('.desk-surface').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="desk-overlay"]').exists()).toBe(false)
     wrapper.unmount()
   })
 })

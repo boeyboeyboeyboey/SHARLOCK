@@ -47,6 +47,15 @@ Owner: Boey. Integration-sensitive: the router (five game routes are children of
 - Fallback: the centred desk is used with no hero, in the still or 2D mode, without WebGL (`heroActive`) and below 768px. The panel keeps its own scroll; a game depends on the rect only through its size.
 - The prop must be drawn as a flat, camera-facing surface with its frame outside the corners, so the frame reads as the panel border. Phishing is the pilot (`inspectionBoard` in `rooms/phishing.js`); the other four rooms still use the centred desk. Regenerate the room's 2D still after changing its camera.
 
+### Surface styles and blend (INT-02 stage 2b)
+
+- A hero declares `surface: 'paper' | 'slate'` in `rooms/heroes.js` and the layout sets `data-surface` on the room. `InteriorLayout.vue` adds two layers around the desk panel at its rect: `.desk-surface` under it and `.desk-overlay` over it, both `pointer-events: none` and `aria-hidden`. The panel drops its own border and shadow, so the prop's brass lip is the edge.
+- `paper` (light games): the surface layer is a paper tone with a grain texture, the panel itself uses `mix-blend-mode: multiply` so light game backgrounds take the paper tone and ink stays dark, and the overlay adds a soft lamp gradient and an edge vignette. Measured body text on the blended phishing panel is about 8.9:1.
+- `slate` (dark games): a dark glass surface without multiply (it would crush to black), with a faint sheen, a warm lamp glow and a vignette in the overlay.
+- All of it is static, so reduced motion needs nothing. The 2D still, no WebGL, phones under 768px and rooms without a hero keep the plain centred desk and render neither layer.
+- `bleed: true` on a hero keeps the shell paddings instead of the compact hero ones, for a game that bleeds by the shell gutter (SQL injection arcade), so the game fills the panel edge to edge.
+- Rooms with a hero: phishing (inspection board, paper), CLI (operator's console with an "INSTRUMENT ROOM" plaque, sounder and key on the ledge, slate), SQL (registry ledger console with a "BONDED REGISTRY" plaque, dim room, pendant lamp over it, slate). Social and clearance still use the centred desk. `rooms/kit.js` `heroBoard` draws the shared frame, face, rails and ledge. Regenerate the 2D stills of the three hero rooms after the camera change.
+
 ## Budgets and tiers
 
 Desktop: loop, resident NPC rig, at most 150 draw calls. Compact: loop, static NPC, at most 100. Low, or reduced motion: one frame, then the render loop stops (60 draw calls on Low). No shadows on any tier. The five rooms measure about 16 to 20 active meshes on desktop and 7 to 8 on compact and low.

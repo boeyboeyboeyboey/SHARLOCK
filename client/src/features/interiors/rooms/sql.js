@@ -2,7 +2,8 @@ import { Color4 } from '@babylonjs/core/Maths/math.color.js'
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode.js'
 import { Batch, rgb } from '../../hub/scenes/shared/geometry.js'
 import { glowMaterial, toonMaterial } from '../../hub/scenes/wharf/toon.js'
-import { hemi, labelAtlas, lamp, resident, shell } from './kit.js'
+import { sqlHero } from './heroes.js'
+import { hemi, heroBoard, labelAtlas, lamp, resident, shell } from './kit.js'
 
 // h.m. customs house bonded registry, 1880: dusk through blue windows, brass and cyan accents
 const C = {
@@ -177,15 +178,33 @@ function highDesk(b) {
   b.cylinder({ c: [-1.4, 0.2, -1.1], r: 0.03, h: 0.4, seg: 6, color: rgb(C.brass, 0.8) })
 }
 
+// the registry console: a dark ledger board in a brass frame, with an open ledger and an inkwell on the ledge
+function registryConsole(b, g) {
+  const { z, bottom } = heroBoard(b, sqlHero, {
+    face: '#0d1624',
+    faceGain: 1.2,
+    frame: C.walnut,
+    brass: C.brass,
+  })
+  const ly = bottom - 0.27
+  b.box({ c: [-0.8, ly + 0.02, z - 0.2], s: [0.5, 0.03, 0.3], color: rgb('#5a2428', 1) })
+  b.box({ c: [-0.8, ly + 0.045, z - 0.2], s: [0.46, 0.012, 0.26], color: rgb('#e8dcb8', 0.95) })
+  b.cylinder({ c: [0.9, ly + 0.07, z - 0.2], r: 0.05, h: 0.1, seg: 8, color: rgb('#10151c', 1.2) })
+  b.bar([1.0, ly + 0.1, z - 0.2], [1.2, ly + 0.2, z - 0.2], 0.012, { color: rgb('#e8dcb8', 1.2) })
+  // a banker's lamp glowing on the ledge
+  b.cylinder({ c: [0.35, ly + 0.05, z - 0.2], r: 0.07, h: 0.04, seg: 8, color: rgb(C.brass, 0.9) })
+  g.box({ c: [0.35, ly + 0.17, z - 0.2], s: [0.2, 0.09, 0.1], color: rgb('#33d0a8', 0.9) })
+}
+
 export function buildCustomsRoom({ scene, budget, reduced }) {
   scene.clearColor = new Color4(0.03, 0.04, 0.06, 1)
   const fill = hemi(scene, {
-    intensity: 0.55,
+    intensity: 0.4,
     diffuse: [0.55, 0.68, 0.9],
     ground: [0.22, 0.18, 0.16],
   })
-  const dusk = lamp(scene, 'dusk', [0, 2.6, 3.3], [0.45, 0.65, 1], 1.5, 11)
-  const pendant = lamp(scene, 'pendant', [0, 2.8, 0.8], [1, 0.8, 0.45], 1.5, 8)
+  const dusk = lamp(scene, 'dusk', [0, 2.6, 3.3], [0.45, 0.65, 1], 1.1, 11)
+  const pendant = lamp(scene, 'pendant', [0, 2.8, -0.6], [1, 0.8, 0.45], 1.9, 8)
   const cyan = lamp(scene, 'cyan', [3.0, 1.6, 2.4], [0.3, 0.9, 1], 0.8, 5)
 
   const solid = new Batch()
@@ -203,7 +222,7 @@ export function buildCustomsRoom({ scene, budget, reduced }) {
     [['FRAGILE', 'THIS WAY UP'], '#d8b878', '#2a1c12'],
     [['BONDED REGISTRY  A - Z'], '#1b2a40', '#c9a04a'],
     [['SCAN BADGE'], '#0f2a33', '#4fd6ea'],
-    [[], '#ffffff', '#ffffff'],
+    [['BONDED REGISTRY'], '#0d1624', '#c9a04a'],
     [[], '#ffffff', '#ffffff'],
     [[], '#ffffff', '#ffffff'],
     [[], '#ffffff', '#ffffff'],
@@ -217,11 +236,19 @@ export function buildCustomsRoom({ scene, budget, reduced }) {
   gate(solid, glow, labels, atlas)
   crates(labels, atlas)
   highDesk(solid)
+  registryConsole(solid, glow)
   labels.box({
     c: [0, 3.5, 4.4],
     s: [2.4, 0.4, 0.05],
     uv: atlas.uv(7),
     color: rgb('#ffffff', 0.85),
+  })
+
+  labels.box({
+    c: [0, sqlHero.corners[0][1] + 0.12, sqlHero.corners[0][2] - 0.09],
+    s: [1.5, 0.17, 0.02],
+    uv: atlas.uv(9),
+    color: rgb('#ffffff', 1.7),
   })
 
   const material = toonMaterial(scene, 'customs-room', { twoSided: true, options: ROOM_TOON })
@@ -256,7 +283,7 @@ export function buildCustomsRoom({ scene, budget, reduced }) {
 
   // pendant lamp swings from the ceiling
   const swing = new TransformNode('customs-swing', scene)
-  swing.position.set(0, 3.75, 0.8)
+  swing.position.set(0, 3.75, -0.6)
   const lampBatch = new Batch()
   lampBatch.bar([0, 0, 0], [0, -0.7, 0], 0.02, { color: rgb(C.brass, 0.8) })
   lampBatch.cylinder({
@@ -292,7 +319,7 @@ export function buildCustomsRoom({ scene, budget, reduced }) {
 
   const animate = budget.animate && !reduced()
   return {
-    camera: { pos: [0, 1.55, -3.6], target: [0, 1.5, 3], fov: 1.1, drift: [0.22, 0.06, 44] },
+    camera: { ...sqlHero.camera, drift: [0, 0, 44] },
     update(dt, time) {
       if (!animate) return
       officer.update(dt)
@@ -304,7 +331,7 @@ export function buildCustomsRoom({ scene, budget, reduced }) {
       swing.rotation.z = a
       pendant.position.x = -Math.sin(a) * 0.95
       pendant.position.y = 3.75 - Math.cos(a) * 0.95
-      pendant.intensity = 1.5 + Math.sin(time * 5.1) * 0.04
+      pendant.intensity = 1.9 + Math.sin(time * 5.1) * 0.04
       cyan.intensity = 0.8 + Math.sin(time * 2.4) * 0.15
     },
     dispose() {

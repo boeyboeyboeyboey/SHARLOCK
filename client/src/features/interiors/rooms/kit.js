@@ -142,3 +142,35 @@ export function resident(scene, { budget, reduced }, o) {
     },
   }
 }
+
+// a flat framed board for a hero prop: face between the corners, rails and posts outside them, brass lip, feet
+// returns the geometry the caller needs to dress the prop
+export function heroBoard(b, hero, o) {
+  const [tl, , br] = hero.corners
+  const z = tl[2]
+  const w = br[0] - tl[0]
+  const top = tl[1]
+  const bottom = br[1]
+  const cy = (top + bottom) / 2
+  const h = top - bottom
+  b.box({ c: [0, cy, z + 0.05], s: [w, h, 0.05], color: rgb(o.face, o.faceGain ?? 1) })
+  b.box({ c: [0, top + 0.12, z], s: [w + 0.5, 0.24, 0.16], color: rgb(o.frame, 1.05) })
+  b.box({ c: [0, bottom - 0.12, z], s: [w + 0.5, 0.24, 0.16], color: rgb(o.frame, 1.05) })
+  for (const x of [-1, 1]) {
+    b.box({ c: [x * (w / 2 + 0.12), cy, z], s: [0.24, h + 0.48, 0.16], color: rgb(o.frame, 1.05) })
+    b.box({ c: [x * (w / 2 + 0.01), cy, z - 0.07], s: [0.03, h, 0.03], color: rgb(o.brass, 1.1) })
+    b.cylinder({
+      c: [x * (w / 2 + 0.12), top + 0.3, z],
+      r: 0.09,
+      rTop: 0.05,
+      h: 0.14,
+      seg: 8,
+      color: rgb(o.brass, 1.1),
+    })
+    b.box({ c: [x * (w / 2 + 0.12), 0.05, z], s: [0.3, 0.1, 0.9], color: rgb(o.frame, 0.8) })
+  }
+  b.box({ c: [0, top - 0.01, z - 0.07], s: [w, 0.03, 0.03], color: rgb(o.brass, 1.1) })
+  b.box({ c: [0, bottom + 0.01, z - 0.07], s: [w, 0.03, 0.03], color: rgb(o.brass, 1.1) })
+  b.box({ c: [0, bottom - 0.3, z - 0.2], s: [w + 0.5, 0.06, 0.42], color: rgb(o.frame, 1.2) })
+  return { z, w, top, bottom, cy, h }
+}

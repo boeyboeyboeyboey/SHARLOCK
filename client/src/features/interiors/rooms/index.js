@@ -1,7 +1,7 @@
 // registry of interior rooms keyed by game id; each entry lazily loads its builder
 // a builder is (ctx) => { camera, update(dt, time), dispose() } where ctx has scene, engine, tier, budget, reduced
 
-import { phishingHero } from './heroes.js'
+import { cliHero, phishingHero, sqlHero } from './heroes.js'
 
 export const ROOM_IDS = [
   'cli-cyber-defender',
@@ -18,6 +18,7 @@ export const rooms = {
     id: 'cli-cyber-defender',
     label: 'Telegraph Office, instrument room',
     palette: ['#2b3a36', '#14100d', '#d69a2f'],
+    hero: cliHero,
     load: () => import('./cli.js').then((m) => m.buildCliRoom),
   },
   'phishing-post-mortem': {
@@ -31,6 +32,7 @@ export const rooms = {
     id: 'sql-injection-arcade',
     label: 'Customs House, bonded registry',
     palette: ['#1f3045', '#0e1620', '#4fc3d9'],
+    hero: sqlHero,
     load: () => import('./sql.js').then((m) => m.buildCustomsRoom),
   },
   'social-engineering-simulator': {

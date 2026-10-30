@@ -76,6 +76,9 @@ const heroRect = ref(null)
 const heroOn = computed(() =>
   heroActive({ hero: room.value?.hero, stage: stage.value, wide: wide.value }),
 )
+const surface = computed(() => (heroOn.value ? (room.value?.hero?.surface ?? 'slate') : null))
+// a game that bleeds by the shell gutter keeps the shell paddings so it fills the panel edge to edge
+const bleed = computed(() => heroOn.value && Boolean(room.value?.hero?.bleed))
 const deskStyle = computed(() => {
   if (!heroOn.value) return null
   const r = heroRect.value
@@ -175,6 +178,7 @@ onBeforeUnmount(() => clearTimeout(chromeTimer))
     :data-stage="stage"
     :data-tier="tier.name"
     :data-hero="heroOn ? 'on' : null"
+    :data-surface="surface"
     data-testid="interior"
   >
     <div class="interior-stage" aria-hidden="true">
@@ -250,14 +254,22 @@ onBeforeUnmount(() => clearTimeout(chromeTimer))
       @confirm="confirmLeave"
       @cancel="cancelLeave"
     />
+    <div v-if="heroOn" class="desk-surface" :style="deskStyle" aria-hidden="true"></div>
     <div
       class="interior-desk"
-      :class="{ 'is-hero': heroOn }"
+      :class="{ 'is-hero': heroOn, 'is-bleed': bleed }"
       :style="deskStyle"
       data-testid="interior-desk"
     >
       <RouterView />
     </div>
+    <div
+      v-if="heroOn"
+      class="desk-overlay"
+      :style="deskStyle"
+      aria-hidden="true"
+      data-testid="desk-overlay"
+    ></div>
   </div>
 </template>
 
@@ -363,10 +375,13 @@ onBeforeUnmount(() => clearTimeout(chromeTimer))
   transform: none;
 }
 
-.interior-desk.is-hero {
+.interior-desk.is-hero:not(.is-bleed) {
   --gutter: 1.25rem;
   --pt: 1rem;
   --pb: 1rem;
+}
+
+.interior-desk.is-hero {
   position: absolute;
   margin: 0;
   overflow: auto;
@@ -374,6 +389,57 @@ onBeforeUnmount(() => clearTimeout(chromeTimer))
   box-shadow:
     inset 0 0 0 1px rgb(0 0 0 / 0.4),
     inset 0 0 22px rgb(0 0 0 / 0.28);
+}
+
+/* blend: the panel is the prop's surface, so it has no edge of its own and the brass lip frames it.
+   the surface layer sits under the desk, the overlay above it; neither takes pointer events */
+.desk-surface,
+.desk-overlay {
+  position: absolute;
+  margin: 0;
+  pointer-events: none;
+}
+
+.desk-surface {
+  z-index: 1;
+}
+
+.interior-desk.is-hero {
+  z-index: 2;
+  background: transparent;
+  box-shadow: none;
+}
+
+.desk-overlay {
+  z-index: 3;
+}
+
+.interior[data-surface='paper'] .desk-surface {
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.35 0 0 0 0 0.25 0 0 0 0 0.1 0 0 0 0.16 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E"),
+    #efe2bd;
+}
+
+/* multiply keeps the ink dark and lets a light game background take the paper tone and grain */
+.interior[data-surface='paper'] .interior-desk.is-hero {
+  mix-blend-mode: multiply;
+}
+
+.interior[data-surface='paper'] .desk-overlay {
+  background:
+    radial-gradient(ellipse 60% 55% at 50% 0%, rgb(255 214 130 / 0.2), transparent 70%),
+    radial-gradient(ellipse 100% 100% at 50% 50%, transparent 62%, rgb(70 40 15 / 0.22) 100%);
+}
+
+.interior[data-surface='slate'] .desk-surface {
+  background: linear-gradient(160deg, #18221f, #0d1311);
+}
+
+.interior[data-surface='slate'] .desk-overlay {
+  background:
+    linear-gradient(115deg, rgb(255 255 255 / 0.07) 0%, transparent 28%, transparent 100%),
+    radial-gradient(ellipse 60% 55% at 50% 0%, rgb(255 190 90 / 0.14), transparent 70%),
+    radial-gradient(ellipse 100% 100% at 50% 50%, transparent 58%, rgb(0 0 0 / 0.4) 100%);
 }
 
 /* phones: the room is a header band above the game panel */
