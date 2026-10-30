@@ -191,9 +191,11 @@ describe('places', () => {
     const wrapper = mountWithControls({ jumpTo: shallowRef(jump) })
     const places = wrapper.get('nav[aria-label="Places"]')
     expect(places.find('h3').text()).toBe('Places')
-    expect(places.findAll('button').map((node) => node.text())).toEqual(
+    const buttons = places.findAll('button')
+    expect(buttons.map((node) => node.attributes('aria-label'))).toEqual(
       gameCatalog.map((game) => game.name),
     )
+    expect(buttons.map((node) => node.text())).toEqual(gameCatalog.map((game) => game.shortName))
     wrapper.unmount()
   })
 

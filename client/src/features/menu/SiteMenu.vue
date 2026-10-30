@@ -6,6 +6,7 @@ import { gameCatalog } from '../../data/gameCatalog.js'
 import { useTownControls } from './townControls.js'
 import { useDiscoveries } from '../hub/discoveries.js'
 import { usePresenceRoster } from '../hub/presence/roster.js'
+import DestinationRow from './DestinationRow.vue'
 import './menu.css'
 
 const props = defineProps({
@@ -128,9 +129,7 @@ watch(() => props.open, sync)
         <h3 class="menu-section">Places</h3>
         <ul class="menu-list">
           <li v-for="game in gameCatalog" :key="game.id">
-            <button type="button" class="menu-link" @click="goTo(game.id)">
-              {{ game.name }}
-            </button>
+            <DestinationRow :game="game" @click="goTo(game.id)" />
           </li>
         </ul>
       </nav>

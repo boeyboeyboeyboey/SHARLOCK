@@ -1,0 +1,61 @@
+/* one row style for the 3d Destinations list and the 2d Places list; both roots define the --hub-glass-* variables */
+.dest-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 12px 6px 16px;
+  border: 1px solid var(--hub-glass-edge);
+  border-radius: calc(var(--hub-glass-radius) - 2px);
+  background: var(--hub-glass-btn);
+  color: var(--hub-glass-ink);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.2;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+}
+.dest-row::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--dest-accent, var(--hub-glass-ink));
+}
+.dest-row:hover {
+  background: var(--hub-glass-btn-hover);
+}
+.dest-row:focus-visible {
+  outline: 3px solid var(--hub-glass-focus);
+  outline-offset: 2px;
+}
+.dest-row-icon {
+  flex: none;
+}
+.dest-row-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dest-row-check {
+  flex: none;
+  font-weight: 700;
+}
+/* selected: thicker border and inset ring plus the check, never a fill change alone */
+.dest-row[aria-pressed='true'] {
+  border-width: 2px;
+  padding-left: 15px;
+  border-color: var(--hub-glass-ink);
+  background: var(--hub-glass-btn-active);
+  box-shadow: inset 0 0 0 1px var(--hub-glass-ink);
+}
+@media (forced-colors: active) {
+  .dest-row::before {
+    background: CanvasText;
+  }
+}

@@ -107,7 +107,7 @@ test('lists every game, walks, and enters a game route', async ({ page }) => {
 
   await expect(page.locator('[data-testid^="dest-"]')).toHaveCount(gameCatalog.length)
   for (const game of gameCatalog) {
-    await expect(page.getByTestId(`dest-${game.id}`)).toHaveText(game.name)
+    await expect(page.getByTestId(`dest-${game.id}`)).toHaveAccessibleName(game.name)
   }
   await page.screenshot({ path: startShot })
 

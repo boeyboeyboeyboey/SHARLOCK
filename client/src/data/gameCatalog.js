@@ -18,6 +18,13 @@ export function defineGameCatalog(entries) {
       game.backgroundKnowledge.some((topic) => typeof topic !== 'string' || !topic.trim())
     )
       throw new Error('List the background knowledge for every game.')
+    if (
+      game.shortName !== undefined &&
+      (typeof game.shortName !== 'string' || !game.shortName.trim() || game.shortName.length > 18)
+    )
+      throw new Error('A short name is one line of at most 18 characters.')
+    if (game.accent !== undefined && !/^#[0-9a-f]{6}$/i.test(game.accent))
+      throw new Error('An accent is a six digit hex colour.')
     if (!game.route?.startsWith('/games/') || game.route.includes('://'))
       throw new Error('Games need a local /games/ route.')
     if (game.activation !== undefined && game.activation !== 'direct')
@@ -40,6 +47,8 @@ export function defineGameCatalog(entries) {
 export const gameCatalog = defineGameCatalog([
   {
     id: 'cli-cyber-defender',
+    shortName: 'CLI Cyber Defender',
+    accent: '#3ddc84',
     name: 'CLI Cyber Defender',
     description: 'Contain fictional cyber incidents with commands in a simulated terminal.',
     difficulty: 2,
@@ -52,6 +61,8 @@ export const gameCatalog = defineGameCatalog([
   },
   {
     id: 'phishing-post-mortem',
+    shortName: 'Phishing',
+    accent: '#ff6b6b',
     name: 'The Phishing Post-Mortem',
     description: 'Trace a fictional email incident and uncover the message that started it.',
     difficulty: 2,
@@ -64,6 +75,8 @@ export const gameCatalog = defineGameCatalog([
   },
   {
     id: 'sql-injection-arcade',
+    shortName: 'SQL Injection',
+    accent: '#ffb84d',
     name: 'SQL Injection Arcade',
     description: 'Solve a simulated login puzzle and learn how parameterized queries protect it.',
     difficulty: 2,
@@ -76,6 +89,8 @@ export const gameCatalog = defineGameCatalog([
   },
   {
     id: 'threat-briefing',
+    shortName: 'Daily briefing',
+    accent: '#d9d2bd',
     name: 'The daily briefing',
     description: 'Read The Sharlock Times for recent cybersecurity and technology stories.',
     difficulty: 1,
@@ -89,6 +104,8 @@ export const gameCatalog = defineGameCatalog([
   },
   {
     id: 'social-engineering-simulator',
+    shortName: 'Social Engineer',
+    accent: '#c792ea',
     name: 'LLM Social Engineering Simulator',
     description:
       'Spot a fictional colleague’s pressure tactics and protect a synthetic reset code.',
@@ -106,6 +123,8 @@ export const gameCatalog = defineGameCatalog([
   },
   {
     id: 'clearance-tower',
+    shortName: 'Clearance Tower',
+    accent: '#5aa9ff',
     name: 'Clearance Tower',
     description:
       'Design who may see what in an intelligence tower, then watch a day test your policy.',
