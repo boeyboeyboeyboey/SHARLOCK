@@ -710,42 +710,11 @@ main:focus {
   border: 1px dashed var(--border-strong);
   border-radius: 0;
 }
-.case-preview,
 .coming-soon,
 .not-found {
   max-width: 700px;
   margin: 1rem auto;
   text-align: center;
-}
-.portal-main:has(.case-preview) {
-  position: relative;
-}
-.case-preview > .text-link {
-  position: absolute;
-  top: 0.75rem;
-  left: clamp(1.15rem, 3vw, 2.8rem);
-  display: flex;
-  width: fit-content;
-}
-@media (max-width: 767.98px) {
-  .case-preview {
-    padding-top: 2.1rem;
-  }
-}
-.case-preview-art {
-  display: grid;
-  place-items: center;
-  width: 160px;
-  height: 160px;
-  margin: 1.5rem auto;
-  border: 3px solid var(--border-strong);
-  background: var(--accent-secondary);
-  box-shadow: var(--shadow-pixel);
-}
-.case-preview .page-description {
-  max-width: 480px;
-  margin-left: auto;
-  margin-right: auto;
 }
 .case-status {
   padding: 1.6rem;
@@ -980,30 +949,11 @@ main:focus {
 
 /* laptop-height windows: activity previews and fitted games trim the shell padding and fit without page scroll */
 @media (min-width: 768px) and (min-height: 600px) {
-  .portal-main:has(.case-preview, .is-fitted, .auth-page, .profile-view, .cohort-page) {
+  .portal-main:has(.is-fitted, .auth-page, .profile-view, .cohort-page) {
     --shell-chrome: 176px;
     padding-top: 0.75rem;
     padding-bottom: 1rem;
     min-height: 0;
-  }
-  .case-preview {
-    margin: 0 auto;
-  }
-  .case-preview-art {
-    width: 104px;
-    height: 104px;
-    margin: 0.5rem auto;
-  }
-  .case-preview .eyebrow {
-    margin-bottom: 0.25rem;
-  }
-  .case-preview h1 {
-    font-size: 1.9rem;
-    margin-bottom: 0.25rem;
-  }
-  .case-preview .page-description {
-    margin-top: 0.25rem;
-    margin-bottom: 0.75rem;
   }
   .case-status {
     padding: 0.75rem 1.25rem;

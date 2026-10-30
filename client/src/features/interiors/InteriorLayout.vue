@@ -322,7 +322,7 @@ onBeforeUnmount(() => clearTimeout(chromeTimer))
 
 /* the same pages the shell trims on laptop-height windows */
 @media (min-width: 768px) and (min-height: 600px) {
-  .interior:has(.case-preview, .is-fitted, .auth-page, .profile-view, .cohort-page) {
+  .interior:has(.is-fitted, .auth-page, .profile-view, .cohort-page) {
     --pt: 0.75rem;
     --pb: 1rem;
   }
