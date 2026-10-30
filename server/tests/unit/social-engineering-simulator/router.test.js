@@ -308,38 +308,18 @@ describe('social-engineering router', () => {
       .expect(200)
   })
 
-  it('records a completion once and returns the saved attempt', async () => {
+  it('scores a single call without saving it', async () => {
     const adapter = { configured: true, mode: 'local', chat: vi.fn() }
     const attempts = fakeAttempts()
     const app = makeApp(createSocialEngineeringService({ adapter }), Date.now, attempts)
     const { body: start } = await request(app).post(`${base}/session`).send(START).expect(200)
     const payload = { sessionId: start.sessionId, decision: 'refuse' }
-    const first = await request(app).post(`${base}/complete`).send(payload).expect(200)
-    const second = await request(app).post(`${base}/complete`).send(payload).expect(200)
-    expect(first.body).toMatchObject({ saved: true, attempt: { attemptId: 'attempt-1' } })
-    expect(second.body).toEqual(first.body)
-    expect(attempts.recordCompletedAttempt).toHaveBeenCalledTimes(1)
-    const [actor, gameId, input] = attempts.recordCompletedAttempt.mock.calls[0]
-    expect(actor).toEqual({ id: 'player-1' })
-    expect(gameId).toBe('social-engineering-simulator')
-    expect(input).toMatchObject({ mode: 'practice', resultKey: start.sessionId })
-    expect(input.state.decision).toBe('refuse')
-  })
-
-  it('keeps the score with saved false on a save failure and saves on retry', async () => {
-    const adapter = { configured: true, mode: 'local', chat: vi.fn() }
-    const attempts = fakeAttempts()
-    attempts.recordCompletedAttempt.mockRejectedValueOnce(
-      new AttemptError('ATTEMPT_NOT_FOUND', 'That attempt was not found.', 404),
-    )
-    const app = makeApp(createSocialEngineeringService({ adapter }), Date.now, attempts)
-    const { body: start } = await request(app).post(`${base}/session`).send(START).expect(200)
-    const payload = { sessionId: start.sessionId, decision: 'refuse' }
-    const first = await request(app).post(`${base}/complete`).send(payload).expect(200)
-    expect(first.body).toMatchObject({ saved: false, saveError: { code: 'ATTEMPT_NOT_FOUND' } })
-    expect(first.body).toHaveProperty('score')
-    const retry = await request(app).post(`${base}/complete`).send(payload).expect(200)
-    expect(retry.body.saved).toBe(true)
-    expect(attempts.recordCompletedAttempt).toHaveBeenCalledTimes(2)
+    const done = await request(app).post(`${base}/complete`).send(payload).expect(200)
+    expect(done.body).toMatchObject({
+      saved: false,
+      saveError: { code: 'SOC_SINGLE_CALL_NOT_SAVED' },
+    })
+    expect(done.body).toHaveProperty('score')
+    expect(attempts.recordCompletedAttempt).not.toHaveBeenCalled()
   })
 })

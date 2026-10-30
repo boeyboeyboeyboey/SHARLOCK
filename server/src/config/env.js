@@ -84,6 +84,16 @@ export function validateEnvironment(env) {
     throw new Error('LLM_COLLEAGUE_TIMEOUT_MS must be an integer between 1000 and 60000.')
   }
 
+  // model requests per minute across all players, so a free tier key is never exhausted
+  const llmRequestsPerMinute = Number(env.LLM_REQUESTS_PER_MINUTE?.trim() || 10)
+  if (
+    !Number.isInteger(llmRequestsPerMinute) ||
+    llmRequestsPerMinute < 1 ||
+    llmRequestsPerMinute > 600
+  ) {
+    throw new Error('LLM_REQUESTS_PER_MINUTE must be an integer between 1 and 600.')
+  }
+
   return Object.freeze({
     nodeEnv,
     port,
@@ -99,6 +109,7 @@ export function validateEnvironment(env) {
     llmColleagueModel,
     llmColleagueAuthToken: env.LLM_COLLEAGUE_AUTH_TOKEN?.trim() || undefined,
     llmColleagueTimeoutMs,
+    llmRequestsPerMinute,
   })
 }
 

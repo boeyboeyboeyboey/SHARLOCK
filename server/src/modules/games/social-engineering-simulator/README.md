@@ -7,6 +7,7 @@
 - API: signed-in `POST` `session`, `message`, `verifier-message`, `nudge` and `complete` under `/games/social-engineering-simulator` (`router.js`); live chat sessions are held in memory and each belongs to the player who started it.
 - Saving: `complete` records one practice attempt (max 100, never ranked as competitive) through `recordCompletedAttempt`; personal and class runs are readable at `/api/attempts/:id`, class runs appear on the class leaderboard.
 - LLM: a bad-actor adapter (`LLM_API_KEY` + `LLM_MODEL`) and a separate real-colleague adapter (`LLM_COLLEAGUE_*`); without them the game reports it is not configured.
+- Help Desk Shift (SOC-02, see TASKS.md): a shift of 4 seeded calls with desk tools, a colleague, hints and strikes, saved once per shift under ruleset `2026-10-31`. It works with no keys at all (scripted mode). The single-call routes below still play but are no longer saved.
 - Status: playable and saved (SAVE-SOC, see TASKS.md). The `llm/` engine is separately owned and not changed here.
 
 Runs G-SOC: a fictional colleague, played by an LLM, pressures the trainee to reveal a
@@ -15,6 +16,32 @@ score; the model's words are never a security boundary.
 
 The LLM engine in `llm/` (adapter, providers, bounded chat-session store and runner) is a
 separate contributor's work. This module **imports** it and does not modify it.
+
+## Help Desk Shift (SOC-02)
+
+A shift is 4 calls at the Capybara and Crown help desk. All routes are signed-in `POST`s under `/api/games/social-engineering-simulator/shift/`, with the same session, CSRF and origin guards, `no-store` and per-player pacing as the other routes. Bodies reject unknown fields; a shift belongs to its player and another player's `shiftId` gets `SOC_SHIFT_NOT_FOUND` (404).
+
+| Route             | Body                    | Returns                                                                                                                                                      |
+| ----------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `shift/start`     | `{ context }`           | `{ shiftId, rulesetVersion, mode, colleagueMode, callIndex, callsTotal, strikes, maxStrikes, finished, call }`                                               |
+| `shift/message`   | `{ shiftId, content }`  | `{ reply, replyMode: model or scripted, messagesUsed, messagesLeft, leaked }`; the typed code ends the call (see below)                                      |
+| `shift/colleague` | `{ shiftId, content }`  | `{ reply, replyMode, asksUsed, asksLeft }` (2 asks per call)                                                                                                 |
+| `shift/tool`      | `{ shiftId, tool }`     | `directory`, `ticket` or `callback`: the seeded facts as `{ found, entry, summary, outcome? }`, the same on every use                                        |
+| `shift/hint`      | `{ shiftId }`           | `{ hint, hintsUsed, hintsLeft, penalty: 10 }` (3 per call: pattern, tool to try, then the specific clue)                                                     |
+| `shift/nudge`     | `{ shiftId }`           | `{ message, nudgesLeft }`, a scripted pressure line (3 per call), no cost                                                                                    |
+| `shift/decide`    | `{ shiftId, decision }` | `grant`, `callback`, `refuse` or `escalate`; returns `{ correct, score, breakdown, streak, streakBonus, genuine, debrief, strikes, finished, finishReason }` |
+| `shift/next`      | `{ shiftId }`           | the next call (`{ ...status, call }`); needs the current call decided and the shift not finished                                                             |
+| `shift/complete`  | `{ shiftId }`           | after the last call or the third strike: the shift result and the saved attempt (`saved`, `attempt`, or `saveError`); idempotent, retryable for 5 minutes    |
+
+`call` holds `pretext`, `caller { displayName, claimedRole, claimedDepartment }`, `asks`, `secret { label, value }`, `openingMessage`, `colleague { displayName, role }` and `limits`. The secret value is the synthetic code on the player's own screen (as `resetCode` was before); it appears in no other payload, in no prompt and in no saved state. Whether the caller is genuine, and every desk fact, is revealed only after the call is decided.
+
+Errors added: `SOC_SHIFT_NOT_FOUND` 404, `SOC_CALL_RESOLVED`, `SOC_CALL_OPEN`, `SOC_SHIFT_FINISHED`, `SOC_SHIFT_NOT_FINISHED`, `SOC_MESSAGE_LIMIT`, `SOC_COLLEAGUE_LIMIT`, `SOC_HINT_LIMIT` and `SOC_BUSY` (all 409), plus `SOC_INVALID_BODY` 400.
+
+**Generation.** `callGenerator.js` builds each call from one private seed: pretext (8: IT reset, lost MFA, payroll change, courier, executive in a hurry, supplier invoice, new starter, contractor), caller name, role and department, the secret asked for (a per-call `SYNTH-...-####-####` code, never reused within a shift), the tactic (urgency, authority, familiarity, helpfulness, fear) and `genuine`. `planShift` draws about 40% genuine and never all one kind. Genuine callers have consistent directory, ticket and number-on-file facts. An attacker has 1-2 contradictions, obvious on call 1 and subtle on call 4 (calls 1-2 carry two, calls 3-4 one). When a pretext has no number on file the call back is not viable and cannot carry a contradiction.
+
+**Decisions and scoring** (`shiftScoring.js`, ruleset `2026-10-31`, max 430, practice, untimed). Per call: decision 60, checked first 25 (a desk tool or a colleague ask before deciding, or the call back decision itself), efficiency 15 (4 messages or fewer), minus 10 per hint. Decision points: an attacker scores 60 for `refuse`, `escalate` or `callback`, 0 for `grant`. A genuine caller scores 60 for `grant` after checking (30 without checking) or `callback`, 30 for `escalate`, 0 for `refuse`. `callback` is the proper out-of-band check, so it scores 60 when a number is on file and 30 when none is. The checked and efficiency points need a non-zero decision score. A strike is a typed code (to the caller or the colleague, ends the call at once with no model call) or granting an attacker; three strikes end the shift early. The streak bonus is 10 for each correct call that follows a correct call (up to 30). One attempt is saved per shift with `resultKey` = `shiftId`; the stored state holds only per-call scoring inputs (`genuine`, `callbackViable`, `decision`, `leaked`, `verified`, `messagesUsed`, `hints`) and `shiftRuleset.js` recomputes the score. The earlier `2026-10-27` ruleset stays registered but not current, so old saved attempts keep scoring.
+
+**Model budget and scripted mode.** Openings, nudges, hints, the colleague fallback and the Tells debrief are scripted from the seed (`scriptedLines.js`) with no model call. Only the caller's reply to a free-text message may use the model (Gemini through `llm/`): at most 5 model-backed replies per call, a server-wide token bucket (`LLM_REQUESTS_PER_MINUTE`, default 10, in memory, `limiter.js`) and a 15 s deadline. The colleague (Ollama) gets at most 2 asks per call, one in flight server-wide and a 20 s deadline. Limiter full, 429, 503, a timeout, any provider error or a missing key falls back to a scripted line in the same persona (`replyMode: 'scripted'`, and the debrief carries a note). With no `LLM_API_KEY` and no colleague the whole shift is scripted, so the game starts and finishes without any keys. The server does not edit `llm/`; it only calls the adapters' public `chat`.
 
 ## Request and data flow
 
@@ -33,7 +60,7 @@ client/src/games/social-engineering-simulator/simulator.js
                   (attacker: Gemini adapter; colleague: Ollama adapter)
 ```
 
-## Endpoints
+## Endpoints (single call, not saved since SOC-02)
 
 | Route                                                           | Purpose                                                                                                                                                                                                                                           |
 | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -154,6 +181,8 @@ PR #3 (c46dfba). Saving was added later (SAVE-SOC, see [Saved attempts](#saved-a
   gateway token is shared privately and lives only in each teammate's own `.env`.
 
 ## Saved attempts (SAVE-SOC)
+
+Since SOC-02 the saved ruleset is the Help Desk Shift (`2026-10-31`). The description below is the earlier single-call save: its `complete` route now returns the score with `saved: false` and `saveError.code` `SOC_SINGLE_CALL_NOT_SAVED`, and the older ruleset stays registered (not current) so saved results still read.
 
 The module is server-recorded: the attempts registry entry (`ruleset.js`, registered in
 `server/src/modules/attempts/production-registry.js`) has `serverRecorded: true`, so the public

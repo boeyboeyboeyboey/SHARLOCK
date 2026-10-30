@@ -13,6 +13,14 @@ import {
   unavailable,
 } from './policy.js'
 import { createSocialEngineeringService } from './service.js'
+import { createShiftService } from './shiftService.js'
+import {
+  parseShiftDecision,
+  parseShiftId,
+  parseShiftMessage,
+  parseShiftStart,
+  parseShiftTool,
+} from './shiftPolicy.js'
 
 const WINDOW_MS = 60000
 const MAX_REQUESTS_PER_WINDOW = 30
@@ -69,12 +77,14 @@ function fail(response, error) {
 
 export function createSocialEngineeringRouter({
   service,
+  shift,
   attempts,
   requireSession = [],
   requireMutation = [],
   now = Date.now,
 } = {}) {
   const game = service || createSocialEngineeringService()
+  const shifts = shift || createShiftService()
   const allow = createPacer(now)
   const router = Router()
   const base = '/games/social-engineering-simulator'
@@ -121,6 +131,44 @@ export function createSocialEngineeringRouter({
   route('complete', (request, response) => {
     const { sessionId, decision } = parseComplete(request.body)
     return game.completeAndRecord(sessionId, decision, playerOf(response), attempts)
+  })
+
+  route('shift/start', async (request, response) => {
+    const { context } = parseShiftStart(request.body)
+    const resolved = await attempts.resolveRunContext(response.locals.authUser, context)
+    return shifts.startShift({ playerId: playerOf(response), context: resolved })
+  })
+  route('shift/message', (request, response) => {
+    const { shiftId, content } = parseShiftMessage(request.body)
+    return shifts.sendMessage(shiftId, content, playerOf(response))
+  })
+  route('shift/colleague', (request, response) => {
+    const { shiftId, content } = parseShiftMessage(request.body)
+    return shifts.askColleague(shiftId, content, playerOf(response))
+  })
+  route('shift/tool', (request, response) => {
+    const { shiftId, tool } = parseShiftTool(request.body)
+    return shifts.useTool(shiftId, tool, playerOf(response))
+  })
+  route('shift/hint', (request, response) => {
+    const { shiftId } = parseShiftId(request.body)
+    return shifts.hint(shiftId, playerOf(response))
+  })
+  route('shift/nudge', (request, response) => {
+    const { shiftId } = parseShiftId(request.body)
+    return shifts.nudge(shiftId, playerOf(response))
+  })
+  route('shift/decide', (request, response) => {
+    const { shiftId, decision } = parseShiftDecision(request.body)
+    return shifts.decide(shiftId, decision, playerOf(response))
+  })
+  route('shift/next', (request, response) => {
+    const { shiftId } = parseShiftId(request.body)
+    return shifts.nextCall(shiftId, playerOf(response))
+  })
+  route('shift/complete', (request, response) => {
+    const { shiftId } = parseShiftId(request.body)
+    return shifts.completeAndRecord(shiftId, playerOf(response), attempts)
   })
 
   // session and csrf failures arrive here from the guards

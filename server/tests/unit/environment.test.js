@@ -126,6 +126,18 @@ describe('LLM configuration', () => {
     expect(result.llmColleagueTimeoutMs).toBe(45000)
   })
 
+  it('defaults the model request limit to 10 a minute and rejects bad values', () => {
+    expect(validateEnvironment(base).llmRequestsPerMinute).toBe(10)
+    expect(
+      validateEnvironment({ ...base, LLM_REQUESTS_PER_MINUTE: ' 20 ' }).llmRequestsPerMinute,
+    ).toBe(20)
+    for (const value of ['0', 'abc', '601', '1.5']) {
+      expect(() => validateEnvironment({ ...base, LLM_REQUESTS_PER_MINUTE: value })).toThrow(
+        /LLM_REQUESTS_PER_MINUTE/,
+      )
+    }
+  })
+
   it('requires the colleague base url and model together', () => {
     expect(() => validateEnvironment({ ...base, LLM_COLLEAGUE_BASE_URL: 'http://h:8080' })).toThrow(
       /must both be set or both left empty/,

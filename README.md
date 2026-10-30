@@ -178,7 +178,7 @@ This serves the client on http://localhost:5173 and the API on port 3000. Run `p
 
 For live Times stories, privately add `GUARDIAN_API_KEY` from [Guardian Open Platform](https://open-platform.theguardian.com/access/) to root `.env` and restart the backend. The OWASP Top 10 reference and the rest of the app remain usable without a key. Never put it in frontend configuration or chat.
 
-Other optional keys in root `.env` (server-side only, never printed): `LLM_API_KEY` and `LLM_MODEL` enable the Social Engineering Simulator's attacker chat, which shows a "not configured" message without them. `LLM_COLLEAGUE_BASE_URL` and `LLM_COLLEAGUE_MODEL` (plus optional `LLM_COLLEAGUE_AUTH_TOKEN` and `LLM_COLLEAGUE_TIMEOUT_MS`, 1000-60000) enable the real-colleague chat; the base URL and model must be set together or both left empty.
+Other optional keys in root `.env` (server-side only, never printed): `LLM_API_KEY` and `LLM_MODEL` enable the Social Engineering Simulator's attacker chat, which shows a "not configured" message without them. `LLM_COLLEAGUE_BASE_URL` and `LLM_COLLEAGUE_MODEL` (plus optional `LLM_COLLEAGUE_AUTH_TOKEN` and `LLM_COLLEAGUE_TIMEOUT_MS`, 1000-60000) enable the real-colleague chat; the base URL and model must be set together or both left empty. `LLM_REQUESTS_PER_MINUTE` (1-600, default 10) caps model requests per minute across all players for the Help Desk Shift; when the cap, the provider or the keys are missing, replies fall back to scripted lines and the shift stays playable.
 
 MP-01 adds one server dependency, `ws` (pinned exact; `pnpm install` picks it up) for wharf presence; it needs no new env keys, ports or test prerequisites.
 
