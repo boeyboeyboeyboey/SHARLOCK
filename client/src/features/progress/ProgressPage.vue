@@ -40,6 +40,13 @@ const badges = computed(() =>
     icon: 'trophy',
   })),
 )
+// catalogue entries the player has not earned yet
+const lockedBadges = computed(() => {
+  const earned = new Set((progress.value?.achievements || []).map((item) => item.key))
+  return (progress.value?.catalogue || [])
+    .filter((item) => !earned.has(item.key))
+    .map((item) => ({ id: item.key, name: item.name, description: item.description }))
+})
 const hasCompleted = computed(() =>
   (progress.value?.games || []).some((entry) => entry.completedCount > 0),
 )
@@ -165,7 +172,7 @@ async function retrySession() {
           :max-points="progress.maxPoints"
           :topic-outcomes="progress.topicOutcomes"
         />
-        <TrophyCase :achievements="badges" />
+        <TrophyCase :achievements="badges" :locked="lockedBadges" />
         <div v-if="attemptsError" class="preview-notice" role="alert">
           <p>{{ attemptsError }}</p>
           <button class="btn btn-secondary" type="button" @click="loadAttempts(attemptPage)">

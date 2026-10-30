@@ -1,7 +1,11 @@
 <script setup>
 import { computed, ref } from 'vue'
 import PixelIcon from '../town/PixelIcon.vue'
-const props = defineProps({ achievements: { type: Array, default: () => [] } })
+const props = defineProps({
+  achievements: { type: Array, default: () => [] },
+  // not yet earned badges (id, name, description); never counted as recent
+  locked: { type: Array, default: () => [] },
+})
 
 const RECENT_COUNT = 2
 // newest first when badges carry an earnedAt date, otherwise the given order is kept
@@ -51,6 +55,26 @@ function closePast() {
       Your first badge is waiting. Complete a case to begin your collection.
     </p>
 
+    <template v-if="locked.length">
+      <h3 id="locked-heading" class="locked-heading">Still to find</h3>
+      <ul class="achievement-list" aria-labelledby="locked-heading">
+        <li
+          v-for="badge in locked"
+          :key="badge.id"
+          class="achievement-badge achievement-badge--locked"
+        >
+          <div class="badge-art">
+            <PixelIcon name="lock" :size="64" />
+          </div>
+          <div>
+            <h4>{{ badge.name }}</h4>
+            <p class="locked-label">Locked</p>
+            <p>{{ badge.description }}</p>
+          </div>
+        </li>
+      </ul>
+    </template>
+
     <dialog
       v-if="past.length"
       ref="dialog"
@@ -77,3 +101,25 @@ function closePast() {
     </dialog>
   </section>
 </template>
+
+<style scoped>
+.locked-heading {
+  margin-top: 2rem;
+  font-size: 1.25rem;
+}
+.achievement-badge--locked {
+  border-style: dashed;
+}
+.achievement-badge--locked h4 {
+  margin-top: 1rem;
+  font-size: 1rem;
+}
+.achievement-badge--locked .badge-art {
+  opacity: 0.6;
+}
+.locked-label {
+  font-family: var(--font-pixel);
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+</style>

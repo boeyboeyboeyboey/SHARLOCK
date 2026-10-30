@@ -74,6 +74,13 @@ export const achievementNames = Object.freeze(
   Object.fromEntries(achievementDefinitions.map(({ key, name }) => [key, name])),
 )
 
+// player-facing list for locked badges; carries no criteria
+export const achievementCatalogue = Object.freeze(
+  achievementDefinitions.map(({ key, name, description }) =>
+    Object.freeze({ key, name, description }),
+  ),
+)
+
 // isCompetitive(gameId, rulesetVersion) comes from the server attempts registry, never the client
 export function deriveAchievements(attemptsOldestFirst, { isCompetitive = () => false } = {}) {
   const earned = []

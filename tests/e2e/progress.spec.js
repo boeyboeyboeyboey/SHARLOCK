@@ -89,6 +89,8 @@ test('a new student sees the empty state and every activity', async ({
     await expect(
       page.getByTestId('game-threat-briefing').getByText('Results not saved yet'),
     ).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Still to find' })).toBeVisible()
+    await expect(page.getByText('Locked', { exact: true }).first()).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Attempt history' })).toHaveCount(0)
     expect(await page.evaluate(() => document.scrollingElement.scrollWidth <= innerWidth)).toBe(
       true,

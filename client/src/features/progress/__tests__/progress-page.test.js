@@ -41,6 +41,10 @@ const progress = {
       earnedAt: '2026-10-20T10:00:00.000Z',
     },
   ],
+  catalogue: [
+    { key: 'first-clue', name: 'First clue', description: 'Complete any saved activity.' },
+    { key: 'perfect-case', name: 'Perfect case', description: 'Earn the maximum score.' },
+  ],
 }
 
 function mountPage() {
@@ -89,6 +93,28 @@ describe('progress page', () => {
     await flushPromises()
     expect(wrapper.text()).toContain('No results yet')
     expect(mocks.listAttempts).not.toHaveBeenCalled()
+  })
+
+  it('lists unearned badges as locked with visible text', async () => {
+    mocks.getProgress.mockResolvedValue(progress)
+    const wrapper = mountPage()
+    await flushPromises()
+    const locked = wrapper.findAll('.achievement-badge--locked')
+    expect(locked).toHaveLength(1)
+    expect(locked[0].text()).toContain('Perfect case')
+    expect(locked[0].text()).toContain('Locked')
+    expect(locked[0].text()).toContain('Earn the maximum score.')
+    const earned = wrapper.findAll('.achievement-badge:not(.achievement-badge--locked)')
+    expect(earned).toHaveLength(1)
+    expect(earned[0].text()).not.toContain('Locked')
+  })
+
+  it('shows every badge as locked when none are earned', async () => {
+    mocks.getProgress.mockResolvedValue({ ...progress, achievements: [] })
+    const wrapper = mountPage()
+    await flushPromises()
+    expect(wrapper.text()).toContain('Your first badge is waiting')
+    expect(wrapper.findAll('.achievement-badge--locked')).toHaveLength(2)
   })
 
   it('shows an error and retries', async () => {
