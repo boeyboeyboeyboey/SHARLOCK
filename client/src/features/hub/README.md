@@ -1,9 +1,9 @@
-# Hub (3D Thames Wharf)
+# Hub (3D town)
 
 ## Presentation summary
 
-- What it is: a 3D Thames Wharf landing page on `/` where the player walks Sharlock, a capybara detective, between six buildings; each building opens a game or the news. This is a navigation feature, not a security lesson, so it needs no course citations.
-- How to use it: walk (WASD, arrows or the touch joystick), orbit and zoom (Z / C also rotate), use the minimap or destination list, press Enter at a building to open it (anywhere on the page, unless focus is in a field, a button or link, or a dialog), press E to talk and again to step through or close a conversation, jump (Space or the Jump button), or switch to the 2D map. Reset camera and Replay intro live in Settings. The lore intro plays once on first visit; Enter or a click advances a card, and Space or Esc skips the whole intro.
+- What it is: a 3D town landing page on `/` where the player walks Sharlock, a capybara detective, between six buildings; each building opens a game or the news. This is a navigation feature, not a security lesson, so it needs no course citations.
+- How to use it: walk (WASD, arrows or the touch joystick), orbit and zoom (Z / C also rotate), use the minimap or destination list, press Enter at a building to open it (anywhere on the page, unless focus is in a field, a button or link, or a dialog), press E to talk and again to step through or close a conversation, jump (Space or the Jump button), or switch to the 2D town. Reset camera and Replay intro live in Settings. The lore intro plays once on first visit; Enter or a click advances a card, and Space or Esc skips the whole intro.
 - Technical: Babylon.js 9 with WebGPU falling back to WebGL2; Havok character physics; a procedural capybara rig with a seeded idle state machine; automatic graphics tiers with a 2D fallback; DOM twins of the scene for accessibility.
 - Status: Review, see the HUB-01 to HUB-04 records in [TASKS.md](../../../../TASKS.md) (HUB-04 is the Sharlock character pass with idles and jump).
 - Known limits: see Known gaps below. Not verified on real phones or low-end hardware.
@@ -60,7 +60,7 @@ Classmates appear as ghost capybaras in the 3D hub only; the 2D town shows nothi
 - The overlay covers the whole browser window, including the navbar and hub HUD. It is rendered to `<body>` with `position: fixed`; it does not use the browser Fullscreen API.
 - Hold per card is the longer of 1.5 s and 0.32 s per word, with 0.4 s fades. Enter or a click advances one card. Space or Esc skips the whole intro. A faint bottom-right button reads "Press Space to skip" (or "Tap to skip" on touch screens), with accessible name "Skip intro". The hub loads behind it.
 - Audio: plays `/audio/lore-intro.mp3` at volume 0.5. A small top-right sound toggle ("Mute intro sound" / "Turn on intro sound") shares the session-only `sharlock.musicMuted` key with the town and hub music; unmuted is never stored. If the browser blocks autoplay, the intro opens on "Click or press Enter to begin"; that click starts the sound and card 1. The audio fades out (0.8 s on finish, 0.3 s on skip) before the hub ambience starts, so only one sound plays at a time. A missing or failed file runs silent.
-- If the scene is not ready at the end, the last card shows "Loading the wharf…" until it is.
+- If the scene is not ready at the end, the last card shows "Loading the town…" until it is.
 - Reduced motion: no fades and no auto-advance. Plain cards with Continue; Space still skips.
 - Seen state: localStorage `sharlock.loreIntroSeen` = `'1'`, per browser, set on finish or skip. **Replay intro** is a row in the Settings overlay (`settings-replay-intro`); the HUD no longer has a button for it.
 - Hub input and the hub ambience (`HubAmbience.vue`) stay paused while it plays. The ambience starts when the intro audio has faded out, unless muted.
@@ -156,7 +156,7 @@ Dev only: `__hub.debug.sharlockLook()` returns the applied rig options, and `/?w
 
 ## Menu controls (UX-01 stage 1)
 
-The 2D map toggle, the Graphics select and the player tile left the hub HUD row. The floating Menu button and 3D | 2D switch (`client/src/features/menu/`) replace them; Graphics, Sound, View, Replay intro, Show controls and Reset camera now live in the Settings overlay (`/settings`). `HubScene.vue` marks an Escape it handles with `preventDefault` (so the site menu does not also open) and exposes `showControls()`, `resetCamera()` and `interact()`. The hub HUD and destination list sit 64px from the top to clear the floating controls. Opening the menu or an overlay pauses hub input through the `input-paused` prop. See the [menu README](../menu/README.md).
+The 2D town toggle, the Graphics select and the player tile left the hub HUD row. The floating Menu button and 3D | 2D switch (`client/src/features/menu/`) replace them; Graphics, Sound, View, Replay intro, Show controls and Reset camera now live in the Settings overlay (`/settings`). `HubScene.vue` marks an Escape it handles with `preventDefault` (so the site menu does not also open) and exposes `showControls()`, `resetCamera()` and `interact()`. The hub HUD and destination list sit 64px from the top to clear the floating controls. Opening the menu or an overlay pauses hub input through the `input-paused` prop. See the [menu README](../menu/README.md).
 
 ### Minimap classmate dots (MP-02)
 

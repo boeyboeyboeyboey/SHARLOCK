@@ -45,14 +45,14 @@ function setGraphics(value) {
 const noticeText = computed(() => {
   const reasons = townMode.reasons.value
   if (reasons.includes('no-webgl2'))
-    return 'This browser does not support WebGL 2, so you are seeing the 2D map.'
+    return 'This browser does not support WebGL 2, so you are seeing the 2D town.'
   if (reasons.includes('phone'))
-    return 'Phones open the 2D map by default. You can switch to 3D from the top right.'
+    return 'Phones open the 2D town by default. You can switch to 3D from the top right.'
   if (reasons.includes('slow-runtime'))
-    return 'Your device was struggling to run the 3D wharf, so we switched to the 2D map.'
+    return 'Your device was struggling to run the 3D town, so we switched to the 2D town.'
   if (reasons.includes('failed'))
-    return 'The 3D wharf could not start on this device, so you are seeing the 2D map.'
-  return 'You are seeing the 2D map because this device may not run the 3D wharf smoothly.'
+    return 'The 3D town could not start on this device, so you are seeing the 2D town.'
+  return 'You are seeing the 2D town because this device may not run the 3D town smoothly.'
 })
 // the Times and the menu overlays share one open, close and focus contract
 const overlayNames = new Set(
@@ -120,7 +120,7 @@ function closeOverlay() {
 </script>
 <template>
   <div class="town-dashboard" :class="{ 'is-hub': is3d }">
-    <h1 v-if="is3d" class="visually-hidden" tabindex="-1">Thames Wharf</h1>
+    <h1 v-if="is3d" class="visually-hidden" tabindex="-1">3D town</h1>
     <section v-else class="town-intro">
       <div>
         <p class="town-eyebrow">A SMALL TOWN. A WORLD OF DISCOVERIES.</p>

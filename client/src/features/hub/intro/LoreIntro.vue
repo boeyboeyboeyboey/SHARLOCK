@@ -50,7 +50,7 @@ let audioOn = false
 let started = false
 
 const parts = computed(() => {
-  if (waiting.value) return [{ text: 'Loading the wharf…' }]
+  if (waiting.value) return [{ text: 'Loading the town…' }]
   if (gated.value) return [{ text: GATE_TEXT }]
   const { text, highlight } = LORE_CARDS[index.value]
   const at = highlight ? text.indexOf(highlight) : -1

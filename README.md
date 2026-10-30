@@ -207,13 +207,13 @@ pnpm test:e2e          # Playwright journeys on a phone and a desktop viewport
 **Troubleshooting:**
 
 - Blank page with `504 Outdated Optimize Dep` in the console: stop `pnpm dev`, run `rm -rf client/node_modules/.vite`, then restart.
-- 3D view will not load or runs slowly: the hub falls back to the 2D map on devices without WebGL2 or with a software renderer. Use the 3D | 2D switch or set Graphics to Low. Phones (a touch screen narrower than 768px) also open the 2D map by default; the switch asks before sending them to 3D.
+- 3D view will not load or runs slowly: the hub falls back to the 2D town on devices without WebGL2 or with a software renderer. Use the 3D | 2D switch or set Graphics to Low. Phones (a touch screen narrower than 768px) also open the 2D town by default; the switch asks before sending them to 3D.
 
 ### Using the app
 
 Games open a **How to play** guide on your first visit. Tick "Don't show again" to hide it (saved to your account) and use the game's **How to play** button to reopen it. All five scored games have one (HOW-01, HOW-02).
 
-`/` shows the 3D Thames Wharf hub (Babylon.js; WebGPU when available, otherwise WebGL2). Sharlock walks between buildings and each building opens a game. Details for developers are in the [hub module README](client/src/features/hub/README.md).
+`/` shows the 3D town hub (Babylon.js; WebGPU when available, otherwise WebGL2). Sharlock walks between buildings and each building opens a game. Details for developers are in the [hub module README](client/src/features/hub/README.md).
 
 **3D controls**
 
@@ -226,7 +226,7 @@ Games open a **How to play** guide on your first visit. Tick "Don't show again" 
 - Discoveries: six hidden finds (objects and strangers, each a small scene) wait in lanes and a jetty off the main street. Walk up and press **E** (or tap the button that appears) to read one. The menu counts them as Discoveries x/6; clicking that row opens the Discoveries log (`/discoveries`), where each find shows "Sharlock's note", the security lesson, and unfound ones hint at their area.
 - Standing still for a while, Sharlock looks around, sits down and yawns.
 - Wardrobe: achievements unlock scarf colours, hats, monocle frames and a magnifying glass. Equip them under **Wardrobe** on `/profile`; Sharlock wears them in the 3D hub. Locked items say which achievement unlocks them.
-- **Classmates on the wharf (MP-01).** In the 3D view, students in the same class see each other as capybaras with name labels, and the Menu shows "Online in your class" with a list of names. Instructors and administrators pick a class in the Menu first and are tagged staff. The 2D map shows no classmates.
+- **Classmates in the 3D town (MP-01).** In the 3D view, students in the same class see each other as capybaras with name labels, and the Menu shows "Online in your class" with a list of names. Instructors and administrators pick a class in the Menu first and are tagged staff. The 2D town shows no classmates.
 - **Menu and overlays (UX-01).** The town has no top bar: the **Menu** button (top left) or **Esc** opens the site menu with Profile & progress, Leaderboard, Your classes (students), Settings, About Sharlock, Class enrollment (instructors and admins), Administrator workspace (admins) and Sign out. Profile & progress, Leaderboard, Your classes, Settings and About open as panels over the dimmed town; X or Esc closes them. Esc still deselects or closes the dialogue first. The **3D | 2D** switch (top right) changes the town view in both modes, and The round **Sound** button beside the switch mutes the music in both modes; Settings holds Graphics, Sound, View, Replay intro, Show controls and Reset camera. Other pages (games, class enrollment, admin) keep the top navbar.
 - The daily briefing newsstand opens the newspaper as an overlay on the hub. Closing it returns to the hub, and hub input is paused while it is open.
 
@@ -235,7 +235,7 @@ Games open a **How to play** guide on your first visit. Tick "Don't show again" 
 - Drag or swipe to pan; pinch or Ctrl/Cmd + wheel to zoom (a plain wheel pans); arrow keys pan; + and - zoom (from "whole town fits" through 50/75/90% up to 200%); 0 resets. The toolbar above the map holds **Jump to**, the zoom buttons with their percentage and **Reset view**. **Settings > Interface size** (Small, Medium by default, Large) scales the menus, overlays and on-screen controls in both modes; touch screens never go below full size.
 - Hover or focus a building for its card; Esc dismisses the card.
 - The town is a wharf with the newsstand on the pier, a cobbled street to a fountain plaza and generic capybaras and gulls going about their day; the animation stops when your system asks for reduced motion.
-- on the 2D map, background music (at half volume) tries to start on arrival; on the 3D wharf, a seaside ambience loop does the same. If the browser blocks either, it starts on your first click, key press or tap. The round Sound on/off button (top right, beside the 3D | 2D switch) mutes whichever is playing, the mute is shared by both, and it is remembered only until you close the tab.
+- on the 2D town, background music (at half volume) tries to start on arrival; on the 3D town, a seaside ambience loop does the same. If the browser blocks either, it starts on your first click, key press or tap. The round Sound on/off button (top right, beside the 3D | 2D switch) mutes whichever is playing, the mute is shared by both, and it is remembered only until you close the tab.
 
 **Graphics** (Auto, High, Medium or Low; remembered). Auto checks the device: no WebGL2 or a software renderer selects 2D; save-data, 2 GB of memory or less, or 2 CPU cores or fewer selects Low. It then watches the frame rate, stepping quality down and finally to 2D, unless you explicitly chose 3D. An automatic-2D notice offers "Try 3D anyway" with a warning.
 
@@ -286,7 +286,7 @@ Learning progress (`/progress`, signed in): your points (best score per saving g
 
 Game owners: keep your row and your module README current (see [agents.md §10](agents.md#10-documentation-maintenance)).
 
-**Current implementation:** MEVN scaffold, a 3D Thames Wharf hub on `/` (the pixel town is kept as its 2D mode), The Sharlock Times with live news, and playable, saved Phishing Post-Mortem, Social Engineering Simulator, CLI Cyber Defender, Clearance Tower and SQL Injection Arcade games, combined About/introduction and database health check. All five scored games save completed results through the shared attempts contract (SAVE-01, Review in TASKS.md). AUTH-01-A/B and COH-01 provide accounts, six capybara presets and approved class membership; permission integration across game APIs and server game-resource ownership remain pending. Learning progress (`/progress`) derives points and badges from saved results, so every saved game counts. Localhost demonstration; zero project budget.
+**Current implementation:** MEVN scaffold, a 3D town hub on `/` (the pixel town is kept as its 2D mode), The Sharlock Times with live news, and playable, saved Phishing Post-Mortem, Social Engineering Simulator, CLI Cyber Defender, Clearance Tower and SQL Injection Arcade games, combined About/introduction and database health check. All five scored games save completed results through the shared attempts contract (SAVE-01, Review in TASKS.md). AUTH-01-A/B and COH-01 provide accounts, six capybara presets and approved class membership; permission integration across game APIs and server game-resource ownership remain pending. Learning progress (`/progress`) derives points and badges from saved results, so every saved game counts. Localhost demonstration; zero project budget.
 
 DATA-01-A/AUTH-02-A adds the backend class foundation: institutions, cohorts, memberships, instructor assignments, own-account read endpoints and current server context/access checks. COH-01 connects student class requests and assigned-staff approval; G-SQL now uses saved practice; the other games need separately approved saved integration. See the [class API and permission contract](server/src/modules/cohorts/README.md).
 

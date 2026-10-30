@@ -52,11 +52,11 @@ function trap(event) {
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
         <div class="modal-header">
-          <h2 id="hub-3d-warning-title" class="modal-title fs-5">Try the 3D wharf?</h2>
+          <h2 id="hub-3d-warning-title" class="modal-title fs-5">Try the 3D town?</h2>
         </div>
         <div class="modal-body">
           <p id="hub-3d-warning-text" class="mb-0">
-            This device may struggle to run the 3D wharf. It could be slow or drain the battery. Try
+            This device may struggle to run the 3D town. It could be slow or drain the battery. Try
             3D anyway?
           </p>
         </div>

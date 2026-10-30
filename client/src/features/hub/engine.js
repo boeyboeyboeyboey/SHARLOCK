@@ -98,7 +98,7 @@ export function createHub({ container, joystick = {}, params = new URLSearchPara
   let canvas = document.createElement('canvas');
   canvas.tabIndex = 0;
   canvas.setAttribute('role', 'img');
-  canvas.setAttribute('aria-label', 'Interactive 3D view of the Thames Wharf. Use the destination buttons to choose a place, or move Sharlock with WASD or the arrow keys.');
+  canvas.setAttribute('aria-label', 'Interactive 3D view of the town. Use the destination buttons to choose a place, or move Sharlock with WASD or the arrow keys.');
   canvas.className = 'hub-canvas';
   container.append(canvas);
 

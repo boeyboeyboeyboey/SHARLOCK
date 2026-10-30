@@ -48,7 +48,7 @@ describe('3D | 2D switch', () => {
 
   it('disables 3D when the wharf cannot start', () => {
     const wrapper = mountControls({ mode: '2d', locked: true })
-    expect(wrapper.get('[aria-label="3D wharf"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('[aria-label="3D town"]').attributes('disabled')).toBeDefined()
   })
 })
 

@@ -141,7 +141,7 @@ const announcement = ref('')
 let announceTimer = null
 const status = computed(() => {
   if (view.failed) return '3D view unavailable. Choose a destination below.'
-  if (!view.ready) return view.lowering ? 'Lowering graphics for smoother play' : 'Loading the wharf'
+  if (!view.ready) return view.lowering ? 'Lowering graphics for smoother play' : 'Loading the town'
   return announcement.value
 })
 const devStats = computed(() => (isDev && view.ready ? `Engine ${view.engine}, ${view.fps} fps, ${view.drawCalls} draws` : ''))
@@ -527,7 +527,7 @@ defineExpose({
   <section
     class="hub-scene"
     :class="{ 'is-fill': fill, 'hub-solid': solidHud }"
-    aria-label="Thames Wharf"
+    aria-label="3D town"
   >
     <div ref="stage" class="hub-stage"></div>
     <div ref="labelLayer" class="hub-peer-labels" aria-hidden="true"></div>
