@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { capyFurs, capyProps, groundMarkup, lifeMarkup, townCapys } from '../townArt.js'
+import {
+  capyFurs,
+  capyProps,
+  groundMarkup,
+  lifeMarkup,
+  sharlockMarkup,
+  townCapys,
+} from '../townArt.js'
 
 const hex = /^#[0-9a-f]{6}$/i
 
@@ -52,5 +59,31 @@ describe('town ground', () => {
     for (const r of crane) expect(r.y).toBeGreaterThanOrEqual(2)
     // ink would vanish into the dark edge line and the tower notch
     expect(crane.every((r) => r.fill !== '#354b3e')).toBe(true)
+  })
+})
+
+describe('sharlock sprite', () => {
+  const facings = ['down', 'up', 'left', 'right']
+
+  it('draws all four facings with distinct art and a still frame', () => {
+    const art = facings.map((facing) => sharlockMarkup(facing, 0))
+    expect(new Set(art.filter((_, i) => i !== 3)).size).toBe(3)
+    expect(sharlockMarkup('left', 0)).toBe(sharlockMarkup('right', 0))
+    for (const svg of art) expect(svg).toContain('shape-rendering="crispEdges"')
+  })
+
+  it('swaps the feet between the two walk frames and the still frame', () => {
+    for (const facing of facings) {
+      const frames = [0, 1, 2].map((frame) => sharlockMarkup(facing, frame))
+      expect(new Set(frames).size).toBe(3)
+    }
+  })
+
+  it('wears the deerstalker, monocle and red scarf that no townsperson has', () => {
+    const front = sharlockMarkup('down', 0)
+    expect(front).toContain('#8c7a4e')
+    expect(front).toContain('#d9a441')
+    expect(front).toContain('#c4443a')
+    expect(sharlockMarkup('up', 0)).not.toContain('#d9a441')
   })
 })
