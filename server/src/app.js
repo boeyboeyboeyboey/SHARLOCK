@@ -55,7 +55,9 @@ export function createApp(
     recheckSession: authRuntime.recheckSession,
     ...presenceOptions,
   })
-  authRuntime.events.on('session-ended', presence.disconnectSession)
+  authRuntime.events.on('session-ended', (sessionId, reason) =>
+    presence.disconnectSession(sessionId, reason),
+  )
   app.locals.presence = presence
   const adminRouter = createAdminRouter(database, {
     ...admin,

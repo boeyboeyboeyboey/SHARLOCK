@@ -24,9 +24,9 @@ class FakeSocket {
   say(message) {
     this.onmessage?.({ data: JSON.stringify(message) })
   }
-  drop(code) {
+  drop(code, reason = '') {
     this.readyState = 3
-    this.onclose?.({ code })
+    this.onclose?.({ code, reason })
   }
 }
 
@@ -149,6 +149,22 @@ describe('presence connection', () => {
     vi.advanceTimersByTime(60000)
     expect(FakeSocket.all).toHaveLength(1)
     expect(usePresenceRoster().state.active).toBe(false)
+  })
+
+  it('calls onSessionEnded on 4401 only', async () => {
+    const onSessionEnded = vi.fn()
+    const { presence } = make({ onSessionEnded })
+    await presence.start()
+    FakeSocket.all[0].open()
+    FakeSocket.all[0].drop(4403)
+    expect(onSessionEnded).not.toHaveBeenCalled()
+    presence.stop()
+    FakeSocket.all.length = 0
+    const second = make({ onSessionEnded })
+    await second.presence.start()
+    FakeSocket.all[0].open()
+    FakeSocket.all[0].drop(4401, 'replaced')
+    expect(onSessionEnded).toHaveBeenCalledWith('replaced')
   })
 
   it('closes cleanly and stops timers on stop', async () => {

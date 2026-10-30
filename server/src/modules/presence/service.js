@@ -283,8 +283,12 @@ export function createPresenceService(
   return Object.freeze({
     handleUpgrade,
     refresh,
-    disconnectSession: (sessionId) =>
-      closeWhere((entry) => entry.sessionId === sessionId, 4401, 'signed out'),
+    disconnectSession: (sessionId, reason) =>
+      closeWhere(
+        (entry) => entry.sessionId === sessionId,
+        4401,
+        reason === 'replaced' ? 'replaced' : 'signed out',
+      ),
     disconnectUser: (userId) => closeWhere((entry) => entry.userId === userId, 4401, 'signed out'),
     connectionCount: () => connections.size,
     close,

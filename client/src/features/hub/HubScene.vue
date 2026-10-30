@@ -15,6 +15,7 @@ import { useLoreIntro } from './intro/useLoreIntro.js'
 import { decidePerf, perfRecord, writePerf } from './perfWatch.js'
 import { getDeviceCheck } from './deviceCheck.js'
 import { isSolidHud } from './glass.js'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '../auth/store.js'
 import { usePresence } from './presence/usePresence.js'
 
@@ -60,6 +61,7 @@ let presenceStarted = false
 
 // classmates on the wharf: the composable owns the socket, the scene draws the peers, these labels float over them
 const auth = useAuthStore()
+const router = useRouter()
 const labelLayer = ref(null)
 const labelNodes = new Map()
 let labelFrame = 0
@@ -70,6 +72,12 @@ const presence = usePresence({
   onPeers: (peers) => {
     latestPeers = peers
     hub?.setPeers(peers)
+  },
+  // 4401: the session is gone server side (a newer sign-in wins), so drop it locally and show the login notice
+  onSessionEnded: (reason) => {
+    if (auth.status !== 'authenticated') return
+    auth.invalidateSession()
+    void router?.replace({ path: '/login', query: { reason: reason === 'replaced' ? 'elsewhere' : 'expired' } }).catch(() => {})
   },
 })
 

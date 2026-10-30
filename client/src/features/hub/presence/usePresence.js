@@ -21,6 +21,7 @@ export function createPresence({
   getPlayer,
   onPeers = () => {},
   staff = false,
+  onSessionEnded = () => {},
   loadClasses = async () => (await listManagedCohorts({ limit: 50 })).cohorts ?? [],
   WebSocketImpl = globalThis.WebSocket,
   now = () => performance.now(),
@@ -123,6 +124,7 @@ export function createPresence({
       if (decision === 'stop-quiet') {
         stopped = true
         state.active = false
+        onSessionEnded(event.reason)
       } else if (decision === 'stop') {
         stopped = true
         if (!staff) state.active = false

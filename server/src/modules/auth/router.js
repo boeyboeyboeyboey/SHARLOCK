@@ -112,6 +112,16 @@ export function createAuthRouter(database, settings, { mailer = createConsoleMai
   const requireOrigin = requireExpectedOrigin(authSettings.clientOrigin)
   const router = Router()
   const events = new EventEmitter()
+  const sessionCollection = database.db.collection('auth_sessions')
+
+  // one active login per account: the newest sign-in wins, older sessions end and their sockets close
+  async function endOtherSessions(userId, currentSessionId) {
+    const filter = { 'session.userId': userId, _id: { $ne: currentSessionId } }
+    const stale = await sessionCollection.find(filter, { projection: { _id: 1 } }).toArray()
+    if (stale.length === 0) return
+    await sessionCollection.deleteMany({ _id: { $in: stale.map((doc) => doc._id) } })
+    for (const doc of stale) events.emit('session-ended', doc._id, 'replaced')
+  }
 
   router.use((_request, response, next) => {
     response.set('Cache-Control', 'no-store')
@@ -268,6 +278,7 @@ export function createAuthRouter(database, settings, { mailer = createConsoleMai
         const csrfToken = csrf.generateToken(request, true)
         setSessionCookieLifetime(request, authSettings.now)
         await saveSession(request)
+        await endOtherSessions(account.userId, request.sessionID)
         sendUser(response, account.user, csrfToken)
       } catch (error) {
         if (failureSlot) {
