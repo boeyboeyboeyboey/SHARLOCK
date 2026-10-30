@@ -12,6 +12,7 @@ describe('menu overlay routes', () => {
     ['/leaderboard', 'leaderboard'],
     ['/classes', 'classes'],
     ['/settings', 'settings'],
+    ['/discoveries', 'discoveries'],
     ['/about', 'about'],
   ])('%s is a child of the town route and flagged as an overlay', async (path, name) => {
     const router = makeRouter()
@@ -31,6 +32,8 @@ describe('menu overlay routes', () => {
     expect(router.currentRoute.value.meta.accountAware).toBe(true)
     expect(router.currentRoute.value.meta.requiresAccount).toBe(false)
     await router.push('/leaderboard')
+    expect(router.currentRoute.value.meta.requiresAccount).toBe(true)
+    await router.push('/discoveries')
     expect(router.currentRoute.value.meta.requiresAccount).toBe(true)
   })
 

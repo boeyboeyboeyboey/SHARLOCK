@@ -118,13 +118,14 @@ See `tests/e2e/portal.spec.js:6`.
 
 ## Outskirts discoveries (NPC-03)
 
-- Six hidden finds, four objects and two npcs, listed in `scenes/wharf/finds.js` (id, kind, name, x, z, one or two lines of 140 characters at most). They are not on the minimap or in the destination list. Positions: sticky-note (-40.5, -14) and tailgater (-34.3, -25.5) in the west back lane; usb-stick (49.5, -43.5) and shoulder-surfer (54.9, -37.1) in the east yard; open-telegraph (6.5, 63.7) and handbill (10.4, 63) on the jetty beside the pier.
+- Six hidden finds, four objects and two npcs, listed in `scenes/wharf/finds.js` (id, kind, name, x, z, `pocket`, a card scene of one or two lines of 140 characters at most, and `note`, Sharlock's lesson for the log). They are not on the minimap or in the destination list. Positions: sticky-note (-40.5, -14) and tailgater (-34.3, -25.5) in the west back lane; usb-stick (49.5, -43.5) and shoulder-surfer (54.9, -37.1) in the east yard; open-telegraph (6.5, 63.7) and handbill (10.4, 63) on the jetty beside the pier.
 - Ground: `pockets` in `layout.js` holds the walkable pocket rectangles, kept apart from `floors` so the minimap never draws them; `walkable` checks both. New lanes in `paths` join the cross street (west, east) and the pier (jetty). Prop footprints are in `obstacles`.
 - Scenery and the four objects are built in `scenes/wharf/outskirts.js` into the shared world batches, so they add no draw calls on any tier. The two npcs are static capybaras made by `townsfolk.js` with kind `hidden`: they face the player when close but never become `state.nearNpc` and are left out of `debug.npcs()`.
 - Interact: `a-wharf.js` writes the closest find within 2.4 m (`nearestFind`) to `state.nearFind`. `interact()` in `HubScene.vue` opens a nearby find first, else talks to a townsperson. The **Look at <name>** or **Talk to <name>** button (`data-testid="inspect"`) does the same on touch. The card reuses `NpcDialogue.vue` (close button reads "Got it"), pauses movement and closes when the player walks away.
-- Store: `discoveries.js` keeps found ids in localStorage `sharlock.discoveries` (JSON list, try/catch, unknown ids dropped; non-sensitive) and exposes `useDiscoveries()`. The site menu shows "Discoveries x/6" (`data-testid="menu-discoveries"`). Opening a find announces "Discovery n of 6: <name>" the first time.
+- Store: `discoveries.js` keeps found ids in localStorage `sharlock.discoveries` (JSON list, try/catch, unknown ids dropped; non-sensitive) and exposes `useDiscoveries()`. The site menu shows "Discoveries x/6" (`data-testid="menu-discoveries"`) as a link to the log. Opening a find announces "Discovery n of 6: <name>" the first time.
+- Lore rule (LORE-02): cards and keeper lines show a scene in character and never state the lesson. The lesson lives only in the Discoveries log, the `/discoveries` overlay (`menu/overlays/DiscoveriesOverlay.vue`, same in 2D and 3D): a found entry shows its name, card line 1 and "Sharlock's note"; an unfound one shows "???" and "Somewhere in the <pocket>" (west lane, east yard or jetty). Entries keep the `finds.js` order.
 - Dev hook: `__hub.debug.finds()` returns each find's id, kind, name and position.
-- Tests: `__tests__/discoveries.test.js`, `menu/__tests__/SiteMenu.test.js`; `tests/e2e/hub-discoveries.spec.js`.
+- Tests: `__tests__/discoveries.test.js`, `menu/__tests__/SiteMenu.test.js`, `menu/__tests__/DiscoveriesOverlay.test.js`; `tests/e2e/hub-discoveries.spec.js`.
 
 ## Assets and adding a building
 

@@ -97,6 +97,12 @@ export const routes = [
         meta: { title: 'Settings', overlay: true, requiresAccount: true },
       },
       {
+        path: '/discoveries',
+        name: 'discoveries',
+        component: () => import('../features/menu/overlays/DiscoveriesOverlay.vue'),
+        meta: { title: 'Discoveries', overlay: true, requiresAccount: true },
+      },
+      {
         path: '/about',
         name: 'about',
         component: () => import('../features/menu/overlays/AboutOverlay.vue'),

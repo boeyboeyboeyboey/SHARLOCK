@@ -76,9 +76,14 @@ watch(() => props.open, sync)
           <small>Results are not saved</small>
         </div>
       </div>
-      <p class="menu-count" data-testid="menu-discoveries">
+      <RouterLink
+        to="/discoveries"
+        class="menu-count menu-count-link"
+        data-testid="menu-discoveries"
+        @click="emit('navigate')"
+      >
         Discoveries <strong>{{ discoveries.count.value }}/{{ discoveries.total }}</strong>
-      </p>
+      </RouterLink>
       <p v-if="presence.superseded" class="menu-count" data-testid="menu-online-elsewhere">
         Open in another tab
       </p>

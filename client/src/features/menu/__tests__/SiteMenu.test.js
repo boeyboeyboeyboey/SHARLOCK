@@ -23,6 +23,15 @@ describe('site menu', () => {
     wrapper.unmount()
   })
 
+  it('links the discoveries count to the log and closes the menu on use', async () => {
+    const wrapper = mountMenu()
+    const link = wrapper.getComponent('[data-testid="menu-discoveries"]')
+    expect(link.props('to')).toBe('/discoveries')
+    await link.trigger('click')
+    expect(wrapper.emitted('navigate')).toHaveLength(1)
+    wrapper.unmount()
+  })
+
   it('opens the dialog when asked and shows the header with the username note', async () => {
     const wrapper = mountMenu()
     expect(wrapper.get('dialog').element.open).toBe(false)

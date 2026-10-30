@@ -46,7 +46,7 @@ test('E opens a hidden discovery card and the menu counts it', async ({ page }) 
   const card = page.getByTestId('npc-dialogue')
   await expect(card).toBeVisible()
   await expect(card.getByRole('heading', { name: 'Pinned note' })).toBeVisible()
-  await expect(page.getByTestId('npc-line')).toContainText('Safe: 1234')
+  await expect(page.getByTestId('npc-line')).toContainText('Safe: 1-2-3-4')
   expect(await page.evaluate(() => localStorage.getItem('sharlock.discoveries'))).toBe(
     '["sticky-note"]',
   )
@@ -57,6 +57,13 @@ test('E opens a hidden discovery card and the menu counts it', async ({ page }) 
 
   await page.getByTestId('menu-button').click()
   await expect(page.getByTestId('menu-discoveries')).toContainText('1/6')
+  // the lesson lives in the discoveries log, not on the card
+  await page.getByTestId('menu-discoveries').click()
+  await expect(page).toHaveURL(/\/discoveries$/)
+  const found = page.getByTestId('discovery-sticky-note')
+  await expect(found).toContainText("Sharlock's note")
+  await expect(found).toContainText('password manager')
+  await expect(page.getByTestId('discovery-usb-stick')).toContainText('Somewhere in the east yard')
 })
 
 test('the prompt button opens a hidden npc and a repeat visit is not counted twice', async ({

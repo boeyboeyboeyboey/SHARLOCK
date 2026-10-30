@@ -255,6 +255,17 @@
   padding: 0 10px;
   font-size: 14px;
 }
+.menu-count-link {
+  align-items: center;
+  min-height: 44px;
+  border-radius: var(--hub-glass-radius);
+  color: inherit;
+  text-decoration: none;
+}
+.menu-count-link:hover,
+.menu-count-link:focus-visible {
+  background: var(--hub-glass-btn);
+}
 .menu-list {
   display: grid;
   gap: 4px;

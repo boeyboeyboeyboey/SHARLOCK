@@ -42,6 +42,11 @@ describe('discovery data', () => {
     }
     if (f.kind === 'npc') expect(f.style.fur).toBeTruthy()
   })
+
+  it.each(finds.map((f) => [f.id, f]))('%s has a log note and a pocket hint', (id, f) => {
+    expect(f.note.length).toBeGreaterThan(20)
+    expect(['west lane', 'east yard', 'jetty']).toContain(f.pocket)
+  })
 })
 
 describe('outskirt pockets', () => {
