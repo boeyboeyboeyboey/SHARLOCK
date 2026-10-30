@@ -274,7 +274,7 @@ describe('personal progress API', () => {
       'topic-expert',
       'timed-run',
     ])
-    expect(progress.body.catalogue).toHaveLength(11)
+    expect(progress.body.catalogue).toHaveLength(16)
     for (const item of progress.body.catalogue)
       expect(Object.keys(item).sort()).toEqual(['description', 'key', 'name'])
     const again = await student.agent.get('/api/me/progress').set('Origin', origin).expect(200)

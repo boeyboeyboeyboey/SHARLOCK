@@ -23,6 +23,10 @@ One item per slot is always unlocked (the default). Unlocks are re-derived on ev
 | monocle   | `monocle-brass`       | `timed-run` (Against the clock)                          |
 | accessory | `accessory-none`      | default                                                  |
 | accessory | `accessory-magnifier` | `topic-expert`                                           |
+| hat       | `hat-hazmat-hood`     | `tag-untouchable` (Untouchable)                          |
+| scarf     | `scarf-circuit`       | `tag-super-spreader` (Super-spreader)                    |
+| accessory | `accessory-shield`    | `tag-firewall` (Firewall)                                |
+| accessory | `accessory-bandolier` | `tag-patient-zero-wins` (Patient Zero Wins)              |
 
 `timed-run` needs a completed attempt with mode `standard` on a ruleset the attempts registry marks `competitive`; the server reads both from its own records.
 

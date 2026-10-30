@@ -24,6 +24,10 @@ const SERVER_IDS = [
   'monocle-brass',
   'accessory-none',
   'accessory-magnifier',
+  'scarf-circuit',
+  'hat-hazmat-hood',
+  'accessory-shield',
+  'accessory-bandolier',
 ]
 
 describe('wardrobe look', () => {
@@ -58,5 +62,18 @@ describe('wardrobe look', () => {
     expect(rig.scarfColor).toEqual(WARDROBE_LOOK['scarf-navy'].rig.scarfColor)
     expect(rig.hat).toBe('detective-cap')
     expect(rig.accessory).toBe('magnifier')
+  })
+})
+
+describe('botnet tag cosmetics', () => {
+  it('builds rig options for the circuit scarf, hazmat hood, shield and bandolier', () => {
+    const rig = rigOptionsFor({
+      scarf: 'scarf-circuit',
+      hat: 'hat-hazmat-hood',
+      accessory: 'accessory-shield',
+    })
+    expect(rig).toMatchObject({ hat: 'hazmat', accessory: 'shield' })
+    expect(rig.scarfTrace).toHaveLength(3)
+    expect(rigOptionsFor({ accessory: 'accessory-bandolier' }).accessory).toBe('bandolier')
   })
 })

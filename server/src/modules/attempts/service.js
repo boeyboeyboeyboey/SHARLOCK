@@ -181,6 +181,8 @@ function validateDocumentBudget(candidate) {
   stateObject(candidate)
 }
 
+const stateFields = ['outcome', 'sideWon', 'patches', 'tags', 'startedInfected', 'cleanAtEnd']
+
 export function createAttemptService(
   database,
   { registry = createAttemptRegistry(), now = Date.now } = {},
@@ -549,7 +551,10 @@ export function createAttemptService(
   }
 
   // read-only history for one player: completed attempts only, no membership check by design
-  async function listCompletedAttempts(playerId, { gameId, skip = 0, limit = 10 } = {}) {
+  async function listCompletedAttempts(
+    playerId,
+    { gameId, skip = 0, limit = 10, includeState = false } = {},
+  ) {
     const filter = { playerId: new Types.ObjectId(playerId), status: 'completed' }
     if (gameId !== undefined) filter.gameId = parseGameId(gameId)
     const [attempts, total] = await Promise.all([
@@ -562,6 +567,8 @@ export function createAttemptService(
         maxScore: 1,
         completedAt: 1,
         topicOutcomes: 1,
+        // only the counters the achievements read, never whole game state
+        ...(includeState ? Object.fromEntries(stateFields.map((f) => [`state.${f}`, 1])) : {}),
       })
         .sort({ completedAt: -1, _id: -1 })
         .skip(skip)

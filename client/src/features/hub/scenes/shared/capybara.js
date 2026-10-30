@@ -295,7 +295,12 @@ function addBody(kit, st, B = BODY) {
 const phiOf = (z, B = BODY) => Math.asin(sp(clamp((z - B.c[2]) / B.r[2], -1, 1), 1 / B.e[0]));
 
 // knitted scarf: the ribs run round the neck, so the shade only changes across the width; u is across the strip
-const ribs = (st, count, v, edge = 0) => scaleColor(st.scarf, (0.92 + 0.08 * Math.cos(v * TAU * count)) * (1 - 0.25 * edge));
+// st.scarfTrace adds thin bright circuit lines along the ribs
+const ribs = (st, count, v, edge = 0) => {
+  const wave = Math.cos(v * TAU * count);
+  if (st.scarfTrace && wave > 0.82) return st.scarfTrace;
+  return scaleColor(st.scarf, (0.92 + 0.08 * wave) * (1 - 0.25 * edge));
+};
 
 // knitted scarf ring: a soft tube round the neck, a little proud of the fur everywhere
 function addScarfRing(kit, st) {
@@ -616,6 +621,46 @@ function addMagnifier(kit) {
   kit.surface({ cols: 6, rows: 30, wrap: true, at: tube(strap, 0.009), color: () => leather });
 }
 
+// hazmat hood: a snug vinyl dome with a dark filter patch at the brow, through hatSurface
+function addHazmatHood(kit, color) {
+  hatSurface(kit, {
+    cols: 28,
+    rows: 12,
+    wrap: true,
+    at: ellipsoid({ c: [HAT.c[0], HAT.c[1] - 0.01, HAT.c[2] - 0.01], r: [0.31, 0.22, 0.35], e: [0.85, 0.9] }),
+    color: (p, n) => scaleColor(color, 0.82 + 0.22 * n[1]),
+  });
+  hatSurface(kit, {
+    cols: 14,
+    rows: 8,
+    wrap: true,
+    at: ellipsoid({ c: [HAT.c[0], HAT.c[1] + 0.06, HAT.c[2] + HAT.rz * 0.9], r: [0.11, 0.075, 0.05] }),
+    color: () => [0.16, 0.18, 0.17],
+  });
+}
+
+// antivirus shield badge on the left flank, mirrored from the magnifier lens
+function addShield(kit) {
+  const x = -LENS.x;
+  const steel = [0.62, 0.68, 0.74];
+  kit.surface({ cols: 16, rows: 8, wrap: true, at: ellipsoid({ c: [x, LENS.y, LENS.z], r: [0.012, 0.1, 0.082], e: [0.7, 0.8], axis: 'x' }), color: () => steel });
+  kit.surface({ cols: 16, rows: 8, wrap: true, at: ellipsoid({ c: [x + 0.008, LENS.y + 0.004, LENS.z], r: [0.008, 0.08, 0.062], e: [0.7, 0.8], axis: 'x' }), color: () => [0.16, 0.52, 0.86] });
+  kit.surface({ cols: 8, rows: 6, wrap: true, at: ellipsoid({ c: [x + 0.014, LENS.y, LENS.z], r: [0.004, 0.05, 0.012], axis: 'x' }), color: () => [0.9, 0.96, 1] });
+  kit.surface({ cols: 8, rows: 6, wrap: true, at: ellipsoid({ c: [x + 0.014, LENS.y, LENS.z], r: [0.004, 0.012, 0.04], axis: 'x' }), color: () => [0.9, 0.96, 1] });
+}
+
+// patch-cable bandolier: a tilted cable sash hugging the barrel with three small connector pouches
+function addBandolier(kit) {
+  const cable = [0.1, 0.52, 0.32];
+  const at = (psi) => bodyAt(0.12 + 0.34 * Math.sin(psi), psi, 1.05, 1, SH_BODY);
+  const ring = Array.from({ length: 41 }, (_, i) => at((i / 40) * TAU));
+  kit.surface({ cols: 6, rows: 40, wrap: true, at: tube(ring, 0.014), color: () => cable });
+  for (const psi of [1.2, 2.2, 3.2]) {
+    const c = at(psi);
+    kit.surface({ cols: 8, rows: 6, wrap: true, at: ellipsoid({ c, r: [0.03, 0.03, 0.03] }), color: () => [0.9, 0.7, 0.2] });
+  }
+}
+
 function furMaterial(scene, name, toon) {
   const m = new StandardMaterial(name, scene);
   m.diffuseColor = Color3.White();
@@ -745,8 +790,8 @@ export function createCapybaraCrowd(scene, { variants, count, size = 1.05, toon 
 
 // the animated rig: torso with a knitted scarf, head, ears, four legs, plus a tweed hat, glass and glint on the detective
 // options: size (uniform scale), hat ('deerstalker' | 'cap' | 'detective-cap' | null), monocle, toon(material), reduced() -> boolean
-// wardrobe options, null keeps the stock look: scarfColor, tweedColor (multiplies the tweed), monocleColor, accessory ('magnifier'), capColor for the caps
-export function createCapybaraRig(scene, { name = 'sharlock', style = furStyles.sharlock, size = 1.35, hat = 'deerstalker', monocle = true, capColor = [0.2, 0.28, 0.5], scarfColor = null, tweedColor = null, monocleColor = null, accessory = null, toon = () => {}, reduced = () => false, idleSeed = 7 } = {}) {
+// wardrobe options, null keeps the stock look: scarfColor, tweedColor (multiplies the tweed), monocleColor, scarfTrace (circuit lines), accessory ('magnifier' | 'shield' | 'bandolier'), hat 'hazmat' with hoodColor, capColor for the caps
+export function createCapybaraRig(scene, { name = 'sharlock', style = furStyles.sharlock, size = 1.35, hat = 'deerstalker', monocle = true, capColor = [0.2, 0.28, 0.5], scarfColor = null, tweedColor = null, monocleColor = null, scarfTrace = null, hoodColor = [0.85, 0.78, 0.15], accessory = null, toon = () => {}, reduced = () => false, idleSeed = 7 } = {}) {
   const holder = new TransformNode(`${name}-rig`, scene);
   holder.scaling.setAll(size);
   const materials = [];
@@ -765,7 +810,7 @@ export function createCapybaraRig(scene, { name = 'sharlock', style = furStyles.
     if (caster) casters.push(mesh);
     return mesh;
   };
-  const scarfStyle = scarfColor ? { ...style, scarf: scarfColor } : style;
+  const scarfStyle = { ...style, ...(scarfColor ? { scarf: scarfColor } : {}), ...(scarfTrace ? { scarfTrace } : {}) };
   const furMat = furMaterial(scene, `${name}-fur`, toon);
   materials.push(furMat);
   let triangles = 0;
@@ -781,6 +826,8 @@ export function createCapybaraRig(scene, { name = 'sharlock', style = furStyles.
   torsoKit.surface({ cols: 24, rows: 10, wrap: true, at: neckAt, color: bodyFur(style) });
   addScarfRing(torsoKit, scarfStyle);
   if (accessory === 'magnifier') addMagnifier(torsoKit);
+  if (accessory === 'shield') addShield(torsoKit);
+  if (accessory === 'bandolier') addBandolier(torsoKit);
   hang(track(torsoKit).toMesh(scene, `${name}-torso`, furMat), torso, torsoP);
 
   // rump bulge, hidden inside the barrel until he sits
@@ -818,6 +865,10 @@ export function createCapybaraRig(scene, { name = 'sharlock', style = furStyles.
     const capKit = new Kit();
     addFlatCap(capKit, capColor);
     hang(track(capKit).toMesh(scene, `${name}-cap`, furMat), head, NECK);
+  } else if (hat === 'hazmat') {
+    const hoodKit = new Kit();
+    addHazmatHood(hoodKit, hoodColor);
+    hang(track(hoodKit).toMesh(scene, `${name}-hood`, furMat), head, NECK);
   } else if (hat === 'detective-cap') {
     const capKit = new Kit();
     addSharlockCap(capKit, capColor);

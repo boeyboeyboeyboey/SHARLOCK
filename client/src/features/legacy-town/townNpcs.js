@@ -13,6 +13,7 @@ const NPC_PLACES = {
   postmaster: { x: 860, y: 586, facing: 'left' },
   'police-constable': { x: 875, y: 770, facing: 'right' },
   publican: { x: 225, y: 606, facing: 'right' },
+  'server-keeper': { x: 800, y: 770, facing: 'left' },
   'news-vendor': { x: 620, y: 206, facing: 'left' },
   fisherman: {
     route: [

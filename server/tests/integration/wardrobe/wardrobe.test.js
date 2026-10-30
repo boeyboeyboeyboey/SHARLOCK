@@ -148,6 +148,20 @@ describe('wardrobe API', () => {
     )
   })
 
+  it('unlocks botnet tag items from the saved round state only', async () => {
+    const account = await registerTestStudent(app)
+    await seedCompleted(account, 'botnet-tag', {
+      state: { outcome: 'infected', sideWon: false, patches: 4, tags: 0 },
+    })
+    const listed = await account.agent.get('/api/me/wardrobe').expect(200)
+    const byId = (id) => listed.body.items.find((entry) => entry.id === id)
+    expect(byId('accessory-shield')).toMatchObject({ unlocked: true, unlockedByName: 'Firewall' })
+    expect(byId('hat-hazmat-hood').unlocked).toBe(false)
+    expect(byId('scarf-circuit').unlocked).toBe(false)
+    await equip(account, 'accessory', { itemId: 'accessory-shield' }).expect(200)
+    await equip(account, 'hat', { itemId: 'hat-hazmat-hood' }).expect(403)
+  })
+
   it('unlocks the brass monocle only from a standard run on a competitive ruleset', async () => {
     const account = await registerTestStudent(app)
     await seedCompleted(account, 'cli-cyber-defender', { rulesetVersion: 'cli-3' })

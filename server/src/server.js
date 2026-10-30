@@ -11,6 +11,7 @@ import { initializeAuditStorage } from './modules/audit/storage.js'
 import { initializeRecoveryStorage } from './modules/recovery/storage.js'
 import { initializeAttemptStorage } from './modules/attempts/storage.js'
 import { createProductionAttemptRegistry } from './modules/attempts/production-registry.js'
+import { BOTNET_TAG_PATH } from './modules/games/botnet-tag/protocol.js'
 import { createApp } from './app.js'
 import { loadEnvironment } from './config/env.js'
 import { connectDatabase } from './config/database.js'
@@ -36,6 +37,7 @@ async function shutdown() {
   clearInterval(newsCleanup)
   const timeout = setTimeout(() => process.exit(1), 5000).unref()
   app?.locals.presence?.close()
+  app?.locals.botnetTag?.close()
   if (server) await new Promise((resolve) => server.close(resolve))
   await app?.locals.disposeAuth?.()
   if (database) await database.close()
@@ -125,7 +127,9 @@ try {
   })
   server = app.listen(config.port, '127.0.0.1')
   server.on('upgrade', (request, socket, head) => {
-    app.locals.presence.handleUpgrade(request, socket, head)
+    const service =
+      request.url?.split('?')[0] === BOTNET_TAG_PATH ? app.locals.botnetTag : app.locals.presence
+    service.handleUpgrade(request, socket, head)
   })
   server.on('listening', () =>
     console.log(`SHARLOCK API ready at http://localhost:${config.port}/api/health`),

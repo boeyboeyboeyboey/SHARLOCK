@@ -200,6 +200,12 @@ export const routes = [
       },
     ],
   },
+  // botnet tag has no room behind it: it renders its own 3d arena and needs webgl
+  {
+    path: '/games/botnet-tag',
+    component: () => import('../games/botnet-tag/BotnetTagGame.vue'),
+    meta: { title: 'Botnet Tag', requiresAccount: true, immersive: true },
+  },
   {
     path: '/forbidden',
     component: ComingSoon,

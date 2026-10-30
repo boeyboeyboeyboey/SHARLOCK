@@ -29,7 +29,7 @@ describe('progress summary', () => {
     const saved = wrapper.get('[data-testid="game-sql-injection-arcade"]')
     expect(saved.text()).toContain('SQL Injection Arcade')
     expect(saved.text()).toContain('80 / 100')
-    expect(wrapper.findAll('.progress-game')).toHaveLength(6)
+    expect(wrapper.findAll('.progress-game')).toHaveLength(7)
     expect(wrapper.get('[data-testid="game-clearance-tower"]').text()).toContain(
       'Not a scored activity',
     )

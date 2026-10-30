@@ -8,6 +8,50 @@ const firstCloseGames = Object.freeze([
   ['social-engineering-simulator', 'Talked down', 'Social Engineering Simulator'],
 ])
 
+// botnet tag rounds: fields come from the server-recorded attempt state, never the browser
+const tagRound = (attempt) => (attempt.gameId === 'botnet-tag' ? (attempt.state ?? {}) : null)
+const tagAchievements = [
+  [
+    'tag-untouchable',
+    'Untouchable',
+    'Stay clean for a whole Botnet Tag round.',
+    (state) => state.outcome === 'survived',
+  ],
+  [
+    'tag-last-one-clean',
+    'Last One Clean',
+    'Be the only clean player left when survivors win.',
+    (state) => state.outcome === 'survived' && state.sideWon === true && state.cleanAtEnd === 1,
+  ],
+  [
+    'tag-super-spreader',
+    'Super-spreader',
+    'Tag three or more players in one round.',
+    (state) => state.tags >= 3,
+  ],
+  [
+    'tag-firewall',
+    'Firewall',
+    'Patch four or more stations in one round.',
+    (state) => state.patches >= 4,
+  ],
+  [
+    'tag-patient-zero-wins',
+    'Patient Zero Wins',
+    'Start infected and see the botnet win.',
+    (state) => state.startedInfected === true && state.sideWon === true,
+  ],
+].map(([key, name, description, test]) => ({
+  key,
+  name,
+  description,
+  find: (attempts) =>
+    attempts.find((attempt) => {
+      const state = tagRound(attempt)
+      return state !== null && test(state)
+    }),
+}))
+
 const achievementDefinitions = Object.freeze([
   {
     key: 'first-clue',
@@ -67,6 +111,7 @@ const achievementDefinitions = Object.freeze([
           attempt.mode === 'standard' && isCompetitive(attempt.gameId, attempt.rulesetVersion),
       ),
   },
+  ...tagAchievements,
 ])
 
 export const achievementKeys = Object.freeze(achievementDefinitions.map(({ key }) => key))

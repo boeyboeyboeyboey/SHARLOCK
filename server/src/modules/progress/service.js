@@ -20,6 +20,7 @@ export function createProgressService(database, { registry = createAttemptRegist
   async function getProgress(playerId) {
     const { attempts: newestFirst } = await attemptService.listCompletedAttempts(playerId, {
       limit: MAX_PROGRESS_ATTEMPTS,
+      includeState: true,
     })
     const attempts = newestFirst.reverse().map((attempt) => ({
       id: attempt._id.toString(),
@@ -30,6 +31,7 @@ export function createProgressService(database, { registry = createAttemptRegist
       mode: attempt.mode,
       completedAt: attempt.completedAt,
       topicOutcomes: attempt.topicOutcomes ?? [],
+      state: attempt.state ?? null,
     }))
     const games = savingGameIds.map((gameId) => summarizeGame(gameId, attempts))
     return {

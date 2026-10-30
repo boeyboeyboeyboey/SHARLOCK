@@ -24,6 +24,11 @@ export const WARDROBE_LOOK = Object.freeze({
   'scarf-forest': { slot: 'scarf', hex: '#215e33', rig: { scarfColor: [0.13, 0.37, 0.2] } },
   'scarf-mustard': { slot: 'scarf', hex: '#c7941f', rig: { scarfColor: [0.78, 0.58, 0.12] } },
   'scarf-plum': { slot: 'scarf', hex: '#6b2b66', rig: { scarfColor: [0.42, 0.17, 0.4] } },
+  'scarf-circuit': {
+    slot: 'scarf',
+    hex: '#14522f',
+    rig: { scarfColor: [0.06, 0.24, 0.14], scarfTrace: [0.3, 1, 0.55] },
+  },
   'scarf-teal': { slot: 'scarf', hex: '#1f8080', rig: { scarfColor: [0.12, 0.5, 0.5] } },
   'hat-deerstalker': {
     slot: 'hat',
@@ -45,11 +50,18 @@ export const WARDROBE_LOOK = Object.freeze({
     hex: '#4a4036',
     rig: { hat: 'detective-cap', capColor: [0.3, 0.25, 0.2] },
   },
+  'hat-hazmat-hood': {
+    slot: 'hat',
+    hex: '#d9c726',
+    rig: { hat: 'hazmat', hoodColor: [0.85, 0.78, 0.15] },
+  },
   'monocle-gold': { slot: 'monocle', hex: '#f9bd38', rig: { monocleColor: [0.98, 0.74, 0.22] } },
   'monocle-silver': { slot: 'monocle', hex: '#cfd5e0', rig: { monocleColor: [0.82, 0.85, 0.9] } },
   'monocle-brass': { slot: 'monocle', hex: '#b88033', rig: { monocleColor: [0.72, 0.5, 0.2] } },
   'accessory-none': { slot: 'accessory', hex: null, rig: { accessory: null } },
   'accessory-magnifier': { slot: 'accessory', hex: '#b88033', rig: { accessory: 'magnifier' } },
+  'accessory-shield': { slot: 'accessory', hex: '#2a85dc', rig: { accessory: 'shield' } },
+  'accessory-bandolier': { slot: 'accessory', hex: '#1a8552', rig: { accessory: 'bandolier' } },
 })
 
 // merged rig options for an equipped map, a missing, unknown or wrong slot id falls back to that slot's default

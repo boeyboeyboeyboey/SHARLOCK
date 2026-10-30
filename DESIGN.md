@@ -34,6 +34,15 @@ For readability conventions, use [CODE_STYLE.md](CODE_STYLE.md). Bootstrap utili
 
 During review, compare shared surfaces with the current landing, profile and town; check 375/576/768/992/1200/1440px, breakpoint edges and landscape, keyboard/touch access, visible focus and no page-wide horizontal scrolling. Visit another shared page after leaving a game to check for style leakage. Do not redesign shared components as an incidental part of a game or feature; a requested change to the shared design needs its own explicit scope.
 
+### Minimal text (UX-02, Boey, 31 October 2026)
+
+Applies to shared pages, the hub and every game (including games' own design freedom):
+
+- No eyebrow or kicker labels, taglines, subtitles or helper lines that restate what the layout already shows.
+- The interface explains itself through layout, grouping, icons, key badges and visible states. If a control or screen needs a long sentence to make sense, redesign it instead of adding the sentence.
+- Keep short titles and labels, and everything needed for access or correctness: form labels, `aria-*` text, errors and validation, empty states, confirmations for destructive actions.
+- Teach a game through its How to play preview (animated scene), not paragraphs on the play screen.
+
 ### How to play dialog
 
 Games show their guide through `client/src/components/common/HowToPlayDialog.vue` (HOW-01), not a custom modal. It is a native `<dialog>` with a step caption, step dots, Previous/Next, a "What you'll learn" line, rules, controls, a "Don't show again" checkbox saved to the account, and a "Start playing" button. The game supplies the animated mini-UI through the `scene` slot, built in code (no images, GIF or video). The scene advances every 4 seconds with a **Pause animation** toggle (`aria-pressed`, WCAG 2.2.2); under `prefers-reduced-motion` it starts paused and shows static steps. A game themes the dialog from its own root with `--game-howto-*` variables (`surface`, `scene`, `edge`, `ink`, `muted`, `soft`, `bar`, `bar-ink`, `bad`, `bad-soft`, `font`), which fall back to the shared tokens; never style it from `:root` or another module.
@@ -188,6 +197,8 @@ The six activities are already registered. Keep their identities and placements 
 | Cyber News Central / The daily briefing   | `threat-briefing`              | newsstand | (144, 480) | Accepted                   |
 | LLM Social Engineering Simulator          | `social-engineering-simulator` | office    | (432, 520) | Playable, saved (Review)   |
 | Clearance Tower (replaced Regex Defender) | `clearance-tower`              | shed      | (720, 496) | Playable, saved (Review)   |
+
+A game that only works in 3D sets `needs3d: true` in its catalog entry: the 2D info card and the Places row then show a small "3D" badge (`aria-label` "Needs 3D"), and the game page shows a short "Needs 3D" state when WebGL2 is missing (the 2D town setting does not block it). Botnet Tag (`botnet-tag`, `warehouse` building at (240, 600), Server Yard on the east lane of the wharf) is the first.
 
 Each `gameCatalog.js` entry also carries two optional row fields: `shortName` (one line, at most 18 characters, validated) and `accent` (a six digit hex colour for the destination row's left bar, taken from the game's own theme and at least 3:1 against the dark glass; validated). Set both for a new game.
 

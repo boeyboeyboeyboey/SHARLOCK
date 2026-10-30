@@ -1,6 +1,14 @@
 // frontend display metadata is separate from server permissions
 export const TOWN_SIZE = { width: 1120, height: 800 }
-export const BUILDING_TYPES = ['cottage', 'library', 'office', 'hut', 'shed', 'newsstand']
+export const BUILDING_TYPES = [
+  'cottage',
+  'library',
+  'office',
+  'hut',
+  'shed',
+  'newsstand',
+  'warehouse',
+]
 
 export function defineGameCatalog(entries) {
   const ids = new Set()
@@ -27,6 +35,8 @@ export function defineGameCatalog(entries) {
       throw new Error('An accent is a six digit hex colour.')
     if (!game.route?.startsWith('/games/') || game.route.includes('://'))
       throw new Error('Games need a local /games/ route.')
+    if (game.needs3d !== undefined && typeof game.needs3d !== 'boolean')
+      throw new Error('Needs 3D is true or false.')
     if (game.activation !== undefined && game.activation !== 'direct')
       throw new Error('Choose a supported building activation.')
     if (!BUILDING_TYPES.includes(game.building?.type))
@@ -139,5 +149,21 @@ export const gameCatalog = defineGameCatalog([
     duration: '10 min',
     icon: 'lock',
     building: { type: 'shed', x: 879, y: 565 },
+  },
+  {
+    id: 'botnet-tag',
+    shortName: 'Botnet Tag',
+    accent: '#7bd88f',
+    name: 'Botnet Tag',
+    description:
+      'Play infection tag with your class: spread the botnet, or patch stations to stay clean.',
+    difficulty: 2,
+    backgroundKnowledge: ['Malware spread', 'Patching', 'Network services and ports'],
+    route: '/games/botnet-tag',
+    isPreview: false,
+    needs3d: true,
+    duration: '3 min round',
+    icon: 'people',
+    building: { type: 'warehouse', x: 600, y: 580 },
   },
 ])

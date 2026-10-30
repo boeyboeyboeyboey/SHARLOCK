@@ -5,4 +5,5 @@ export const HOW_TO_PLAY_GAME_IDS = Object.freeze([
   'phishing-post-mortem',
   'cli-cyber-defender',
   'social-engineering-simulator',
+  'botnet-tag',
 ])

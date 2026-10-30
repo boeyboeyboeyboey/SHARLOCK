@@ -1,4 +1,5 @@
 import { test, expect } from './fixtures/auth.js'
+import { npcs } from '../../client/src/features/hub/scenes/wharf/npcs.js'
 
 // the software renderer builds the wharf slowly
 test.setTimeout(240000)
@@ -36,7 +37,7 @@ test('talks to a game keeper, reads every line and goes in', async ({ page }) =>
   await page.goto('/')
   await hubReady(page)
   const lines = await page.evaluate(() => window.__hub.debug.npcs())
-  expect(lines).toHaveLength(12)
+  expect(lines).toHaveLength(npcs.filter((npc) => npc.kind !== 'hidden').length)
 
   await pickDest(page, 'cli-cyber-defender')
   await expect

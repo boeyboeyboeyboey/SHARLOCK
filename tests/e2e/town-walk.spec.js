@@ -63,10 +63,10 @@ test('walks to a tapped spot and does not walk after a drag', async ({ page }, t
   const before = await feet(page)
   const box = await world.boundingBox()
   const ratio = box.width / 1120
-  // open street to the right of the start
-  await page.mouse.click(box.x + (before.x + 70) * ratio, box.y + before.y * ratio)
+  // open street to the left of the start, clear of the server yard
+  await page.mouse.click(box.x + (before.x - 70) * ratio, box.y + before.y * ratio)
   await expect
-    .poll(async () => Math.abs((await feet(page)).x - (before.x + 70)), { timeout: 10_000 })
+    .poll(async () => Math.abs((await feet(page)).x - (before.x - 70)), { timeout: 10_000 })
     .toBeLessThan(3)
 
   const after = await feet(page)

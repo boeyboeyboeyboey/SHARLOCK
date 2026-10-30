@@ -89,6 +89,19 @@ const parts = {
     s += B(51, 24, 5, 6, '#ae7750') + R(51, 26, 5, 1, INK)
     return { w: 56, h: 40, vy: 0, body: s }
   },
+  yard() {
+    let s = shadow(3, 37, 46) + B(4, 15, 40, 22, '#8fb39b')
+    for (let x = 6; x < 43; x += 4) s += R(x, 16, 1, 20, '#79a086')
+    s += B(2, 10, 44, 6, '#4f6a5a') + R(3, 11, 42, 1, '#7a9a86')
+    s += B(18, 22, 12, 15, '#3f5547')
+    for (let y = 24; y < 36; y += 3) s += R(19, y, 10, 1, '#2f4337')
+    for (const x of [7, 35])
+      s += B(x, 20, 6, 5, '#1d2b24') + R(x + 1, 21, 4, 1, '#7bd88f') + R(x + 1, 23, 4, 1, '#7bd88f')
+    s += B(20, 14, 8, 3, '#1d2b24') + R(21, 15, 6, 1, '#7bd88f')
+    s += R(38, 2, 1, 8, INK) + B(35, 1, 7, 3, '#cbb99b') + R(36, 2, 5, 1, '#e7d5a8')
+    s += B(1, 31, 5, 6, '#ae7750') + R(1, 34, 5, 1, INK)
+    return { w: 48, h: 40, vy: 0, body: s }
+  },
   post() {
     let s = shadow(4, 38, 48) + B(8, 18, 36, 20, '#c9715c')
     for (let y = 21; y < 38; y += 3) {
@@ -135,6 +148,7 @@ const TYPE_ART = {
   newsstand: 'news',
   office: 'pub',
   shed: 'clear',
+  warehouse: 'yard',
 }
 
 export function buildingArt(type) {

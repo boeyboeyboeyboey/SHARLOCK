@@ -13,6 +13,7 @@ import { createProductionAttemptRegistry } from './modules/attempts/production-r
 import { createProgressRouter } from './modules/progress/router.js'
 import { createClassResultsRouter } from './modules/class-results/router.js'
 import { createLeaderboardRouter } from './modules/leaderboards/router.js'
+import { createBotnetTagService } from './modules/games/botnet-tag/socket.js'
 import { createPresenceService } from './modules/presence/service.js'
 import { createProfileRouter } from './modules/profile/router.js'
 import { createWardrobeRouter } from './modules/wardrobe/router.js'
@@ -34,6 +35,7 @@ export function createApp(
     socialEngineering = {},
     cliDefender = {},
     presence: presenceOptions = {},
+    botnetTag: botnetTagOptions = {},
   } = {},
 ) {
   const app = express()
@@ -138,6 +140,18 @@ export function createApp(
     registry: attempts.registry ?? createProductionAttemptRegistry(),
     now: attempts.now ?? authRuntime.now,
   })
+  // botnet tag rounds share the http server through app.locals.botnetTag (server.js routes the upgrade)
+  const botnetTag = createBotnetTagService(database, {
+    clientOrigin: authRuntime.clientOrigin,
+    resolveSessionUser: authRuntime.resolveSessionUser,
+    recheckSession: authRuntime.recheckSession,
+    attempts: recordedAttempts,
+    ...botnetTagOptions,
+  })
+  authRuntime.events.on('session-ended', (sessionId, reason) =>
+    botnetTag.disconnectSession(sessionId, reason),
+  )
+  app.locals.botnetTag = botnetTag
   app.use(
     '/api',
     createSocialEngineeringRouter({
@@ -160,6 +174,7 @@ export function createApp(
   app.use(handleError)
   app.locals.disposeAuth = () => {
     presence.close()
+    botnetTag.close()
     adminRouter.dispose()
     cohortRouter.dispose()
     attemptRouter.dispose()

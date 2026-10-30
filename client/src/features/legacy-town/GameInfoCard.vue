@@ -29,6 +29,7 @@ defineExpose({ focus: () => heading.value?.focus({ preventScroll: true }) })
     </div>
     <div class="game-card-content">
       <h2 :id="`game-heading-${game.id}`" ref="heading" tabindex="-1">{{ game.name }}</h2>
+      <span v-if="game.needs3d" class="needs-3d" role="img" aria-label="Needs 3D">3D</span>
       <p>{{ game.description }}</p>
       <div class="difficulty-row">
         <span>Difficulty</span
@@ -54,3 +55,14 @@ defineExpose({ focus: () => heading.value?.focus({ preventScroll: true }) })
     </div>
   </section>
 </template>
+
+<style scoped>
+.needs-3d {
+  display: inline-block;
+  margin-bottom: 6px;
+  padding: 0 6px;
+  border: 2px solid currentColor;
+  font-size: 0.7em;
+  vertical-align: middle;
+}
+</style>

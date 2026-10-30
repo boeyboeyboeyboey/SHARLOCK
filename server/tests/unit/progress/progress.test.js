@@ -131,12 +131,71 @@ describe('achievements', () => {
 
 describe('achievement catalogue', () => {
   it('lists every achievement without criteria', () => {
-    expect(achievementCatalogue).toHaveLength(11)
+    expect(achievementCatalogue).toHaveLength(16)
     expect(achievementCatalogue.map((item) => item.key)).toEqual([...achievementKeys])
     for (const item of achievementCatalogue) {
       expect(Object.keys(item).sort()).toEqual(['description', 'key', 'name'])
       expect(Object.values(item).every((value) => typeof value === 'string' && value)).toBe(true)
       expect(Object.isFrozen(item)).toBe(true)
     }
+  })
+})
+
+describe('botnet tag achievements', () => {
+  const round = (state, overrides = {}) =>
+    attempt({
+      gameId: 'botnet-tag',
+      rulesetVersion: '1',
+      state: {
+        outcome: 'infected',
+        sideWon: false,
+        patches: 0,
+        tags: 0,
+        startedInfected: false,
+        cleanAtEnd: 3,
+        ...state,
+      },
+      ...overrides,
+    })
+  const keys = (list) =>
+    deriveAchievements(list)
+      .map((a) => a.key)
+      .filter((key) => key.startsWith('tag-'))
+
+  it('awards nothing for a plain infected round', () => {
+    expect(keys([round({})])).toEqual([])
+  })
+
+  it('awards untouchable for a clean survivor only', () => {
+    expect(keys([round({ outcome: 'survived' })])).toEqual(['tag-untouchable'])
+  })
+
+  it('awards last one clean only when survivors win with exactly one clean player', () => {
+    const win = { outcome: 'survived', sideWon: true }
+    expect(keys([round({ ...win, cleanAtEnd: 1 })])).toContain('tag-last-one-clean')
+    expect(keys([round({ ...win, cleanAtEnd: 2 })])).not.toContain('tag-last-one-clean')
+    expect(keys([round({ outcome: 'survived', sideWon: false, cleanAtEnd: 1 })])).not.toContain(
+      'tag-last-one-clean',
+    )
+    expect(keys([round({ ...win, cleanAtEnd: undefined })])).not.toContain('tag-last-one-clean')
+  })
+
+  it('draws the tag and patch thresholds at 3 and 4', () => {
+    expect(keys([round({ tags: 2, patches: 3 })])).toEqual([])
+    expect(keys([round({ tags: 3 })])).toEqual(['tag-super-spreader'])
+    expect(keys([round({ patches: 4 })])).toEqual(['tag-firewall'])
+  })
+
+  it('awards patient zero wins only for a botnet win that started infected', () => {
+    expect(keys([round({ startedInfected: true, sideWon: true })])).toEqual([
+      'tag-patient-zero-wins',
+    ])
+    expect(keys([round({ startedInfected: false, sideWon: true })])).toEqual([])
+    expect(keys([round({ startedInfected: true, sideWon: false })])).toEqual([])
+  })
+
+  it('ignores the same counters on another game and attempts without state', () => {
+    expect(keys([round({ tags: 9, patches: 9 }, { gameId: 'game-a' })])).toEqual([])
+    expect(keys([attempt({ gameId: 'botnet-tag' })])).toEqual([])
   })
 })
