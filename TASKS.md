@@ -187,6 +187,13 @@ Move the task's active record rather than duplicating it across board states. Re
 - **Stage B (client) done, 30 Oct 2026:** `client/src/features/hub/presence/` (`usePresence`, `roster`, `remotePeers`, `rules`), `HubScene.vue` (presence start, projected name labels), `engine.js` and `scenes/a-wharf.js` (`setPeers`, `peerLabels`, dev `debug.peers`), `features/menu/SiteMenu.vue` and `menu.css` (online list, staff class picker), `client/vite.config.js` (`ws: true`). Known limits: 2D shows no classmates; compact and low tiers draw static meshes with scarf and cap colour only; the E2E runs on the desktop project only (hub specs run software WebGL). Docs: hub README (Wharf presence), README "Using the app". Verification: `pnpm exec vitest run client/src/features/hub client/src/features/menu` 240/240; eslint clean on the changed paths; `hub-presence.spec.js` (desktop-chromium) passed; `hub.spec.js` (hub-desktop-chromium) 17/17. Not run: mobile projects, live manual check of the compact/low static peers.
 - **Next action:** review the diff, then continue the batch order (INT-01, AUDIO-04).
 
+**HUB-10 — Sprint in the 3D hub** · Status: **Review** · Contributor: **Boey** (implemented by Claude Code) · Branch: `hub-10-sprint` · Approved by Boey, 31 October 2026.
+
+- **Scope:** Shift or the Sprint HUD button gives 1.6x speed for 2.5 s, then a 6 s cooldown (`SPRINT` in `client/src/features/hub/scenes/shared/sprint.js`, same values as the botnet tag rules). `player.js` uses a live speed for movement, gait and stall checks; `HubScene.vue` holds the button; `controls.js` adds the Shift legend entry and `isSprintKey`; `engine.js`/`a-wharf.js` carry sprint state and `debug.sprint*`.
+- **Presence:** no server change; `server/src/modules/presence/protocol.js` clamps positions to the wharf bounds and checks no speed.
+- **Verification:** `vitest run client/src/features/hub client/src/features/menu` passes (new `sprint.test.js`, `isSprintKey` cases); `hub.spec.js` gains the Shift sprint test (desktop project); eslint clean on changed files.
+- **Docs impact:** `client/src/features/hub/README.md`, `README.md` (Using the app), `DESIGN.md`, this record.
+
 **FIX-03 — Scaffold E2E after UX-02 and a reachable session retry** · Status: **Review** · Contributor: **Boey** (implemented by Claude Code) · Branch: `fix-03-e2e-scaffold` (cut from `main` `cbefb51`, 31 October 2026) · Part of the overnight batch Boey approved on 31 October 2026.
 
 - **Found by:** full E2E on `cbefb51` (31 Oct): 288 passed / 5 failed / 21 skipped. Four failures were `scaffold.spec.js` looking for the About "Connection check" box removed in UX-02 S4; `recovery.spec.js:410` passes alone (load-related).

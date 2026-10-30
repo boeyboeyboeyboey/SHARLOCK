@@ -2,6 +2,7 @@
 export const HUB_KEYS = [
   ['WASD / arrows', 'move'],
   ['Space', 'jump'],
+  ['Shift', 'sprint'],
   ['E', 'talk or look'],
   ['Enter', 'go in'],
   ['Z / C', 'rotate'],
@@ -9,11 +10,11 @@ export const HUB_KEYS = [
   ['Esc', 'menu'],
 ]
 
-export const TOUCH_HINT = 'Drag to move · tap a place to walk · Jump button'
+export const TOUCH_HINT = 'Drag to move · tap a place to walk · Jump and Sprint buttons'
 
 // the toast lists the keys that matter on arrival, without Esc
 export function keyboardHint() {
-  return 'WASD / arrow keys move · Space jump · E talk or look · Enter go in · Z/C rotate · R reset camera'
+  return 'WASD / arrow keys move · Space jump · Shift sprint · E talk or look · Enter go in · Z/C rotate · R reset camera'
 }
 
 export const HINT_SEEN_KEY = 'sharlock.controlsHintSeen'
@@ -53,5 +54,15 @@ export function isEnterKey(event) {
   if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return false
   return !event.target?.closest?.(
     'input, textarea, select, button, summary, a[href], [role="button"], [role="dialog"], [aria-modal="true"], dialog, [contenteditable]:not([contenteditable="false"])',
+  )
+}
+
+// a Shift press outside a text field or dialog; holding it does not repeat a burst
+export function isSprintKey(event) {
+  if (event.code !== 'ShiftLeft' && event.code !== 'ShiftRight') return false
+  if (event.repeat || event.defaultPrevented) return false
+  if (event.ctrlKey || event.metaKey || event.altKey) return false
+  return !event.target?.closest?.(
+    'input, textarea, select, [role="dialog"], [aria-modal="true"], dialog, [contenteditable]:not([contenteditable="false"])',
   )
 }

@@ -160,6 +160,10 @@ export async function build({ engine, scene, canvas, state, notify, params, joys
     state,
     reduced,
     joystick,
+    onSprint: (sprint) => {
+      state.sprint = sprint;
+      notify();
+    },
     nav: { spawn: origin, heading: origin.heading, heightAt, walkable, paths, destinations, door: doorSpot },
   });
 
@@ -281,6 +285,8 @@ export async function build({ engine, scene, canvas, state, notify, params, joys
         teleport: (x, z) => control.teleport(x, z),
         position: () => control.position(),
         jump: () => control.jump(),
+        sprint: () => control.sprint(),
+        sprintState: () => control.sprintState(),
         airborne: () => control.airborne(),
         doors: () => infos.map((i) => ({ id: i.id, ...doorSpot(i, i.reach) })),
         camera: (alpha, beta, radius, tx, ty, tz, fov) => {
