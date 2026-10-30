@@ -1,68 +1,62 @@
 import { api } from '../../services/api.js'
 import { requestCsrfToken } from '../../features/auth/api.js'
 
-const BASE = '/games/social-engineering-simulator'
+const BASE = '/games/social-engineering-simulator/shift'
 
 export const MAX_MESSAGE_LENGTH = 1000
-export const NUDGE_IDLE_MS = 12000
-export const VERIFIER_TIMEOUT_MS = 65000
+export const HINT_PENALTY = 10
 
 export const DECISIONS = [
-  {
-    id: 'refuse',
-    label: 'Refuse and end',
-    description: 'Decline to share the code and close the conversation.',
-  },
-  {
-    id: 'verify-independently',
-    label: 'Verify through a known channel',
-    description:
-      'Refuse, then confirm the request using a help-desk ticket or a number you look up yourself.',
-  },
-  {
-    id: 'share-code',
-    label: 'Share the code',
-    description: 'Hand over the reset code.',
-  },
+  { id: 'grant', label: 'Grant', icon: '✓' },
+  { id: 'callback', label: 'Call back', icon: '☎' },
+  { id: 'refuse', label: 'Refuse', icon: '✕' },
+  { id: 'escalate', label: 'Escalate', icon: '▲' },
 ]
 
+export const TOOLS = [
+  { id: 'directory', label: 'Directory', icon: '☰' },
+  { id: 'ticket', label: 'Ticket', icon: '✉' },
+  { id: 'callback', label: 'Call back', icon: '☎' },
+]
+
+const ERROR_MESSAGES = {
+  SOC_SHIFT_NOT_FOUND: 'Shift expired. Start again.',
+  SOC_CALL_RESOLVED: 'Call is over.',
+  SOC_CALL_OPEN: 'Decide first.',
+  SOC_SHIFT_FINISHED: 'Shift is over.',
+  SOC_SHIFT_NOT_FINISHED: 'Finish every call first.',
+  SOC_MESSAGE_LIMIT: 'No messages left.',
+  SOC_COLLEAGUE_LIMIT: 'No colleague asks left.',
+  SOC_HINT_LIMIT: 'No hints left.',
+  SOC_BUSY: 'Wait for the reply.',
+  SOC_RATE_LIMITED: 'Too fast. Wait a moment.',
+}
+
 // every post is state-changing, so each carries a fresh csrf token
-async function post(path, body, options) {
+async function post(path, body, timeout = 20000) {
   const token = await requestCsrfToken()
   const { data } = await api.post(`${BASE}/${path}`, body, {
-    ...options,
+    timeout,
     headers: { 'X-CSRF-Token': token },
   })
   return data
 }
 
-export function startSession(context, signal) {
-  return post('session', { context }, { signal, timeout: 15000 })
+export const startShift = (context) => post('start', { context })
+export const sendMessage = (shiftId, content) => post('message', { shiftId, content }, 45000)
+export const askColleague = (shiftId, content) => post('colleague', { shiftId, content }, 45000)
+export const useDeskTool = (shiftId, tool) => post('tool', { shiftId, tool })
+export const requestHint = (shiftId) => post('hint', { shiftId })
+export const decide = (shiftId, decision) => post('decide', { shiftId, decision })
+export const nextCall = (shiftId) => post('next', { shiftId })
+export const completeShift = (shiftId) => post('complete', { shiftId })
+
+export function isShiftGone(error) {
+  return error?.response?.data?.error?.code === 'SOC_SHIFT_NOT_FOUND'
 }
 
-export function sendMessage(sessionId, content, signal) {
-  return post('message', { sessionId, content }, { signal, timeout: 45000 })
-}
-
-export function sendVerifierMessage(sessionId, content, signal) {
-  return post('verifier-message', { sessionId, content }, { signal, timeout: VERIFIER_TIMEOUT_MS })
-}
-
-export function requestNudge(sessionId, signal) {
-  return post('nudge', { sessionId }, { signal, timeout: 15000 })
-}
-
-export function completeSession(sessionId, decision, signal) {
-  return post('complete', { sessionId, decision }, { signal, timeout: 15000 })
-}
-
-// true when the server no longer holds this session (restart, idle expiry or already completed)
-export function isSessionGone(error) {
-  return error?.response?.data?.error?.code === 'LLM_SESSION_NOT_FOUND'
-}
-
-export function simulatorErrorMessage(error, fallback) {
-  if (error?.response?.status === 401) return 'Your session ended. Sign in again, then retry.'
-  const message = error?.response?.data?.error?.message
-  return typeof message === 'string' && message ? message : fallback
+export function simulatorErrorMessage(error, fallback = 'Something went wrong.') {
+  if (error?.response?.status === 401) return 'Signed out. Sign in again.'
+  const code = error?.response?.data?.error?.code
+  return ERROR_MESSAGES[code] ?? fallback
 }

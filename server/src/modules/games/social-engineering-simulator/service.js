@@ -19,7 +19,7 @@ import { nudgeFor, publicVerifier, verifierFor } from './verifiers.js'
 
 // normalise for leak detection: uppercase and keep only letters and digits so
 // "synth reset 4821" and "synth_reset.4821" match the stored SYNTH-RESET-4821
-function normalise(value) {
+export function normalise(value) {
   return value.toUpperCase().replace(/[^A-Z0-9]/g, '')
 }
 
@@ -506,29 +506,17 @@ export function createSocialEngineeringService({
     return result
   }
 
-  // finishes the run, then stores it as a saved attempt exactly once (resultKey is the session id).
-  // a failed save keeps the score on screen with saved:false and a code, and a retry saves it
-  async function completeAndRecord(sessionId, chosenDecision, owner, attempts) {
+  // finishes the single-call run; the saved ruleset is now the shift, so nothing is stored here
+  async function completeAndRecord(sessionId, chosenDecision, owner) {
     const result = complete(sessionId, chosenDecision, owner)
-    const entry = completed.get(sessionId)
-    // the replay window closed between the two reads; the first result stands unsaved
-    if (!entry) return { ...result, saved: false }
-    if (!entry.savedAttempt) {
-      try {
-        entry.savedAttempt = await attempts.recordCompletedAttempt({ id: owner }, GAME_ID, {
-          context: entry.context,
-          mode: 'practice',
-          startedAt: new Date(entry.startedAt),
-          state: entry.state,
-          resultKey: sessionId,
-        })
-      } catch (error) {
-        if (error?.name !== 'AttemptError' && error?.name !== 'CohortError') throw error
-        return { ...result, saved: false, saveError: { code: error.code, message: error.message } }
-      }
+    return {
+      ...result,
+      saved: false,
+      saveError: {
+        code: 'SOC_SINGLE_CALL_NOT_SAVED',
+        message: 'Single calls are no longer saved. Play a full shift to save your result.',
+      },
     }
-    const { attemptId, score, maxScore, persisted, context } = entry.savedAttempt
-    return { ...result, saved: true, attempt: { attemptId, score, maxScore, persisted, context } }
   }
 
   return {

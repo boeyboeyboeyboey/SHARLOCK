@@ -2,6 +2,8 @@ import { initializeNewsStorage } from './modules/news/models.js'
 import { createNewsStore } from './modules/news/store.js'
 import { createGameAdapters } from './modules/games/social-engineering-simulator/llmConfig.js'
 import { createSocialEngineeringService } from './modules/games/social-engineering-simulator/service.js'
+import { createShiftService } from './modules/games/social-engineering-simulator/shiftService.js'
+import { createTokenBucket } from './modules/games/social-engineering-simulator/limiter.js'
 import { initializeAuthStorage } from './modules/auth/storage.js'
 import { createFileMailer } from './modules/auth/mailer.js'
 import { initializeCohortStorage } from './modules/cohorts/storage.js'
@@ -112,6 +114,11 @@ try {
     },
     socialEngineering: {
       service: createSocialEngineeringService({ adapter: attacker, verifierAdapter: colleague }),
+      shift: createShiftService({
+        adapter: attacker,
+        colleagueAdapter: colleague,
+        limiter: createTokenBucket({ perMinute: config.llmRequestsPerMinute }),
+      }),
     },
     // every browser test shares one loopback address, so only the e2e server lifts attempt limits
     ...(config.nodeEnv === 'test' && { attempts: { limits: E2E_ATTEMPT_LIMITS } }),
