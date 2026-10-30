@@ -149,7 +149,7 @@ onBeforeUnmount(stop)
   --pb: 3rem;
   --room-gap: clamp(24px, 3vw, 48px);
   /* the room shrinks vertically on short windows so fitted games keep their height */
-  --room-gap-y: clamp(0px, calc((100dvh - 700px) / 4), var(--room-gap));
+  --room-gap-y: clamp(0px, calc((100dvh - 760px) / 4), var(--room-gap));
   --room-wood: #3b2a1d;
   position: relative;
   isolation: isolate;

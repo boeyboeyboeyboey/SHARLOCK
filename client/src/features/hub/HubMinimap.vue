@@ -327,7 +327,8 @@ function onKeydown(event) {
     display: flex;
     flex-direction: column;
     width: auto;
-    padding: 8px;
+    /* the floating menu and mode controls sit over the top edge, so the map starts below them */
+    padding: 64px 8px 8px;
     border-width: 0;
     border-radius: 0;
   }
