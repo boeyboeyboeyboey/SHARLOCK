@@ -4,6 +4,9 @@ import {
   PUZZLES,
   checkPuzzle,
   generatePuzzle,
+  looksMalicious,
+  patchCovers,
+  scorePassword,
   submissionFor,
 } from '../../../src/modules/games/botnet-tag/puzzles.js'
 import { createRng } from '../../../src/modules/games/botnet-tag/rules.js'
@@ -100,25 +103,135 @@ describe('patch-station puzzles', () => {
   })
 
   it('builds content that teaches the concept', () => {
-    for (let seed = 1; seed <= 50; seed += 1) {
+    for (let seed = 1; seed <= 500; seed += 1) {
       const process = generatePuzzle('process', createRng(seed))
-      const bad = process.public.processes[process.answer]
-      expect(bad.cpu).toBeGreaterThanOrEqual(85)
+      const rows = process.public.processes
+      expect(rows).toHaveLength(5)
+      expect(rows.filter(looksMalicious)).toHaveLength(1)
+      expect(looksMalicious(rows[process.answer])).toBe(true)
+      expect(new Set(rows.map((row) => row.name)).size).toBe(5)
+
       const hash = generatePuzzle('hash', createRng(seed))
       const { published, candidates } = hash.public
       expect(candidates.filter((c) => c.hash === published)).toHaveLength(1)
       for (const c of candidates.filter((c) => c.hash !== published)) {
-        const diff = [...c.hash].filter((ch, i) => ch !== published[i]).length
+        const a = c.hash.replaceAll(' ', '')
+        const b = published.replaceAll(' ', '')
+        expect(a).toHaveLength(64)
+        const diff = [...a].filter((ch, i) => ch !== b[i]).length
         expect(diff).toBeGreaterThanOrEqual(1)
-        expect(diff).toBeLessThanOrEqual(2)
+        expect(diff).toBeLessThanOrEqual(3)
       }
+      expect(new Set(candidates.map((c) => c.hash)).size).toBe(3)
+
       const spoof = generatePuzzle('spoof', createRng(seed))
+      const { real } = spoof.meta
       const domains = spoof.public.senders.map((s) => s.split('@')[1])
-      const real = domains.filter((_, i) => i !== spoof.answer)
-      expect(real[0]).toBe(real[1])
-      expect(domains[spoof.answer]).not.toBe(real[0])
+      expect(domains.length).toBeGreaterThanOrEqual(3)
+      domains.forEach((domain, i) => {
+        const legit = domain === real || domain.endsWith(`.${real}`)
+        const evilSuffix = domain.startsWith(`${real}.`)
+        expect(legit && !evilSuffix).toBe(i !== spoof.answer)
+      })
+      expect(new Set(spoof.public.senders).size).toBe(spoof.public.senders.length)
+
       const account = generatePuzzle('account', createRng(seed))
+      const scores = account.public.passwords.map(scorePassword)
+      const best = scores[account.answer]
       expect(account.public.passwords[account.answer].length).toBeGreaterThanOrEqual(14)
+      expect(Math.max(...scores.filter((_, i) => i !== account.answer))).toBeLessThanOrEqual(
+        best - 15,
+      )
     }
+  })
+
+  it('keeps patch pairs unambiguous', () => {
+    for (let seed = 1; seed <= 500; seed += 1) {
+      const puzzle = generatePuzzle('patch', createRng(seed))
+      const { entries } = puzzle.meta
+      expect(entries.length).toBeGreaterThanOrEqual(4)
+      expect(entries.length).toBeLessThanOrEqual(5)
+      puzzle.public.services.forEach((service, i) => {
+        const install = { name: service.name, version: service.version.split('.').map(Number) }
+        const covering = entries.filter((entry) => patchCovers(entry, install))
+        expect(covering.map((entry) => entry.id)).toEqual([puzzle.answer[i]])
+      })
+      expect(new Set(puzzle.answer).size).toBe(3)
+    }
+  })
+
+  it('applies the role truth table to firewall rows', () => {
+    const roles = new Set()
+    const ports = new Set()
+    for (let seed = 1; seed <= 500; seed += 1) {
+      const puzzle = generatePuzzle('firewall', createRng(seed))
+      const { role, vpn } = puzzle.meta
+      roles.add(`${role}${vpn ? '+vpn' : ''}`)
+      expect(puzzle.public.services.length).toBeGreaterThanOrEqual(4)
+      expect(puzzle.public.services.length).toBeLessThanOrEqual(5)
+      expect(puzzle.answer).toContain('allow')
+      expect(puzzle.answer).toContain('block')
+      puzzle.public.services.forEach(({ port }, i) => {
+        ports.add(port)
+        const web = role === 'web' && [443, 80].includes(port)
+        const mail = role === 'mail' && [25, 587, 993].includes(port)
+        const db = role === 'database' && [5432, 3306].includes(port)
+        const ssh = vpn && port === 22
+        expect(puzzle.answer[i]).toBe(web || mail || db || ssh ? 'allow' : 'block')
+      })
+    }
+    expect(roles.size).toBe(6)
+    expect(ports.size).toBeGreaterThanOrEqual(14)
+  })
+
+  describe('variety over 500 seeds', () => {
+    const distinct = (kind) => {
+      const seen = new Set()
+      const metas = []
+      for (let seed = 1; seed <= 500; seed += 1) {
+        const puzzle = generatePuzzle(kind, createRng(seed))
+        seen.add(JSON.stringify(puzzle.public))
+        metas.push(puzzle.meta)
+      }
+      return { count: seen.size, metas }
+    }
+
+    for (const kind of STATION_KINDS) {
+      it(`${kind} yields at least 300 distinct payloads`, () => {
+        expect(distinct(kind).count).toBeGreaterThanOrEqual(300)
+      })
+    }
+
+    it('process uses every os and technique', () => {
+      const { metas } = distinct('process')
+      expect(new Set(metas.map((m) => m.os))).toEqual(new Set(['windows', 'linux', 'macos']))
+      expect(new Set(metas.map((m) => m.technique)).size).toBe(3)
+    })
+
+    it('spoof uses every lookalike technique', () => {
+      const { metas } = distinct('spoof')
+      const used = new Set(metas.map((m) => m.technique))
+      for (const technique of ['homoglyph', 'rn', 'hyphen', 'tld', 'subdomain', 'extra'])
+        expect(used.has(technique)).toBe(true)
+    })
+
+    it('hash shows grouped and plain blocks', () => {
+      const { metas } = distinct('hash')
+      expect(new Set(metas.map((m) => m.grouped))).toEqual(new Set([0, 4, 8]))
+    })
+
+    it('account uses every password family', () => {
+      const { metas } = distinct('account')
+      expect(new Set(metas.map((m) => m.strong))).toEqual(new Set(['passphrase', 'long-random']))
+      expect(new Set(metas.flatMap((m) => m.weak))).toEqual(
+        new Set(['word-year', 'leet-word', 'keyboard-walk', 'short-random']),
+      )
+    })
+  })
+
+  it('scores patterns below clean long passwords', () => {
+    expect(scorePassword('Summer2024!')).toBeLessThan(scorePassword('ember-quartz-willow-tundra'))
+    expect(scorePassword('qwerty123')).toBeLessThan(scorePassword('k7#Rw!9mQz2&Lp4x'))
+    expect(scorePassword('p@ssw0rd')).toBeLessThan(scorePassword('Tq8!vZ3#nB'))
   })
 })
