@@ -17,6 +17,9 @@ const stateSchema = new Schema(
     survivalSeconds: { type: Number, required: true, min: 0, max: ROUND_SECONDS },
     patches: { type: Number, required: true, min: 0, max: MAX_PATCHES },
     tags: { type: Number, required: true, min: 0, max: MAX_TAGS },
+    // optional so attempts saved before these existed still validate
+    startedInfected: { type: Boolean },
+    cleanAtEnd: { type: Number, min: 0, max: 64 },
   },
   { _id: false, strict: 'throw' },
 )

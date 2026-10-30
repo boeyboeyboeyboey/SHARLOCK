@@ -10,16 +10,20 @@ export const WARDROBE_ITEMS = Object.freeze([
   item('scarf-forest', 'scarf', 'Forest scarf', 'first-close-clearance-tower'),
   item('scarf-mustard', 'scarf', 'Mustard scarf', 'first-close-phishing-post-mortem'),
   item('scarf-plum', 'scarf', 'Plum scarf', 'first-close-cli-cyber-defender'),
+  item('scarf-circuit', 'scarf', 'Circuit scarf', 'tag-super-spreader'),
   item('scarf-teal', 'scarf', 'Teal scarf', 'first-close-social-engineering-simulator'),
   item('hat-deerstalker', 'hat', 'Deerstalker'),
   item('hat-brown-tweed', 'hat', 'Brown tweed hat', 'first-clue'),
   item('hat-grey-tweed', 'hat', 'Grey tweed hat', 'persistent-detective'),
   item('hat-flat-cap', 'hat', 'Flat cap', 'well-rounded'),
+  item('hat-hazmat-hood', 'hat', 'Hazmat hood', 'tag-untouchable'),
   item('monocle-gold', 'monocle', 'Gold monocle'),
   item('monocle-silver', 'monocle', 'Silver monocle', 'perfect-case'),
   item('monocle-brass', 'monocle', 'Brass monocle', 'timed-run'),
   item('accessory-none', 'accessory', 'None'),
   item('accessory-magnifier', 'accessory', 'Magnifier', 'topic-expert'),
+  item('accessory-shield', 'accessory', 'Antivirus shield', 'tag-firewall'),
+  item('accessory-bandolier', 'accessory', 'Patch-cable bandolier', 'tag-patient-zero-wins'),
 ])
 
 export const DEFAULT_WARDROBE = Object.freeze({

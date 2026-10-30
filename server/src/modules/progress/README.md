@@ -27,15 +27,22 @@ Per game, the best attempt is the highest `score / maxScore` among attempts on t
 
 ## Achievements (`achievements.js`)
 
-`earnedAt` is the `completedAt` of the attempt that first satisfied the rule, in completion order. `achievements` lists earned badges only. `catalogue` lists all 11 as `{ key, name, description }` in definition order (exported as `achievementCatalogue`); it never includes criteria, so the client derives locked badges by subtracting the earned keys.
+`earnedAt` is the `completedAt` of the attempt that first satisfied the rule, in completion order. `achievements` lists earned badges only. `catalogue` lists all 16 as `{ key, name, description }` in definition order (exported as `achievementCatalogue`); it never includes criteria, so the client derives locked badges by subtracting the earned keys.
 
-| key                    | rule                                                        |
-| ---------------------- | ----------------------------------------------------------- |
-| `first-clue`           | any completed saved attempt                                 |
-| `perfect-case`         | an attempt with `score === maxScore`                        |
-| `well-rounded`         | completed attempts across 3 different games                 |
-| `persistent-detective` | 5 completed attempts                                        |
-| `topic-expert`         | one attempt with at least one topic outcome, all `achieved` |
+| key                     | rule                                                        |
+| ----------------------- | ----------------------------------------------------------- |
+| `first-clue`            | any completed saved attempt                                 |
+| `perfect-case`          | an attempt with `score === maxScore`                        |
+| `well-rounded`          | completed attempts across 3 different games                 |
+| `persistent-detective`  | 5 completed attempts                                        |
+| `topic-expert`          | one attempt with at least one topic outcome, all `achieved` |
+| `tag-untouchable`       | a Botnet Tag round ended clean (`state.outcome` survived)   |
+| `tag-last-one-clean`    | Botnet Tag: survived, survivors won and `cleanAtEnd` is 1   |
+| `tag-super-spreader`    | Botnet Tag: 3 or more tags in one round                     |
+| `tag-firewall`          | Botnet Tag: 4 or more patches in one round                  |
+| `tag-patient-zero-wins` | Botnet Tag: `startedInfected` and the botnet side won       |
+
+The `tag-*` rules read the saved `botnet-tag` state (`outcome`, `sideWon`, `patches`, `tags`, `startedInfected`, `cleanAtEnd`). `getProgress` asks `listCompletedAttempts` for those fields only (`includeState`), never whole game state. Attempts saved before `startedInfected` and `cleanAtEnd` existed simply never earn the two rules that need them.
 
 ## Bounds
 

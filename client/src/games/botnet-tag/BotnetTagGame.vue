@@ -1,17 +1,25 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import HowToPlayDialog from '../../components/common/HowToPlayDialog.vue'
+import PixelIcon from '../../components/town/PixelIcon.vue'
+import { useGameAudio } from '../../composables/useGameAudio.js'
+import { useHowToPlay } from '../../composables/useHowToPlay.js'
 import { listManagedCohorts, listMemberships } from '../../features/cohorts/api.js'
 import { useAuthStore } from '../../features/auth/store.js'
 import { getDeviceCheck } from '../../features/hub/deviceCheck.js'
 import ImmersiveControls from '../../features/menu/ImmersiveControls.vue'
 import { useSignOut } from '../../features/menu/townControls.js'
+import { cueView, deriveCues, freshEvents } from './audio/soundCues.js'
+import { useTagSound } from './audio/useTagSound.js'
+import HowToPlayScene from './components/HowToPlayScene.vue'
 import NeedsThreeD from './components/NeedsThreeD.vue'
 import TagHud from './components/TagHud.vue'
 import TagLobby from './components/TagLobby.vue'
 import TagResults from './components/TagResults.vue'
 import PuzzlePanel from './puzzles/PuzzlePanel.vue'
 import PuzzleResult from './puzzles/PuzzleResult.vue'
+import { HOW_TO_PLAY } from './howToPlay.js'
 import { msUntil } from './tagRules.js'
 import { useTagSocket } from './useTagSocket.js'
 import './tag.css'
@@ -74,6 +82,33 @@ watch(
     if (event?.type === 'patch' && event.sid === state.sid) patchedUntil.value = Date.now() + 2000
   },
 )
+
+// round music uses the shared mute; a missing track stays silent
+const music = useGameAudio(() => (capable ? 'botnet-tag' : ''))
+const sound = useTagSound()
+const { open: howToOpen, show: showHowTo } = useHowToPlay('botnet-tag')
+const seenEvents = new Set()
+let lastView = null
+watch(
+  () => ({
+    view: cueView({
+      phase: state.phase,
+      msLeft: state.phase === 'playing' ? msLeft.value : 0,
+      immunityMs: immunityMs.value,
+      lockMs: lockMs.value,
+      selfInfected: me.value?.infected,
+      sideWon: state.sideWon,
+    }),
+    events: state.events.length,
+    last: state.events.at(-1)?.at,
+  }),
+  ({ view }) => {
+    const events = freshEvents(state.events, seenEvents)
+    for (const cue of deriveCues(lastView, view, events, state.sid)) sound.play(cue)
+    lastView = view
+  },
+  { immediate: true },
+)
 function submitPuzzle(submission) {
   tag.submit(submission)
   dismissed.value = puzzleKey.value
@@ -134,7 +169,35 @@ const blockedText = {
       :user="auth.user"
       :logout-pending="auth.logoutPending"
       @sign-out="signOut"
-    />
+    >
+      <template #sound>
+        <div class="immersive-sound">
+          <button
+            v-if="capable && !music.missing.value"
+            class="sound-button"
+            type="button"
+            data-testid="tag-sound"
+            :aria-label="music.isMuted.value ? 'Turn on game sound' : 'Mute game sound'"
+            :aria-pressed="!music.isMuted.value"
+            :disabled="music.starting.value"
+            @click="music.toggle"
+          >
+            <PixelIcon :name="music.isMuted.value ? 'mute' : 'sound'" :size="20" />
+          </button>
+        </div>
+      </template>
+      <template #end>
+        <button
+          v-if="capable"
+          type="button"
+          class="glass-surface glass-button"
+          data-testid="tag-howto-open"
+          @click="showHowTo"
+        >
+          How to play
+        </button>
+      </template>
+    </ImmersiveControls>
     <NeedsThreeD v-if="!capable" />
     <template v-else>
       <section
@@ -209,5 +272,15 @@ const blockedText = {
       />
       <PuzzleResult v-if="state.phase === 'playing'" :patched="patched" :lock-ms="lockMs" />
     </template>
+    <HowToPlayDialog
+      v-if="capable"
+      v-model:open="howToOpen"
+      game-id="botnet-tag"
+      v-bind="HOW_TO_PLAY"
+    >
+      <template #scene="scene">
+        <HowToPlayScene v-if="howToOpen" :step="scene.step" :reduced-motion="scene.reducedMotion" />
+      </template>
+    </HowToPlayDialog>
   </div>
 </template>

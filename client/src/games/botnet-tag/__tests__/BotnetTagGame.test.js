@@ -42,13 +42,28 @@ function mountGame() {
 
 beforeEach(() => {
   setActivePinia(createPinia())
-  useAuthStore().user = { globalRoles: ['student'] }
+  useAuthStore().user = { globalRoles: ['student'], howToPlayDismissed: ['botnet-tag'] }
   FakeSocket.all = []
   vi.stubGlobal('WebSocket', FakeSocket)
   device.reasons = []
 })
 
 describe('botnet tag page', () => {
+  it('opens how to play on a first visit and not after dismissal', async () => {
+    const showModal = vi.fn(function open() {
+      this.setAttribute('open', '')
+    })
+    HTMLDialogElement.prototype.showModal = showModal
+    useAuthStore().user = { globalRoles: ['student'], howToPlayDismissed: [] }
+    const first = mountGame()
+    await flushPromises()
+    expect(showModal).toHaveBeenCalledTimes(1)
+    first.unmount()
+    useAuthStore().user = { globalRoles: ['student'], howToPlayDismissed: ['botnet-tag'] }
+    mountGame().unmount()
+    expect(showModal).toHaveBeenCalledTimes(1)
+  })
+
   it('blocks the game without webgl and never opens a socket', async () => {
     device.reasons = ['no-webgl2']
     const wrapper = mountGame()

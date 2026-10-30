@@ -263,6 +263,7 @@ describe('round end and results', () => {
     const first = results.find((r) => r.sid === 's1')
     expect(first).toMatchObject({ outcome: 'infected', sideWon: true, tags: 2, survivalSeconds: 0 })
     expect(first.score).toBe(0 + 60 + 100)
+    expect(first).toMatchObject({ startedInfected: true, cleanAtEnd: 0 })
     const second = results.find((r) => r.sid === 's2')
     expect(second.survivalSeconds).toBe(30)
     expect(second.score).toBe(30 + 100)
@@ -282,6 +283,8 @@ describe('round end and results', () => {
       sideWon: true,
       survivalSeconds: 180,
       score: 280,
+      startedInfected: false,
+      cleanAtEnd: 2,
     })
     expect(results.find((r) => r.sid === 's1')).toMatchObject({
       outcome: 'infected',

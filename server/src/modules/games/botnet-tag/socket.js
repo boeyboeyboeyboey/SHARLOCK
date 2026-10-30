@@ -87,6 +87,8 @@ export function createBotnetTagService(
                 survivalSeconds: result.survivalSeconds,
                 patches: result.patches,
                 tags: result.tags,
+                startedInfected: result.startedInfected,
+                cleanAtEnd: result.cleanAtEnd,
               },
             },
           )

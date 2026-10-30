@@ -29,6 +29,10 @@ const catalog = () => ({
     item('hat-deerstalker', 'hat', 'Deerstalker'),
     item('monocle-gold', 'monocle', 'Gold monocle'),
     item('accessory-none', 'accessory', 'No accessory'),
+    item('accessory-shield', 'accessory', 'Antivirus shield', false, {
+      unlockedByName: 'Firewall',
+    }),
+    item('hat-hazmat-hood', 'hat', 'Hazmat hood', true),
   ],
   equipped: {
     scarf: 'scarf-red',
@@ -63,6 +67,9 @@ describe('WardrobePicker', () => {
     const wrapper = await mountPicker()
     expect(wrapper.find('input[value="scarf-navy"]').element.disabled).toBe(true)
     expect(wrapper.text()).toContain('Locked: earn Customs cleared')
+    expect(wrapper.find('input[value="accessory-shield"]').element.disabled).toBe(true)
+    expect(wrapper.text()).toContain('Locked: earn Firewall')
+    expect(wrapper.find('input[value="hat-hazmat-hood"]').element.disabled).toBe(false)
   })
 
   it('saves a change, mirrors it into the auth store and announces it', async () => {

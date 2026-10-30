@@ -16,7 +16,7 @@ Server to client: `snapshot` (`sid` is your per-connection id, plus the round sn
 
 ## Saving
 
-At round end the service calls `recordCompletedAttempt` once per human non-staff player: class context, mode `practice`, `resultKey` = round id + sid. Ruleset `botnet-tag@1` is server-recorded and noncompetitive, so no leaderboard. State is outcome, side won, survival seconds, patches, tags; the score is recomputed from them (survival seconds + 50 per patch + 30 per tag + 100 for the winning side). A player who disconnects before the round ends is not saved. A failed save sends `saved {saved:false}`; there is no retry.
+At round end the service calls `recordCompletedAttempt` once per human non-staff player: class context, mode `practice`, `resultKey` = round id + sid. Ruleset `botnet-tag@1` is server-recorded and noncompetitive, so no leaderboard. State is outcome, side won, survival seconds, patches, tags, plus `startedInfected` and `cleanAtEnd` (clean players left, bots included) for the achievements; the score is recomputed from them (survival seconds + 50 per patch + 30 per tag + 100 for the winning side). A player who disconnects before the round ends is not saved. A failed save sends `saved {saved:false}`; there is no retry.
 
 ## Limits and tests
 

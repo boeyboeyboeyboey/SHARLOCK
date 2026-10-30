@@ -74,6 +74,7 @@ export function createRound({ id, cohortId, now = 0, rng = Math.random, withBots
       lastMoveAt: null,
       sprintStartedAt: null,
       infectedAt: null,
+      startedInfected: false,
       patches: 0,
       tags: 0,
     }
@@ -122,6 +123,7 @@ export function createRound({ id, cohortId, now = 0, rng = Math.random, withBots
       lastMoveAt: null,
       sprintStartedAt: null,
       infectedAt: null,
+      startedInfected: false,
       patches: 0,
       tags: 0,
     })
@@ -138,6 +140,7 @@ export function createRound({ id, cohortId, now = 0, rng = Math.random, withBots
     for (const zero of shuffle(rng, list).slice(0, patientZeroCount(list.length))) {
       zero.infected = true
       zero.infectedAt = t
+      zero.startedInfected = true
     }
     stations = ARENA.stations.map((station) => ({ ...station, coolingUntil: 0 }))
     puzzles.clear()
@@ -153,6 +156,7 @@ export function createRound({ id, cohortId, now = 0, rng = Math.random, withBots
     const endAt = Math.min(t, phaseEndsAt)
     sideWon = winner
     puzzles.clear()
+    const cleanAtEnd = [...players.values()].filter((player) => !player.infected).length
     finalResults = [...players.values()].map((player) => {
       const survivedUntil = player.infected ? player.infectedAt : endAt
       const survivalSeconds = Math.max(0, (survivedUntil - startedAt) / 1000)
@@ -166,6 +170,8 @@ export function createRound({ id, cohortId, now = 0, rng = Math.random, withBots
         survivalSeconds: Math.floor(survivalSeconds),
         patches: player.patches,
         tags: player.tags,
+        startedInfected: player.startedInfected,
+        cleanAtEnd,
         score: scoreFor(stats, { sideWon: won }),
         isBot: player.isBot,
         isStaff: player.isStaff,
