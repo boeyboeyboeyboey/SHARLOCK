@@ -9,8 +9,7 @@
 }
 
 .auth-card,
-.auth-aside,
-.auth-summary {
+.auth-aside {
   border: 3px solid var(--border-strong);
   background: var(--surface);
   box-shadow: var(--shadow-pixel);
@@ -53,8 +52,7 @@
   box-shadow: 2px 2px 0 var(--border-strong);
 }
 
-.auth-eyebrow,
-.auth-summary__eyebrow {
+.auth-eyebrow {
   margin: 0 0 0.6rem;
   font-size: 0.9rem;
   font-weight: 700;
@@ -333,99 +331,6 @@
   margin: 0;
 }
 
-/* spacing steps follow the DESIGN.md scale: 0.5, 0.8, 1.3, 2.1, 3.4rem */
-.auth-summary {
-  min-width: 0;
-  padding: 1rem 1rem 1.3rem;
-}
-
-.auth-summary__state,
-.auth-summary__identity {
-  display: grid;
-  gap: 1rem;
-}
-
-.auth-summary__eyebrow {
-  margin: 0;
-}
-
-.auth-summary__state p,
-.auth-summary__person p {
-  margin: 0;
-}
-
-.auth-summary__links {
-  display: grid;
-  gap: 0.5rem;
-}
-
-.auth-summary__state > .btn,
-.auth-summary__links .btn {
-  width: 100%;
-}
-
-.auth-summary__person {
-  display: flex;
-  align-items: center;
-  gap: 0.9rem;
-  min-width: 0;
-}
-
-.auth-summary__person img {
-  flex: 0 0 auto;
-  width: 72px;
-  height: 72px;
-  border: 2px solid var(--border-strong);
-  background: var(--accent-secondary);
-  image-rendering: pixelated;
-}
-
-.auth-summary__person h2 {
-  margin: 0 0 0.3rem;
-  font-size: 1.2rem;
-  overflow-wrap: anywhere;
-}
-
-.auth-summary__person p {
-  font-size: 0.9rem;
-  overflow-wrap: anywhere;
-}
-
-.auth-summary__truth {
-  width: fit-content;
-  margin: 0;
-  padding: 0.25rem 0.5rem;
-  border: 1px solid var(--border-strong);
-  background: var(--accent-secondary);
-  font-size: 0.9rem;
-  font-weight: 700;
-}
-
-.auth-summary__sign-out {
-  justify-self: start;
-}
-
-/* the sidebar is only ~236px wide: stack the notice (icon above text) and let its button size to its label */
-.auth-summary .auth-session-notice {
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.7rem;
-  font-size: 0.88rem;
-  line-height: 1.35;
-}
-
-.auth-summary .auth-session-notice__content {
-  justify-items: stretch;
-  width: 100%;
-}
-
-.auth-summary .auth-session-notice .btn {
-  min-height: 38px;
-  padding: 0.4rem 0.75rem;
-  font-size: 0.9rem;
-  white-space: nowrap;
-}
-
 .auth-page .auth-session-notice {
   margin-bottom: 1.25rem;
 }
@@ -529,14 +434,6 @@
   /* the page now sits flush under the header, so the art stays inside it instead of overhanging */
   .auth-page__art {
     top: 0.5rem;
-  }
-}
-
-/* desktop: the header already shows the account (avatar, name, Sign out or Sign in, Create account),
-   so the sidebar box is hidden unless it carries a session notice the header cannot show */
-@media (min-width: 768px) {
-  .auth-summary:not(:has(.auth-session-notice)) {
-    display: none;
   }
 }
 
@@ -659,8 +556,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .auth-page *,
-  .auth-summary * {
+  .auth-page * {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
     animation: none !important;
