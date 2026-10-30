@@ -5,6 +5,7 @@ import HubMinimap from './HubMinimap.vue'
 import ControlsHint from './ControlsHint.vue'
 import { isEnterKey, isInteractKey } from './controls.js'
 import NpcDialogue from './NpcDialogue.vue'
+import DestinationRow from '../menu/DestinationRow.vue'
 import { advanceTalk, useNpcDialogue } from './useNpcDialogue.js'
 import { npcs } from './scenes/wharf/npcs.js'
 import { finds } from './scenes/wharf/finds.js'
@@ -564,15 +565,13 @@ defineExpose({
         </button>
         <ul v-show="destOpen" id="hub-dest-list" ref="destList" class="hub-dest-list">
           <li v-for="game in games" :key="game.id">
-            <button
-              type="button"
-              class="btn btn-secondary btn-sm hub-glass-btn hub-dest-btn"
+            <DestinationRow
+              class="hub-dest-btn"
+              :game="game"
+              :pressed="view.selected === game.id"
               :data-testid="`dest-${game.id}`"
-              :aria-pressed="String(view.selected === game.id)"
               @click="choose(game.id)"
-            >
-              {{ game.name }}
-            </button>
+            />
           </li>
         </ul>
       </nav>
@@ -753,19 +752,6 @@ defineExpose({
   padding: 0;
   list-style: none;
 }
-.hub-dest-list .btn {
-  width: 100%;
-  text-align: left;
-}
-.portal-shell .hub-scene .hub-dest-list .hub-dest-btn[aria-pressed='true'] {
-  border-color: var(--hub-glass-ink);
-  background: var(--hub-glass-btn-active);
-  box-shadow: inset 0 0 0 1px var(--hub-glass-ink);
-}
-.portal-shell .hub-scene .hub-dest-list .hub-dest-btn[aria-pressed='true']::before {
-  content: '\2713';
-  margin-right: 6px;
-}
 .hub-key {
   margin-left: 8px;
   padding: 0 6px;
@@ -867,11 +853,6 @@ defineExpose({
   }
   .hub-dest-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .hub-dest-list .btn {
-    min-height: 44px;
-    font-size: 13px;
-    line-height: 1.2;
   }
   .hub-actions {
     position: static;

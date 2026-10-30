@@ -23,3 +23,5 @@
 ## Tests
 
 `client/src/features/menu/__tests__/` (menu entries, focus, Escape, mode switch) and `client/src/router/overlayRoutes.test.js` (overlay routes and the `/progress` redirect).
+
+- UX-02 S3: `DestinationRow.vue` (+ `destinationRow.css`) is the one row for the 3D Destinations list (`pressed` boolean, `aria-pressed`, check mark) and the 2D Places list (`pressed` unset, plain action). It shows the catalog `icon`, `shortName` and `accent` bar and keeps the full `name` as `aria-label`.
