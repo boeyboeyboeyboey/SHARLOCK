@@ -14,8 +14,12 @@ const props = defineProps({
   suppressed: { type: Boolean, default: false },
   user: { type: Object, default: null },
   logoutPending: { type: Boolean, default: false },
+  // a selector whose subtree keeps Escape for itself (a game panel with its own dialogs)
+  escapeIgnoreWithin: { type: String, default: '' },
+  label3d: { type: String, default: '3D wharf' },
+  label2d: { type: String, default: '2D map' },
 })
-const emit = defineEmits(['update:menuOpen', 'toggle-mode', 'sign-out'])
+const emit = defineEmits(['update:menuOpen', 'toggle-mode', 'sign-out', 'navigate'])
 const menuButton = ref(null)
 const soundSlot = ref(null)
 const controls = useTownControls()
@@ -27,22 +31,29 @@ function closeMenu({ restoreFocus = true } = {}) {
   emit('update:menuOpen', false)
   if (restoreFocus) nextTick(() => menuButton.value?.focus())
 }
+function onNavigate() {
+  closeMenu({ restoreFocus: false })
+  emit('navigate')
+}
 // scenes consume Escape first (and mark it handled); the menu only takes what is left
 function onKeydown(event) {
   if (event.key !== 'Escape' || props.menuOpen) return
+  // capture phase, read now: a game may remove the focused element while handling the key
+  const inField = Boolean(event.target?.closest?.('input, textarea, select, [contenteditable]'))
+  const inIgnored = Boolean(props.escapeIgnoreWithin && event.target?.closest?.(props.escapeIgnoreWithin))
   setTimeout(() => {
     if (event.defaultPrevented || props.suppressed || props.menuOpen) return
     if (document.querySelector('dialog[open]')) return
-    if (event.target?.closest?.('input, textarea, select, [contenteditable]')) return
+    if (inField || inIgnored) return
     emit('update:menuOpen', true)
   }, 0)
 }
 onMounted(() => {
-  window.addEventListener('keydown', onKeydown)
+  window.addEventListener('keydown', onKeydown, true)
   if (controls?.soundSlot) controls.soundSlot.value = soundSlot.value
 })
 onBeforeUnmount(() => {
-  window.removeEventListener('keydown', onKeydown)
+  window.removeEventListener('keydown', onKeydown, true)
   if (controls?.soundSlot) controls.soundSlot.value = null
 })
 defineExpose({ focusMenu: () => menuButton.value?.focus() })
@@ -63,11 +74,13 @@ defineExpose({ focusMenu: () => menuButton.value?.focus() })
       <span aria-hidden="true">&#9776;</span> Menu <kbd class="menu-hint">Esc</kbd>
     </button>
     <div class="controls-right">
-      <div ref="soundSlot" class="immersive-sound" data-testid="sound-slot"></div>
+      <slot name="sound">
+        <div ref="soundSlot" class="immersive-sound" data-testid="sound-slot"></div>
+      </slot>
       <div class="glass-surface mode-switch" role="group" aria-label="View mode">
         <button
           type="button"
-          aria-label="3D wharf"
+          :aria-label="label3d"
           :aria-pressed="String(mode === '3d')"
           :disabled="locked"
           :data-testid="mode === '3d' ? 'mode-3d' : 'town-mode-toggle'"
@@ -77,7 +90,7 @@ defineExpose({ focusMenu: () => menuButton.value?.focus() })
         </button>
         <button
           type="button"
-          aria-label="2D map"
+          :aria-label="label2d"
           :aria-pressed="String(mode === '2d')"
           :data-testid="mode === '2d' ? 'mode-2d' : 'town-mode-toggle'"
           @click="select('2d')"
@@ -85,6 +98,7 @@ defineExpose({ focusMenu: () => menuButton.value?.focus() })
           2D
         </button>
       </div>
+      <slot name="end" />
     </div>
     <SiteMenu
       id="site-menu"
@@ -92,7 +106,7 @@ defineExpose({ focusMenu: () => menuButton.value?.focus() })
       :user="user"
       :logout-pending="logoutPending"
       @close="closeMenu()"
-      @navigate="closeMenu({ restoreFocus: false })"
+      @navigate="onNavigate"
       @sign-out="emit('sign-out')"
     />
   </div>

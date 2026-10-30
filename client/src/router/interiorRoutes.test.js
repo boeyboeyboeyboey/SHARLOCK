@@ -26,6 +26,10 @@ describe('interior routes', () => {
     }
   })
 
+  it('marks the game screens immersive so the shell drops its navbar, sidebar and footer', () => {
+    expect(parent.meta.immersive).toBe(true)
+  })
+
   it('leaves the Times as an overlay child of the town', () => {
     const town = routes.find((route) => route.name === 'town')
     expect(town.children.some((child) => child.name === 'news')).toBe(true)

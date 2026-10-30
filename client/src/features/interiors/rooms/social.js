@@ -2,7 +2,8 @@ import { Color4 } from '@babylonjs/core/Maths/math.color.js'
 import { Batch, rgb } from '../../hub/scenes/shared/geometry.js'
 import { glowMaterial, toonMaterial } from '../../hub/scenes/wharf/toon.js'
 import { createCapybaraStatic, furStyles } from '../../hub/scenes/shared/capybara.js'
-import { hemi, labelAtlas, lamp, resident, shell, toon } from './kit.js'
+import { socialHero } from './heroes.js'
+import { hemi, heroBoard, labelAtlas, lamp, resident, shell, toon } from './kit.js'
 
 // the capybara & crown snug, 1880: firelight on cream plaster, timber and sky green upholstery
 const C = {
@@ -171,12 +172,39 @@ function lanterns(b, g) {
   }
 }
 
+// the landlord's notice board: a parchment face in a walnut frame, with a message book, candles and a pint on the ledge
+function noticeBoard(b, g) {
+  const { z, bottom, top } = heroBoard(b, socialHero, {
+    face: C.cream,
+    faceGain: 1.4,
+    frame: C.walnut,
+    brass: C.brass,
+  })
+  const ly = bottom - 0.27
+  b.box({ c: [-0.8, ly + 0.02, z - 0.2], s: [0.5, 0.03, 0.3], color: rgb('#5a2a24', 1) })
+  b.box({ c: [-0.8, ly + 0.045, z - 0.2], s: [0.46, 0.012, 0.26], color: rgb(C.cream, 0.7) })
+  pint(b, 0.9, ly, z - 0.2)
+  for (const x of [-1.3, 1.3]) {
+    b.cylinder({ c: [x, ly + 0.1, z - 0.2], r: 0.035, h: 0.2, seg: 6, color: rgb(C.cream, 1) })
+    g.box({ c: [x, ly + 0.24, z - 0.2], s: [0.03, 0.07, 0.03], color: rgb('#ffcf70', 1.7) })
+  }
+  // lantern brackets over the top rail
+  for (const x of [-1, 1]) {
+    b.bar([x * 1.3, top + 0.24, z], [x * 1.3, top + 0.4, z - 0.12], 0.025, {
+      color: rgb(C.brass, 1),
+    })
+    g.box({ c: [x * 1.3, top + 0.46, z - 0.14], s: [0.16, 0.12, 0.16], color: rgb('#ffb347', 1.5) })
+  }
+}
+
 export function buildSnugRoom({ scene, budget, reduced }) {
   scene.clearColor = new Color4(0.05, 0.035, 0.03, 1)
   const fill = hemi(scene, { intensity: 0.38, diffuse: [1, 0.86, 0.7], ground: [0.32, 0.22, 0.16] })
   const fire = lamp(scene, 'fire', [0.6, 0.7, 3.2], [1, 0.55, 0.22], 2.0, 11)
   const hang = lamp(scene, 'hang', [0, 3.0, 1.6], [1, 0.8, 0.5], 1.0, 9)
   const tap = lamp(scene, 'tap', [-2.4, 1.6, 0.0], [0.75, 1, 0.85], 0.5, 6)
+  // firelight on the front of the board
+  const glowLamp = lamp(scene, 'board-fire', [0, 2.2, -2.6], [1, 0.62, 0.3], 1.1, 5)
 
   const solid = new Batch()
   const glow = new Batch()
@@ -188,6 +216,7 @@ export function buildSnugRoom({ scene, budget, reduced }) {
     [
       [['Loose lips...', 'Ale 2d   Porter 1d'], '#1f2a26', '#f1ecd8'],
       [['PRIVATE'], '#2a1c12', '#e6c26a'],
+      [['THE SNUG'], '#2a1c12', '#e6c26a'],
     ],
     [2048, 1024],
   )
@@ -198,6 +227,13 @@ export function buildSnugRoom({ scene, budget, reduced }) {
   booth(solid, 2.9)
   bar(solid, glow)
   lanterns(solid, glow)
+  noticeBoard(solid, glow)
+  labels.box({
+    c: [0, socialHero.corners[0][1] + 0.12, socialHero.corners[0][2] - 0.09],
+    s: [1.5, 0.17, 0.02],
+    uv: atlas.uv(2),
+    color: rgb('#ffffff', 1.1),
+  })
   // drinks on the tables
   pint(solid, -2.75, 0.85, 3.0)
   pint(solid, -3.05, 0.85, 2.75)
@@ -274,7 +310,7 @@ export function buildSnugRoom({ scene, budget, reduced }) {
 
   const animate = budget.animate && !reduced()
   return {
-    camera: { pos: [0, 1.55, -3.6], target: [0, 1.5, 3], fov: 1.1, drift: [0.22, 0.06, 44] },
+    camera: { ...socialHero.camera, drift: [0, 0, 44] },
     update(dt, time) {
       if (!animate) return
       publican.update(dt)
@@ -289,7 +325,7 @@ export function buildSnugRoom({ scene, budget, reduced }) {
     dispose() {
       publican.dispose()
       for (const m of meshes) m.dispose()
-      for (const l of [fill, fire, hang, tap]) l.dispose()
+      for (const l of [fill, fire, hang, tap, glowLamp]) l.dispose()
       for (const m of [material, glowMat, labelMat]) m.dispose()
       atlas.texture.dispose()
     },

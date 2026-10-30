@@ -1,4 +1,5 @@
 import { roomBudget } from './renderMode.js'
+import { ndcToCss, rectFromCorners } from './heroRect.js'
 import { roomFor } from './rooms/index.js'
 
 // counted across instances so tests can prove an interior was disposed
@@ -14,6 +15,7 @@ export function createInterior({
   renderMode,
   onFailed = () => {},
   onPerf = null,
+  onHero = null,
 }) {
   const state = {
     ready: false,
@@ -57,15 +59,32 @@ export function createInterior({
     scene = new Scene(engine)
     scene.skipPointerMovePicking = true
     room = build({ scene, engine, tier, budget: roomBudget(tier.name), reduced })
-    const [cx, cy, cz] = room.camera.pos
-    const target = new Vector3(...room.camera.target)
+    // a hero room pins the camera to the hero view and never drifts, so the panel stays on its prop
+    const hero = entry.hero ?? null
+    const view = hero ? hero.camera : room.camera
+    const [cx, cy, cz] = view.pos
+    const target = new Vector3(...view.target)
     const camera = new FreeCamera('interior-camera', new Vector3(cx, cy, cz), scene)
     camera.setTarget(target)
-    camera.fov = room.camera.fov
+    camera.fov = view.fov
     camera.minZ = 0.1
     camera.maxZ = 40
     camera.inputs.clear()
-    const [driftX, driftY, period] = room.camera.drift
+    const [driftX, driftY, period] = hero ? [0, 0, 1] : room.camera.drift
+    let heroDirty = Boolean(hero && onHero)
+    const corners = hero ? hero.corners.map((c) => new Vector3(...c)) : []
+    // projects the prop corners with the transform of the frame just drawn
+    const reportHero = () => {
+      heroDirty = false
+      const stage = { width: canvas.clientWidth, height: canvas.clientHeight }
+      if (!stage.width || !stage.height) return
+      const matrix = scene.getTransformMatrix()
+      const points = corners.map((c) => {
+        const p = Vector3.TransformCoordinates(c, matrix)
+        return ndcToCss([p.x, p.y], stage)
+      })
+      onHero(rectFromCorners(points, stage))
+    }
     const instrumentation = new SceneInstrumentation(scene)
     let time = 0
     let lastTick = performance.now()
@@ -84,11 +103,13 @@ export function createInterior({
       state.frames += 1
       state.drawCalls = Math.round(instrumentation.drawCallsCounter.current)
       state.activeMeshes = scene.getActiveMeshes().length
+      if (heroDirty) reportHero()
       onPerf?.(dt * 1000)
     }
     observer = new ResizeObserver(() => {
       applyScale()
       engine.resize()
+      heroDirty = Boolean(hero && onHero)
       // a stopped loop draws nothing new, so a resize repaints once
       if (!state.running && !disposed) frame()
     })

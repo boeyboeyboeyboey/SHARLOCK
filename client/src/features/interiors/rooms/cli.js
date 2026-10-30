@@ -4,6 +4,8 @@ import { HemisphericLight } from '@babylonjs/core/Lights/hemisphericLight.js'
 import { PointLight } from '@babylonjs/core/Lights/pointLight.js'
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode.js'
 import { CreateCylinder } from '@babylonjs/core/Meshes/Builders/cylinderBuilder.js'
+import { cliHero } from './heroes.js'
+import { heroBoard, labelAtlas } from './kit.js'
 import { Batch, rgb } from '../../hub/scenes/shared/geometry.js'
 import { applyToon, glowMaterial, toonMaterial } from '../../hub/scenes/wharf/toon.js'
 import {
@@ -205,6 +207,38 @@ function tickerStand(b) {
   b.cylinder({ c: [-2.2, 0.28, -2.2], r: 0.24, h: 0.55, seg: 8, color: rgb('#6a4a30', 0.9) })
 }
 
+// the operator's console: a brass-framed slate face, with the sounder and key on the ledge below
+function operatorConsole(b, g) {
+  const { z, bottom, top } = heroBoard(b, cliHero, {
+    face: '#16201d',
+    faceGain: 1.2,
+    frame: C.walnut,
+    brass: C.brass,
+  })
+  const ly = bottom - 0.27
+  // key
+  b.box({ c: [-0.9, ly + 0.03, z - 0.2], s: [0.26, 0.03, 0.14], color: rgb(C.brass, 0.9) })
+  b.bar([-1.0, ly + 0.07, z - 0.2], [-0.8, ly + 0.11, z - 0.2], 0.025, { color: rgb(C.brass, 1.1) })
+  b.box({ c: [-0.79, ly + 0.13, z - 0.2], s: [0.05, 0.05, 0.05], color: rgb(C.dark, 2) })
+  // sounder
+  b.box({ c: [0.9, ly + 0.04, z - 0.2], s: [0.42, 0.05, 0.2], color: rgb(C.brass, 0.8) })
+  for (const dx of [-0.09, 0.05])
+    b.cylinder({
+      c: [0.9 + dx, ly + 0.12, z - 0.2],
+      r: 0.04,
+      h: 0.11,
+      seg: 6,
+      color: rgb('#8a4a28', 1.2),
+    })
+  // gas bracket lamps over the top rail
+  for (const x of [-1, 1]) {
+    b.bar([x * 1.3, top + 0.24, z], [x * 1.3, top + 0.4, z - 0.12], 0.025, {
+      color: rgb(C.brass, 1),
+    })
+    g.box({ c: [x * 1.3, top + 0.46, z - 0.14], s: [0.16, 0.12, 0.16], color: rgb('#ffb347', 1.5) })
+  }
+}
+
 function sconces(b, g) {
   for (const x of [-3.2, 3.2]) {
     b.box({ c: [x, 2.4, 4.4], s: [0.12, 0.3, 0.12], color: rgb(C.brass, 0.85) })
@@ -243,6 +277,7 @@ export function buildCliRoom({ scene, budget, reduced }) {
   wireMap(solid, glow)
   relayRack(solid, glow)
   desk(solid, glow)
+  operatorConsole(solid, glow)
   tickerStand(solid)
   sconces(solid, glow)
   // clock hands at ten past three
@@ -264,7 +299,20 @@ export function buildCliRoom({ scene, budget, reduced }) {
   const material = toonMaterial(scene, 'cli-room', { twoSided: true, options: ROOM_TOON })
   material.maxSimultaneousLights = 4
   const glowMat = glowMaterial(scene, 'cli-glow', { fog: false })
-  const meshes = [solid.build(scene, 'cli-solid', material), glow.build(scene, 'cli-glow', glowMat)]
+  const atlas = labelAtlas(scene, 'cli-atlas', [[['INSTRUMENT ROOM'], '#16201d', '#e4b84a']])
+  const labels = new Batch()
+  labels.box({
+    c: [0, cliHero.corners[0][1] + 0.12, cliHero.corners[0][2] - 0.09],
+    s: [1.5, 0.17, 0.02],
+    uv: atlas.uv(0),
+    color: rgb('#ffffff', 0.85),
+  })
+  const labelMat = glowMaterial(scene, 'cli-labels', { texture: atlas.texture, fog: false })
+  const meshes = [
+    solid.build(scene, 'cli-solid', material),
+    glow.build(scene, 'cli-glow', glowMat),
+    labels.build(scene, 'cli-labels', labelMat),
+  ]
 
   const clockMat = toonMaterial(scene, 'cli-clock', { options: ROOM_TOON })
   clockMat.diffuseColor = new Color3(0.9, 0.84, 0.66)
@@ -287,9 +335,9 @@ export function buildCliRoom({ scene, budget, reduced }) {
   secMesh.parent = secPivot
   meshes.push(secMesh)
 
-  const arms = [-1.0, 1.0].map((x) => {
+  const arms = [0.75].map((x) => {
     const pivot = new TransformNode('cli-arm', scene)
-    pivot.position.set(x - 0.15, 0.93, -0.28)
+    pivot.position.set(x, 0.6, -1.3)
     const a = new Batch()
     a.bar([0, 0, 0], [0.3, 0, 0], 0.025, { color: rgb(C.brass, 1.2) })
     a.box({ c: [0.3, 0, 0], s: [0.04, 0.04, 0.1], color: rgb(C.brass, 1) })
@@ -340,7 +388,7 @@ export function buildCliRoom({ scene, budget, reduced }) {
   const animate = budget.animate && !reduced()
 
   return {
-    camera: { pos: [0, 1.55, -3.6], target: [0, 1.45, 3], fov: 1.1, drift: [0.22, 0.06, 44] },
+    camera: { ...cliHero.camera, drift: [0, 0, 44] },
     update(dt, time) {
       if (!animate) return
       rig?.update(dt, 0)
@@ -370,7 +418,8 @@ export function buildCliRoom({ scene, budget, reduced }) {
       for (const m of meshes) m.dispose()
       clerk?.dispose?.()
       for (const l of [hemi, lampL, lampR, gas]) l.dispose()
-      for (const m of [material, glowMat, clockMat]) m.dispose()
+      for (const m of [material, glowMat, clockMat, labelMat]) m.dispose()
+      atlas.texture.dispose()
     },
   }
 }
