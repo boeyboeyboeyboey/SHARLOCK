@@ -1,4 +1,6 @@
 // code-drawn pixel art for the 2D town: static, trusted svg strings (no user input) built on a 4px grid
+import { rigOptionsFor } from '../../data/wardrobeLook.js'
+
 const INK = '#354b3e'
 const R = (x, y, w, h, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${c}"/>`
 const B = (x, y, w, h, c) => R(x - 1, y - 1, w + 2, h + 2, INK) + R(x, y, w, h, c)
@@ -559,6 +561,16 @@ export function townNpcMarkup(style) {
     walk: true,
     back: R(8, 0, 4, 2, INK) + R(9, 0, 2, 1, hexOf(style.cap)),
     front: R(8, 4, 1, 2, hexOf(style.scarf)),
+  })
+}
+
+// a classmate in their public look: cap and scarf colours from the wardrobe, everything else as a townsperson
+export function peerMarkup(look) {
+  const rig = rigOptionsFor(look)
+  return townNpcMarkup({
+    fur: 'dockB',
+    cap: rig.capColor ?? [0.31, 0.42, 0.53],
+    scarf: rig.scarfColor ?? [0.54, 0.165, 0.18],
   })
 }
 

@@ -13,14 +13,19 @@ import { resetRoster, usePresenceRoster } from './roster.js'
 
 const TICK_MS = 110
 
+// an old or 3d message has no mode
+const sameMode = (peer, mode) => (peer.mode ?? '3d') === mode
+
 export function presenceUrl(loc = globalThis.location) {
   return `${loc.protocol === 'https:' ? 'wss:' : 'ws:'}//${loc.host}/api/presence`
 }
 
 // one websocket to the class room: sends the player's moves, keeps the peer map, reconnects with backoff
-// getPlayer() returns { x, z, heading } or null, onPeers(map) gets every change
+// getPlayer() returns { x, z, heading } (3d) or { x, y } (2d) or null, onPeers(map) gets every same-mode change
+// the roster counts every classmate online; the peer map only holds those in the same mode as this client
 export function createPresence({
   getPlayer,
+  mode = '3d',
   onPeers = () => {},
   staff = false,
   onSessionEnded = () => {},
@@ -48,7 +53,7 @@ export function createPresence({
   }
   const publish = () => {
     roster()
-    onPeers(peers)
+    onPeers(new Map([...peers].filter(([, peer]) => sameMode(peer, mode))))
   }
   const clearPeers = () => {
     if (!peers.size) return
@@ -85,12 +90,23 @@ export function createPresence({
   function step() {
     const at = getPlayer()
     if (!at) return
-    const next = { x: at.x, z: at.z, yaw: at.heading, moving: isMoving(sample, at) }
-    sample = { x: at.x, z: at.z }
+    const flat = mode === '2d'
+    const z = flat ? at.y : at.z
+    const next = {
+      x: at.x,
+      z,
+      yaw: flat ? 0 : at.heading,
+      moving: isMoving(sample, { x: at.x, z }),
+    }
+    sample = { x: at.x, z }
     const t = now()
     if (!shouldSendMove(last, next, t)) return
     last = { ...next, at: t }
-    send({ type: 'move', ...next })
+    send(
+      flat
+        ? { type: 'move', mode: '2d', x: next.x, y: z, moving: next.moving }
+        : { type: 'move', x: next.x, z, yaw: next.yaw, moving: next.moving },
+    )
   }
 
   function halt() {
