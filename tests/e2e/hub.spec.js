@@ -64,6 +64,11 @@ async function openSettings(page) {
 
 // a failed start shows its status text, so a broken hub fails fast instead of timing out
 // below 992px the destination list starts collapsed
+async function expandDestinations(page) {
+  const toggle = page.getByTestId('destinations-toggle')
+  if ((await toggle.getAttribute('aria-expanded')) === 'false') await toggle.click()
+}
+
 async function pickDest(page, id) {
   const toggle = page.getByTestId('destinations-toggle')
   if ((await toggle.getAttribute('aria-expanded')) === 'false') await toggle.click()
@@ -122,15 +127,18 @@ test('lists every game, walks, and enters a game route', async ({ page }) => {
 test('deselects a destination by clicking it again or pressing Escape', async ({ page }) => {
   await page.goto('/')
   await hubReady(page)
+  await expandDestinations(page)
   const dest = page.getByTestId('dest-social-engineering-simulator')
   const enter = page.getByTestId('enter')
 
   const origin = await position(page)
+  await expandDestinations(page)
   await dest.click()
   await expect(dest).toHaveAttribute('aria-pressed', 'true')
   await expect(enter).toBeVisible()
   // let the auto-walk get going, then cancel it
   await expect.poll(() => moved(page, origin), slow).toBeGreaterThan(0.05)
+  await expandDestinations(page)
   await dest.click()
   await expect(dest).toHaveAttribute('aria-pressed', 'false')
   await expect(enter).toHaveCount(0)
@@ -140,6 +148,7 @@ test('deselects a destination by clicking it again or pressing Escape', async ({
   const later = await position(page)
   expect(Math.hypot(later.x - stopped.x, later.z - stopped.z)).toBeLessThan(0.3)
 
+  await expandDestinations(page)
   await dest.click()
   await expect(dest).toHaveAttribute('aria-pressed', 'true')
   await page.keyboard.press('Escape')
@@ -147,6 +156,7 @@ test('deselects a destination by clicking it again or pressing Escape', async ({
   await expect(enter).toHaveCount(0)
 
   // steering by hand before arriving drops the pick
+  await expandDestinations(page)
   await dest.click()
   await expect(dest).toHaveAttribute('aria-pressed', 'true')
   await page.keyboard.down('KeyS')
@@ -158,6 +168,7 @@ test('deselects a destination by clicking it again or pressing Escape', async ({
 test('a destination picked from the west promenade is reached and entered', async ({ page }) => {
   await page.goto('/')
   await hubReady(page)
+  await expandDestinations(page)
   // beside the crate stack, nearest to a lane end that sits inside its collider
   await page.evaluate(() => window.__hub.debug.walkTo(-20, 40))
   await expect.poll(async () => (await position(page)).z, slow).toBeGreaterThan(39)
@@ -223,6 +234,7 @@ test('returns to the door of the building that was entered', async ({ page }) =>
 test('announces picks, moves focus to Enter and restores it after a game', async ({ page }) => {
   await page.goto('/')
   await hubReady(page)
+  await expandDestinations(page)
   const status = page.getByTestId('hub-status')
   const dest = page.getByTestId('dest-cli-cyber-defender')
 
@@ -254,12 +266,14 @@ test('announces picks, moves focus to Enter and restores it after a game', async
   await page.goBack()
   await expect(page).toHaveURL('/')
   await hubReady(page)
+  await expandDestinations(page)
   await expect(dest).toBeFocused()
 })
 
 test('Escape clears a pick even when focus is on the page body', async ({ page }) => {
   await page.goto('/')
   await hubReady(page)
+  await expandDestinations(page)
   const dest = page.getByTestId('dest-cli-cyber-defender')
   await dest.click()
   await expect(dest).toHaveAttribute('aria-pressed', 'true')
@@ -270,13 +284,20 @@ test('Escape clears a pick even when focus is on the page body', async ({ page }
   await expect(page.getByTestId('hub-status')).toHaveText('Selection cleared')
 })
 
-test('the controls hint shows on the first visit and hides on a key', async ({ page }) => {
+test('the controls hint shows on the first visit and hides on a key', async ({
+  page,
+}, testInfo) => {
   await page.addInitScript(() => localStorage.setItem('sharlock.controlsHintSeen', '0'))
   await page.goto('/')
   // the software renderer is slow, so look before the wharf finishes loading
   const hint = page.getByTestId('controls-hint')
-  await expect(hint).toContainText('E talk')
-  await expect(hint).toContainText('Z/C rotate')
+  // phones get the touch wording instead of the key list
+  if (testInfo.project.name.endsWith('mobile-chromium')) {
+    await expect(hint).toContainText('Drag to move')
+  } else {
+    await expect(hint).toContainText('E talk')
+    await expect(hint).toContainText('Z/C rotate')
+  }
   await page.keyboard.press('KeyA')
   await expect(hint).toBeHidden()
   expect(await page.evaluate(() => localStorage.getItem('sharlock.controlsHintSeen'))).toBe('1')

@@ -135,8 +135,9 @@ test('admin manages institutions, assignments, audit history, and account access
 
   try {
     if (!testInfo.project.use.isMobile) {
-      await page.goto('/profile')
-      await page.getByRole('link', { name: 'Admin', exact: true }).click()
+      await page.goto('/')
+      await page.getByRole('button', { name: /^Menu/ }).click()
+      await page.getByRole('link', { name: 'Administrator workspace' }).click()
       await expect(page).toHaveURL(/\/admin$/)
     } else {
       await page.goto('/admin')

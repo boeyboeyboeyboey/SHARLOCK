@@ -86,7 +86,7 @@ test('opens the newspaper directly and preserves town camera, focus, audio and h
   await page.keyboard.press('Shift+Tab')
   await expect
     .poll(() =>
-      page.evaluate(() => document.querySelector('dialog').contains(document.activeElement)),
+      page.evaluate(() => document.querySelector('dialog[open]').contains(document.activeElement)),
     )
     .toBe(true)
   await page.keyboard.press('Escape')
@@ -191,10 +191,13 @@ test('handles direct malformed links, keyboard close and leaving without style o
   await expect(page.getByRole('dialog')).toBeVisible()
   await page.getByRole('button', { name: 'Close newspaper' }).click()
   await expect(page).toHaveURL('/')
-  await page.getByRole('link', { name: 'View your detective profile' }).click()
-  await expect(page).toHaveURL(/\/profile$/)
-  await expect(page.getByRole('heading', { level: 1 })).toBeFocused()
-  await expect(page.locator('dialog')).toHaveCount(0)
+  await page.getByLabel('Jump to').selectOption('sql-injection-arcade')
+  await page
+    .getByRole('region', { name: 'SQL Injection Arcade', exact: true })
+    .getByRole('link', { name: 'Enter activity' })
+    .click()
+  await expect(page).toHaveURL(/\/games\/sql-injection-arcade$/)
+  await expect(page.getByRole('dialog', { name: 'The Sharlock Times' })).toHaveCount(0)
   expect(await page.evaluate(() => document.body.style.overflow)).toBe('')
 })
 
@@ -321,7 +324,11 @@ test('plays the supplied newspaper loop, keeps one player across tabs and restor
     .poll(() => handle.evaluate((el) => el.paused && el.muted && !el.isConnected))
     .toBe(true)
   await expect.poll(() => townAudio.evaluate((el) => !el.paused && !el.muted)).toBe(true)
-  await page.getByRole('link', { name: 'View your detective profile' }).click()
+  await page.getByLabel('Jump to').selectOption('sql-injection-arcade')
+  await page
+    .getByRole('region', { name: 'SQL Injection Arcade', exact: true })
+    .getByRole('link', { name: 'Enter activity' })
+    .click()
   await expect(page.locator('audio')).toHaveCount(0)
 })
 

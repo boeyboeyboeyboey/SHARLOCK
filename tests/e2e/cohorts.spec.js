@@ -157,7 +157,7 @@ test('learner follows a class link and gets access after instructor approval', a
     await alreadyIn.getByRole('link', { name: 'Your classes' }).click()
     await expect(studentPage).toHaveURL(/\/classes$/)
     await studentPage.setViewportSize({ width: 768, height: 900 })
-    await expect(studentPage.getByRole('link', { name: 'Your classes' })).toBeVisible()
+    await expect(studentPage.getByRole('dialog', { name: 'Your classes' })).toBeVisible()
     expect(
       await studentPage.evaluate(() => document.documentElement.scrollWidth > window.innerWidth),
     ).toBe(false)

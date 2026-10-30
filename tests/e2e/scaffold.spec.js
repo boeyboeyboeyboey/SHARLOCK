@@ -11,9 +11,13 @@ test('loads Vue and checks Express/MongoDB through the Vite proxy', async ({ pag
   await expect(
     page.getByRole('heading', { name: 'Meet your curious companion.', exact: true }),
   ).toBeVisible()
-  await expect(page.getByRole('status')).toHaveText('API and database connected.')
+  await expect(page.getByRole('dialog').getByRole('status')).toHaveText(
+    'API and database connected.',
+  )
   await page.getByRole('button', { name: 'Check connection' }).click()
-  await expect(page.getByRole('status')).toHaveText('API and database connected.')
+  await expect(page.getByRole('dialog').getByRole('status')).toHaveText(
+    'API and database connected.',
+  )
   const fitsViewport = await page.evaluate(
     () => document.documentElement.scrollWidth <= window.innerWidth,
   )
@@ -23,8 +27,12 @@ test('loads Vue and checks Express/MongoDB through the Vite proxy', async ({ pag
 test('recovers from a failed API request using retry', async ({ page }) => {
   await page.route('**/api/health', (route) => route.abort())
   await page.goto('/about')
-  await expect(page.getByRole('status')).toHaveText('Connection unavailable. Please try again.')
+  await expect(page.getByRole('dialog').getByRole('status')).toHaveText(
+    'Connection unavailable. Please try again.',
+  )
   await page.unroute('**/api/health')
   await page.getByRole('button', { name: 'Check connection' }).click()
-  await expect(page.getByRole('status')).toHaveText('API and database connected.')
+  await expect(page.getByRole('dialog').getByRole('status')).toHaveText(
+    'API and database connected.',
+  )
 })
