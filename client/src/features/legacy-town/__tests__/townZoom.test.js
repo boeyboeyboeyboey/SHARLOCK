@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clampPan, fitScale, stepZoom, zoomLadder } from '../townZoom.js'
+import { clampPan, fitScale, panToCenter, stepZoom, viewCenter, zoomLadder } from '../townZoom.js'
 
 const world = { width: 1120, height: 800 }
 
@@ -54,5 +54,23 @@ describe('clampPan', () => {
     const scaledWidth = world.width * fit
     const left = (world.width - scaledWidth) / 2 + pan.x * fit
     expect(left).toBeCloseTo((view.width - scaledWidth) / 2)
+  })
+})
+
+describe('panToCenter', () => {
+  it('round-trips with viewCenter at any zoom', () => {
+    const view = { width: 800, height: 500 }
+    for (const scale of [0.7, 1, 2]) {
+      const pan = panToCenter({ x: 560, y: 600 }, scale, view, world)
+      const centre = viewCenter(pan, scale, view, world)
+      expect(centre.x).toBeCloseTo(560)
+      expect(centre.y).toBeCloseTo(600)
+    }
+  })
+
+  it('shows the world centre at pan 0 when the view matches the world', () => {
+    const centre = viewCenter({ x: 0, y: 0 }, 1, { width: 1120, height: 800 }, world)
+    expect(centre.x).toBeCloseTo(560)
+    expect(centre.y).toBeCloseTo(400)
   })
 })
