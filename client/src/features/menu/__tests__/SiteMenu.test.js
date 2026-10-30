@@ -67,12 +67,26 @@ describe('site menu', () => {
       'Sign out',
     ])
     const instructorMenu = mountMenu({ user: instructor })
-    expect(labels(instructorMenu)).toContain('Class enrollment')
+    expect(labels(instructorMenu)).toContain('Instructor desk')
     expect(labels(instructorMenu)).not.toContain('Your classes')
-    expect(labels(instructorMenu)).not.toContain('Administrator workspace')
+    expect(labels(instructorMenu)).not.toContain('Admin')
     const adminMenu = mountMenu({ user: admin })
-    expect(labels(adminMenu)).toContain('Administrator workspace')
-    ;[studentMenu, instructorMenu, adminMenu].forEach((wrapper) => wrapper.unmount())
+    expect(labels(adminMenu)).toContain('Admin')
+    expect(labels(adminMenu)).toContain('Instructor desk')
+    const adminOnlyMenu = mountMenu({ user: { ...student, globalRoles: ['admin'] } })
+    expect(labels(adminOnlyMenu)).toContain('Admin')
+    expect(labels(adminOnlyMenu)).toContain('Instructor desk')
+    ;[studentMenu, instructorMenu, adminMenu, adminOnlyMenu].forEach((wrapper) => wrapper.unmount())
+  })
+
+  it('points the role entries at the instructor and admin pages', () => {
+    const wrapper = mountMenu({ user: admin })
+    const targets = Object.fromEntries(
+      wrapper.findAllComponents(RouterLinkStub).map((link) => [link.text(), link.props('to')]),
+    )
+    expect(targets['Instructor desk']).toBe('/instructor')
+    expect(targets.Admin).toBe('/admin')
+    wrapper.unmount()
   })
 
   it('offers sign in and create account when signed out', () => {

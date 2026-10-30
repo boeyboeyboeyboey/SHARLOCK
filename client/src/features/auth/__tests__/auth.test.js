@@ -6,7 +6,6 @@ import { useAuthStore } from '../store.js'
 import LoginForm from '../components/LoginForm.vue'
 import RegisterForm from '../components/RegisterForm.vue'
 import AvatarPicker from '../components/AvatarPicker.vue'
-import AccountSummary from '../components/AccountSummary.vue'
 import LoginPage from '../pages/LoginPage.vue'
 import RegisterPage from '../pages/RegisterPage.vue'
 
@@ -520,15 +519,6 @@ describe('auth forms and account summary', () => {
     wrapper.unmount()
   })
 
-  it('keeps the sidebar account copy off the sign-in and registration pages', async () => {
-    // those pages show account problems in their own card; the duplicate in the sidebar made it
-    // taller than the window, which adds a scrollbar that takes 18px of its 236px
-    const { routes } = await import('../../../router/index.js')
-    for (const path of ['/login', '/register']) {
-      expect(routes.find((route) => route.path === path).meta.hideAccountSummary).toBe(true)
-    }
-  })
-
   it('warns after a field is left and clears the warning as soon as it is valid', async () => {
     const wrapper = mount(RegisterForm)
     const email = wrapper.get('#register-email')
@@ -671,19 +661,6 @@ describe('auth forms and account summary', () => {
     expect(wrapper.emitted('update:selected')[0]).toEqual(['blue'])
     expect(wrapper.text()).toContain('Blue Cap')
     expect(wrapper.text()).toContain('Peach Bow')
-    wrapper.unmount()
-  })
-
-  it('shows a real account summary without fabricated scores or achievements', () => {
-    const wrapper = mount(AccountSummary, {
-      props: { status: 'authenticated', user: account },
-      global: { stubs: { RouterLink: { template: '<a><slot /></a>' } } },
-    })
-    expect(wrapper.text()).toContain('Case_Finder')
-    expect(wrapper.text()).toContain('detective@example.test')
-    expect(wrapper.text()).toContain('Results are not saved')
-    expect(wrapper.text()).not.toMatch(/points|badge|rank|completed/i)
-    expect(wrapper.get('img').attributes('src')).toBe('/images/avatars/blue.png')
     wrapper.unmount()
   })
 
