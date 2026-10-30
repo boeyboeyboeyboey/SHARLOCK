@@ -122,8 +122,8 @@ Approved by Boey on 20 October 2026 (record in [TASKS.md](TASKS.md)); implemente
 ### Interface size (HUD-02, Boey, 31 October 2026)
 
 - Settings has an **Interface size** radio group: Small 0.75, Medium 0.85 (default), Large 1.0. The choice is stored in `localStorage` key `sharlock.uiScale` (a non-sensitive preference) and exposed as the custom property `--ui-scale` on the document element by `client/src/composables/useUiScale.js`; it does not restyle `:root`, `html` or `body`.
-- Only HUD layers use CSS `zoom: var(--ui-scale)`: the floating controls, the site menu, the overlay panels (`menu.css`), the 2D toolbar and, in the 3D hub, the status, destinations, action bar, talk panel, minimap and controls hint (one rule in `client/src/assets/styles/ui-scale.css`). Never scale the Babylon canvas, the town world or any game panel.
-- Viewport-sized boxes (site menu, overlay panel) divide their size by `--ui-scale` so they still fill the window. On touch devices (`pointer: coarse`) the scale never drops below 1, which keeps 44px targets; focus rings scale with their element.
+- Only HUD layers use CSS `zoom: var(--ui-scale)`: the floating controls and the site menu (`menu.css`), the 2D toolbar and, in the 3D hub, the status, destinations, action bar, talk panel, minimap and controls hint (one rule in `client/src/assets/styles/ui-scale.css`). Never scale the Babylon canvas, the town world or any game panel. The content overlays (profile, settings, boards) stay unzoomed: Chrome reports form controls inside a zoomed layer as off screen, which breaks automated checks.
+- The site menu divides its size by `--ui-scale` so it still fills the window. On touch devices (`pointer: coarse`) the scale never drops below 1, which keeps 44px targets; focus rings scale with their element.
 
 ### Game interiors (INT-01, Boey, 30 October 2026)
 

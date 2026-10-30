@@ -36,24 +36,35 @@ function onNavigate() {
   emit('navigate')
 }
 // scenes consume Escape first (and mark it handled); the menu only takes what is left
+const pending = new WeakMap()
+function onKeydownCapture(event) {
+  if (event.key !== 'Escape') return
+  // read before any handler runs: a game may remove the focused element, a dialog may close itself
+  const blocked =
+    props.menuOpen ||
+    props.suppressed ||
+    Boolean(document.querySelector('dialog[open]')) ||
+    Boolean(event.target?.closest?.('input, textarea, select, [contenteditable]')) ||
+    Boolean(props.escapeIgnoreWithin && event.target?.closest?.(props.escapeIgnoreWithin))
+  pending.set(event, blocked)
+}
+// bubble phase: a handler that stopped propagation never gets here
 function onKeydown(event) {
-  if (event.key !== 'Escape' || props.menuOpen) return
-  // capture phase, read now: a game may remove the focused element while handling the key
-  const inField = Boolean(event.target?.closest?.('input, textarea, select, [contenteditable]'))
-  const inIgnored = Boolean(props.escapeIgnoreWithin && event.target?.closest?.(props.escapeIgnoreWithin))
+  if (event.key !== 'Escape' || pending.get(event) !== false) return
   setTimeout(() => {
     if (event.defaultPrevented || props.suppressed || props.menuOpen) return
     if (document.querySelector('dialog[open]')) return
-    if (inField || inIgnored) return
     emit('update:menuOpen', true)
   }, 0)
 }
 onMounted(() => {
-  window.addEventListener('keydown', onKeydown, true)
+  window.addEventListener('keydown', onKeydownCapture, true)
+  window.addEventListener('keydown', onKeydown)
   if (controls?.soundSlot) controls.soundSlot.value = soundSlot.value
 })
 onBeforeUnmount(() => {
-  window.removeEventListener('keydown', onKeydown, true)
+  window.removeEventListener('keydown', onKeydownCapture, true)
+  window.removeEventListener('keydown', onKeydown)
   if (controls?.soundSlot) controls.soundSlot.value = null
 })
 defineExpose({ focusMenu: () => menuButton.value?.focus() })
