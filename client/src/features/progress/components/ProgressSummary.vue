@@ -56,7 +56,7 @@ function formatDate(value) {
           <dt>Last completed</dt>
           <dd>{{ formatDate(row.saved.lastCompletedAt) }}</dd>
         </dl>
-        <p v-else>Results not saved yet</p>
+        <p v-else>Not a scored activity</p>
       </li>
     </ul>
   </section>

@@ -130,9 +130,7 @@ test('learner follows a class link and gets access after instructor approval', a
         `Invitation handoff did not reach the town; server hasInvitation=${Boolean(enrollment.hasInvitation)}; sendButtonVisible=${sendButtonVisible}; alerts=${JSON.stringify(safeAlerts)}; captureResponses=${JSON.stringify(invitationCaptureResponses)}; journeyResponses=${JSON.stringify(responseState)}.`,
       )
     }
-    await expect(
-      studentPage.getByText(/Your class request is pending staff approval/),
-    ).toBeVisible()
+    await expect(studentPage.getByText(/Class request pending staff approval/)).toBeVisible()
 
     await studentPage.goto('/classes')
     await expect(studentPage.getByText('Request pending')).toBeVisible()

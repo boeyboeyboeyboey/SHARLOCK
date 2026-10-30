@@ -161,11 +161,7 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="cohort-page" aria-labelledby="join-class-title">
-    <p class="cohort-eyebrow">YOUR CLASSROOM INVITATION</p>
     <h1 id="join-class-title" tabindex="-1">Join a class</h1>
-    <p class="cohort-intro">
-      Class membership is optional. You can explore Sharlock on your own while a request is pending.
-    </p>
     <p v-if="loading" role="status">Checking your class invitation…</p>
     <template v-else-if="auth.status !== 'authenticated'">
       <p v-if="hasInvitation" class="cohort-notice">
@@ -226,7 +222,6 @@ onBeforeUnmount(() => {
       </button>
       <JoinCohortForm v-else-if="!hasInvitation" :pending="pending" @submit="submitCode" />
       <div v-if="onboarding" class="cohort-skip">
-        <p>Prefer to explore on your own? You can join a class later from Your classes.</p>
         <button class="btn btn-secondary" type="button" :disabled="pending" @click="skipOnboarding">
           {{ pending ? 'Saving…' : 'Skip and explore Sharlock' }}
         </button>

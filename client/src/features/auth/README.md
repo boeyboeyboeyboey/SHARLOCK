@@ -19,7 +19,7 @@ AUTH-01-B connects the approved backend account foundation to the shared student
 - Login uses email and password. Existing valid sessions restore after refresh; account forms continue through enrollment when needed, otherwise returning to town. Staff bypass student onboarding.
 - Menu logout invalidates the current server session before returning to sign-in. Failed network logout retains the identity and offers retry. If the cached CSRF token is stale (for example the session cookie lapsed), logout refetches the token and retries once, then lands on sign-in; a second rejection keeps the identity.
 - Expired sessions stop a pending browser activity request before dispatch and return to sign-in. No mutation is automatically replayed. Unavailable session checks block protected navigation/actions and show useful recovery feedback.
-- Town, menu and Profile use the saved username/avatar. Game results, progress and achievements remain unsaved; no sample rewards are attached to the real account.
+- Town, menu and Profile use the saved username/avatar. Saved game results, points and badges appear on the Profile and Learning progress pages; no sample rewards are attached to the real account.
 
 Usernames accept 3–32 ASCII letters, digits, underscores or hyphens. New passwords require 12–128 well-formed Unicode code points, at least one uppercase letter and one punctuation/symbol character. Login preserves older passwords without applying new composition rules.
 

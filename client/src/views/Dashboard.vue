@@ -44,17 +44,16 @@ function setGraphics(value) {
   // choosing auto again forgets the measured outcome so the device is measured afresh
   if (graphics.value === 'auto') writePerf(null)
 }
+// one line for the pending class notice in both town modes
+const classPendingText = 'Class request pending staff approval.'
 const noticeText = computed(() => {
   const reasons = townMode.reasons.value
-  if (reasons.includes('no-webgl2'))
-    return 'This browser does not support WebGL 2, so you are seeing the 2D town.'
-  if (reasons.includes('phone'))
-    return 'Phones open the 2D town by default. You can switch to 3D from the top right.'
-  if (reasons.includes('slow-runtime'))
-    return 'Your device was struggling to run the 3D town, so we switched to the 2D town.'
+  if (reasons.includes('no-webgl2')) return 'No WebGL 2 here: showing the 2D town.'
+  if (reasons.includes('phone')) return 'Phones open the 2D town. Switch to 3D any time.'
+  if (reasons.includes('slow-runtime')) return '3D ran too slowly here; showing 2D.'
   if (reasons.includes('failed'))
     return 'The 3D town could not start on this device, so you are seeing the 2D town.'
-  return 'You are seeing the 2D town because this device may not run the 3D town smoothly.'
+  return 'This device may not run 3D smoothly; showing 2D.'
 })
 // the Times and the menu overlays share one open, close and focus contract
 const overlayNames = new Set(
@@ -127,7 +126,7 @@ function closeOverlay() {
     <h1 v-else class="visually-hidden" tabindex="-1">Welcome to Sharlock Town.</h1>
     <div v-if="!is3d" class="town-notices">
       <p v-if="route.query.classRequest === 'pending'" class="alert alert-success" role="status">
-        Your class request is pending staff approval. You can explore on your own while you wait.
+        {{ classPendingText }}
         <RouterLink to="/classes">View your classes</RouterLink>
       </p>
       <p
@@ -183,7 +182,7 @@ function closeOverlay() {
     >
       <HubAmbience :suspended="route.name === 'news'" />
       <p v-if="route.query.classRequest === 'pending'" class="hud-alert" role="status">
-        Your class request is pending staff approval. You can explore on your own while you wait.
+        {{ classPendingText }}
         <RouterLink to="/classes">View your classes</RouterLink>
       </p>
       <p v-else-if="route.query.classRequest === 'active'" class="hud-alert" role="status">

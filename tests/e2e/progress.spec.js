@@ -87,7 +87,7 @@ test('a new student sees the empty state and every activity', async ({
     ])
       await expect(page.getByTestId(`game-${id}`).getByText('None yet')).toBeVisible()
     await expect(
-      page.getByTestId('game-threat-briefing').getByText('Results not saved yet'),
+      page.getByTestId('game-threat-briefing').getByText('Not a scored activity'),
     ).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Still to find' })).toBeVisible()
     await expect(page.getByText('Locked', { exact: true }).first()).toBeVisible()

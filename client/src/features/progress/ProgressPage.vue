@@ -133,7 +133,6 @@ async function retrySession() {
 
 <template>
   <div class="profile-view progress-view">
-    <p class="eyebrow">YOUR LEARNING JOURNEY</p>
     <h1 tabindex="-1">Your learning progress.</h1>
 
     <template v-if="auth.status === 'authenticated' && auth.user">
@@ -163,8 +162,7 @@ async function retrySession() {
       </div>
       <template v-else-if="progress">
         <p v-if="!hasCompleted" class="preview-notice">
-          No results yet. Finish a saved activity in
-          <RouterLink to="/">the town</RouterLink> and your points and badges appear here.
+          No results yet. Finish an activity to see points and badges here.
         </p>
         <ProgressSummary
           :games="progress.games"
@@ -195,8 +193,7 @@ async function retrySession() {
 
     <section v-else-if="auth.status === 'anonymous'" class="profile-overview" aria-label="Sign in">
       <div>
-        <h2>Make this desk your own.</h2>
-        <p>Sign in or create an account to see your progress and enter Sharlock Town.</p>
+        <h2>Sign in to see your progress.</h2>
         <div class="d-flex flex-wrap gap-3">
           <RouterLink to="/login" class="btn btn-primary">Sign in</RouterLink>
           <RouterLink to="/register" class="btn btn-secondary">Create account</RouterLink>

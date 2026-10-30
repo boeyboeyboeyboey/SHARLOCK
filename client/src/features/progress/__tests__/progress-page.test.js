@@ -113,7 +113,7 @@ describe('progress page', () => {
     mocks.getProgress.mockResolvedValue({ ...progress, achievements: [] })
     const wrapper = mountPage()
     await flushPromises()
-    expect(wrapper.text()).toContain('Your first badge is waiting')
+    expect(wrapper.text()).toContain('No badges yet')
     expect(wrapper.findAll('.achievement-badge--locked')).toHaveLength(2)
   })
 

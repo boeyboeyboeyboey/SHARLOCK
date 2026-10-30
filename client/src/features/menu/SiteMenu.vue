@@ -86,7 +86,6 @@ watch(() => props.open, sync)
         <img :src="avatar.path" width="48" height="48" :alt="avatar.label" class="avatar-image" />
         <div>
           <strong>{{ user.username }}</strong>
-          <small>Results are not saved</small>
         </div>
       </div>
       <RouterLink

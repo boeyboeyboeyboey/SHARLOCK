@@ -107,13 +107,9 @@ async function checkSession() {
       <span class="auth-page__spark"><PixelIcon name="key" :size="24" /></span>
     </div>
     <section class="auth-card">
-      <p class="auth-eyebrow">WELCOME BACK, DETECTIVE</p>
       <h1 id="login-title" tabindex="-1">
         {{ verifying ? 'Confirm your email' : 'Sign in to Sharlock' }}
       </h1>
-      <p v-if="!verifying" class="auth-intro">
-        Pick up your investigations with your Sharlock account.
-      </p>
 
       <p v-if="passwordResetNotice" class="auth-field-hint" role="status">
         Your password was updated. Sign in with your new password.
@@ -173,8 +169,6 @@ async function checkSession() {
     </section>
     <aside class="auth-aside">
       <PixelIcon name="lock" :size="30" aria-hidden="true" />
-      <h2>Your account stays yours</h2>
-      <p>Use your account to explore Sharlock Town.</p>
       <RouterLink to="/about" class="auth-aside__link">
         Meet Sharlock <PixelIcon name="arrow" :size="16" aria-hidden="true" />
       </RouterLink>

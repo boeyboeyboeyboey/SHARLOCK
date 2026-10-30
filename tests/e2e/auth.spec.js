@@ -72,9 +72,7 @@ test('registers, restores, signs out, signs in, and stops a protected action aft
   await expect(page.getByRole('heading', { name: 'Sign in to Sharlock' })).toBeVisible()
 
   await page.goto('/profile')
-  await expect(
-    page.getByRole('heading', { name: 'A curious mind looks good on you.' }),
-  ).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Your profile', exact: true })).toBeVisible()
   const signedOutProfile = page.getByRole('region', { name: 'Sign in' })
   await expect(signedOutProfile.getByRole('link', { name: 'Sign in', exact: true })).toBeVisible()
   await page.goto('/progress')

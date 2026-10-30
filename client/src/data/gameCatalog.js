@@ -78,7 +78,7 @@ export const gameCatalog = defineGameCatalog([
     shortName: 'SQL Injection',
     accent: '#ffb84d',
     name: 'SQL Injection Arcade',
-    description: 'Solve a simulated login puzzle and learn how parameterized queries protect it.',
+    description: 'Solve a fictional login puzzle using parameterized queries.',
     difficulty: 2,
     backgroundKnowledge: ['SQL strings', 'Boolean conditions', 'Parameterized queries'],
     route: '/games/sql-injection-arcade',

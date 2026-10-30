@@ -42,7 +42,6 @@ describe('site menu', () => {
     expect(wrapper.get('dialog').element.open).toBe(true)
     expect(wrapper.get('#site-menu-title').text()).toBe('Sharlock Hub')
     expect(wrapper.get('.menu-user').text()).toContain('detective_boey')
-    expect(wrapper.get('.menu-user').text()).toContain('Results are not saved')
     wrapper.unmount()
   })
 

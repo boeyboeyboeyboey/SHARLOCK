@@ -201,19 +201,13 @@ export const routes = [
     ],
   },
   {
-    path: '/games/:gameId',
-    component: () => import('../views/GamePreview.vue'),
-    meta: { title: 'Case preview', requiresAccount: true },
-  },
-  {
     path: '/forbidden',
     component: ComingSoon,
     props: {
-      title: 'This case needs permission',
-      description: 'Return to town to find an available activity.',
+      title: "You don't have access to this page.",
       showMascot: false,
     },
-    meta: { title: 'This case needs permission' },
+    meta: { title: 'No access' },
   },
   {
     path: '/:pathMatch(.*)*',

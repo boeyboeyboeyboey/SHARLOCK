@@ -622,9 +622,7 @@ onBeforeUnmount(() => {
     <header class="admin-workspace__hero">
       <div class="admin-workspace__hero-icon" aria-hidden="true"><span>HQ</span></div>
       <div>
-        <p class="admin-workspace__eyebrow">ADMINISTRATOR DESK</p>
         <h1>Admin workspace</h1>
-        <p>Set up learning spaces, invite instructors, and manage their class access.</p>
       </div>
     </header>
 
@@ -718,7 +716,6 @@ onBeforeUnmount(() => {
       <section class="admin-workspace__panel" aria-labelledby="instructors-title">
         <div class="admin-workspace__section-heading">
           <div>
-            <p class="admin-workspace__eyebrow">ACCESS AND ASSIGNMENTS</p>
             <h2 id="instructors-title">Instructors</h2>
           </div>
           <button
@@ -810,7 +807,6 @@ onBeforeUnmount(() => {
       />
 
       <section class="recovery-panel" aria-labelledby="admin-recovery-title">
-        <p class="recovery-eyebrow">STUDENT ACCOUNT SUPPORT</p>
         <h2 id="admin-recovery-title">Student password recovery</h2>
         <RecoveryStudentLookup
           :pending="recoveryLookupPending"

@@ -91,11 +91,6 @@ test('explores every building without prerequisites while showing account state'
       await expect(page).toHaveURL('/')
       continue
     }
-    await card.getByRole('link', { name: 'View activity preview' }).click()
-    await expect(page).toHaveURL(new RegExp(`${game.route}$`))
-    await expect(page.getByRole('heading', { name: 'A new case is taking shape.' })).toBeVisible()
-    await page.getByRole('link', { name: 'Keep exploring', exact: true }).click()
-    await expect(page.locator('.town-player')).toContainText('Results are not saved')
   }
   await page.goto('/games/mini-ctf')
   await expect(page).toHaveURL('/games/sql-injection-arcade')
@@ -209,9 +204,7 @@ test('starts the soundtrack on arrival or the first interaction, remembers a mut
   await page.getByRole('button', { name: /^Menu/ }).click()
   await page.getByRole('link', { name: 'Profile & progress' }).click()
   await expect(page).toHaveURL(/\/profile$/)
-  await expect(
-    page.getByRole('heading', { name: 'A curious mind looks good on you.' }),
-  ).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Your profile' })).toBeVisible()
   // the overlay sits over the mounted town, so the soundtrack keeps playing until the town is left
   expect(await handle.evaluate((el) => !el.paused && !el.muted)).toBe(true)
   await page.evaluate(() =>
@@ -234,7 +227,6 @@ test('opens the profile from the menu and handles focus and dismissal', async ({
     if (!(await menu.isVisible())) await opener.click({ timeout: 2000 })
     await expect(menu).toBeVisible({ timeout: 3000 })
   }).toPass({ timeout: 15_000 })
-  await expect(menu.getByText('Results are not saved')).toBeVisible()
   await expect.poll(() => menu.evaluate((el) => el.contains(document.activeElement))).toBe(true)
   await page.keyboard.press('Escape')
   await expect(menu).toBeHidden()
@@ -245,7 +237,7 @@ test('opens the profile from the menu and handles focus and dismissal', async ({
   await expect(page).toHaveURL(/\/profile$/)
   await expect(page.getByRole('heading', { name: 'Profile & progress' })).toBeFocused()
   await expect(page.getByRole('heading', { name: 'Your trophy case' })).toBeVisible()
-  await expect(page.getByText('Your first badge is waiting')).toBeVisible()
+  await expect(page.getByText('No badges yet')).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(page).toHaveURL(/\/$/)
   await expect(opener).toBeFocused()
@@ -504,9 +496,7 @@ test('supports pinch zoom and wheel panning while retaining camera bounds after 
       .toBe(true)
   }
   await page.goto('/profile')
-  await expect(
-    page.getByRole('heading', { name: 'A curious mind looks good on you.' }),
-  ).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Your profile' })).toBeVisible()
   await page.goto('/dashboard')
   await expect(page.getByLabel('Map zoom level')).toHaveText('100%')
 })
