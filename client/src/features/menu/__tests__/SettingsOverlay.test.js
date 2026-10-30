@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { defineComponent, h, ref } from 'vue'
 import { mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
 import SettingsOverlay from '../overlays/SettingsOverlay.vue'
 import { provideTownControls } from '../townControls.js'
 
@@ -18,7 +19,10 @@ const Host = defineComponent({
 })
 let wrapper
 
-beforeEach(() => localStorage.clear())
+beforeEach(() => {
+  localStorage.clear()
+  setActivePinia(createPinia())
+})
 afterEach(() => wrapper?.unmount())
 
 describe('SettingsOverlay interface size', () => {

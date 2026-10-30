@@ -618,6 +618,18 @@ main:focus {
   background: var(--accent-secondary);
   font-size: 1rem;
 }
+/* floats above the full-window town and game rooms, below modal overlays */
+.session-notice.is-floating {
+  position: fixed;
+  top: 4.5rem;
+  left: 50%;
+  z-index: 1030;
+  width: min(28rem, calc(100vw - 2rem));
+  transform: translateX(-50%);
+  border: 2px solid var(--border-strong);
+  box-shadow: 4px 4px 0 var(--border-strong);
+  color: var(--text-main);
+}
 .profile-overview {
   display: flex;
   flex-wrap: wrap;

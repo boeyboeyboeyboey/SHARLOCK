@@ -2,15 +2,13 @@
 import { computed, ref, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Navbar from '../components/portal/Navbar.vue'
+import SessionNotice from '../components/common/SessionNotice.vue'
 import { useAuthStore } from '../features/auth/store.js'
 import { provideSignOut } from '../features/menu/townControls.js'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
-const requestErrorMessage = computed(() =>
-  typeof auth.requestError === 'string' ? auth.requestError : auth.requestError?.message || '',
-)
 const navbar = ref(null)
 const isTown = computed(() => route.meta.theme === 'town')
 // the town, its overlays and the game rooms carry their own menu instead of the top bar
@@ -27,13 +25,6 @@ async function signOut() {
   }
 }
 provideSignOut(signOut)
-async function retrySession() {
-  try {
-    await auth.restoreSession({ force: true })
-  } catch {
-    // keep the store's connection feedback available for another retry
-  }
-}
 function focusPage() {
   const heading = route.meta.newsDialog ? '[data-news-heading]' : 'main h1'
   document.querySelector(heading)?.focus({ preventScroll: true })
@@ -72,17 +63,8 @@ watch(
     />
     <div class="portal-workspace">
       <main id="main-content" class="portal-main" tabindex="-1">
-        <div v-if="requestErrorMessage && !route.meta.authPage" class="preview-notice" role="alert">
-          <p class="mb-2">{{ requestErrorMessage }}</p>
-          <button
-            class="btn btn-secondary"
-            type="button"
-            :disabled="auth.status === 'loading'"
-            @click="retrySession"
-          >
-            {{ auth.status === 'loading' ? 'Checking account…' : 'Try again' }}
-          </button>
-        </div>
+        <!-- an open overlay is a modal dialog, so it shows its own copy of the notice -->
+        <SessionNotice v-if="!route.meta.authPage && !isOverlayRoute(route)" class="is-floating" />
         <RouterView />
       </main>
       <footer v-if="!route.meta.interior" class="portal-footer">

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
 
 let wrapper
 
@@ -13,7 +14,10 @@ async function mountWith(found) {
 }
 const item = (id) => document.body.querySelector(`[data-testid="discovery-${id}"]`)
 
-beforeEach(() => localStorage.clear())
+beforeEach(() => {
+  localStorage.clear()
+  setActivePinia(createPinia())
+})
 afterEach(() => wrapper?.unmount())
 
 describe('DiscoveriesOverlay', () => {
