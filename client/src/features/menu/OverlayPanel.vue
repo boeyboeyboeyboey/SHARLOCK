@@ -2,6 +2,7 @@
 defineOptions({ name: 'SharlockOverlayPanel' })
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import './menu.css'
+import SessionNotice from '../../components/common/SessionNotice.vue'
 
 const props = defineProps({
   title: { type: String, required: true },
@@ -49,6 +50,7 @@ onBeforeUnmount(() => dialog.value?.close?.())
       </div>
       <slot name="tabs"></slot>
       <div class="overlay-body">
+        <SessionNotice />
         <div :class="{ 'overlay-paper': paper }"><slot></slot></div>
       </div>
     </dialog>
