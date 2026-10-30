@@ -526,7 +526,10 @@ test('keeps the alert, prompt and command buttons on screen after several incide
     const label = size ? `${size.width}x${size.height}` : testInfo.project.name
     await expect(banner(page).getByRole('heading'), `alert at ${label}`).toBeInViewport()
     await expect(commandInput(page), `prompt at ${label}`).toBeInViewport()
-    await expect(page.getByRole('button', { name: 'Run' }), `run at ${label}`).toBeInViewport()
+    await expect(
+      page.getByRole('button', { name: 'Run', exact: true }),
+      `run at ${label}`,
+    ).toBeInViewport()
     await expect(page.getByRole('button', { name: 'Hint' }), `hint at ${label}`).toBeInViewport()
     const templates = page.getByRole('button', { name: /^Insert / })
     await expect(templates).toHaveCount(6)

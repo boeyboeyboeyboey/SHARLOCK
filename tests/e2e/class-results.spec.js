@@ -97,6 +97,8 @@ test('instructor sees only class-context results and can drill into a student', 
   browser,
   baseURL,
 }) => {
+  // two full sql runs plus the instructor journey outgrow the default 30s on the phone project
+  test.setTimeout(90000)
   const suffix = randomBytes(4).toString('hex')
   const seeded = await seedClass(suffix)
 
