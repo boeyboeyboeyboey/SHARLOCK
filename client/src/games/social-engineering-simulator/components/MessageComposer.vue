@@ -47,7 +47,6 @@ function onKeydown(event) {
         :maxlength="maxLength"
         :disabled="disabled"
         rows="2"
-        placeholder="Type a reply, or ask a question to verify who this is"
         @keydown="onKeydown"
       ></textarea>
       <button
@@ -58,6 +57,6 @@ function onKeydown(event) {
         Send
       </button>
     </div>
-    <span class="soc-composer-count" aria-live="off">{{ remaining }} characters left</span>
+    <span class="soc-composer-count" aria-live="off">{{ remaining }}</span>
   </form>
 </template>

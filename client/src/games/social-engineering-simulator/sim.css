@@ -966,3 +966,135 @@
     }
   }
 }
+
+/* help desk shift (SOC-02) */
+.soc-shift {
+  display: grid;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.soc-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  align-items: center;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  background: var(--game-surface);
+  border: 2px solid var(--game-edge);
+}
+
+.soc-status p,
+.soc-status label {
+  margin: 0;
+}
+
+.soc-strike.is-hit {
+  color: var(--game-bad);
+  font-weight: 700;
+}
+
+.soc-caller {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  background: var(--game-surface);
+  border: 2px solid var(--game-edge);
+}
+
+.soc-caller-avatar {
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  background: var(--game-accent-soft);
+  border: 2px solid var(--game-edge);
+  font-weight: 700;
+}
+
+.soc-caller-text p,
+.soc-secret {
+  margin: 0;
+}
+
+.soc-caller-name {
+  font-weight: 700;
+}
+
+.soc-secret {
+  display: grid;
+  margin-left: auto;
+  font-size: 0.85rem;
+}
+
+.soc-shift-chat,
+.soc-tools,
+.soc-debrief,
+.soc-summary {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: var(--game-surface);
+  border: 2px solid var(--game-edge);
+}
+
+.soc-chat-target,
+.soc-tools-row,
+.soc-decisions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.soc-chat-target [aria-pressed='true'] {
+  background: var(--game-accent-soft);
+  font-weight: 700;
+}
+
+.soc-facts,
+.soc-tells,
+.soc-summary-calls {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.soc-summary-calls {
+  padding: 0;
+  list-style: none;
+}
+
+.soc-summary-calls li {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: 0.5rem;
+}
+
+.soc-hint {
+  color: var(--game-warn);
+}
+
+.soc-chip {
+  display: inline-block;
+  margin: 0 0 0 0.35rem;
+  padding: 0 0.4rem;
+  background: var(--game-warn-soft);
+  border: 1px solid var(--game-warn);
+  font-size: 0.75rem;
+}
+
+.soc-debrief-title.is-good {
+  color: var(--game-good);
+}
+
+.soc-debrief-title.is-bad {
+  color: var(--game-bad);
+}
+
+.soc-tells .is-tactic {
+  color: var(--game-warn);
+}

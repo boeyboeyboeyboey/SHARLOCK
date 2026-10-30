@@ -196,7 +196,8 @@ Move the task's active record rather than duplicating it across board states. Re
 - **Shared edits:** `attempts/production-registry.js` (one additive registration), `config/env.js` (`LLM_REQUESTS_PER_MINUTE`), `server.js` and `.env.example` (key name only). The old single-call routes still work but are no longer saved (`SOC_SINGLE_CALL_NOT_SAVED`) until the client moves to `shift/*`; their old saving tests were replaced.
 - **Docs impact:** this record, `README.md` section 2 (env key) and the module README.
 - **Verification:** `pnpm exec vitest run server/tests/unit` (1007+ pass); `node scripts/run-with-test-db.mjs integration --replica-set server/tests/integration/social-engineering-simulator --no-file-parallelism` (12 pass); eslint and prettier clean on changed files. Not run: client, E2E, live model rehearsal.
-- **Next action:** client stage (call queue, desk tools, Trust meter, Tells debrief, hints, How to play), then scripted-mode E2E and a live rehearsal; tell Eric when done.
+- **Client stage (1 Nov 2026):** `client/src/games/social-engineering-simulator/` moves to the `shift/*` routes: `useHelpDeskShift.js`, call queue/Trust/streak (`ShiftStatus`), `CallerCard`, `DeskTools` (Directory, Ticket, Call back, Ask Sharlock), colleague chat, `DecisionBar`, `TellsDebrief`, `ShiftSummary`, a scripted chip, a synthesised phone ring (`ring.js`) and `playSfx` correct/wrong/win/lose; the single-call client code is removed. Verification: client vitest (shift + how-to-play) and eslint pass; the scripted-mode E2E is rewritten but not run from the worktree (port 3001 was in use). Docs: client README, README Using the app.
+- **Next action:** run the E2E from the main checkout, a live Gemini/Ollama rehearsal, then tell Eric.
 
 **HUB-11 — Sprint in the 3D hub** · Status: **Review** · Contributor: **Boey** (implemented by Claude Code) · Branch: `hub-10-sprint` · Approved by Boey, 31 October 2026.
 

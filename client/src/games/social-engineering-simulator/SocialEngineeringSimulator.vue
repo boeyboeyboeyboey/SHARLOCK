@@ -1,209 +1,157 @@
 <script setup>
-import { computed, watch } from 'vue'
+import { computed, ref } from 'vue'
 import HowToPlayDialog from '../../components/common/HowToPlayDialog.vue'
 import { useHowToPlay } from '../../composables/useHowToPlay.js'
-import { playSfx } from '../../composables/playSfx.js'
 import AttemptContextChooser from '../../features/attempts/components/AttemptContextChooser.vue'
+import CallerCard from './components/CallerCard.vue'
 import ChatThread from './components/ChatThread.vue'
-import ConversationTabs from './components/ConversationTabs.vue'
 import DecisionBar from './components/DecisionBar.vue'
-import DebriefPanel from './components/DebriefPanel.vue'
-import MessageComposer from './components/MessageComposer.vue'
+import DeskTools from './components/DeskTools.vue'
 import HowToPlayScene from './components/HowToPlayScene.vue'
-import ScenarioBrief from './components/ScenarioBrief.vue'
-import { useSocialEngineeringSession } from './composables/useSocialEngineeringSession.js'
+import MessageComposer from './components/MessageComposer.vue'
+import ShiftStatus from './components/ShiftStatus.vue'
+import ShiftSummary from './components/ShiftSummary.vue'
+import TellsDebrief from './components/TellsDebrief.vue'
+import { useHelpDeskShift } from './composables/useHelpDeskShift.js'
 import { HOW_TO_PLAY } from './howToPlay.js'
 import { MAX_MESSAGE_LENGTH } from './simulator.js'
 import './sim.css'
 
 const { open: howToOpen, show: showHowTo } = useHowToPlay('social-engineering-simulator')
+const shift = useHelpDeskShift()
 
-const {
-  status,
-  pending,
-  persona,
-  brief,
-  messages,
-  turnsUsed,
-  turnBudget,
-  leaked,
-  closed,
-  result,
-  error,
-  resetCode,
-  saveRetryError,
-  retrying,
-  verifier,
-  verifierMessages,
-  verifierPending,
-  verifierTurnsUsed,
-  verifierTurnBudget,
-  verifierError,
-  verifierEnded,
-  verifierFailedText,
-  activeChat,
-  unread,
-  canSendVerifier,
-  selectChat,
-  sendVerifier,
-  canSend,
-  start,
-  begin,
-  send,
-  complete,
-  retrySave,
-  reset,
-} = useSocialEngineeringSession()
-
-// sound when the call ends
-watch(result, (value, previous) => {
-  if (value && !previous) playSfx(value.outcome === 'resisted' ? 'win' : 'lose')
-})
-
-const personaName = computed(() => persona.value?.displayName ?? 'Colleague')
-const verifierName = computed(() => verifier.value?.displayName ?? 'Colleague')
-const onVerifierTab = computed(() => Boolean(verifier.value) && activeChat.value === 'verifier')
-const tabs = computed(() => [
-  { id: 'attacker', label: personaName.value, unread: unread.attacker },
-  { id: 'verifier', label: verifierName.value, unread: unread.verifier },
-])
-const threadMessages = computed(() =>
-  onVerifierTab.value ? verifierMessages.value : messages.value,
+// which chat the composer talks to: the caller or the colleague
+const target = ref('caller')
+const onColleague = computed(() => target.value === 'colleague')
+const thread = computed(() =>
+  onColleague.value ? shift.colleagueMessages.value : shift.messages.value,
 )
-const threadPending = computed(() => (onVerifierTab.value ? verifierPending.value : pending.value))
-const threadName = computed(() => (onVerifierTab.value ? verifierName.value : personaName.value))
-const showComposer = computed(() =>
-  onVerifierTab.value ? !verifierEnded.value && !leaked.value : !closed.value,
+const threadName = computed(() =>
+  onColleague.value ? shift.call.value.colleague.displayName : shift.call.value.caller.displayName,
 )
-const composerDisabled = computed(() =>
-  onVerifierTab.value ? !canSendVerifier.value : !canSend.value,
+const composerOpen = computed(() =>
+  onColleague.value ? shift.asksLeft.value > 0 : shift.messagesLeft.value > 0,
 )
 
 function sendActive(text) {
-  return onVerifierTab.value ? sendVerifier(text) : send(text)
+  return onColleague.value ? shift.ask(text) : shift.send(text)
 }
 
-const inConversation = computed(() => ['chatting', 'awaiting', 'ended'].includes(status.value))
-const fitsViewport = computed(() => inConversation.value || status.value === 'briefing')
+function nextCall() {
+  target.value = 'caller'
+  return shift.next()
+}
+
+function restart() {
+  target.value = 'caller'
+  shift.reset()
+}
 </script>
 
 <template>
-  <div class="soc-game" :class="{ 'is-fitted': fitsViewport, 'is-wide': inConversation }">
-    <!-- the back link is a direct child of the page so it can sit at the top left of the whole
-         content area, while the title and everything below it stay in the centred column -->
+  <div class="soc-game is-wide">
     <RouterLink to="/" class="soc-back back-link">Back to town</RouterLink>
     <div class="soc-intro">
-      <h1 tabindex="-1">LLM Social Engineering Simulator</h1>
-      <p class="soc-strap">
-        A fictional colleague will pressure you to hand over a synthetic reset code. Hold the line
-        and verify the request. Everything here is simulated.
-      </p>
+      <h1 tabindex="-1">Help Desk Shift</h1>
     </div>
 
-    <div v-if="status === 'choosing'" class="soc-state soc-start">
+    <div v-if="shift.status.value === 'choosing'" class="soc-state soc-start">
       <button type="button" class="soc-button soc-button-choice" @click="showHowTo">
         How to play
       </button>
       <AttemptContextChooser
-        :disabled="pending"
-        label="Save this call to"
-        submit-label="Start the call"
-        @start="start"
+        :disabled="shift.pending.value"
+        label="Save this shift to"
+        submit-label="Start the shift"
+        @start="shift.start"
       />
     </div>
 
-    <p v-else-if="status === 'idle' && pending" class="soc-state" role="status">
-      Setting up the simulation&hellip;
-    </p>
+    <p v-else-if="shift.status.value === 'loading'" class="soc-state" role="status">&hellip;</p>
 
-    <div v-else-if="status === 'error'" class="soc-state soc-error" role="alert">
-      <p>{{ error }}</p>
-      <button type="button" class="soc-button soc-button-primary" @click="start()">
-        Try again
+    <div v-else-if="shift.status.value === 'error'" class="soc-state soc-error" role="alert">
+      <p>{{ shift.error.value }}</p>
+      <button type="button" class="soc-button soc-button-primary" @click="restart">
+        New shift
       </button>
     </div>
 
-    <ScenarioBrief
-      v-else-if="status === 'briefing' && brief && persona"
-      :brief="brief"
-      :persona="persona"
-      :reset-code="resetCode"
-      @start="begin"
+    <ShiftSummary
+      v-else-if="shift.status.value === 'summary'"
+      :result="shift.result.value"
+      :retrying="shift.retrying.value"
+      :retry-error="shift.saveRetryError.value"
+      @retry-save="shift.retrySave"
+      @restart="restart"
     />
 
-    <div v-else-if="inConversation" class="soc-conversation" :class="{ 'is-chat': !result }">
-      <DebriefPanel
-        v-if="result"
-        :result="result"
-        :verifier-messages="verifierMessages"
-        :verifier-name="verifierName"
-        :retrying="retrying"
-        :retry-error="saveRetryError"
-        @retry-save="retrySave"
-        @restart="reset"
+    <div v-else-if="shift.call.value" class="soc-shift">
+      <ShiftStatus
+        :call-index="shift.callIndex.value"
+        :calls-total="shift.callsTotal.value"
+        :strikes="shift.strikes.value"
+        :max-strikes="shift.maxStrikes.value"
+        :trust="shift.trust.value"
+        :streak="shift.streak.value"
+      />
+      <CallerCard :call="shift.call.value" />
+
+      <TellsDebrief
+        v-if="shift.status.value === 'debrief'"
+        :debrief="shift.debrief.value"
+        :pending="shift.pending.value"
+        @next="nextCall"
+        @finish="shift.finish"
       />
 
       <template v-else>
-        <header class="soc-convo-head">
-          <p class="soc-convo-persona">{{ personaName }}</p>
-          <p v-if="onVerifierTab" class="soc-convo-turns" aria-live="polite">
-            Checks {{ verifierTurnsUsed }} of {{ verifierTurnBudget }}
-          </p>
-          <p v-else class="soc-convo-turns" aria-live="polite">
-            Turn {{ turnsUsed }} of {{ turnBudget }}
-          </p>
-        </header>
-
-        <div class="soc-convo-body">
-          <DecisionBar
-            :disabled="pending || Boolean(result)"
-            :hide-verify="Boolean(verifier)"
-            :colleague-name="verifier ? verifierName : ''"
-            :colleague-role="verifier ? verifier.role : ''"
-            :reset-code="resetCode"
-            @decide="complete"
-          />
-
-          <div class="soc-convo-main">
-            <ConversationTabs
-              v-if="verifier"
-              :tabs="tabs"
-              :active-id="activeChat"
-              @select="selectChat"
-            />
-
-            <ChatThread
-              :messages="threadMessages"
-              :pending="threadPending"
-              :persona-name="threadName"
-            />
-
-            <p v-if="leaked" class="soc-alert soc-alert-bad" role="alert">
-              You revealed the reset code. In a real incident this would compromise the account.
-              Choose how to end on the left.
-            </p>
-            <p v-else-if="closed && !onVerifierTab" class="soc-alert" role="status">
-              The conversation has reached its limit. Make your final decision on the left.
-            </p>
-
-            <MessageComposer
-              v-if="showComposer"
-              :key="onVerifierTab ? 'verifier' : 'attacker'"
-              :disabled="composerDisabled"
-              :max-length="MAX_MESSAGE_LENGTH"
-              :restore-text="onVerifierTab ? verifierFailedText : ''"
-              @send="sendActive"
-            />
-
-            <p v-if="onVerifierTab && verifierError" class="soc-alert soc-alert-bad" role="alert">
-              {{ verifierError }}
-            </p>
-
-            <p v-if="error" class="soc-alert soc-alert-bad" role="alert">{{ error }}</p>
+        <div class="soc-shift-chat">
+          <div class="soc-chat-target" role="group" aria-label="Chat with">
+            <button
+              type="button"
+              class="soc-button"
+              :aria-pressed="!onColleague"
+              @click="target = 'caller'"
+            >
+              {{ shift.call.value.caller.displayName }}
+            </button>
+            <button
+              type="button"
+              class="soc-button"
+              :aria-pressed="onColleague"
+              @click="target = 'colleague'"
+            >
+              {{ shift.call.value.colleague.displayName }} ({{ shift.asksLeft.value }})
+            </button>
           </div>
+          <ChatThread
+            :messages="thread"
+            :pending="shift.pending.value"
+            :persona-name="threadName"
+          />
+          <MessageComposer
+            v-if="composerOpen"
+            :key="target"
+            :disabled="!shift.canAct.value"
+            :max-length="MAX_MESSAGE_LENGTH"
+            @send="sendActive"
+          />
+          <p v-if="shift.error.value" class="soc-alert soc-alert-bad" role="alert">
+            {{ shift.error.value }}
+          </p>
         </div>
+        <DeskTools
+          :tools="shift.tools.value"
+          :hints="shift.hints.value"
+          :hints-left="shift.hintsLeft.value"
+          :disabled="!shift.canAct.value"
+          @tool="shift.useTool"
+          @hint="shift.hint"
+        />
+        <DecisionBar :disabled="!shift.canAct.value" @decide="shift.decide" />
       </template>
     </div>
+
     <HowToPlayDialog
       v-model:open="howToOpen"
       game-id="social-engineering-simulator"
