@@ -1,49 +1,64 @@
-import { describe, expect, it } from 'vitest'
-import { mount } from '@vue/test-utils'
-import { createMemoryHistory, createRouter } from 'vue-router'
+import { afterEach, describe, expect, it } from 'vitest'
+import { mount, RouterLinkStub } from '@vue/test-utils'
 import Navbar from '../Navbar.vue'
 
-async function mountNavbar(globalRoles, props = {}) {
-  const router = createRouter({
-    history: createMemoryHistory(),
-    routes: [{ path: '/:pathMatch(.*)*', component: { template: '<div />' } }],
+const user = { username: 'detective_boey', avatarId: 'capybara', globalRoles: ['student'] }
+const wrappers = []
+
+function mountNavbar(props = {}) {
+  const wrapper = mount(Navbar, {
+    props: { user, ...props },
+    attachTo: document.body,
+    global: { stubs: { RouterLink: RouterLinkStub } },
   })
-  router.push('/')
-  await router.isReady()
-  const user = { username: 'tester', avatarId: 'mint', globalRoles }
-  return mount(Navbar, { props: { user, ...props }, global: { plugins: [router] } })
+  wrappers.push(wrapper)
+  return wrapper
 }
 
-const linkNamed = (wrapper, name) =>
-  wrapper.findAll('a').find((link) => link.text().trim() === name)
+afterEach(() => wrappers.splice(0).forEach((wrapper) => wrapper.unmount()))
 
-describe('Navbar role buttons', () => {
-  it('shows no role links to a student', async () => {
-    const wrapper = await mountNavbar(['student'])
-    expect(linkNamed(wrapper, 'Admin')).toBeUndefined()
-    expect(linkNamed(wrapper, 'Instructor')).toBeUndefined()
+describe('top bar', () => {
+  it('links the logo home and offers only the Menu button, with no sidebar or view switch', () => {
+    const wrapper = mountNavbar()
+    expect(wrapper.getComponent(RouterLinkStub).props('to')).toBe('/')
+    const menu = wrapper.get('[data-testid="menu-button"]')
+    expect(menu.text()).toContain('Menu')
+    expect(wrapper.find('[role="group"][aria-label="View mode"]').exists()).toBe(false)
+    expect(wrapper.find('aside').exists()).toBe(false)
+    expect(wrapper.find('[aria-label="Open navigation and profile"]').exists()).toBe(false)
   })
 
-  it('links an admin to the admin workspace', async () => {
-    const wrapper = await mountNavbar(['admin'])
-    expect(linkNamed(wrapper, 'Admin').attributes('href')).toBe('/admin')
-    expect(linkNamed(wrapper, 'Instructor')).toBeUndefined()
+  it('asks to open the menu from the button and reflects the expanded state', async () => {
+    const wrapper = mountNavbar()
+    const menu = wrapper.get('[data-testid="menu-button"]')
+    expect(menu.attributes('aria-expanded')).toBe('false')
+    await menu.trigger('click')
+    expect(wrapper.emitted('update:menuOpen')[0]).toEqual([true])
+    await wrapper.setProps({ menuOpen: true })
+    expect(menu.attributes('aria-expanded')).toBe('true')
+    expect(wrapper.get('dialog').element.open).toBe(true)
   })
 
-  it('links an instructor to class enrollment', async () => {
-    const wrapper = await mountNavbar(['instructor'], { town: true })
-    expect(linkNamed(wrapper, 'Instructor').attributes('href')).toBe('/instructor')
-    expect(linkNamed(wrapper, 'Admin')).toBeUndefined()
+  it('shows sign in and create account in the drawer when signed out', () => {
+    const wrapper = mountNavbar({ user: null })
+    const names = wrapper.findAll('.menu-link').map((node) => node.text())
+    expect(names).toContain('Sign in')
+    expect(names).toContain('Create account')
+    expect(names).not.toContain('Sign out')
   })
 
-  it('shows both links to a dual-role account', async () => {
-    const wrapper = await mountNavbar(['instructor', 'admin'])
-    expect(linkNamed(wrapper, 'Admin').attributes('href')).toBe('/admin')
-    expect(linkNamed(wrapper, 'Instructor').attributes('href')).toBe('/instructor')
+  it('passes sign out through', async () => {
+    const wrapper = mountNavbar()
+    await wrapper.get('[data-testid="site-menu-sign-out"]').trigger('click')
+    expect(wrapper.emitted('signOut')).toHaveLength(1)
   })
 
-  it('shows no role links when signed out', async () => {
-    const wrapper = await mountNavbar([], { user: null })
-    expect(linkNamed(wrapper, 'Admin')).toBeUndefined()
+  it('opens on an unhandled Escape', async () => {
+    const wrapper = mountNavbar()
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }),
+    )
+    await new Promise((resolve) => setTimeout(resolve, 5))
+    expect(wrapper.emitted('update:menuOpen')?.[0]).toEqual([true])
   })
 })

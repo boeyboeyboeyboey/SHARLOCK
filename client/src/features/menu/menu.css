@@ -124,6 +124,13 @@
 .immersive-controls > * {
   pointer-events: auto;
 }
+/* in the top bar of non-town pages the Menu button sits in flow instead of floating */
+.immersive-controls.is-inline {
+  position: static;
+  inset: auto;
+  z-index: auto;
+  flex: 0 0 auto;
+}
 .menu-hint {
   padding: 1px 6px;
   border: 1px solid var(--hub-glass-edge);
@@ -277,6 +284,7 @@
 .menu-title {
   flex: 1;
   margin: 0;
+  color: inherit;
   font-size: 18px;
   font-weight: 700;
 }

@@ -24,6 +24,8 @@ const props = defineProps({
   escapeIgnoreWithin: { type: String, default: '' },
   label3d: { type: String, default: '3D town' },
   label2d: { type: String, default: '2D town' },
+  // inline sits in the page's top bar and offers only the Menu button (no sound or 3D | 2D switch)
+  inline: { type: Boolean, default: false },
 })
 const emit = defineEmits(['update:menuOpen', 'toggle-mode', 'sign-out', 'navigate'])
 const menuButton = ref(null)
@@ -77,7 +79,11 @@ defineExpose({ focusMenu: () => menuButton.value?.focus() })
 </script>
 
 <template>
-  <div class="immersive-controls" :class="`skin-${skin}`" data-testid="immersive-controls">
+  <div
+    class="immersive-controls"
+    :class="[`skin-${skin}`, { 'is-inline': inline }]"
+    data-testid="immersive-controls"
+  >
     <button
       ref="menuButton"
       type="button"
@@ -90,7 +96,7 @@ defineExpose({ focusMenu: () => menuButton.value?.focus() })
     >
       <span aria-hidden="true">&#9776;</span> Menu <kbd class="menu-hint">Esc</kbd>
     </button>
-    <div class="controls-right">
+    <div v-if="!inline" class="controls-right">
       <slot name="sound">
         <div ref="soundSlot" class="immersive-sound" data-testid="sound-slot"></div>
       </slot>

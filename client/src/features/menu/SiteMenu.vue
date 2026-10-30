@@ -19,7 +19,7 @@ const dialog = ref(null)
 const closeButton = ref(null)
 const roles = computed(() => props.user?.globalRoles ?? [])
 const isStudent = computed(() => roles.value.includes('student'))
-const isStaff = computed(() => roles.value.some((role) => ['instructor', 'admin'].includes(role)))
+const isInstructor = computed(() => roles.value.includes('instructor'))
 const isAdmin = computed(() => roles.value.includes('admin'))
 const avatar = computed(() => avatarFor(props.user?.avatarId))
 const discoveries = useDiscoveries()
@@ -163,16 +163,16 @@ watch(() => props.open, sync)
               >About Sharlock</RouterLink
             >
           </li>
-          <template v-if="user && isStaff">
-            <li><hr /></li>
-            <li>
+          <li v-if="user && (isInstructor || isAdmin)"><hr /></li>
+          <template v-if="user">
+            <li v-if="isInstructor || isAdmin">
               <RouterLink to="/instructor" class="menu-link" @click="emit('navigate')"
-                >Class enrollment</RouterLink
+                >Instructor desk</RouterLink
               >
             </li>
             <li v-if="isAdmin">
               <RouterLink to="/admin" class="menu-link" @click="emit('navigate')"
-                >Administrator workspace</RouterLink
+                >Admin</RouterLink
               >
             </li>
           </template>

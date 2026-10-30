@@ -75,7 +75,6 @@ export const routes = [
           overlay: true,
           requiresAccount: false,
           accountAware: true,
-          hideAccountSummary: true,
         },
       },
       {
@@ -115,15 +114,12 @@ export const routes = [
   {
     path: '/login',
     component: () => import('../features/auth/pages/LoginPage.vue'),
-    // these pages show account problems in their own card, so the sidebar copy is dropped: it
-    // duplicated the message and pushed the sidebar past the window height, which adds a scrollbar
-    // that takes 18px of its 236px
-    meta: { title: 'Sign in', authPage: true, hideAccountSummary: true },
+    meta: { title: 'Sign in', authPage: true },
   },
   {
     path: '/register',
     component: () => import('../features/auth/pages/RegisterPage.vue'),
-    meta: { title: 'Create account', authPage: true, hideAccountSummary: true },
+    meta: { title: 'Create account', authPage: true },
   },
   {
     path: '/activate-account',

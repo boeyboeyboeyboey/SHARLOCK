@@ -27,26 +27,6 @@
   font-family: var(--font-pixel);
   letter-spacing: 0;
 }
-.town-top-nav {
-  align-items: stretch;
-  gap: 4px;
-}
-.town-top-nav a {
-  min-height: 44px;
-  padding: 10px 12px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  text-decoration: none;
-  border: 2px solid transparent;
-  white-space: nowrap;
-}
-.town-top-nav a:hover,
-.town-top-nav .router-link-active {
-  border-color: var(--town-edge);
-  background: var(--town-sky);
-  box-shadow: 2px 2px 0 var(--town-edge);
-}
 .town-preview-tag {
   font-size: 12px;
   letter-spacing: 1px;
@@ -60,20 +40,6 @@
   border: 3px solid var(--town-edge);
   border-radius: 0;
   background: var(--town-paper);
-}
-.is-town .portal-sidebar {
-  background: var(--town-paper);
-  border-right: 3px solid var(--town-edge);
-}
-.is-town .portal-nav .nav-link {
-  border-radius: 0;
-}
-.is-town .portal-nav .router-link-active {
-  background: var(--town-sky);
-  border: 2px solid var(--town-edge);
-}
-.is-town .active-nav-dot {
-  display: none;
 }
 .town-menu-profile {
   display: grid;
@@ -428,9 +394,6 @@
   margin-top: 10px;
 }
 @media (min-width: 768px) {
-  .is-town .portal-sidebar.offcanvas-md {
-    display: none;
-  }
   .is-town .portal-main {
     padding: 32px 24px 16px;
   }
@@ -441,18 +404,6 @@
 @media (min-width: 1200px) {
   .is-town .town-preview-tag {
     display: inline;
-  }
-  .town-top-nav {
-    margin-left: auto;
-    margin-right: auto;
-    gap: 12px;
-  }
-}
-@media (min-width: 768px) and (max-width: 991.98px) {
-  .town-top-nav a {
-    padding-left: 8px;
-    padding-right: 8px;
-    font-size: 1rem;
   }
 }
 @media (max-width: 767.98px) {
