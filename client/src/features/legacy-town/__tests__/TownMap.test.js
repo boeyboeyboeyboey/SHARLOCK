@@ -153,4 +153,44 @@ describe('walking Sharlock', () => {
     expect(wrapper.findComponent(TownMap).emitted('activate')).toEqual([['/games/threat-briefing']])
     wrapper.unmount()
   })
+
+  it('opens a keeper dialogue on E, steps through lines and goes in', async () => {
+    const wrapper = mountMap(null)
+    key('keydown', 'KeyA')
+    await frames(220)
+    key('keyup', 'KeyA')
+    await frames(3)
+    expect(wrapper.get('[data-testid="talk-prompt"]').attributes('aria-label')).toBe(
+      'Talk to Publican',
+    )
+    key('keydown', 'KeyE')
+    await flushPromises()
+    const first = wrapper.get('[data-testid="npc-line"]').text()
+    expect(wrapper.get('[data-testid="npc-dialogue"]').text()).toContain('Publican')
+    key('keydown', 'KeyE')
+    await flushPromises()
+    expect(wrapper.get('[data-testid="npc-line"]').text()).not.toBe(first)
+    while (!wrapper.find('[data-testid="npc-enter"]').exists()) {
+      key('keydown', 'KeyE')
+      await flushPromises()
+    }
+    await wrapper.get('[data-testid="npc-enter"]').trigger('click')
+    expect(wrapper.find('[data-testid="npc-dialogue"]').exists()).toBe(false)
+    expect(wrapper.get('.game-info-card').text()).toContain('Social')
+    wrapper.unmount()
+  })
+
+  it('marks a discovery found on E', async () => {
+    localStorage.clear()
+    const wrapper = mountMap(null)
+    key('keydown', 'KeyD')
+    await frames(300)
+    key('keyup', 'KeyD')
+    await frames(3)
+    key('keydown', 'KeyE')
+    await flushPromises()
+    expect(wrapper.get('[data-testid="npc-dialogue"]').text()).toContain('Lost memory stick')
+    expect(JSON.parse(localStorage.getItem('sharlock.discoveries'))).toContain('usb-stick')
+    wrapper.unmount()
+  })
 })

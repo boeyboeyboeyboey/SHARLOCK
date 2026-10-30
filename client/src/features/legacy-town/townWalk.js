@@ -41,11 +41,16 @@ export function buildingBlock(game) {
   return { x: x + 96 - half, y: top, w: half * 2, h: y + 194 - top }
 }
 
-export function createTownWalk(games) {
-  const blocks = [...SCENERY, ...games.map(buildingBlock)]
+// fixed adds blocks that never move; dynamic returns blocks for things that do (wanderers)
+export function createTownWalk(games, { fixed = [], dynamic = () => [] } = {}) {
+  const blocks = [...SCENERY, ...fixed, ...games.map(buildingBlock)]
 
   function walkable(x, y) {
-    return GROUND.some((rect) => inside(rect, x, y)) && !blocks.some((rect) => inside(rect, x, y))
+    return (
+      GROUND.some((rect) => inside(rect, x, y)) &&
+      !blocks.some((rect) => inside(rect, x, y)) &&
+      !dynamic().some((rect) => inside(rect, x, y))
+    )
   }
 
   // try the whole step, then each axis alone so walls are slid along; stay put when boxed in

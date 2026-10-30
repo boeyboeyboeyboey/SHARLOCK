@@ -109,3 +109,52 @@ test('shows one still pose under reduced motion', async ({ page }, testInfo) => 
   expect(await art.innerHTML()).toBe(facingRight)
   await page.keyboard.up('KeyD')
 })
+
+// holds a key to roughly the target, then taps it a step at a time until the talk prompt shows
+async function walkToTalk(page, key, axis, sign, target) {
+  await hold(page, key, axis, sign, target)
+  await expect
+    .poll(
+      async () => {
+        const count = await page.getByTestId('talk-prompt').count()
+        if (!count) await page.keyboard.press(key)
+        return count
+      },
+      { timeout: 20_000 },
+    )
+    .toBe(1)
+}
+
+test('talks to a keeper with E and steps through the dialogue', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chromium', 'needs a physical keyboard')
+  test.setTimeout(60_000)
+  await page.goto('/dashboard')
+  // the publican stands left of the office door on the start row
+  await walkToTalk(page, 'KeyA', 'x', -1, 300)
+  await expect(page.getByTestId('talk-prompt')).toHaveAccessibleName('Talk to Publican')
+  await page.keyboard.press('KeyE')
+  const dialogue = page.getByTestId('npc-dialogue')
+  await expect(dialogue).toBeVisible()
+  await expect(dialogue.getByRole('heading', { name: 'Publican' })).toBeVisible()
+  const first = await page.getByTestId('npc-line').innerText()
+  await page.keyboard.press('KeyE')
+  await expect(page.getByTestId('npc-line')).not.toHaveText(first)
+  await page.keyboard.press('Escape')
+  await expect(dialogue).toBeHidden()
+})
+
+test('finds a discovery with E and the Menu count goes up', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chromium', 'needs a physical keyboard')
+  test.setTimeout(60_000)
+  await page.goto('/dashboard')
+  // the lost memory stick lies in the east yard on the start row
+  await walkToTalk(page, 'KeyD', 'x', 1, 1000)
+  await page.keyboard.press('KeyE')
+  const dialogue = page.getByTestId('npc-dialogue')
+  await expect(dialogue.getByRole('heading', { name: 'Lost memory stick' })).toBeVisible()
+  await dialogue.getByRole('button', { name: 'Next' }).click()
+  await dialogue.getByRole('button', { name: 'Got it' }).click()
+  await expect(dialogue).toBeHidden()
+  await page.getByTestId('menu-button').click()
+  await expect(page.getByTestId('menu-discoveries')).toContainText('1/6')
+})
