@@ -126,7 +126,7 @@ describe('lore intro', () => {
   it('waits on a loading message until the scene is ready', async () => {
     const wrapper = mountIntro({ ready: false })
     for (let i = 0; i < LORE_CARDS.length; i += 1) await vi.advanceTimersByTimeAsync(cardGap(i))
-    expect(card(wrapper)).toBe('Loading the wharf…')
+    expect(card(wrapper)).toBe('Loading the town…')
     await vi.advanceTimersByTimeAsync(10000)
     expect(wrapper.emitted('done')).toBeUndefined()
     await wrapper.setProps({ ready: true })

@@ -324,7 +324,7 @@ test('fills the window below the navbar without sideways scroll', async ({ page 
   }))
   expect(metrics.hub).toBeGreaterThanOrEqual(metrics.viewport - metrics.navbar - 2)
   expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth)
-  await expect(page.getByRole('heading', { level: 1, name: 'Thames Wharf' })).toHaveCount(1)
+  await expect(page.getByRole('heading', { level: 1, name: '3D town' })).toHaveCount(1)
   await expect(page.getByText('Welcome to Sharlock Town')).toHaveCount(0)
 })
 
@@ -365,13 +365,13 @@ test('remounts the hub after leaving it and keeps the news dialog usable', async
   expect(await page.evaluate(() => window.__hub.state.inputPaused)).toBe(false)
 })
 
-test('switches between the 3D wharf and the 2D town and remembers the choice', async ({ page }) => {
+test('switches between the 3D town and the 2D town and remembers the choice', async ({ page }) => {
   const toggle = page.getByTestId('town-mode-toggle')
   const town = page.getByRole('region', { name: 'Interactive town map' })
   await page.goto('/')
   await hubReady(page)
   await expect(toggle).toHaveText('2D')
-  await expect(toggle).toHaveAccessibleName('2D map')
+  await expect(toggle).toHaveAccessibleName('2D town')
   await expect(toggle).toHaveAttribute('aria-pressed', 'false')
   await expect(town).toHaveCount(0)
   // the 3D hub plays its own ambience loop, never the town music
@@ -387,7 +387,7 @@ test('switches between the 3D wharf and the 2D town and remembers the choice', a
   await expect(page.locator('canvas.hub-canvas')).toHaveCount(0)
   expect(await page.evaluate(() => window.__hub)).toBeUndefined()
   await expect(toggle).toHaveText('3D')
-  await expect(toggle).toHaveAccessibleName('3D wharf')
+  await expect(toggle).toHaveAccessibleName('3D town')
   await expect(toggle).toHaveAttribute('aria-pressed', 'false')
 
   await page.reload()

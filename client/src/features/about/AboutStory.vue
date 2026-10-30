@@ -95,13 +95,13 @@ onMounted(async () => {
     <section id="graphics" class="about-details" aria-labelledby="about-graphics-heading">
       <h2 id="about-graphics-heading">3D and 2D modes</h2>
       <p>
-        The wharf is 3D by default. On devices without WebGL 2, or ones that draw in software,
-        Sharlock picks the 2D map automatically. Low-memory devices start on low graphics. You can
+        The town is 3D by default. On devices without WebGL 2, or ones that draw in software,
+        Sharlock picks the 2D town automatically. Low-memory devices start on low graphics. You can
         change Graphics or switch between 3D and 2D any time, and your choice is remembered.
       </p>
       <p>
-        If it's struggling: on Auto, Sharlock watches how smoothly the wharf runs. It lowers
-        graphics step by step and, if that is still not enough, switches to the 2D map. The
+        If it's struggling: on Auto, Sharlock watches how smoothly the 3D town runs. It lowers
+        graphics step by step and, if that is still not enough, switches to the 2D town. The
         Graphics setting and the 2D/3D toggle let you override this any time.
       </p>
     </section>

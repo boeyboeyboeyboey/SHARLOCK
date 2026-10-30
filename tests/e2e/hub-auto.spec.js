@@ -29,11 +29,11 @@ const frames = (page, count = 30) =>
   )
 const stored = (page, key) => page.evaluate((k) => localStorage.getItem(k), key)
 
-test('picks the 2D map automatically and remembers a dismissed notice', async ({ page }) => {
+test('picks the 2D town automatically and remembers a dismissed notice', async ({ page }) => {
   await page.goto('/')
   const notice = page.getByTestId('town-mode-notice')
   await expect(page.getByRole('region', { name: 'Interactive town map' })).toBeVisible()
-  await expect(notice).toContainText('may not run the 3D wharf smoothly')
+  await expect(notice).toContainText('may not run the 3D town smoothly')
   await expect(notice.getByRole('link', { name: 'Why?' })).toHaveAttribute(
     'href',
     '/about#graphics',
@@ -57,7 +57,7 @@ test('asks before trying 3D and persists a confirmed choice', async ({ page }) =
 
   await toggle.click()
   await expect(warning).toBeVisible()
-  await expect(warning).toContainText('This device may struggle to run the 3D wharf')
+  await expect(warning).toContainText('This device may struggle to run the 3D town')
   await expect(page.getByTestId('hub-3d-cancel')).toBeFocused()
   await page.screenshot({ path: `${shots}/hub02-warning.png` })
   await page.keyboard.press('Escape')
@@ -117,7 +117,7 @@ test.describe('runtime performance watch', () => {
     await simulate(page, 10)
     await expect(page.getByRole('region', { name: 'Interactive town map' })).toBeVisible()
     await expect(page.getByTestId('town-mode-notice')).toContainText(
-      'struggling to run the 3D wharf',
+      'struggling to run the 3D town',
     )
     expect(await stored(page, 'sharlock.townMode')).toBeNull()
     expect(JSON.parse(await stored(page, 'sharlock.hubPerf'))).toMatchObject({

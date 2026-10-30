@@ -16,8 +16,8 @@ const props = defineProps({
   logoutPending: { type: Boolean, default: false },
   // a selector whose subtree keeps Escape for itself (a game panel with its own dialogs)
   escapeIgnoreWithin: { type: String, default: '' },
-  label3d: { type: String, default: '3D wharf' },
-  label2d: { type: String, default: '2D map' },
+  label3d: { type: String, default: '3D town' },
+  label2d: { type: String, default: '2D town' },
 })
 const emit = defineEmits(['update:menuOpen', 'toggle-mode', 'sign-out', 'navigate'])
 const menuButton = ref(null)

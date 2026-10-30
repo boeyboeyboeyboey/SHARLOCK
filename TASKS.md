@@ -2209,6 +2209,11 @@ The following records preserve checks and coordination from earlier tasks. They 
 - **Fix:** one import in `client/src/features/hub/engine.js` next to `instancedMesh.js`.
 - **Verified (31 Oct, local preview, SwiftShader):** instance counts present (crates 55, barrels 32, lamp heads 34, bollards 14, workers 8, gulls 9), origin clear, 309 draws (298 before, on Boey's WebGPU); hub vitest 223/223. Not run: hub E2E, real GPU after the fix.
 
+**COPY-01 — "3D town" and "2D town"** · Status: **Review** · Contributor: **Boey** · Branch: `copy-01-town-names` (31 October 2026) · Requested by Boey on 31 October 2026 ("wharf" is not a common word for our users).
+
+- User-facing labels, banners, aria labels and headings now say "3D town" and "2D town" ("3D wharf", "2D map", "Thames Wharf", "Loading the wharf" replaced) in Dashboard, Hub3dWarning, ImmersiveControls, HubScene, engine canvas label, LoreIntro and About; README, DESIGN.md and the hub README follow. Lore text (the intro's "Thames Wharf" line, NPC lines, sign art), code names, paths and comments are unchanged.
+- **Verified (31 Oct):** vitest features + views + router 612/612; eslint clean on changed files; E2E in the closing full run.
+
 **INT-02 — Games inside the room** · Status: **Review** · Contributor: **Boey** · Branch: `int-02-games-in-room` (cut from local `main` at `7c6b53e`, 31 October 2026) · Plan approved by Boey on 31 October 2026 (package E; Boey's approval covers the game owners' consent for this shared chrome).
 
 - **Stage 1 (chrome):** `/games` parent is `immersive`, so the navbar and sidebar drop on all five game routes; the footer is gated off for interior routes. InteriorLayout mounts ImmersiveControls (Menu + SiteMenu, sound slot with the room sound button, 3D/2D as a session-only room override, `end` slot with a glass **Exit game**). New shared `components/common/ConfirmDialog.vue` ("Leave the game?" / "An unfinished round won't be saved." / Leave game / Keep playing). Menu navigation from a game asks the same; the games' own Back to town links are unguarded (owners' flows). No game module edited.
