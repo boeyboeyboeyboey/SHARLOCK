@@ -192,9 +192,11 @@ describe('places', () => {
     expect(places.find('h3').text()).toBe('Places')
     const buttons = places.findAll('button')
     expect(buttons.map((node) => node.attributes('aria-label'))).toEqual(
-      gameCatalog.map((game) => game.name),
+      gameCatalog.map((game) => (game.needs3d ? `${game.name}, needs 3D` : game.name)),
     )
-    expect(buttons.map((node) => node.text())).toEqual(gameCatalog.map((game) => game.shortName))
+    expect(buttons.map((node) => node.text())).toEqual(
+      gameCatalog.map((game) => (game.needs3d ? `${game.shortName}3D` : game.shortName)),
+    )
     wrapper.unmount()
   })
 

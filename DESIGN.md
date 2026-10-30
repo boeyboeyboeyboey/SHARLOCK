@@ -196,6 +196,8 @@ The six activities are already registered. Keep their identities and placements 
 | LLM Social Engineering Simulator          | `social-engineering-simulator` | office    | (432, 520) | Playable, saved (Review)   |
 | Clearance Tower (replaced Regex Defender) | `clearance-tower`              | shed      | (720, 496) | Playable, saved (Review)   |
 
+A game that only works in 3D sets `needs3d: true` in its catalog entry: the 2D info card and the Places row then show a small "3D" badge (`aria-label` "Needs 3D"), and the game page shows a short "Needs 3D" state when WebGL2 is missing (the 2D town setting does not block it). Botnet Tag (`botnet-tag`, `warehouse` building at (240, 600), Server Yard on the east lane of the wharf) is the first.
+
 Each `gameCatalog.js` entry also carries two optional row fields: `shortName` (one line, at most 18 characters, validated) and `accent` (a six digit hex colour for the destination row's left bar, taken from the game's own theme and at least 3:1 against the dark glass; validated). Set both for a new game.
 
 All routes use `/games/<catalog-id>`. The four retired illustrative URLs redirect: `integrity-detective` → `cli-cyber-defender`, `mini-ctf` → `sql-injection-arcade`, `access-control` → `social-engineering-simulator`, `red-blue` → `clearance-tower`; the former `regex-defender` URL also redirects to `clearance-tower`. They do not add entries or buildings.

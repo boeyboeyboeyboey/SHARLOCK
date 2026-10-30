@@ -17,6 +17,7 @@ export const accents = {
   post: '#d3302f',
   pub: '#f0a23a',
   police: '#3f6fd1',
+  yard: '#7bd88f',
 };
 
 // west buildings face east, east buildings face west; face is the yaw of the facade normal (sin = x, cos = z)
@@ -27,6 +28,7 @@ export const destinations = [
   { id: 'phishing-post-mortem', title: 'The Phishing Post-Mortem', accent: accents.post, x: 10, z: -2, face: -Math.PI / 2, reach: 2.8, building: 'post' },
   { id: 'social-engineering-simulator', title: 'LLM Social Engineering Simulator', accent: accents.pub, x: -10, z: -21, face: Math.PI / 2, reach: 2.8, building: 'pub' },
   { id: 'clearance-tower', title: 'Clearance Tower', accent: accents.police, x: -10, z: 0, face: Math.PI / 2, reach: 2.8, building: 'police' },
+  { id: 'botnet-tag', title: 'Botnet Tag', accent: accents.yard, x: 40, z: 20.5, face: -Math.PI / 2, reach: 2.8, building: 'warehouse' },
 ];
 
 // axis aligned rectangles the player may walk on, and blockers cut out of them

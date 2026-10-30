@@ -19,3 +19,17 @@ describe('game catalog row fields', () => {
     ).not.toThrow()
   })
 })
+
+describe('needs 3d flag', () => {
+  it('marks botnet tag as needing 3d and no other entry', () => {
+    expect(gameCatalog.filter((game) => game.needs3d).map((game) => game.id)).toEqual([
+      'botnet-tag',
+    ])
+  })
+
+  it('accepts only a boolean', () => {
+    const base = gameCatalog[0]
+    expect(() => defineGameCatalog([{ ...base, needs3d: true }])).not.toThrow()
+    expect(() => defineGameCatalog([{ ...base, needs3d: 'yes' }])).toThrow('Needs 3D')
+  })
+})

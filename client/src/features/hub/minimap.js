@@ -1,7 +1,7 @@
 // pure map maths for the hub minimap: world metres (x east, z north) to a north up svg, no babylon imports so the page chunk stays light
 
 // the slice of the world the map shows
-export const mapBounds = { x0: -34, x1: 44, z0: -60, z1: 80 };
+export const mapBounds = { x0: -34, x1: 52, z0: -60, z1: 80 };
 export const mapSize = { width: mapBounds.x1 - mapBounds.x0, height: mapBounds.z1 - mapBounds.z0 };
 
 // world point to svg units; z grows northwards so it flips
@@ -55,6 +55,7 @@ const shortLabels = {
   'phishing-post-mortem': 'Phish',
   'social-engineering-simulator': 'Social',
   'clearance-tower': 'Tower',
+  'botnet-tag': 'Tag',
 };
 export const shortLabel = (id, name = '') => shortLabels[id] ?? (name.split(/\s+/)[0] || id);
 

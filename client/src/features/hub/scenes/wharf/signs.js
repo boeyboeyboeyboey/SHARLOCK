@@ -28,6 +28,7 @@ const boards = [
   ['hotel', 'fascia', ['THE ANCHOR HOTEL  -  BEDS'], '#2c3f66', '#f6e8b6', '#d4ac52'],
   ['bakery', 'fascia', ['BAKER & CONFECTIONER'], '#7a3e4a', '#fdecc0', '#e0b050'],
   ['chemist', 'fascia', ['APOTHECARY  -  DRUGGIST'], '#2e5a50', '#f2e6b8', '#d2ac52'],
+  ['server-fascia', 'fascia', ['SERVER YARD'], '#12301f', '#bff5cf', '#4fd37f'],
 ];
 
 function fit(ctx, text, width, start, weight = 'bold') {

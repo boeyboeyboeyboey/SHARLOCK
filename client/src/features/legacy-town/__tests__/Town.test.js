@@ -7,8 +7,9 @@ import TownAudio from '../TownAudio.vue'
 afterEach(() => vi.restoreAllMocks())
 
 describe('town registration contract', () => {
-  it('registers the six planned features with distinct buildings and honest readiness', () => {
+  it('registers the planned features with distinct buildings and honest readiness', () => {
     expect(gameCatalog.map((game) => game.id).sort()).toEqual([
+      'botnet-tag',
       'clearance-tower',
       'cli-cyber-defender',
       'phishing-post-mortem',
@@ -16,7 +17,7 @@ describe('town registration contract', () => {
       'sql-injection-arcade',
       'threat-briefing',
     ])
-    expect(new Set(gameCatalog.map((game) => game.building.type)).size).toBe(6)
+    expect(new Set(gameCatalog.map((game) => game.building.type)).size).toBe(7)
     expect(gameCatalog.filter((game) => !game.isPreview).map((game) => game.id)).toEqual([
       'cli-cyber-defender',
       'phishing-post-mortem',
@@ -24,6 +25,7 @@ describe('town registration contract', () => {
       'threat-briefing',
       'social-engineering-simulator',
       'clearance-tower',
+      'botnet-tag',
     ])
     expect(
       gameCatalog.find((game) => game.id === 'social-engineering-simulator').building.type,
@@ -49,6 +51,14 @@ describe('town registration contract', () => {
   ])('rejects unusable building metadata: %j', (changes, error) => {
     expect(() => defineGameCatalog([{ ...gameCatalog[0], ...changes }])).toThrow(error)
   })
+  it('shows a Needs 3D badge only for games that need 3D', () => {
+    const stubs = { RouterLink: { props: ['to'], template: '<a :href="to"><slot /></a>' } }
+    const plain = mount(GameInfoCard, { props: { game: gameCatalog[0] }, global: { stubs } })
+    expect(plain.find('[aria-label="Needs 3D"]').exists()).toBe(false)
+    const tag = gameCatalog.find((game) => game.id === 'botnet-tag')
+    const wrapper = mount(GameInfoCard, { props: { game: tag }, global: { stubs } })
+    expect(wrapper.get('[aria-label="Needs 3D"]').text()).toBe('3D')
+  })
   it('rejects duplicate IDs that would hide or select the wrong building', () => {
     expect(() => defineGameCatalog([gameCatalog[0], gameCatalog[0]])).toThrow('unique')
   })
@@ -63,7 +73,7 @@ describe('town registration contract', () => {
       expect(wrapper.get('h2').text()).toBe(game.name)
       expect(wrapper.text()).toContain(game.description)
       for (const concept of game.backgroundKnowledge) expect(wrapper.text()).toContain(concept)
-      expect(wrapper.get('[role="img"]').attributes('aria-label')).toBe(
+      expect(wrapper.get('.difficulty-stars').attributes('aria-label')).toBe(
         `Difficulty: ${game.difficulty} out of 3 stars`,
       )
       expect(wrapper.findAll('.difficulty-stars .pixel-icon:not(.star-empty)')).toHaveLength(

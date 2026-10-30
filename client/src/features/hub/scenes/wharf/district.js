@@ -201,7 +201,7 @@ export function buildDistrict({ world, signs }) {
   };
   warehouse({ x: 41.5, z: -21, yaw: W_, W: 22, D: 14, wall: 'brickYellow', color: [0.95, 0.82, 0.74, 1], fascia: 'bonded', doorColor: [0.3, 0.2, 0.14, 1] }, 5);
   warehouse({ x: 41.5, z: 2, yaw: W_, W: 24, D: 14, wall: 'brickRed', color: [0.88, 0.76, 0.72, 1], fascia: 'tea', doorColor: [0.3, 0.2, 0.14, 1] }, -5);
-  warehouse({ x: 41.5, z: 20.5, yaw: W_, W: 13, D: 14, wall: 'brickYellow', color: [0.92, 0.82, 0.76, 1], doorColor: [0.3, 0.2, 0.14, 1] });
+  warehouse({ x: 41.5, z: 20.5, yaw: W_, W: 13, D: 14, wall: 'brickYellow', color: [0.92, 0.82, 0.76, 1], fascia: 'server-fascia', doorColor: [0.12, 0.3, 0.2, 1] });
   // quayside warehouses with the hoist over the water side
   const westWh = warehouse({ x: -30, z: 38, yaw: E, W: 14, D: 14, floors: 4, wall: 'brickRed', color: [0.9, 0.78, 0.74, 1], fascia: 'wharfinger', back: true, doorColor: [0.3, 0.2, 0.14, 1] }, 3);
   const eastWh = warehouse({ x: 42, z: 38, yaw: W_, W: 14, D: 14, floors: 4, wall: 'brickYellow', color: [0.94, 0.84, 0.76, 1], fascia: 'cooper', back: true, doorColor: [0.3, 0.2, 0.14, 1] }, -3);

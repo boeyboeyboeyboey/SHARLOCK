@@ -1,0 +1,344 @@
+/* every rule is scoped to .botnet-tag-game; glass panels over the arena placeholder */
+.botnet-tag-game {
+  --game-bg: #0b1220;
+  --game-glass: rgb(20 32 46 / 72%);
+  --game-edge: rgb(243 238 221 / 28%);
+  --game-ink: #f3eedd;
+  --game-muted: #c9c5b6;
+  --game-focus: #ffd479;
+  --game-bad: #ff5a4d;
+  --game-good: #6fe39a;
+  --game-warn: #ffc65a;
+  --game-bot: #8bff5a;
+  --game-radius: 10px;
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 64px 16px 16px;
+  overflow: auto;
+  background: var(--game-bg);
+  color: var(--game-ink);
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+}
+.botnet-tag-game .tag-arena {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at 50% 60%, #1c3a2c, var(--game-bg) 70%);
+}
+.botnet-tag-game .tag-glass,
+.botnet-tag-game .tag-panel {
+  position: relative;
+  border: 1px solid var(--game-edge);
+  border-radius: var(--game-radius);
+  background: var(--game-glass);
+  box-shadow: 0 8px 26px rgb(0 0 0 / 40%);
+  backdrop-filter: blur(12px) saturate(1.15);
+  color: var(--game-ink);
+}
+.botnet-tag-game .tag-panel {
+  width: min(640px, 100%);
+  max-height: 100%;
+  padding: 20px;
+  overflow: auto;
+}
+.botnet-tag-game .tag-panel h1 {
+  margin: 0;
+  font-size: 22px;
+}
+.botnet-tag-game .tag-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.botnet-tag-game .tag-class {
+  margin: 4px 0 0;
+  color: var(--game-muted);
+}
+.botnet-tag-game .tag-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--game-edge);
+  border-radius: var(--game-radius);
+  background: var(--game-glass);
+  color: var(--game-ink);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+.botnet-tag-game .tag-btn.is-primary {
+  border-color: var(--game-good);
+  background: #2a7d4f;
+  color: #fff;
+}
+.botnet-tag-game .tag-btn:focus-visible,
+.botnet-tag-game select:focus-visible {
+  outline: 3px solid var(--game-focus);
+  outline-offset: 2px;
+}
+.botnet-tag-game .tag-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+.botnet-tag-game .tag-foot.is-end {
+  justify-content: flex-end;
+}
+.botnet-tag-game .tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 99px;
+  background: rgb(255 255 255 / 14%);
+  color: var(--game-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+.botnet-tag-game .tag-chip.is-ready {
+  background: #1f7a4a;
+  color: #fff;
+}
+.botnet-tag-game .tag-chip.is-bot {
+  background: #3b4a6b;
+  color: #dfe8ff;
+}
+.botnet-tag-game .tag-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+  padding: 0;
+  list-style: none;
+}
+.botnet-tag-game .tag-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--game-edge);
+  border-radius: var(--game-radius);
+  background: rgb(255 255 255 / 6%);
+  text-align: center;
+}
+.botnet-tag-game .tag-card.is-me {
+  border-color: var(--game-focus);
+}
+.botnet-tag-game .tag-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.botnet-tag-game .tag-name {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  font-weight: 700;
+}
+.botnet-tag-game .tag-countdown {
+  min-height: 56px;
+  color: var(--game-warn);
+  font:
+    800 44px ui-monospace,
+    monospace;
+  text-align: center;
+}
+.botnet-tag-game .tag-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--game-good);
+  border-radius: var(--game-radius);
+  background: #16573a;
+  font-size: 26px;
+}
+.botnet-tag-game .tag-banner.is-botnet {
+  border-color: var(--game-bad);
+  background: #4b1d18;
+}
+.botnet-tag-game .tag-pills {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 10px 0;
+}
+.botnet-tag-game .tag-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.botnet-tag-game .tag-table th,
+.botnet-tag-game .tag-table td {
+  padding: 8px 6px;
+  border-top: 1px solid rgb(255 255 255 / 12%);
+  text-align: right;
+}
+.botnet-tag-game .tag-table thead th {
+  border-top: 0;
+  color: var(--game-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+.botnet-tag-game .tag-table th:first-child,
+.botnet-tag-game .tag-table th:nth-child(2),
+.botnet-tag-game .tag-table td:nth-child(2) {
+  text-align: left;
+}
+.botnet-tag-game .tag-table tr.is-me > * {
+  background: rgb(255 212 121 / 10%);
+}
+.botnet-tag-game .tag-pill {
+  display: inline-flex;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.botnet-tag-game .tag-pill.is-ok {
+  background: #1f7a4a;
+}
+.botnet-tag-game .tag-pill.is-bad {
+  background: #7d2a22;
+}
+.botnet-tag-game .tag-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 12px;
+}
+.botnet-tag-game select {
+  min-height: 44px;
+  border: 1px solid var(--game-edge);
+  border-radius: var(--game-radius);
+  background: var(--game-glass);
+  color: var(--game-ink);
+  font: inherit;
+}
+.botnet-tag-game .tag-hud {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+.botnet-tag-game .tag-hud-top {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  transform: translateX(-50%);
+}
+.botnet-tag-game .tag-timer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 22px;
+  font:
+    700 30px/1.1 ui-monospace,
+    'SF Mono',
+    monospace;
+}
+.botnet-tag-game .tag-timer.is-urgent {
+  border-color: var(--game-bad);
+  color: #ffb3ab;
+  box-shadow: 0 0 0 2px rgb(255 90 77 / 35%);
+}
+.botnet-tag-game .tag-count {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  font-size: 15px;
+}
+.botnet-tag-game .tag-pips {
+  display: flex;
+  gap: 4px;
+}
+.botnet-tag-game .tag-pips i {
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--game-muted);
+  border-radius: 50%;
+}
+.botnet-tag-game .tag-pips i.is-on {
+  border-color: var(--game-bot);
+  background: var(--game-bot);
+}
+.botnet-tag-game .tag-status {
+  position: absolute;
+  top: 60px;
+  left: 12px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.botnet-tag-game .tag-immunity {
+  position: absolute;
+  bottom: 14px;
+  left: 12px;
+  width: min(260px, 52vw);
+  padding: 10px 12px;
+}
+.botnet-tag-game .tag-immunity b {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+.botnet-tag-game .tag-bar {
+  height: 12px;
+  overflow: hidden;
+  border: 1px solid var(--game-edge);
+  border-radius: 7px;
+  background: rgb(255 255 255 / 14%);
+}
+.botnet-tag-game .tag-bar i {
+  display: block;
+  height: 100%;
+  background: #2fb6e0;
+}
+.botnet-tag-game .tag-toast {
+  position: absolute;
+  bottom: 110px;
+  left: 50%;
+  margin: 0;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+@media (max-width: 600px) {
+  .botnet-tag-game .tag-timer {
+    padding: 4px 16px;
+    font-size: 24px;
+  }
+  .botnet-tag-game .is-optional {
+    display: none;
+  }
+  .botnet-tag-game .tag-immunity {
+    bottom: 100px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .botnet-tag-game * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

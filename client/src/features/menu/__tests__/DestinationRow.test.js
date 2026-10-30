@@ -21,4 +21,14 @@ describe('destination row', () => {
     expect(off.attributes('aria-pressed')).toBe('false')
     expect(off.text()).not.toContain('✓')
   })
+
+  it('adds a needs 3D badge to a plain row only', () => {
+    const tag = { ...game, needs3d: true }
+    const row = mount(DestinationRow, { props: { game: tag } })
+    expect(row.text()).toContain('3D')
+    expect(row.attributes('aria-label')).toBe(`${tag.name}, needs 3D`)
+    const toggle = mount(DestinationRow, { props: { game: tag, pressed: false } })
+    expect(toggle.text()).not.toContain('3D')
+    expect(toggle.attributes('aria-label')).toBe(tag.name)
+  })
 })

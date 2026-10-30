@@ -59,3 +59,13 @@
     background: CanvasText;
   }
 }
+
+.dest-row-3d {
+  margin-left: auto;
+  padding: 1px 6px;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
