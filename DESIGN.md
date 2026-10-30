@@ -43,6 +43,11 @@ Applies to shared pages, the hub and every game (including games' own design fre
 - Keep short titles and labels, and everything needed for access or correctness: form labels, `aria-*` text, errors and validation, empty states, confirmations for destructive actions.
 - Teach a game through its How to play preview (animated scene), not paragraphs on the play screen.
 
+### Phone touch targets (FIX-04, Boey, 1 November 2026)
+
+- Below 576px a game page keeps only a 60px strip for the floating Menu and Exit controls (the 3D room or its 2D still), so the game's Start sits above the fold at 375 x 667.
+- Every 3D | 2D toggle, the hub map pins on touch screens and the "Sign in" switch link are at least 44px high; the Esc key badge is hidden on touch devices.
+
 ### How to play dialog
 
 Games show their guide through `client/src/components/common/HowToPlayDialog.vue` (HOW-01), not a custom modal. It is a native `<dialog>` with a step caption, step dots, Previous/Next, a "What you'll learn" line, rules, controls, a "Don't show again" checkbox saved to the account, and a "Start playing" button. The game supplies the animated mini-UI through the `scene` slot, built in code (no images, GIF or video). The scene advances every 4 seconds with a **Pause animation** toggle (`aria-pressed`, WCAG 2.2.2); under `prefers-reduced-motion` it starts paused and shows static steps. A game themes the dialog from its own root with `--game-howto-*` variables (`surface`, `scene`, `edge`, `ink`, `muted`, `soft`, `bar`, `bar-ink`, `bad`, `bad-soft`, `font`), which fall back to the shared tokens; never style it from `:root` or another module.

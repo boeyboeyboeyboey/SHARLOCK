@@ -45,7 +45,7 @@ test.describe('3d interior', () => {
 const rooms = [
   ['phishing-post-mortem', /phishing/i],
   ['sql-injection-arcade', /sql/i],
-  ['social-engineering-simulator', /social/i],
+  ['social-engineering-simulator', /help desk/i],
   ['clearance-tower', /clearance/i],
 ]
 test.describe('3d interiors for the other four games', () => {

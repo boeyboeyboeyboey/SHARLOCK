@@ -78,11 +78,8 @@ defineExpose({ clearSecrets })
         required
         :disabled="pending"
         :aria-invalid="Boolean(identifierError)"
-        :aria-describedby="
-          identifierError ? 'login-identifier-hint login-identifier-error' : 'login-identifier-hint'
-        "
+        :aria-describedby="identifierError ? 'login-identifier-error' : undefined"
       />
-      <small id="login-identifier-hint">Use your email address or username.</small>
       <p v-if="identifierError" id="login-identifier-error" class="auth-field-error">
         {{ identifierError }}
       </p>
@@ -101,9 +98,7 @@ defineExpose({ clearSecrets })
           required
           :disabled="pending"
           :aria-invalid="Boolean(passwordError)"
-          :aria-describedby="
-            passwordError ? 'login-password-hint login-password-error' : 'login-password-hint'
-          "
+          :aria-describedby="passwordError ? 'login-password-error' : undefined"
           @keydown.alt.s.prevent="showPassword = !showPassword"
         />
         <button
@@ -119,7 +114,6 @@ defineExpose({ clearSecrets })
           {{ showPassword ? 'Hide' : 'Show' }}
         </button>
       </div>
-      <small id="login-password-hint">Enter your account password.</small>
       <p v-if="passwordError" id="login-password-error" class="auth-field-error">
         {{ passwordError }}
       </p>

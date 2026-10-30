@@ -207,12 +207,9 @@ defineExpose({ clearSecrets })
         required
         :disabled="pending"
         :aria-invalid="Boolean(emailError)"
-        :aria-describedby="
-          emailError ? 'register-email-hint register-email-error' : 'register-email-hint'
-        "
+        :aria-describedby="emailError ? 'register-email-error' : undefined"
         @blur="leave('email', email)"
       />
-      <small id="register-email-hint">Use this email to sign in.</small>
       <p v-if="emailError" id="register-email-error" class="auth-field-error" role="status">
         {{ emailError }}
       </p>
@@ -299,9 +296,7 @@ defineExpose({ clearSecrets })
           required
           :disabled="pending"
           :aria-invalid="Boolean(confirmationError)"
-          :aria-describedby="
-            confirmationError ? 'register-confirmation-error' : 'register-confirmation-hint'
-          "
+          :aria-describedby="confirmationError ? 'register-confirmation-error' : undefined"
           @blur="leave('passwordConfirmation', passwordConfirmation)"
           @keydown.alt.s.prevent="showConfirmation = !showConfirmation"
         />
@@ -318,7 +313,6 @@ defineExpose({ clearSecrets })
           {{ showConfirmation ? 'Hide' : 'Show' }}
         </button>
       </div>
-      <small id="register-confirmation-hint">Enter the same password again.</small>
       <p
         v-if="confirmationError"
         id="register-confirmation-error"
