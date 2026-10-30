@@ -202,11 +202,11 @@ pnpm test:integration  # API tests against a disposable MongoDB
 pnpm test:e2e          # Playwright journeys on a phone and a desktop viewport
 ```
 
-`test:unit` needs no database. `test:integration` and `test:e2e` start and remove their own `_test` MongoDB; both run with a replica set, so the first run downloads the pinned MongoDB binary and the transactional account, class, admin and recovery tests run without extra flags. Each integration test file gets its own `_test` database on that server (`server/tests/integration/setup-database.js`), so files run in parallel without seeing each other's data. How these map to the WAD2 testing weeks is in [course alignment](docs/course-alignment.md).
+`test:unit` needs no database. `test:integration` and `test:e2e` start and remove their own `_test` MongoDB; both run with a replica set, so the first run downloads the pinned MongoDB binary and the transactional account, class, admin and recovery tests run without extra flags. Each integration test file gets its own `_test` database on that server (`server/tests/integration/setup-database.js`), so files never see each other's data; the script runs the files one after another because parallel files trip the shared rate limits. `test:e2e` keeps its own Vite cache in `.local/e2e-vite-cache`, so a running `pnpm dev` is not disturbed. How these map to the WAD2 testing weeks is in [course alignment](docs/course-alignment.md).
 
 **Troubleshooting:**
 
-- Blank page with `504 Outdated Optimize Dep` in the console: stop `pnpm dev`, run `rm -rf client/node_modules/.vite`, then restart.
+- Blank page with `504 Outdated Optimize Dep` in the console: stop `pnpm dev`, run `rm -rf client/node_modules/.vite`, then restart (`test:e2e` uses its own cache and no longer causes this).
 - 3D view will not load or runs slowly: the hub falls back to the 2D town on devices without WebGL2 or with a software renderer. Use the 3D | 2D switch or set Graphics to Low. Phones (a touch screen narrower than 768px) also open the 2D town by default; the switch asks before sending them to 3D.
 
 ### Using the app

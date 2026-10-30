@@ -13,6 +13,7 @@ export default [
       'test-results/**',
       '.cache/**',
       '.local/**',
+      '.local-handover/**',
     ],
   },
   js.configs.recommended,

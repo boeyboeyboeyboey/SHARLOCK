@@ -376,6 +376,8 @@ async function enterSelected() {
 function pauseFromProp(value) {
   hub?.pauseInput(value || talk.open.value)
   if (value) hub?.back()
+  // pausing clears a walk in progress, so a pick made under the intro starts once it closes
+  else if (view.selected && !talk.open.value) hub?.select(view.selected)
 }
 
 let createHub = null
@@ -442,6 +444,7 @@ async function mountHub(resume = null) {
     () => {
       if (!gone && mine === generation) {
         next.setPeers(latestPeers)
+        if (view.selected && !paused.value) next.select(view.selected)
         if (auth.user && !presenceStarted) {
           presenceStarted = true
           presence.start()

@@ -384,6 +384,8 @@ export const useAuthStore = defineStore('auth', () => {
 
   // optimistic: the dialog hides at once, the server list replaces it, a failure restores it
   async function setHowToPlayDismissed(gameId, dismissed) {
+    // a choice made while the session is still loading waits for it instead of being dropped
+    if (status.value === 'loading' && restoreRequest) await restoreRequest.promise.catch(() => null)
     const current = user.value
     if (status.value !== 'authenticated' || !current) return
     const previous = current.howToPlayDismissed

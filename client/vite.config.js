@@ -12,6 +12,10 @@ export default defineConfig(({ mode }) => {
   const apiPort = process.env.PORT || env.PORT || '3000'
 
   return {
+    // e2e passes its own cache so a running dev client keeps its prebundled deps
+    ...(process.env.SHARLOCK_VITE_CACHE_DIR
+      ? { cacheDir: process.env.SHARLOCK_VITE_CACHE_DIR }
+      : {}),
     plugins: [vue()],
     resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
     server: {

@@ -72,7 +72,11 @@ export default defineConfig({
       url: 'http://localhost:5174',
       reuseExistingServer: false,
       timeout: 30000,
-      env: { PORT: '3001', CLIENT_ORIGIN: 'http://localhost:5174' },
+      env: {
+        PORT: '3001',
+        CLIENT_ORIGIN: 'http://localhost:5174',
+        SHARLOCK_VITE_CACHE_DIR: resolve('.local', 'e2e-vite-cache'),
+      },
     },
   ],
 })
