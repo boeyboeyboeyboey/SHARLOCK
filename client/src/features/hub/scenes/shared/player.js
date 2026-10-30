@@ -443,7 +443,7 @@ export function createPlayer({ scene, canvas, camera, ground, sharlock, reduced,
     },
     hop: () => jump.hop(),
     sprint: startSprint,
-    sprintState: () => ({ phase: sprint.state(), left: sprint.cooldownLeft(), speed }),
+    sprintState: () => ({ phase: sprint.state(), left: sprint.cooldownLeft(), speed: baseSpeed * sprint.multiplier() }),
     airborne: () => jump.isAirborne(),
     routeSerial: () => routeSerial,
     teleport(x, z) {

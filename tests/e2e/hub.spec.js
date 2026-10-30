@@ -612,7 +612,6 @@ test('Shift starts a sprint that recharges and then becomes ready again', async 
   await expect(sprint).toHaveAttribute('aria-disabled', 'false')
   await page.keyboard.press('Shift')
   await expect(sprint).toHaveAttribute('data-state', 'active')
-  expect((await page.evaluate(() => window.__hub.debug.sprintState())).speed).toBeCloseTo(11.52)
   await expect(sprint).toHaveAttribute('data-state', 'cooldown', { timeout: 10_000 })
   await expect(sprint).toHaveAttribute('aria-disabled', 'true')
   await expect(sprint).toHaveAccessibleDescription('Sprint recharging')
@@ -621,4 +620,10 @@ test('Shift starts a sprint that recharges and then becomes ready again', async 
   await expect(sprint).toHaveAttribute('data-state', 'cooldown')
   await expect(sprint).toHaveAttribute('data-state', 'ready', { timeout: 15_000 })
   await expect(sprint).toHaveAccessibleDescription('Sprint ready')
+  // started and read in one call so a slow software renderer can't let the burst lapse first
+  const speed = await page.evaluate(() => {
+    window.__hub.debug.sprint()
+    return window.__hub.debug.sprintState().speed
+  })
+  expect(speed).toBeCloseTo(11.52)
 })
