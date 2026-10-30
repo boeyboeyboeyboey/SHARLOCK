@@ -174,6 +174,8 @@ export const routes = [
     path: '/games',
     redirect: '/',
     component: () => import('../features/interiors/InteriorLayout.vue'),
+    // game screens carry their own glass controls instead of the navbar and sidebar
+    meta: { immersive: true },
     children: [
       {
         path: '/games/sql-injection-arcade',

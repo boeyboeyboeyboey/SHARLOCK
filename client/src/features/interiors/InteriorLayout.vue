@@ -1,19 +1,25 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
+import ConfirmDialog from '../../components/common/ConfirmDialog.vue'
 import PixelIcon from '../../components/town/PixelIcon.vue'
 import { useGameAudio } from '../../composables/useGameAudio.js'
+import { useAuthStore } from '../auth/store.js'
 import { getDeviceCheck } from '../hub/deviceCheck.js'
 import { readGraphics } from '../hub/graphics.js'
 import { createSampler, decidePerf, realSamplingOff } from '../hub/perfWatch.js'
 import { getTier } from '../hub/scenes/shared/quality.js'
-import { useTownControls } from '../menu/townControls.js'
+import ImmersiveControls from '../menu/ImmersiveControls.vue'
+import { useSignOut, useTownControls } from '../menu/townControls.js'
 import { readStoredMode, resolveMode } from '../legacy-town/useTownMode.js'
 import { decideRender, fallbackGradient, stillUrl } from './renderMode.js'
 import { roomFor } from './rooms/index.js'
 import { createInterior } from './useInteriorEngine.js'
 
 const route = useRoute()
+const router = useRouter()
+const auth = useAuthStore()
+const signOut = useSignOut()
 const roomId = computed(() => String(route.meta.interior ?? ''))
 const room = computed(() => roomFor(roomId.value))
 
@@ -34,7 +40,17 @@ const canvas = ref(null)
 const tier = getTier(new URLSearchParams(window.location.search), readGraphics())
 const reducedQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
 
-const townMode = computed(() => resolveMode({ stored, device, failed: failed.value }).mode)
+const resolved = computed(() => resolveMode({ stored, device, failed: failed.value }))
+// the switch in the game chrome overrides the stored choice for this visit only
+const override = ref(null)
+const townMode = computed(() =>
+  resolved.value.locked ? '2d' : (override.value ?? resolved.value.mode),
+)
+function toggleMode() {
+  const next = townMode.value === '3d' ? '2d' : '3d'
+  override.value = next
+  if (next === '3d') slow.value = false
+}
 const renderMode = computed(() =>
   room.value
     ? decideRender({
@@ -87,6 +103,43 @@ async function start() {
 onMounted(start)
 watch([roomId, renderMode], start)
 onBeforeUnmount(stop)
+
+// leaving through our own chrome (Exit game, the site menu) asks first; the games' own links do not
+const menuOpen = ref(false)
+const confirmOpen = ref(false)
+let pending = null
+let chromeLeave = false
+let leaveConfirmed = false
+let chromeTimer = null
+
+function markMenuNavigation() {
+  chromeLeave = true
+  clearTimeout(chromeTimer)
+  chromeTimer = setTimeout(() => (chromeLeave = false), 1000)
+}
+function askExit() {
+  pending = '/'
+  confirmOpen.value = true
+}
+function cancelLeave() {
+  confirmOpen.value = false
+  pending = null
+}
+function confirmLeave() {
+  confirmOpen.value = false
+  leaveConfirmed = true
+  const target = pending ?? '/'
+  pending = null
+  router.push(target)
+}
+onBeforeRouteLeave((to) => {
+  if (leaveConfirmed || !chromeLeave) return true
+  chromeLeave = false
+  pending = to.fullPath
+  confirmOpen.value = true
+  return false
+})
+onBeforeUnmount(() => clearTimeout(chromeTimer))
 </script>
 
 <template>
@@ -121,18 +174,55 @@ onBeforeUnmount(stop)
         />
       </template>
     </div>
-    <button
-      v-if="!missing"
-      class="sound-button interior-sound"
-      type="button"
-      data-testid="interior-sound"
-      :aria-label="isMuted ? 'Turn on game sound' : 'Mute game sound'"
-      :aria-pressed="!isMuted"
-      :disabled="starting"
-      @click="toggle"
+    <ImmersiveControls
+      v-model:menu-open="menuOpen"
+      :mode="townMode"
+      :locked="resolved.locked"
+      :user="auth.user"
+      :logout-pending="auth.logoutPending"
+      label3d="3D room"
+      label2d="2D still"
+      escape-ignore-within=".interior-desk"
+      @toggle-mode="toggleMode"
+      @navigate="markMenuNavigation"
+      @sign-out="signOut"
     >
-      <PixelIcon :name="isMuted ? 'mute' : 'sound'" :size="20" />
-    </button>
+      <template #sound>
+        <div class="immersive-sound">
+          <button
+            v-if="!missing"
+            class="sound-button interior-sound"
+            type="button"
+            data-testid="interior-sound"
+            :aria-label="isMuted ? 'Turn on game sound' : 'Mute game sound'"
+            :aria-pressed="!isMuted"
+            :disabled="starting"
+            @click="toggle"
+          >
+            <PixelIcon :name="isMuted ? 'mute' : 'sound'" :size="20" />
+          </button>
+        </div>
+      </template>
+      <template #end>
+        <button
+          type="button"
+          class="glass-surface glass-button"
+          data-testid="exit-game"
+          @click="askExit"
+        >
+          Exit game
+        </button>
+      </template>
+    </ImmersiveControls>
+    <ConfirmDialog
+      :open="confirmOpen"
+      title="Leave the game?"
+      message="An unfinished round won't be saved."
+      confirm-label="Leave game"
+      cancel-label="Keep playing"
+      @confirm="confirmLeave"
+      @cancel="cancelLeave"
+    />
     <div class="interior-desk" data-testid="interior-desk">
       <RouterView />
     </div>
@@ -151,7 +241,10 @@ onBeforeUnmount(stop)
   /* the room shrinks vertically on short windows so fitted games keep their height */
   --room-gap-y: clamp(0px, calc((100dvh - 760px) / 4), var(--room-gap));
   --room-wood: #3b2a1d;
+  /* the floating Menu and Exit controls take this strip above the desk */
+  --top-band: 60px;
   position: relative;
+  min-height: 100dvh;
   isolation: isolate;
   margin: calc(-1 * var(--pt)) calc(-1 * var(--gutter)) calc(-1 * var(--pb));
 }
@@ -246,7 +339,7 @@ onBeforeUnmount(stop)
 
 @media (min-width: 768px) {
   .interior {
-    padding: var(--room-gap-y) 0;
+    padding: var(--top-band) 0 var(--room-gap-y);
   }
 
   .interior-desk {
@@ -257,61 +350,23 @@ onBeforeUnmount(stop)
 /* fitted games measure the window minus the shell, so the room gap comes off that too; on windows under 700px high the room gap and frame go and the game gets the old size */
 @media (min-width: 768px) and (min-height: 600px) {
   .interior-desk {
-    --shell-chrome: calc(176px + 2 * var(--room-gap-y));
+    --shell-chrome: calc(var(--top-band) + var(--room-gap-y) + 28px);
   }
 }
 
 @media (min-width: 768px) and (min-height: 600px) and (max-height: 699.98px) {
   .interior-desk {
-    --shell-chrome: 176px;
     margin-inline: 0;
     box-shadow: none;
   }
 }
 
-/* glass button in the room band: top right on phones, centred in the room's top gap from 768px */
-.interior .interior-sound {
-  position: absolute;
-  z-index: 2;
-  top: 8px;
-  right: 8px;
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  padding: 0;
-  border: 1px solid rgb(243 238 221 / 0.35);
-  border-radius: 12px;
-  background: rgb(20 32 46 / 0.72);
-  color: #f3eedd;
-  box-shadow: 0 6px 18px rgb(0 0 0 / 0.35);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  transform: none;
-  cursor: pointer;
+/* a game screen has no navbar, sidebar or footer: the shell gives their space back */
+:global(.portal-shell.is-immersive:has(.interior)) {
+  --header-height: 0px;
 }
-
-.interior .interior-sound:hover:not(:disabled),
-.interior .interior-sound:active:not(:disabled) {
-  background: rgb(46 62 80 / 0.85);
-  transform: none;
-  box-shadow: 0 6px 18px rgb(0 0 0 / 0.35);
-}
-
-.interior .interior-sound:focus-visible {
-  outline: 3px solid #ffd479;
-  outline-offset: 2px;
-}
-
-.interior .interior-sound:disabled {
-  opacity: 0.55;
-}
-
-@media (min-width: 768px) {
-  .interior .interior-sound {
-    top: max(4px, calc((var(--room-gap-y) - 40px) / 2));
-    right: max(8px, calc((var(--room-gap) - 40px) / 2));
-  }
+:global(.portal-shell.is-immersive:has(.interior) .portal-workspace) {
+  margin-left: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {

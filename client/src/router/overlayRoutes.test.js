@@ -46,10 +46,17 @@ describe('menu overlay routes', () => {
 
   it('keeps the navbar on every page outside the town', async () => {
     const router = makeRouter()
-    for (const path of ['/instructor', '/admin', '/login', '/games/phishing-post-mortem']) {
+    for (const path of ['/instructor', '/admin', '/login']) {
       await router.push(path)
       expect(router.currentRoute.value.meta.immersive).toBeUndefined()
     }
+  })
+
+  it('gives the game screens the immersive shell with their own controls', async () => {
+    const router = makeRouter()
+    await router.push('/games/phishing-post-mortem')
+    expect(router.currentRoute.value.meta.immersive).toBe(true)
+    expect(router.currentRoute.value.meta.interior).toBe('phishing-post-mortem')
   })
 
   it('keeps the Times as an overlay of the town', async () => {
