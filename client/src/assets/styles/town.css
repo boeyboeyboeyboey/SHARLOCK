@@ -246,6 +246,19 @@
 .town-npc-flip {
   display: block;
 }
+.town-peer-name {
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  transform: translateX(-50%);
+  padding: 0 4px;
+  border-radius: 3px;
+  background: rgba(30, 40, 34, 0.78);
+  color: #fff8df;
+  font-size: 11px;
+  line-height: 15px;
+  white-space: nowrap;
+}
 .town-npc-flip.is-left {
   transform: scaleX(-1);
 }

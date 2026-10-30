@@ -51,14 +51,23 @@ export function createPresenceService(
     }
   }
 
-  function stateOf(connection) {
-    return {
+  // what a viewer may know about a peer: coordinates only when both share a mode, else just that they are online
+  function stateOf(connection, viewer = connection) {
+    const base = {
       type: 'state',
       sid: connection.sid,
       username: connection.username,
       avatarId: connection.avatarId,
       look: connection.look,
       role: connection.role,
+      mode: connection.mode,
+    }
+    if (connection.mode !== viewer.mode) return { ...base, moving: false }
+    if (connection.mode === '2d') {
+      return { ...base, x: connection.x, y: connection.y, moving: connection.moving }
+    }
+    return {
+      ...base,
       x: connection.x,
       z: connection.z,
       yaw: connection.yaw,
@@ -66,10 +75,28 @@ export function createPresenceService(
     }
   }
 
+  function broadcastState(connection) {
+    for (const peer of roomMembers.get(connection.cohortId) ?? []) {
+      if (peer !== connection) send(peer, stateOf(connection, peer))
+    }
+  }
+
   function broadcast(connection, message) {
     for (const peer of roomMembers.get(connection.cohortId) ?? []) {
       if (peer !== connection) send(peer, message)
     }
+  }
+
+  function sendSnapshot(connection) {
+    const members = roomMembers.get(connection.cohortId) ?? new Set()
+    send(connection, {
+      type: 'snapshot',
+      you: connection.sid,
+      mode: connection.mode,
+      peers: [...members]
+        .filter((peer) => peer !== connection && peer.positioned)
+        .map((peer) => stateOf(peer, connection)),
+    })
   }
 
   function leaveRoom(connection) {
@@ -85,13 +112,8 @@ export function createPresenceService(
     leaveRoom(connection)
     connection.cohortId = cohortId
     if (!roomMembers.has(cohortId)) roomMembers.set(cohortId, new Set())
-    const members = roomMembers.get(cohortId)
-    send(connection, {
-      type: 'snapshot',
-      you: connection.sid,
-      peers: [...members].filter((peer) => peer.positioned).map(stateOf),
-    })
-    members.add(connection)
+    sendSnapshot(connection)
+    roomMembers.get(cohortId).add(connection)
   }
 
   function strike(connection) {
@@ -129,14 +151,23 @@ export function createPresenceService(
       return
     }
     connection.lastMoveAt = current
-    Object.assign(connection, {
-      x: message.x,
-      z: message.z,
-      yaw: message.yaw,
-      moving: message.moving,
-      positioned: true,
-    })
-    broadcast(connection, stateOf(connection))
+    const switched = connection.mode !== message.mode
+    Object.assign(
+      connection,
+      message.mode === '2d'
+        ? { mode: '2d', x: message.x, y: message.y, moving: message.moving, positioned: true }
+        : {
+            mode: '3d',
+            x: message.x,
+            z: message.z,
+            yaw: message.yaw,
+            moving: message.moving,
+            positioned: true,
+          },
+    )
+    // a mode switch re-announces: the mover gets a fresh snapshot of its new mode's peers
+    if (switched) sendSnapshot(connection)
+    broadcastState(connection)
   }
 
   function register(ws, session, cohortId) {
@@ -152,7 +183,9 @@ export function createPresenceService(
       look: publicLook(user),
       role: roleFor(user.globalRoles),
       cohortId: null,
+      mode: '3d',
       x: 0,
+      y: 0,
       z: 0,
       yaw: 0,
       moving: false,

@@ -7,6 +7,7 @@ import { sharlockMarkup, townFindMarkup, townNpcMarkup } from './townArt.js'
 import { createTownWalk, doorPoint } from './townWalk.js'
 import { useTownWalker } from './useTownWalker.js'
 import { useTownNpcs } from './useTownNpcs.js'
+import { useTownPresence } from './useTownPresence.js'
 import { fixedNpcBlocks, footBlock, TALK_RANGE, townFinds, townNpcs } from './townNpcs.js'
 import NpcDialogue from '../hub/NpcDialogue.vue'
 import { advanceTalk, useNpcDialogue } from '../hub/useNpcDialogue.js'
@@ -70,6 +71,11 @@ const npcArt = Object.fromEntries(townNpcs.map((npc) => [npc.id, townNpcMarkup(n
 const npcDefs = new Map(townNpcs.map((npc) => [npc.id, npc]))
 const findArt = townFindMarkup()
 const walker = useTownWalker({ walk, reducedMotion, afterMove: stepCamera })
+// classmates are ghosts: drawn only, never added to the walk blocks
+const classmates = useTownPresence({
+  getPlayer: () => ({ x: walker.x.value, y: walker.y.value }),
+  reducedMotion,
+})
 const heroMarkup = computed(() => sharlockMarkup(walker.facing.value, walker.frame.value))
 const doorGame = computed(() => (props.paused || nearTalk.value ? null : walker.doorGame.value))
 const nearTalk = computed(() => {
@@ -455,6 +461,7 @@ onMounted(() => {
   syncFloor()
   window.addEventListener('keydown', walkingKey)
   npcState.start()
+  classmates.start()
   window.addEventListener('keyup', walkingKeyUp)
   viewport.value.addEventListener('wheel', wheelCamera, { passive: false })
   document.addEventListener('pointermove', moveGesture)
@@ -473,6 +480,7 @@ onBeforeUnmount(() => {
   cancelAnimationFrame(resizeFrame)
   walker.dispose()
   npcState.dispose()
+  classmates.dispose()
   window.removeEventListener('keydown', walkingKey)
   window.removeEventListener('keyup', walkingKeyUp)
   resizeObserver?.disconnect()
@@ -614,6 +622,25 @@ onBeforeUnmount(() => {
               :class="{ 'is-left': find.facing === 'left' }"
               v-html="find.kind === 'npc' ? npcArt[find.id] : findArt"
             />
+          </div>
+          <div
+            v-for="peer in classmates.list.value"
+            :key="peer.sid"
+            class="town-npc town-peer"
+            data-testid="town-peer"
+            :data-username="peer.username"
+            :data-frame="peer.frame"
+            :style="{ left: `${peer.x}px`, top: `${peer.y}px`, zIndex: Math.round(peer.y) + 1 }"
+            aria-hidden="true"
+          >
+            <div
+              class="town-npc-flip"
+              :class="{ 'is-left': peer.facing === 'left' }"
+              v-html="peer.markup"
+            />
+            <span class="town-peer-name"
+              >{{ peer.username }}{{ peer.staff ? ' (staff)' : '' }}</span
+            >
           </div>
           <div
             class="town-hero"

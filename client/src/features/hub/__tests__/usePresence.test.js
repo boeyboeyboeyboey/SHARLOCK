@@ -252,3 +252,48 @@ describe('presence connection', () => {
     presence.stop()
   })
 })
+
+describe('presence 2d mode', () => {
+  it('sends 2d moves and hands only 2d peers to the town while the roster counts everyone', async () => {
+    const flat = { x: 120, y: 340 }
+    const { presence, onPeers } = make({ mode: '2d', getPlayer: () => flat })
+    await presence.start()
+    const socket = FakeSocket.all[0]
+    socket.open()
+    clock += 110
+    vi.advanceTimersByTime(110)
+    expect(socket.sent.find((m) => m.type === 'move')).toEqual({
+      type: 'move',
+      mode: '2d',
+      x: 120,
+      y: 340,
+      moving: false,
+    })
+    socket.say({
+      type: 'snapshot',
+      you: 'me',
+      peers: [
+        peer('flat', { mode: '2d', x: 5, y: 6, z: undefined }),
+        peer('deep', { mode: '3d' }),
+        peer('old'),
+      ],
+    })
+    expect([...onPeers.mock.lastCall[0].keys()]).toEqual(['flat'])
+    expect(usePresenceRoster().state.peers).toHaveLength(3)
+    presence.stop()
+  })
+
+  it('a 3d client ignores 2d peers in what it draws', async () => {
+    const { presence, onPeers } = make()
+    await presence.start()
+    FakeSocket.all[0].open()
+    FakeSocket.all[0].say({
+      type: 'snapshot',
+      you: 'me',
+      peers: [peer('flat', { mode: '2d' }), peer('deep', { mode: '3d' })],
+    })
+    expect([...onPeers.mock.lastCall[0].keys()]).toEqual(['deep'])
+    expect(usePresenceRoster().count.value).toBe(2)
+    presence.stop()
+  })
+})

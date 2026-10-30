@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   BOUNDS,
+  BOUNDS_2D,
   MAX_PAYLOAD_BYTES,
   movesTooFast,
   normalizeYaw,
@@ -12,10 +13,46 @@ import { publicLook } from '../../../src/modules/presence/look.js'
 const move = (overrides = {}) =>
   JSON.stringify({ type: 'move', x: 1, z: 2, yaw: 0.5, moving: true, ...overrides })
 
+const move2d = (overrides = {}) =>
+  JSON.stringify({ type: 'move', mode: '2d', x: 300, y: 400, moving: true, ...overrides })
+
+describe('presence 2d moves', () => {
+  it('accepts a clean 2d move and defaults moving to false', () => {
+    expect(parseClientMessage(move2d())).toEqual({
+      type: 'move',
+      mode: '2d',
+      x: 300,
+      y: 400,
+      moving: true,
+    })
+    expect(parseClientMessage(move2d({ moving: undefined })).moving).toBe(false)
+  })
+
+  it('clamps to the 1120 by 800 world', () => {
+    const parsed = parseClientMessage(move2d({ x: 99999, y: -5 }))
+    expect(parsed.x).toBe(BOUNDS_2D.maxX)
+    expect(parsed.y).toBe(BOUNDS_2D.minY)
+  })
+
+  it.each([
+    ['a string x', move2d({ x: '1' })],
+    ['a null y', move2d({ y: null })],
+    ['a non-boolean moving', move2d({ moving: 1 })],
+    ['an unknown mode', move2d({ mode: '4d' })],
+  ])('rejects %s', (_label, raw) => {
+    expect(parseClientMessage(raw)).toBeNull()
+  })
+
+  it('treats a 3d move with an explicit mode like the default', () => {
+    expect(parseClientMessage(move({ mode: '3d' })).mode).toBe('3d')
+  })
+})
+
 describe('presence message validation', () => {
   it('accepts a clean move', () => {
     expect(parseClientMessage(move())).toEqual({
       type: 'move',
+      mode: '3d',
       x: 1,
       z: 2,
       yaw: 0.5,

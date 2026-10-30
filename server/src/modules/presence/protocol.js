@@ -3,6 +3,9 @@ export const PRESENCE_PATH = '/api/presence'
 export const MAX_PAYLOAD_BYTES = 256
 export const MIN_MOVE_INTERVAL_MS = 100
 export const BOUNDS = Object.freeze({ minX: -60, maxX: 70, minZ: -90, maxZ: 80 })
+// the 2d town is a 1120 x 800 world in css px
+export const BOUNDS_2D = Object.freeze({ minX: 0, maxX: 1120, minY: 0, maxY: 800 })
+export const MODES = Object.freeze(['2d', '3d'])
 
 const COHORT_ID = /^[a-f0-9]{24}$/
 
@@ -36,6 +39,19 @@ export function parseClientMessage(raw) {
       : null
   }
   if (message.type === 'move') {
+    if (message.mode !== undefined && !MODES.includes(message.mode)) return null
+    if (message.mode === '2d') {
+      const { x, y, moving = false } = message
+      if (![x, y].every((value) => typeof value === 'number' && Number.isFinite(value))) return null
+      if (typeof moving !== 'boolean') return null
+      return {
+        type: 'move',
+        mode: '2d',
+        x: round(clamp(x, BOUNDS_2D.minX, BOUNDS_2D.maxX)),
+        y: round(clamp(y, BOUNDS_2D.minY, BOUNDS_2D.maxY)),
+        moving,
+      }
+    }
     const { x, z, yaw, moving } = message
     if (![x, z, yaw].every((value) => typeof value === 'number' && Number.isFinite(value))) {
       return null
@@ -43,6 +59,7 @@ export function parseClientMessage(raw) {
     if (typeof moving !== 'boolean') return null
     return {
       type: 'move',
+      mode: '3d',
       x: round(clamp(x, BOUNDS.minX, BOUNDS.maxX)),
       z: round(clamp(z, BOUNDS.minZ, BOUNDS.maxZ)),
       yaw: clamp(round(normalizeYaw(yaw)), -3.141, 3.141),

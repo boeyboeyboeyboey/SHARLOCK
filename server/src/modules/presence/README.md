@@ -29,9 +29,10 @@ A room is a class (cohort) id. A student is placed by the server in their active
 ## Wire protocol (JSON, 256-byte cap)
 
 - client to server `{"type":"move","x":n,"z":n,"yaw":n,"moving":bool}`: x clamped to -60..70, z to -90..80, yaw wrapped to (-pi, pi], rounded to 3 dp; at most 10 per second per connection, faster ones are dropped.
+- client to server `{"type":"move","mode":"2d","x":n,"y":n,"moving":bool}` (TOWN-03 stage 3, the 2D town): x clamped to 0..1120, y to 0..800 world px, `moving` optional (default false); same 10 per second limit. A connection starts in `3d`; its first move in another mode switches it and re-sends it a `snapshot`. Any other `mode` value is a bad message.
 - client to server `{"type":"join","cohortId":"<24 hex>"}`: staff only, first message.
-- server to client `{"type":"snapshot","you":sid,"peers":[state...]}`: on entering a room; peers that have moved at least once.
-- server to client `{"type":"state","sid","username","avatarId","look","role","x","z","yaw","moving"}`: after a valid move from another member of the room.
+- server to client `{"type":"snapshot","you":sid,"mode","peers":[state...]}`: on entering a room and after a mode switch; peers that have moved at least once, shaped for the receiver's mode as above.
+- server to client `{"type":"state","sid","username","avatarId","look","role","mode","x","z","yaw","moving"}`: after a valid move from another member of the room. A 2d peer carries `x`,`y`,`moving` instead of `z`,`yaw`. Positions go only to viewers in the same mode; a viewer in the other mode gets the same state with `mode` but no coordinates (`moving` false), so it still counts the classmate online without seeing where they are.
 - server to client `{"type":"leave","sid"}`: a member left the room or disconnected.
 
 `sid` is random per connection. `look` is `{scarf,hat,monocle,accessory}` catalog item ids from `look.js`. Emails, user ids and rosters are never sent. Invalid JSON, unknown types and bad fields are ignored; 30 bad messages in 10 s close the socket (4408), an oversized frame closes it (1009).

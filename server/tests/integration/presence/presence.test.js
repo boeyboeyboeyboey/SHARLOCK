@@ -250,7 +250,19 @@ describe('presence rooms', () => {
     expect(wire).not.toContain(one.user.id)
     expect(wire).not.toContain(two.user.id)
     expect(Object.keys(find(wsTwo, 'state')).sort()).toEqual(
-      ['avatarId', 'look', 'moving', 'role', 'sid', 'type', 'username', 'x', 'yaw', 'z'].sort(),
+      [
+        'avatarId',
+        'look',
+        'mode',
+        'moving',
+        'role',
+        'sid',
+        'type',
+        'username',
+        'x',
+        'yaw',
+        'z',
+      ].sort(),
     )
     expect(Object.keys(find(wsTwo, 'state').look).sort()).toEqual(
       ['accessory', 'hat', 'monocle', 'scarf'].sort(),
@@ -293,6 +305,94 @@ describe('presence rooms', () => {
     for (let index = 0; index < 5; index += 1) move(wsOne, index, 0)
     await new Promise((resolve) => setTimeout(resolve, 200))
     expect(wsTwo.messages.filter((message) => message.type === 'state')).toHaveLength(1)
+  })
+})
+
+const move2d = (ws, x = 300, y = 400) =>
+  ws.send(JSON.stringify({ type: 'move', mode: '2d', x, y, moving: true }))
+const settle = () => new Promise((resolve) => setTimeout(resolve, 150))
+
+describe('presence 2d mode', () => {
+  it('shows positions only to the same mode while everyone counts in the roster', async () => {
+    const cohort = await makeClass('m')
+    const [flat, flatToo, deep] = [
+      await student(cohort),
+      await student(cohort),
+      await student(cohort),
+    ]
+    const wsFlat = await connect(flat)
+    const wsFlatToo = await connect(flatToo)
+    const wsDeep = await connect(deep)
+    await until(() => find(wsDeep, 'snapshot'), 'snapshot')
+    move2d(wsFlatToo, 10, 20)
+    move2d(wsFlat)
+    await settle()
+    move(wsDeep)
+    await until(
+      () => wsFlatToo.messages.some((m) => m.type === 'state' && m.x === 300),
+      'flat sees flat',
+    )
+    expect(wsFlatToo.messages.find((m) => m.type === 'state' && m.x === 300)).toMatchObject({
+      mode: '2d',
+      y: 400,
+    })
+    await until(() => wsDeep.messages.filter((m) => m.type === 'state').length >= 2, 'deep states')
+    const seenByDeep = wsDeep.messages.filter((m) => m.type === 'state')
+    for (const state of seenByDeep) {
+      expect(state.mode).toBe('2d')
+      expect(state).not.toHaveProperty('x')
+      expect(state).not.toHaveProperty('y')
+    }
+    await settle()
+    const seenByFlat = wsFlat.messages.filter(
+      (m) => m.type === 'state' && m.sid === find(wsDeep, 'snapshot').you,
+    )
+    expect(seenByFlat.length).toBeGreaterThan(0)
+    for (const state of seenByFlat) {
+      expect(state.mode).toBe('3d')
+      expect(state).not.toHaveProperty('x')
+    }
+  })
+
+  it('rejects bad 2d coordinates and clamps out-of-range ones', async () => {
+    const cohort = await makeClass('c')
+    const [one, two] = [await student(cohort), await student(cohort)]
+    const wsOne = await connect(one)
+    const wsTwo = await connect(two)
+    await until(() => find(wsTwo, 'snapshot'), 'snapshot')
+    wsOne.send(JSON.stringify({ type: 'move', mode: '2d', x: 'a', y: 1 }))
+    await settle()
+    expect(wsTwo.messages.filter((m) => m.type === 'state')).toEqual([])
+    move2d(wsTwo)
+    move2d(wsOne, 5000, -50)
+    await until(() => find(wsTwo, 'state'), 'clamped state')
+    expect(find(wsTwo, 'state')).toMatchObject({ x: 1120, y: 0, mode: '2d' })
+  })
+
+  it('re-announces on a mode switch and keeps other classes out', async () => {
+    const classA = await makeClass('s')
+    const classB = await makeClass('t')
+    const [one, two, other] = [await student(classA), await student(classA), await student(classB)]
+    const wsOne = await connect(one)
+    const wsTwo = await connect(two)
+    const wsOther = await connect(other)
+    await until(() => find(wsTwo, 'snapshot'), 'snapshot')
+    move(wsOne)
+    await until(() => find(wsTwo, 'state'), 'first state')
+    await new Promise((resolve) => setTimeout(resolve, 120))
+    move2d(wsTwo)
+    await until(
+      () => wsTwo.messages.filter((m) => m.type === 'snapshot').length === 2,
+      'resnapshot',
+    )
+    const again = wsTwo.messages.filter((m) => m.type === 'snapshot')[1]
+    expect(again.mode).toBe('2d')
+    expect(again.peers[0]).toMatchObject({ username: one.user.username, mode: '3d' })
+    expect(again.peers[0]).not.toHaveProperty('x')
+    move2d(wsOther)
+    await settle()
+    expect(wsOne.messages.filter((m) => m.username === other.user.username)).toEqual([])
+    expect(wsTwo.messages.filter((m) => m.username === other.user.username)).toEqual([])
   })
 })
 
