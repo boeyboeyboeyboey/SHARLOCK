@@ -67,7 +67,7 @@ Boey accepted **RECON-01** and approved its direct merge into `main` on 13 Octob
 
 ## 4. Stack and module contracts
 
-Use HTML, CSS, plain JavaScript, Vue 3 SFCs with `<script setup>`, Bootstrap 5.3.x, Vue Router, Pinia, Axios, Node.js, Express, Mongoose and MongoDB. Use the pinned runtime/manifests, pnpm and the single root lockfile. HUB-01 additionally authorizes `@babylonjs/core` 9.31.0 and `@babylonjs/havok` 1.3.14 (free licences, pinned exact) for `client/src/features/hub/` and, under INT-01, `client/src/features/interiors/`; `three` is not authorized. MP-01 (Boey, 30 October 2026, with team consent) authorizes `ws` (MIT, pinned exact) in `server/` for wharf presence only. Do not add npm/yarn lockfiles. The README uses npm only to install the pinned pnpm executable; it does not migrate the workspace.
+Use HTML, CSS, plain JavaScript, Vue 3 SFCs with `<script setup>`, Bootstrap 5.3.x, Vue Router, Pinia, Axios, Node.js, Express, Mongoose and MongoDB. Use the pinned runtime/manifests, pnpm and the single root lockfile. HUB-01 additionally authorizes `@babylonjs/core` 9.31.0 and `@babylonjs/havok` 1.3.14 (free licences, pinned exact) for `client/src/features/hub/` and, under INT-01, `client/src/features/interiors/`; `three` is not authorized. MP-01 (Boey, 30 October 2026, with team consent) authorizes `ws` (MIT, pinned exact) in `server/` for wharf presence only; G-TAG (Boey, 31 October 2026, with team consent) widens it to Botnet Tag rounds. Do not add npm/yarn lockfiles. The README uses npm only to install the pinned pnpm executable; it does not migrate the workspace.
 
 Use Vue state, computed values, props/emits and component composition. Limit direct DOM access to justified integrations/accessibility. Keep transient game state inside its module; use shared stores only for shared responsibility. Prefer small components and services over speculative abstractions.
 
@@ -121,6 +121,7 @@ Primary references: [password storage](https://cheatsheetseries.owasp.org/cheats
 
 The server creates attempts, selects player/context/ruleset, checks actions and calculates scores. Enforce ownership, lifecycle, deadlines, bounded action history, concurrency checks and idempotent completion. Keep answers/private state out of public bundles/responses; never accept browser totals or achievement grants. Saved outcomes are performance evidence, not scientifically validated mastery.
 
+- Botnet Tag positions, tags and patch-station puzzles are validated and decided on the server; puzzle answers stay server-private and a snapshot carries only the caller's own puzzle.
 - CLI commands operate on fictional state only; never execute a shell or change a real host/network.
 - Social-engineering chat uses synthetic training codes, server-owned prompts, bounded transcripts and no tools/account access. Prompt text is not a security boundary; the server determines outcomes. Keep real secrets out of prompts/logs.
 - Phishing email/link content is inert synthetic text with no clickable links. The server generates each round from a private seed and checks the report/trust call and selected part against the private answer.
