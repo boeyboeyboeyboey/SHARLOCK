@@ -1,6 +1,9 @@
 import { test, expect } from '@playwright/test'
 import { seedClass, signedInPage } from './fixtures/class.js'
 
+// software webgl builds the yard slowly and the countdown is 30s
+test.setTimeout(240000)
+
 test('a student reaches the lobby, readies up and the countdown starts with bots filling', async ({
   browser,
   baseURL,
