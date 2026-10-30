@@ -73,11 +73,8 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="cohort-page" aria-labelledby="classes-title">
-    <p class="cohort-eyebrow">YOUR LEARNING COMMUNITY</p>
     <h1 id="classes-title" tabindex="-1">Your classes</h1>
-    <p class="cohort-intro">
-      Join a class with your instructor's invitation code. You can keep exploring while you wait.
-    </p>
+    <p class="cohort-intro">Enter your instructor's invitation code to join a class.</p>
     <p v-if="notice" class="cohort-notice" role="status">{{ notice }}</p>
     <JoinCohortForm :pending="joining" :error="error" @submit="submitCode" />
     <p v-if="error && !joining" class="cohort-alert" role="alert">{{ error }}</p>

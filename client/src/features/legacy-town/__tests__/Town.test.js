@@ -70,13 +70,7 @@ describe('town registration contract', () => {
         game.difficulty,
       )
       expect(wrapper.get('a').attributes('href')).toBe(game.route)
-      if (game.isPreview)
-        expect(wrapper.text()).toContain(
-          game.activation === 'direct'
-            ? 'News connection verification pending'
-            : 'Playable game in development',
-        )
-      else if (game.activation !== 'direct') expect(wrapper.text()).toContain('Enter activity')
+      if (game.activation !== 'direct') expect(wrapper.text()).toContain('Enter activity')
       wrapper.unmount()
     }
   })

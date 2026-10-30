@@ -56,8 +56,7 @@ function trap(event) {
         </div>
         <div class="modal-body">
           <p id="hub-3d-warning-text" class="mb-0">
-            This device may struggle to run the 3D town. It could be slow or drain the battery. Try
-            3D anyway?
+            This device may struggle to run the 3D town. It could be slow or drain the battery.
           </p>
         </div>
         <div class="modal-footer">

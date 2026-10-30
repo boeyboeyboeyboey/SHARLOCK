@@ -339,11 +339,7 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="cohort-page" aria-labelledby="class-management-title">
-    <p class="cohort-eyebrow">INSTRUCTOR DESK</p>
     <h1 id="class-management-title" tabindex="-1">Manage your classes</h1>
-    <p class="cohort-intro">
-      Review join requests, manage class access and share an invitation code with learners.
-    </p>
     <p v-if="error" class="cohort-alert" role="alert">{{ error }}</p>
     <p v-if="notice" class="cohort-notice" role="status">{{ notice }}</p>
     <p v-if="loading && cohorts.length === 0" role="status">Loading your classes…</p>

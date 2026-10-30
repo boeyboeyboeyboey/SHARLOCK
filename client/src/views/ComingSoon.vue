@@ -2,7 +2,7 @@
 import PixelIcon from '../components/town/PixelIcon.vue'
 defineProps({
   title: { type: String, required: true },
-  description: { type: String, required: true },
+  description: { type: String, default: '' },
   showMascot: { type: Boolean, default: false },
 })
 </script>
@@ -19,14 +19,10 @@ defineProps({
     <span v-else class="coming-soon-icon"
       ><PixelIcon name="map" :size="64" aria-hidden="true"
     /></span>
-    <p class="eyebrow">ON THE HORIZON</p>
     <h1 tabindex="-1">{{ title }}</h1>
-    <p>{{ description }}</p>
-    <p class="preview-notice">
-      This feature is being prepared. The portal currently uses sample data.
-    </p>
+    <p v-if="description">{{ description }}</p>
     <RouterLink to="/" class="btn btn-primary"
-      ><PixelIcon name="arrow" class="icon-back" :size="19" aria-hidden="true" /> Explore the
+      ><PixelIcon name="arrow" class="icon-back" :size="19" aria-hidden="true" /> Back to
       town</RouterLink
     >
   </section>

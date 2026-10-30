@@ -32,7 +32,6 @@ function closePast() {
   <section class="trophy-case" aria-labelledby="trophy-heading">
     <div class="section-heading">
       <div>
-        <p class="eyebrow">Little wins. Lasting skills.</p>
         <h2 id="trophy-heading">Your trophy case</h2>
       </div>
       <button v-if="past.length" type="button" class="btn btn-secondary" @click="openPast">
@@ -51,9 +50,7 @@ function closePast() {
         </div>
       </li>
     </ul>
-    <p v-else class="empty-trophies">
-      Your first badge is waiting. Complete a case to begin your collection.
-    </p>
+    <p v-else class="empty-trophies">No badges yet. Finish an activity to earn one.</p>
 
     <template v-if="locked.length">
       <h3 id="locked-heading" class="locked-heading">Still to find</h3>

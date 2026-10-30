@@ -507,9 +507,7 @@ test('instructors issue links; admin-only roles have no roster recovery control'
     await studentPage.getByLabel('Password', { exact: true }).fill(studentIdentity.password)
     await studentPage.getByRole('button', { name: 'Sign in' }).click()
     await expect(studentPage).toHaveURL(/\?classRequest=pending$/)
-    await expect(
-      studentPage.getByText(/Your class request is pending staff approval/),
-    ).toBeVisible()
+    await expect(studentPage.getByText(/Class request pending staff approval/)).toBeVisible()
 
     await instructorPage.reload()
     const pendingRow = instructorPage

@@ -94,12 +94,11 @@ async function resendCode() {
     </div>
     <section class="auth-card">
       <AuthSteps :current="step" />
-      <p class="auth-eyebrow">YOUR NEXT CHAPTER STARTS HERE</p>
       <h1 id="register-title" tabindex="-1">
         {{ verifying ? 'Check your email' : 'Create a student account' }}
       </h1>
       <p v-if="!verifying" class="auth-intro">
-        Choose a name and capybara portrait for your detective desk.
+        Choose a username and avatar.
       </p>
 
       <!-- the signed-in view stays outside the transition: signing in navigates away at once, and
@@ -146,7 +145,7 @@ async function resendCode() {
     <aside class="auth-aside">
       <PixelIcon name="shield" :size="30" aria-hidden="true" />
       <h2>Start with your own detective</h2>
-      <p>Registration signs you in automatically. Join a class or skip ahead to personal play. Some activities already save results to your learning progress.</p>
+      <p>Registration signs you in. Join a class or skip ahead to personal play.</p>
       <RouterLink to="/about" class="auth-aside__link">
         About Sharlock <PixelIcon name="arrow" :size="16" aria-hidden="true" />
       </RouterLink>

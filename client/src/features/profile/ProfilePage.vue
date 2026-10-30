@@ -163,9 +163,7 @@ async function retrySession() {
 
 <template>
   <div class="profile-view">
-    <p class="eyebrow">YOUR DETECTIVE DESK</p>
-    <h1 tabindex="-1">A curious mind looks good on you.</h1>
-    <p class="page-description">Your account, your capybara companion and your next discoveries.</p>
+    <h1 tabindex="-1">Your profile</h1>
 
     <template v-if="auth.status === 'authenticated' && auth.user">
       <section class="profile-overview" aria-label="Your profile">
@@ -219,17 +217,13 @@ async function retrySession() {
         </button>
       </div>
       <WardrobePicker />
-      <p class="preview-notice">
-        Your account and avatar are saved. Saved activity results, points and badges are on your
-        learning progress page.
-      </p>
+      <p class="preview-notice">Results, points and badges: see Learning progress.</p>
       <TrophyCase />
     </template>
 
     <section v-else-if="auth.status === 'anonymous'" class="profile-overview" aria-label="Sign in">
       <div>
-        <h2>Make this desk your own.</h2>
-        <p>Sign in or create an account to see your profile and enter Sharlock Town.</p>
+        <h2>Sign in to see your profile.</h2>
         <p v-if="saveSessionExpired" role="status">
           Your profile was saved, but your session ended. Sign in again to see the changes.
         </p>

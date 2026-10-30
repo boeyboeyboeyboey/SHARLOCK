@@ -23,7 +23,9 @@ const percentage = computed(() =>
       <div class="d-flex justify-content-between gap-3 mb-2">
         <span class="small"
           >Your learning journey
-          <span class="progress-count">· {{ completedCount }} of {{ totalCount }} cases</span></span
+          <span class="progress-count"
+            >· {{ completedCount }} of {{ totalCount }} activities</span
+          ></span
         ><strong class="small">{{ percentage }}%</strong>
       </div>
       <div

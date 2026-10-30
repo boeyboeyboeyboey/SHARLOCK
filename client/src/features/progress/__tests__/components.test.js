@@ -31,7 +31,7 @@ describe('progress summary', () => {
     expect(saved.text()).toContain('80 / 100')
     expect(wrapper.findAll('.progress-game')).toHaveLength(6)
     expect(wrapper.get('[data-testid="game-clearance-tower"]').text()).toContain(
-      'Results not saved yet',
+      'Not a scored activity',
     )
     expect(wrapper.text()).toContain('1 of 2 passed')
   })

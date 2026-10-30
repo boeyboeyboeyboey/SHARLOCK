@@ -86,7 +86,7 @@ watch(
         <RouterView />
       </main>
       <footer v-if="!route.meta.interior" class="portal-footer">
-        <span>Made for curious minds.</span><span>SHARLOCK · WAD2</span>
+        <span>SHARLOCK · WAD2</span>
       </footer>
     </div>
   </div>

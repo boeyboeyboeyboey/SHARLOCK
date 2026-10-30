@@ -427,7 +427,7 @@ test('admin manages institutions, assignments, audit history, and account access
     await studentPage.goto(`${origin}/admin`)
     await expect(studentPage).toHaveURL(`${origin}/forbidden`)
     await expect(
-      studentPage.getByRole('heading', { name: 'This case needs permission' }),
+      studentPage.getByRole('heading', { name: "You don't have access to this page." }),
     ).toBeVisible()
   } finally {
     await activationContext?.close()
