@@ -2194,7 +2194,13 @@ The following records preserve checks and coordination from earlier tasks. They 
 **HUB-09 — Skyline seams and the barren south** · Status: **Done (closed with no code change)** · Contributor/reviewer: **Boey** · Branch: `hub-09-seams-south` (fast-forwarded to local `main` at `c420565`; no code commits) · Plan approved by Boey on 29 October 2026 (stage 1, `.local-handover/STAGE1-PLAN-2026-10-29.md`).
 
 - **Finding (30 Oct 2026):** baseline screenshots on the local preview stack (player-like cameras at the north end facing -92° to 92°, the south end facing ±138° and 178°, high and top-down views) showed the mid ±42° seams covered by the HUB-03 far-bank warehouses, no visible seam at 0° at software-render resolution, and the south already filled by HUB-03's backdrop rows (z -54, -72, -93), clock tower, spire, mill stack and gasholder. The walkway object was not found; the only mid-street object from above was Sharlock at spawn.
-- **Decision:** Boey judged the seams, barren south and walkway object to be leftovers already fixed by HUB-03 and closed the task on 30 October 2026. No scene code, tests or assets changed.
+- **Decision:** Boey judged the seams, barren south and walkway object to be leftovers already fixed by HUB-03 and closed the task on 30 October 2026. No scene code, tests or assets changed. The walkway object was later traced to HUB-10.
+
+**HUB-10 — Thin-instanced props drew at the origin** · Status: **Review** · Contributor: **Boey** · Branch: `hub-10-thin-instances` (cut from local `main` at `70f49fb`, 31 October 2026) · Fix approved by Boey on 31 October 2026.
+
+- **Cause:** Babylon 9 registers thin instances only through the side-effect module `@babylonjs/core/Meshes/thinInstanceMesh.js`, which the hub never imported. Every thin-instanced mesh (crates, barrels, bollards, piles, mooring rings, lamp heads and pools, hull foam, dock-worker crowd and legs, gulls) drew one base copy at (0, 0) and no instances: the "wooden figure with white arrows" in the middle of the main street, and no visible dock workers.
+- **Fix:** one import in `client/src/features/hub/engine.js` next to `instancedMesh.js`.
+- **Verified (31 Oct, local preview, SwiftShader):** instance counts present (crates 55, barrels 32, lamp heads 34, bollards 14, workers 8, gulls 9), origin clear, 309 draws (298 before, on Boey's WebGPU); hub vitest 223/223. Not run: hub E2E, real GPU after the fix.
 - **Baseline (SwiftShader, not representative of a GPU):** desktop 5 fps, 281 draws; low tier 15 fps, 78 draws. HUB-08's mobile Jump button is visible at 375 px; its "News vendor" heading was checked on 30 October 2026 (see the HUB-08 record).
 
 ### Town UI review record
