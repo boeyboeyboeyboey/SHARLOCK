@@ -333,6 +333,6 @@ describe('end screen', () => {
     expect(wrapper.findAll('tbody tr')).toHaveLength(2)
     await button(wrapper, 'Play again').trigger('click')
     await flushPromises()
-    expect(wrapper.text()).toContain('The ledger has a loose lock')
+    expect(wrapper.text()).toContain('Start a run')
   })
 })

@@ -48,6 +48,13 @@ Applies to shared pages, the hub and every game (including games' own design fre
 - Below 576px a game page keeps only a 60px strip for the floating Menu and Exit controls (the 3D room or its 2D still), so the game's Start sits above the fold at 375 x 667.
 - Every 3D | 2D toggle, the hub map pins on touch screens and the "Sign in" switch link are at least 44px high; the Esc key badge is hidden on touch devices.
 
+### Overlay consistency (UX-03, Boey, 1 November 2026)
+
+- One heading scale inside every shared overlay (About, Profile and progress, Leaderboards, Settings, Discoveries): overlay title 18px, page h1 1.5rem, h2 1.25rem, h3 1rem. Set once in `client/src/features/menu/menu.css` under `.menu-overlay .overlay-paper`; pages must not set their own heading sizes inside an overlay.
+- One button per role: primary is `.btn-primary`, secondary is `.btn-secondary`, quiet is `.glass-button` (overlay rows) or `.text-link`. The close button sits top right in `OverlayPanel` with the same radius as `.glass-button`; a game keeps Back to town and How to play in its own theme but at the same positions (top left, then the How to play button above the Start control).
+- Settings rows never wrap their control onto a second line at 375px; the Interface size radios share one row.
+- Start screens hold a short title, How to play, the save-to select and one Start button; teaching copy lives in How to play.
+
 ### How to play dialog
 
 Games show their guide through `client/src/components/common/HowToPlayDialog.vue` (HOW-01), not a custom modal. It is a native `<dialog>` with a step caption, step dots, Previous/Next, a "What you'll learn" line, rules, controls, a "Don't show again" checkbox saved to the account, and a "Start playing" button. The game supplies the animated mini-UI through the `scene` slot, built in code (no images, GIF or video). The scene advances every 4 seconds with a **Pause animation** toggle (`aria-pressed`, WCAG 2.2.2); under `prefers-reduced-motion` it starts paused and shows static steps. A game themes the dialog from its own root with `--game-howto-*` variables (`surface`, `scene`, `edge`, `ink`, `muted`, `soft`, `bar`, `bar-ink`, `bad`, `bad-soft`, `font`), which fall back to the shared tokens; never style it from `:root` or another module.

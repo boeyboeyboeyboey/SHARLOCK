@@ -29,9 +29,7 @@ function failPlayback(error) {
   if (disposed) return
   silence()
   message.value =
-    error?.name === 'NotAllowedError'
-      ? 'Tap Sound to start the newsroom ambience.'
-      : 'Sound could not start. Tap Sound to try again.'
+    error?.name === 'NotAllowedError' ? '' : 'Sound could not start. Tap Sound to try again.'
 }
 async function play() {
   const element = audio.value

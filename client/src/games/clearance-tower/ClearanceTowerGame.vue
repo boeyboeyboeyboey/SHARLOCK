@@ -129,10 +129,6 @@ onMounted(async () => {
     <header class="clear-header">
       <RouterLink class="clear-back" to="/">Back to town</RouterLink>
       <h1>Clearance Tower</h1>
-      <p class="clear-strap">
-        Night shift at the Halcyon Agency. Decide who may see what, then watch the day test your
-        policy. Each climb saves one result of up to 600 points.
-      </p>
     </header>
 
     <div v-if="error" class="clear-alert" role="alert">
@@ -149,10 +145,6 @@ onMounted(async () => {
       aria-labelledby="clear-intro-title"
     >
       <h2 id="clear-intro-title">Start a climb</h2>
-      <p>
-        Six cases across discretionary, mandatory and role-based access control. Run each case once;
-        the server scores the day and the climb totals up to 600 points.
-      </p>
       <p>
         <button type="button" class="clear-button" @click="showHowTo">How to play</button>
       </p>

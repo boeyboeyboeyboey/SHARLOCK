@@ -89,9 +89,7 @@ onMounted(async () => {
   <div class="sql-game is-fitted">
     <header class="sql-header">
       <RouterLink to="/" class="text-link">← Back to town</RouterLink>
-      <p class="sql-eyebrow">H.M. Customs House / Database security lab</p>
       <h1 tabindex="-1">SQL Injection Arcade</h1>
-      <p class="sql-tagline">Inspect the query. Break the pattern. Bind the data.</p>
     </header>
     <div v-if="error" class="sql-error" role="alert">
       {{ error }}
@@ -110,23 +108,7 @@ onMounted(async () => {
     </div>
     <p v-if="busy || initializing" role="status">Checking the case with the server…</p>
     <div v-if="!snapshot && !initializing" class="sql-scroll sql-briefing">
-      <div class="sql-briefing-copy">
-        <h2>The ledger has a loose lock</h2>
-        <p>
-          Fictional customs systems build their queries by joining text. Each case shows one query.
-          Your job is to show how an input can change it, then choose the real fix.
-        </p>
-        <p>
-          <strong>★★★ · Login bypass, UNION, blind and second-order injection.</strong> A class run
-          lasts 180 seconds with 3 lives and ranks on the class leaderboard. Personal practice is
-          untimed, with 12 cases, 3 repairs and hints.
-        </p>
-        <p>
-          New to SQL? A quote marks text, <code>OR</code> combines conditions, and
-          <code>--</code> starts a comment in this simplified exercise. Only a small teaching
-          grammar is supported.
-        </p>
-      </div>
+      <h2 class="sql-briefing-title">Start a run</h2>
       <button type="button" class="btn btn-outline-primary" @click="showHowTo">How to play</button>
       <AttemptContextChooser class="sql-briefing-start" :disabled="busy" @start="start" />
     </div>
