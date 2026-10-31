@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { seedClass, signedInPage } from './fixtures/class.js'
+import { LEVELS } from '../../server/src/modules/games/clearance-tower/levels.js'
 
 async function open(browser, baseURL, who, path, size) {
   const { context, page } = await signedInPage(browser, baseURL, who)
@@ -182,6 +183,106 @@ test.describe('phone shell', () => {
       const above = await howTo.boundingBox()
       const below = await label.boundingBox()
       expect(below.y - (above.y + above.height)).toBeGreaterThanOrEqual(8)
+    } finally {
+      await context.close()
+    }
+  })
+
+  test('the Clearance matrix fits a phone with whole-word headers', async ({
+    browser,
+    baseURL,
+  }) => {
+    const room = await seedClass(`mt${Date.now().toString(36)}`)
+    const { context, page } = await open(
+      browser,
+      baseURL,
+      room.studentA,
+      '/games/clearance-tower',
+      {
+        width: 375,
+        height: 667,
+      },
+    )
+    try {
+      await page.getByLabel('Save this case to').selectOption('personal')
+      await page.getByRole('button', { name: 'Open the case' }).click()
+      await page.getByRole('button', { name: new RegExp(LEVELS[0].title) }).click()
+      await page.getByRole('button', { name: 'Open the policy desk' }).click()
+      const table = page.getByRole('table')
+      await expect(table).toBeVisible()
+      // a header word is wider than one letter, so it never stacks letter by letter
+      const agent = await table.getByRole('columnheader', { name: 'Agent' }).boundingBox()
+      expect(agent.width).toBeGreaterThan(agent.height)
+      const noPageScroll = await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      )
+      expect(noPageScroll).toBe(true)
+      const fits = await table.evaluate(
+        (node) => node.parentElement.scrollWidth <= node.parentElement.clientWidth,
+      )
+      expect(fits).toBe(true)
+      for (const right of await table.getByRole('button').all()) {
+        expect((await right.boundingBox()).height).toBeGreaterThanOrEqual(44)
+      }
+    } finally {
+      await context.close()
+    }
+  })
+
+  test('the CLI console starts below the bar with full-size target chips', async ({
+    browser,
+    baseURL,
+  }) => {
+    const room = await seedClass(`mk${Date.now().toString(36)}`)
+    const { context, page } = await open(
+      browser,
+      baseURL,
+      room.studentA,
+      '/games/cli-cyber-defender',
+      { width: 375, height: 667 },
+    )
+    try {
+      await page.getByLabel('Save this run to').selectOption('personal')
+      await page.getByRole('button', { name: 'Start the run' }).click()
+      await page.getByRole('button', { name: 'Practice (no timer)' }).click()
+      await expect(page.getByRole('textbox', { name: 'Command', exact: true })).toBeVisible()
+      const bar = await page.getByTestId('immersive-controls').boundingBox()
+      const title = page.getByRole('heading', { name: 'CLI Cyber Defender', level: 1 })
+      // the game scrolls itself into place after the run starts
+      await expect
+        .poll(async () => (await title.boundingBox()).y)
+        .toBeGreaterThanOrEqual(bar.y + bar.height)
+      const chips = page.getByRole('button', { name: /^Use .+ as the target$/ })
+      expect(await chips.count()).toBeGreaterThan(0)
+      for (const chip of await chips.all()) {
+        expect(Math.round((await chip.boundingBox()).height)).toBeGreaterThanOrEqual(44)
+      }
+    } finally {
+      await context.close()
+    }
+  })
+
+  test('Help Desk Shift chat labels and codes are at least 12px', async ({ browser, baseURL }) => {
+    const room = await seedClass(`mh${Date.now().toString(36)}`)
+    const { context, page } = await open(
+      browser,
+      baseURL,
+      room.studentA,
+      '/games/social-engineering-simulator',
+      { width: 375, height: 667 },
+    )
+    try {
+      await page.getByLabel('Save this shift to').selectOption('personal')
+      await page.getByRole('button', { name: 'Start the shift' }).click()
+      await expect(page.getByTestId('soc-call-number')).toBeVisible()
+      await page.getByLabel('Your reply').fill('Who is asking, and why do you need the code?')
+      await page.getByRole('button', { name: 'Send' }).click()
+      await expect(page.getByText('Scripted').first()).toBeVisible()
+      const sizes = await page
+        .locator('.soc-message-author, code')
+        .evaluateAll((nodes) => nodes.map((node) => parseFloat(getComputedStyle(node).fontSize)))
+      expect(sizes.length).toBeGreaterThan(1)
+      expect(Math.min(...sizes)).toBeGreaterThanOrEqual(12)
     } finally {
       await context.close()
     }

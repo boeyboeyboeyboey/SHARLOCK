@@ -463,8 +463,10 @@ onBeforeUnmount(() => clearTimeout(chromeTimer))
 
 /* phones and short landscape: the controls are a solid top bar that owns its height, so the game starts below it */
 @media (max-width: 575.98px), (max-height: 500px) and (pointer: coarse) {
+  /* games that size themselves to the screen minus the header must also leave the bar */
   .interior {
     --top-band: 64px;
+    --header-height: var(--top-band);
   }
 
   .interior-stage {

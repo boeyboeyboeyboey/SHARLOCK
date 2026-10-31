@@ -438,6 +438,11 @@
   vertical-align: middle;
 }
 
+/* the body lets long words break anywhere; headers break between words only */
+.clearance-game .clear-table th {
+  overflow-wrap: normal;
+}
+
 .clearance-game .clear-table td input[type='checkbox'] {
   width: 24px;
   height: 24px;
@@ -759,6 +764,31 @@
 @keyframes clear-log-in {
   from {
     opacity: 0;
+  }
+}
+
+/* phones: r and w stack in each cell so the matrix fits without sideways scrolling */
+@media (max-width: 575.98px) {
+  .clearance-game .clear-matrix {
+    min-width: 0;
+  }
+
+  .clearance-game .clear-table {
+    font-size: 0.8rem;
+  }
+
+  .clearance-game .clear-table th,
+  .clearance-game .clear-table td {
+    padding: 0.15rem;
+  }
+
+  .clearance-game .clear-table td {
+    text-align: center;
+  }
+
+  .clearance-game .clear-right {
+    display: block;
+    margin: 2px auto;
   }
 }
 

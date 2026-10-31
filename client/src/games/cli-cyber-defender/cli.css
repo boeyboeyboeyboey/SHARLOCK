@@ -2075,7 +2075,7 @@
   }
 
   .cli-game.is-playing .cli-hud .cli-stat-label {
-    font-size: 0.7rem;
+    font-size: 0.75rem;
   }
 
   .cli-game.is-playing .cli-hud .cli-stat-value {
@@ -2092,5 +2092,17 @@
 
   .cli-game.is-playing .cli-template {
     font-size: 0.8rem;
+  }
+}
+
+/* phone portrait: the alert is the case to solve, so it gets more of the console and full-size
+   tap targets for its names */
+@media (max-width: 575.98px) {
+  .cli-game.is-playing .cli-alert-col {
+    max-height: 45%;
+  }
+
+  .cli-game .cli-entity {
+    min-height: 44px;
   }
 }
