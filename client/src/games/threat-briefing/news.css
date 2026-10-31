@@ -253,6 +253,7 @@
 .news-dialog .gazette-article h2 a {
   /* a 44px touch target for one-line headlines without moving the layout */
   display: block;
+  min-height: 44px;
   padding-block: 7px;
   margin-block: -7px;
   text-decoration: none;
