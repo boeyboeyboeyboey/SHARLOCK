@@ -330,7 +330,7 @@
   transform: translateX(-50%);
   white-space: nowrap;
 }
-@media (max-width: 600px) {
+@media (max-width: 575.98px) {
   .botnet-tag-game .tag-timer {
     padding: 4px 16px;
     font-size: 24px;
@@ -536,7 +536,7 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
-@media (max-width: 600px) {
+@media (max-width: 575.98px) {
   .botnet-tag-game .pz-cols {
     grid-template-columns: 1fr;
   }

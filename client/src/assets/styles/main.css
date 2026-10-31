@@ -531,6 +531,11 @@ main:focus {
 .landing-copy h1 {
   font-size: clamp(2.25rem, 4vw, 4rem);
 }
+@media (max-width: 575.98px) {
+  .landing-copy h1 {
+    font-size: clamp(1.5rem, 7vw, 2.25rem);
+  }
+}
 .landing-copy > p {
   max-width: 445px;
   font-size: 1rem;
