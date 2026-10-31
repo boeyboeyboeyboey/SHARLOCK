@@ -109,43 +109,64 @@ Main route: **jsfxr** (sfxr.me), a free browser tool that makes 8-bit effects fr
 
 ## 2. Optional: AI-generated interior stills
 
-The five game rooms already have acceptable stills rendered from the project's own Babylon scenes (`client/public/interiors/<id>.webp`, regenerated with `scripts/capture-interiors.mjs`). Replacing them with generated images is an optional upgrade, not required for the games to work. Keep the rendered ones unless a generated image is clearly better and matches the hub.
+Since INT-03 (1 November 2026) every game page shows a still of its room behind the game panel, on every device: the live 3D room is no longer drawn. The current stills (`client/public/interiors/<id>.webp`) were rendered from the project's own Babylon scenes and show an empty board under the panel. A generated image is worth swapping in when it is clearly better and still looks like the same wharf. Botnet Tag has its own 3D arena and needs no still.
 
-Tool: ChatGPT image generation or Gemini image generation. Shared style block, prepend it to every room prompt:
+Tool: Gemini or ChatGPT image generation. Generate one room, judge it against the checklist below, then generate the others in the same chat and add "Same art style, camera height and lighting quality as the previous image" so the five match.
 
-> Stylised low-poly 3D diorama of a small Victorian-era room, warm toon shading, soft rounded shapes, gentle ambient occlusion, slightly elevated three-quarter camera looking into the room, 16:9 landscape, 1880s Thames wharf mood, matching a cosy game-hub look. No text or lettering except the signs listed for this room, no real-world logos or brands, no people other than the characters listed, no watermark. Keep the centre and lower middle of the frame quiet and uncluttered (a game panel covers it); put the detail around the left, right and top edges.
+### How the still is used (read before prompting)
 
-Output for each: export 1600 x 900 WebP (quality about 80, keep it near 30 to 60 KB if you can) and save it as `client/public/interiors/<id>.webp`, replacing the rendered still. The 2D mode, no-WebGL and slow-device cases show this file (`InteriorLayout.vue` uses it behind the desk panel with a slight blur, so keep the centre uncluttered). The desk panel covers the lower-middle, so put detail around the edges.
+- The page covers the image with `object-fit: cover` and a slight blur, then puts the game panel on top. On a 1280 x 800 laptop the panel spans almost the full width and grows down from near the top, so what shows is **thin strips at the left and right edges, the top edge, and the floor area below a short panel** (start screens, debriefs). Wider screens show more of the sides. On phones the panel fills the screen, so phones mainly get the colour and mood.
+- So put the room's character and signature props at the **far left and far right**, make the **lower third** an attractive floor (rug, floorboards, a crate or two at the edges) rather than a blank board, and keep the middle calm: no faces or text there.
+- Image models garble lettering. Ask for at most one or two short signs per room, and treat them as optional: an image with clean blank signs is better than one with misspelt text.
+
+### Shared style block (paste first, every time)
+
+> A stylised 3D game environment render of the inside of a small Victorian room on a Thames wharf in the 1880s, in the style of a cosy low-poly adventure game: chunky simplified shapes with softly bevelled edges, flat matte materials with subtle hand-painted texture, warm toon shading, soft ambient occlusion, gentle bloom on light sources and light depth of field. Camera: eye level of a seated person, about 1.2 m high, facing straight into the room (one-point perspective), 35 mm lens, the back wall parallel to the frame, ceiling beams just visible at the top. Composition for a game background: the middle of the frame is a calm back wall with no characters, no text and no busy objects, because a game window will cover it; characters and the main props sit at the far left and far right of the frame, the top edge shows beams or windows, and the lower third is a pleasant, detailed floor (boards, a rug, small props near the edges), never an empty board or blank panel. Any characters are friendly anthropomorphic capybaras standing upright in Victorian work clothes, rounded and chunky, the same scale as the props, calm poses, not looking at the camera. 16:9 landscape, 1920 x 1080. No real-world logos, brands or people, no modern objects, no watermark, no border, no UI, and no lettering except the signs named below.
+
+### Rooms (paste after the style block)
 
 #### Telegraph Office instrument room
 
-- Filename: `client/public/interiors/cli-cyber-defender.webp` (1600 x 900)
-- Used: the 2D-mode, no-WebGL and slow-device background behind the `cli-cyber-defender` game panel.
-- Prompt: Shared style block, then: the inside of the Telegraph Office instrument room. Props: switchboard, wire map, relay rack, sounders and a clerk, green lamps, night. Lighting and palette: a dark teal and brass palette with green lamp glow. No readable signs or lettering in this room.
+- Filename: `client/public/interiors/cli-cyber-defender.webp`
+- Prompt:
+
+> The Telegraph Office instrument room at night. Left edge: a tall wooden switchboard with rows of brass jack sockets and hanging braided cords, and a capybara telegraph clerk in a green eyeshade and sleeve garters seated at a desk tapping a brass Morse key, a paper tape curling off a sounder beside him. Right edge: a floor-to-ceiling relay rack of glass-fronted instruments with tiny glowing green indicator lamps, coiled copper wire on pegs and a stack of message forms on a spike. Top band: a large framed wire map of the river districts with thin lines between pins, and telegraph wires running along the ceiling beams. Centre: a plain dark-teal panelled wall and worn floorboards. Lighting: low green-shaded desk lamps casting pools of green light, cool moonlight from a high window on the right, deep shadows between. Palette: dark teal, brass, green lamp glow, black walnut. Mood: quiet, focused, a little tense, late-night shift. No readable lettering anywhere.
 
 #### Royal Mail Post Office sorting room
 
-- Filename: `client/public/interiors/phishing-post-mortem.webp` (1600 x 900)
-- Used: the 2D-mode, no-WebGL and slow-device background behind the `phishing-post-mortem` game panel.
-- Prompt: Shared style block, then: the inside of the Royal Mail Post Office sorting room. Props: pigeonhole frame, counter with brass grille, scales, a Dead Letter shelf, a pillar box, drifting dust motes and a postmaster. Lighting and palette: warm daylight through tall windows. Signs, exactly: a plaque reading "ROYAL MAIL / POST OFFICE", a shelf label "DEAD LETTER OFFICE" and a sign "LETTERS & PARCELS". No other text.
+- Filename: `client/public/interiors/phishing-post-mortem.webp`
+- Prompt:
+
+> The Royal Mail Post Office sorting room in the afternoon. Left edge: a tall wall of wooden pigeonholes stuffed with envelopes and parcels tied with string, a rolling ladder, and a capybara postmaster in a navy uniform coat and peaked cap holding an envelope up to the light with a magnifying glass. Right edge: a long counter with a brass grille, a set of brass letter scales with weights, a red cast-iron pillar box, and a small shelf of crumpled, unopened letters with a blank label board above it. Top band: tall arched windows letting in warm shafts of daylight with drifting dust motes, and a round wall clock. Centre: a plain cream plastered wall above dark wainscoting and a clean wooden floor. Lighting: warm golden daylight through the windows, soft fill. Palette: post-office red, navy, cream, warm oak, brass. Mood: busy but orderly, a careful inspector at work. Optional sign: one brass plaque reading "ROYAL MAIL" above the counter; otherwise no lettering.
 
 #### H.M. Customs House bonded registry
 
-- Filename: `client/public/interiors/sql-injection-arcade.webp` (1600 x 900)
-- Used: the 2D-mode, no-WebGL and slow-device background behind the `sql-injection-arcade` game panel.
-- Prompt: Shared style block, then: the inside of the H.M. Customs House bonded registry. Props: ledger shelves, A-Z card cabinets with one sliding drawer, a gate and badge booth, stencilled crates, a swinging lamp and a customs officer. Lighting and palette: amber dusk light. Signs, exactly: cabinet drawers labelled "A - F", "G - L", "M - R", "S - Z"; a board reading "BONDED REGISTRY  A - Z"; crates stencilled "H.M.C. / TEA", "BONDED / No. 4" and "FRAGILE / THIS WAY UP"; a small sign "SCAN BADGE" by the gate. No other text.
+- Filename: `client/public/interiors/sql-injection-arcade.webp`
+- Prompt:
+
+> The H.M. Customs House bonded registry at dusk. Left edge: towering ledger shelves packed with leather-bound record books, a set of oak card-index cabinets with one long drawer pulled out showing neat index cards, and a capybara customs officer in a dark frock coat and peaked cap checking a ledger with a quill. Right edge: an iron gate with a small badge booth beside it, a stack of wooden tea crates with plain stencil marks, and a brass oil lamp hanging on a chain, slightly swinging. Top band: high iron ceiling trusses and a row of small dusty windows glowing amber. Centre: a plain whitewashed brick wall and a stone floor with a faint painted line. Lighting: amber dusk light through the high windows, the warm lamp on the right, long soft shadows. Palette: amber, oak brown, iron grey, parchment cream. Mood: strict, orderly, a place where every entry is checked. Optional sign: one small board reading "BONDED REGISTRY"; otherwise no lettering, crates with blank stencil shapes only.
 
 #### The Capybara & Crown snug
 
-- Filename: `client/public/interiors/social-engineering-simulator.webp` (1600 x 900)
-- Used: the 2D-mode, no-WebGL and slow-device background behind the `social-engineering-simulator` game panel.
-- Prompt: Shared style block, then: the inside of The Capybara & Crown snug. Props: fireplace, booths, beer pumps, a chalkboard, a door marked Private, a patron and a publican. Lighting and palette: firelight glow, deep reds and browns. Signs, exactly: a chalkboard reading "Loose lips..." and "Ale 2d   Porter 1d", and a door marked "PRIVATE". No other text.
+- Filename: `client/public/interiors/social-engineering-simulator.webp`
+- Prompt:
+
+> The snug of The Capybara & Crown pub in the evening. Left edge: a crackling stone fireplace with a copper kettle and a high-backed wooden booth where a capybara patron in a flat cap leans in as if sharing a secret over a pint. Right edge: a polished bar with brass beer pumps and a row of tankards, a capybara publican in a waistcoat and apron polishing a glass, and a dark wooden door with a small brass plate. Top band: low smoke-darkened beams hung with dried hops, a small blackboard and a framed crown emblem. Centre: a plain deep-red papered wall and dark floorboards with a worn rug edge at the bottom. Lighting: warm orange firelight on the left, soft gas-lamp glow on the right, cosy shadows. Palette: deep red, warm brown, brass, firelight orange. Mood: friendly and cosy, but a place where people talk too freely. Optional sign: the door plate reads "PRIVATE"; the blackboard is blank or has unreadable chalk scribbles.
 
 #### River Police records room
 
-- Filename: `client/public/interiors/clearance-tower.webp` (1600 x 900)
-- Used: the 2D-mode, no-WebGL and slow-device background behind the `clearance-tower` game panel.
-- Prompt: Shared style block, then: the inside of the River Police records room. Props: clearance-tab cabinets, a document cage, a role key board, four named desks, turning gears, a pulsing lantern and a policeman. Lighting and palette: cool blue lamplight. Signs, exactly: desk nameplates "HALE", "OKAFOR", "VANCE", "LIM"; a cage sign "RESTRICTED / CLEARANCE ONLY"; key-board labels "STUDENT", "TEACHER", "ADMIN", "AUDIT"; one folder stamped "CONFIDENTIAL". No other text.
+- Filename: `client/public/interiors/clearance-tower.webp`
+- Prompt:
+
+> The River Police records room at night, inside a stone tower. Left edge: a bank of steel filing cabinets with coloured clearance tabs on each drawer, and a capybara police constable in a tall custodian helmet and dark tunic sorting folders into a locked iron document cage. Right edge: a wooden key board with rows of brass keys on hooks under four blank coloured labels, a narrow desk with a folder stamped with a red wax seal, and a lantern pulsing softly. Top band: exposed brass clockwork gears turning slowly near the ceiling and a narrow arched window showing a dark blue night sky. Centre: a plain grey stone wall and flagstone floor. Lighting: cool blue lamplight, a warm lantern accent on the right, crisp shadows. Palette: cool blue, slate grey, brass, a touch of seal red. Mood: secure, watchful, everything behind a lock. No lettering anywhere.
+
+### Checklist before saving
+
+- The centre band is calm: nothing important where the game panel will sit.
+- No garbled or misspelt text, no modern objects, characters are capybaras.
+- It reads as the same wharf as the hub: warm, cosy low-poly, not photoreal, not pixel art.
+- Export as WebP at 1600 x 900, quality about 80 (try to keep it under about 150 KB), saved over `client/public/interiors/<id>.webp`. Squoosh (squoosh.app, free, runs in the browser) does the resize and WebP export in one step.
+- Open the game page on a laptop and once at phone width to check the panel does not hide the best part.
 
 ### Recording sources
 
