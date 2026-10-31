@@ -398,5 +398,10 @@ test.describe('the Times on a phone', () => {
     const tabs = await times.getByRole('tab', { name: 'Latest news' }).boundingBox()
     // masthead and tabs leave room below them before the edition starts
     expect(tabs.y + tabs.height).toBeLessThanOrEqual(375 * 0.55)
+
+    // wider lines fit most headlines on one line, the shortest target case
+    for (const link of await times.getByRole('heading', { level: 2 }).getByRole('link').all()) {
+      expect((await link.boundingBox()).height).toBeGreaterThanOrEqual(44)
+    }
   })
 })
