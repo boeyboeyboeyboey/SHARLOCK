@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import AccessMatrix from '../components/AccessMatrix.vue'
 import DayControls from '../components/DayControls.vue'
+import HintPanel from '../components/HintPanel.vue'
 import LabelBoard from '../components/LabelBoard.vue'
 import LevelDebrief from '../components/LevelDebrief.vue'
 import LevelSelect from '../components/LevelSelect.vue'
@@ -170,5 +171,39 @@ describe('clearance tower components', () => {
     expect(wrapper.emitted('finish')).toHaveLength(1)
     await wrapper.findAll('.clear-level-button')[1].trigger('click')
     expect(wrapper.emitted('select')[0]).toEqual([labelLevel.id])
+  })
+
+  it('offers a costed hint, then another, then reports none left', async () => {
+    const hints = { used: 0, max: 2, cost: 10, texts: [] }
+    const wrapper = mount(HintPanel, { props: { hints } })
+    const button = wrapper.get('button')
+    expect(button.text()).toContain('Hint')
+    expect(button.text()).toContain('−10 points')
+    expect(button.attributes('disabled')).toBeUndefined()
+    await button.trigger('click')
+    expect(wrapper.emitted('request')).toHaveLength(1)
+
+    await wrapper.setProps({ hints: { ...hints, used: 1, texts: ['Check least privilege.'] } })
+    expect(wrapper.get('button').text()).toContain('Another hint')
+    expect(wrapper.text()).toContain('Check least privilege.')
+
+    await wrapper.setProps({ hints: { ...hints, used: 2, texts: ['One.', 'Two.'] } })
+    expect(wrapper.get('button').text()).toBe('No more hints')
+    expect(wrapper.get('button').attributes('disabled')).toBeDefined()
+  })
+
+  it('shows hints used and points lost on the case file', () => {
+    const result = {
+      score: 70,
+      stars: 1,
+      hintsUsed: 2,
+      hintPenalty: 20,
+      breakdown: [],
+      meters: { leaks: 0, workDone: 1, workTotal: 1, excessRights: 0, dutyConflicts: [] },
+      predictionReview: [],
+      takeaways: [],
+    }
+    const wrapper = mount(LevelDebrief, { props: { level: matrixLevel, result } })
+    expect(wrapper.text()).toContain('Hints: 2 (−20)')
   })
 })

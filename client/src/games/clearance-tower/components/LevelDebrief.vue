@@ -32,6 +32,7 @@ function verdictLabel(value) {
     <MeterBoard :breakdown="result.breakdown" />
 
     <ul class="clear-facts">
+      <li v-if="result.hintsUsed">Hints: {{ result.hintsUsed }} (−{{ result.hintPenalty }})</li>
       <li>Leaks: {{ meters.leaks }}</li>
       <li>Work completed: {{ meters.workDone }} of {{ meters.workTotal }}</li>
       <li v-if="level.model !== 'blp'">Rights nobody needed: {{ meters.excessRights }}</li>

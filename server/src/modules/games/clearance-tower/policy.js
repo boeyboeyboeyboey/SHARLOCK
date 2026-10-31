@@ -1,7 +1,7 @@
 import { CLEARANCE_IDS } from './models.js'
 
 export const GAME_ID = 'clearance-tower'
-export const RULESET_VERSION = 'clear-2'
+export const RULESET_VERSION = 'clear-3'
 export const VERDICTS = ['allow', 'deny']
 export const MAX_GRANTS = 64
 export const MAX_ROLES = 8

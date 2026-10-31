@@ -10,6 +10,7 @@ import AccessMatrix from './components/AccessMatrix.vue'
 import DayControls from './components/DayControls.vue'
 import DossierBrief from './components/DossierBrief.vue'
 import EventLog from './components/EventLog.vue'
+import HintPanel from './components/HintPanel.vue'
 import HowToPlayScene from './components/HowToPlayScene.vue'
 import LabelBoard from './components/LabelBoard.vue'
 import LevelDebrief from './components/LevelDebrief.vue'
@@ -45,6 +46,7 @@ const {
   retry,
   openLevel,
   runDay,
+  takeHint,
   showPhase,
   reset,
 } = useClearanceTower()
@@ -161,6 +163,9 @@ onMounted(async () => {
               <span :aria-label="`${item.result.stars} out of 3 stars`">{{
                 starText(item.result.stars)
               }}</span>
+              <template v-if="item.result.hintsUsed">
+                · Hints: {{ item.result.hintsUsed }} (−{{ item.result.hintPenalty }})
+              </template>
             </template>
             <template v-else>not played, 0 / 100</template>
           </li>
@@ -223,6 +228,12 @@ onMounted(async () => {
               </li>
             </ul>
           </details>
+          <HintPanel
+            v-if="level.hints"
+            :hints="level.hints"
+            :disabled="busy || retryable"
+            @request="takeHint"
+          />
           <p v-if="!policyReady" class="clear-warning">Give every role a name first.</p>
           <div class="clear-actions">
             <button type="button" class="clear-button" @click="showPhase('brief')">Dossier</button>

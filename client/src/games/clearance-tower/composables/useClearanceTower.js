@@ -52,6 +52,10 @@ export function useClearanceTower() {
     return ok
   }
 
+  async function takeHint() {
+    return attempt.mutate('request-hint', { levelId: levelId.value })
+  }
+
   async function retry() {
     const ok = await attempt.retry()
     if (ok && phase.value === 'predict') phase.value = 'day'
@@ -91,6 +95,7 @@ export function useClearanceTower() {
     retry,
     openLevel,
     runDay,
+    takeHint,
     showPhase,
     reset,
   }
