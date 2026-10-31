@@ -128,6 +128,11 @@
   max-width: 64ch;
 }
 
+/* bootstrap shrinks code to 0.875em; keep it at 12px or more */
+.soc-game code {
+  font-size: max(0.875em, 0.75rem);
+}
+
 .soc-code {
   padding: 0.1rem 0.45rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -252,7 +257,7 @@
 
 .soc-message-author {
   margin-bottom: 0.15rem;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -742,7 +747,7 @@
 
   .soc-game.is-fitted .soc-message-author {
     margin-bottom: 0.1rem;
-    font-size: 0.64rem;
+    font-size: 0.75rem;
   }
 
   .soc-game.is-fitted .soc-message-body {

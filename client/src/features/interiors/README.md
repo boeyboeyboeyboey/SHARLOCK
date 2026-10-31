@@ -35,7 +35,7 @@ Owner: Boey. Integration-sensitive: the router (five game routes are children of
 
 ## Game chrome and Exit (INT-02)
 
-- Shell: the `/games` parent route has `meta.immersive`, so `PortalLayout.vue` drops the navbar and sidebar, and the footer is hidden when `meta.interior` is set. The layout sets `--header-height: 0` and clears the sidebar margin for its own screens.
+- Shell: the `/games` parent route has `meta.immersive`, so `PortalLayout.vue` drops the navbar and sidebar, and the footer is hidden when `meta.interior` is set. The layout sets `--header-height: 0` and clears the sidebar margin for its own screens. On phones and short touch landscapes it sets `--header-height` to the 64px top bar instead, so games that size themselves to the screen minus the header start below the bar (FIX-07).
 - Controls: `InteriorLayout.vue` mounts `ImmersiveControls.vue` (Menu with `SiteMenu`, `sound` slot, 3D | 2D switch, `end` slot with **Exit game**). The switch overrides the stored town mode for this visit only (live room or still) and is locked when WebGL cannot start. `escape-ignore-within=".interior-desk"` keeps Escape for the game panel.
 - Leaving: Exit game, and any site menu link, open `components/common/ConfirmDialog.vue` ("Leave the game?", Leave game / Keep playing; Escape cancels, focus returns to the opener). The menu guard is a flag set on the menu's `navigate` plus `onBeforeRouteLeave`, so the games' own links (for example Back to town) are never guarded. Sign out from the menu is not guarded.
 - Space: a 60px `--top-band` above the desk keeps the controls clear of the panel; `--shell-chrome` is that band, the bottom room gap and the desk padding.
