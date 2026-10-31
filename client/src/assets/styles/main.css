@@ -73,7 +73,8 @@ h6,
   .sql-game *,
   .clearance-game *,
   .soc-game *,
-  .cli-game *
+  .cli-game *,
+  .botnet-tag-game *
 ) {
   font-family: var(--font-pixel);
 }
