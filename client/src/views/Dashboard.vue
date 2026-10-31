@@ -142,20 +142,18 @@ function closeOverlay() {
         role="status"
         data-testid="town-mode-notice"
       >
-        <span class="flex-grow-1">
-          {{ noticeText }}
+        <span class="flex-grow-1">{{ noticeText }}</span>
+        <span class="notice-actions">
           <RouterLink to="/about#graphics">Why?</RouterLink>
-          <template v-if="!townMode.locked.value">
-            &middot;
-            <button
-              type="button"
-              class="btn btn-link p-0 align-baseline"
-              data-testid="town-mode-try3d"
-              @click="townMode.toggle"
-            >
-              Try 3D anyway
-            </button>
-          </template>
+          <button
+            v-if="!townMode.locked.value"
+            type="button"
+            class="btn btn-link p-0"
+            data-testid="town-mode-try3d"
+            @click="townMode.toggle"
+          >
+            Try 3D anyway
+          </button>
         </span>
         <button
           v-if="!townMode.locked.value"
@@ -264,6 +262,26 @@ function closeOverlay() {
   width: min(560px, calc(100% - 24px));
   transform: translateX(-50%);
   pointer-events: none;
+}
+.town-notices .notice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 16px;
+}
+.town-notices .notice-actions > * {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: inherit;
+  line-height: 1.2;
+}
+.town-notices .btn-close {
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  background-origin: content-box;
+  padding: 16px;
 }
 .town-notices > * {
   margin: 0 0 8px;

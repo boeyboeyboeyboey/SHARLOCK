@@ -461,6 +461,26 @@ onBeforeUnmount(() => clearTimeout(chromeTimer))
   }
 }
 
+/* phones and short landscape: the controls are a solid top bar that owns its height, so the game starts below it */
+@media (max-width: 575.98px), (max-height: 500px) and (pointer: coarse) {
+  .interior {
+    --top-band: 64px;
+  }
+
+  .interior-stage {
+    height: var(--top-band);
+  }
+
+  .interior .immersive-controls {
+    inset: 0 0 auto;
+    height: var(--top-band);
+    align-items: center;
+    padding: 0 max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left));
+    background: var(--hub-glass-solid);
+    border-bottom: 1px solid var(--hub-glass-edge);
+  }
+}
+
 @media (min-width: 768px) {
   .interior {
     padding: var(--top-band) 0 var(--room-gap-y);

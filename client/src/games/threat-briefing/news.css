@@ -342,7 +342,7 @@
     transform: translateY(0);
   }
 }
-@media (max-width: 767px) {
+@media (max-width: 767.98px) {
   .news-dialog {
     width: calc(100% - 20px);
     max-height: calc(100dvh - 24px);
@@ -384,7 +384,7 @@
     padding: 6px;
   }
 }
-@media (max-width: 575px) {
+@media (max-width: 575.98px) {
   .news-dialog .gazette-topbar > span > span {
     display: none;
   }

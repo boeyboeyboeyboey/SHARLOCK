@@ -45,7 +45,7 @@ Applies to shared pages, the hub and every game (including games' own design fre
 
 ### Phone touch targets (FIX-04, Boey, 1 November 2026)
 
-- Below 576px a game page keeps only a 60px strip for the floating Menu and Exit controls (the 3D room or its 2D still), so the game's Start sits above the fold at 375 x 667.
+- Below 576px, and on short touch landscapes (under 500px high), a game page turns the Menu, Sound, 3D | 2D and Exit controls into a solid 64px top bar that owns its height, so no control covers the game (MOB-01). The game's Start still sits above the fold at 375 x 667.
 - Every 3D | 2D toggle, the hub map pins on touch screens and the "Sign in" switch link are at least 44px high; the Esc key badge is hidden on touch devices.
 
 ### Overlay consistency (UX-03, Boey, 1 November 2026)
@@ -170,7 +170,8 @@ The rules in this section describe the 2D pixel town, which is the 2D mode on `/
 - **Sharlock walks the 2D town (TOWN-03).** WASD or arrow keys move him at about 120 px/s, Shift sprints, a click or tap on open ground walks him there, and the camera follows him. His sprite is original pixel art in the town's style (deerstalker, monocle, red scarf; four facings, two-frame walk, one still frame under reduced motion), drawn in front of or behind buildings by the height of his feet. Beside a building's door an **E** keycap prompt (44px, `Enter <building>`) appears; E, Enter or a tap on it does what clicking the building does. Townsfolk are pixel capybaras in their hub outfits (wanderers stroll short routes and stop to face Sharlock; still under reduced motion), finds are small glinting objects or people, and E near one opens the hub's conversation box in a town-paper panel. Keys are ignored in fields, menus and dialogs.
 - Focus the viewport and use **+ / −** to zoom and **0** (or Reset view) to re-centre on Sharlock. The wheel/trackpad pans; Shift-wheel pans horizontally and Ctrl/Command-wheel zooms. The **Places** list in the Menu (2D only) centres any building and opens its card; keyboard focus also brings buildings into view. Touch users can scroll the page outside the canvas.
 - Ignore the click generated after a drag/pinch; a fresh click/tap or Enter/Space still pins the card. Keep camera controls and metadata outside the scaled layer so text/control sizes remain stable. Card coordinates update after camera transforms and resizing. Preserve the pointer-focus protection for first taps.
-- The site menu drawer (a modal `dialog`) must trap focus, close with Escape/backdrop/Close, and restore focus to the Menu button. There is no sidebar or offcanvas.
+- The site menu drawer (a modal `dialog`) must trap focus, close with Escape/backdrop/Close, and restore focus to the Menu button. There is no sidebar or offcanvas. On phones and short touch landscapes it covers the whole screen (MOB-01).
+- Breakpoints use the Bootstrap pairs only: `max-width: 575.98px` / `min-width: 576px` and `767.98px` / `768px` (MOB-01 aligned the stray 575px, 600px and 767px queries in Boey-owned files).
 - `GlobalProgressBar.vue` and `TrophyCase.vue` remain available on pixel-styled profile/progress screens. Progress is informational and never controls building availability. Trophy badges wrap using flexbox.
 
 ### Current hover-card behavior — Task 3 skipped

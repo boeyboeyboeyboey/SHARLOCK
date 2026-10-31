@@ -28,7 +28,7 @@ Art and motion:
 4. Animals walk with CSS `transform` keyframes and a two-frame leg swap (no JavaScript timers or listeners). All decorative layers are `aria-hidden` and `pointer-events: none`.
 5. Under `prefers-reduced-motion: reduce` every animation is off and walkers are drawn static with four legs; the rules live in `town.css` under `no-preference`.
 
-Zoom: the floor is the scale at which the whole 1120 x 800 world fits the viewport (`fitScale`, recomputed on mount and resize); a custom panzoom `setTransform` clamps the pan with `clampPan` (edge to edge when the world covers the view, centred when it is smaller), replacing panzoom's `contain`. The zoom stack follows the interface size (`--ui-scale`, see DESIGN.md). Map first (UX-02 S1): `TownMap.vue` has no toolbar; it registers `jumpTo(id)` on the shared town controls (`jumpTo` ref in `townControls.js`, provided by `Dashboard.vue`) and unregisters on unmount, and `SiteMenu.vue` shows Places only while it is set.
+Zoom: the floor is the scale at which the whole 1120 x 800 world plus 24px for the lowest label (`FIT_WORLD` in `TownMap.vue`) fits the viewport (`fitScale`, recomputed on mount and resize); a custom panzoom `setTransform` clamps the pan with `clampPan` (edge to edge when the world covers the view, centred when it is smaller), replacing panzoom's `contain`. The zoom stack follows the interface size (`--ui-scale`, see DESIGN.md). Map first (UX-02 S1): `TownMap.vue` has no toolbar; it registers `jumpTo(id)` on the shared town controls (`jumpTo` ref in `townControls.js`, provided by `Dashboard.vue`) and unregisters on unmount, and `SiteMenu.vue` shows Places only while it is set.
 
 Walkable Sharlock (TOWN-03 stage 1):
 
