@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useAuthStore } from '../../features/auth/store.js'
+import { wipe } from '../../features/auth/pixel-wipe.js'
 
 const props = defineProps({
   gameId: { type: String, required: true },
@@ -81,6 +82,8 @@ function syncDialog(isOpen) {
   const element = dialog.value
   if (!element) return
   if (isOpen && !element.open) {
+    // the modal sits in the top layer above the game doors, so wait until they have opened
+    if (wipe.phase !== 'idle') return
     opener = document.activeElement
     step.value = 0
     saveError.value = ''
@@ -93,6 +96,12 @@ function syncDialog(isOpen) {
 }
 
 watch(() => props.open, syncDialog, { flush: 'post' })
+watch(
+  () => wipe.phase,
+  (phase) => {
+    if (phase === 'idle') syncDialog(props.open)
+  },
+)
 onMounted(() => syncDialog(props.open))
 onBeforeUnmount(stopTimer)
 </script>

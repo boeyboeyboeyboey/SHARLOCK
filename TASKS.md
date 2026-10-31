@@ -136,6 +136,12 @@ Move the task's active record rather than duplicating it across board states. Re
 
 ## In Progress
 
+**FIX-06 — How to play waits for the game doors** · Status: **Review** · Contributor: **Boey**, implemented by Claude Code (Boey asked for the fix on 1 November 2026 from Eric's report and video) · Branch: `fix-06-howto-after-wipe`.
+- Bug: entering a game, the How to play dialog appeared while the pixel doors were still closing and hid their opening, because `showModal()` puts the dialog in the top layer above `PixelWipe.vue`. The camera approach and door sequencing were already correct (doors start only after `hub.enter` resolves).
+- Fix: `client/src/components/common/HowToPlayDialog.vue` skips opening while `wipe.phase` is not `idle` and opens when it returns to idle (reduced motion has no wipe, so it opens at once as before; the eight-second wipe watchdog bounds the wait).
+- Checks: `HowToPlayDialog.test.js` 9/9 (new: waits through cover and reveal, opens at idle); eslint and prettier clean on both files; `clearance-tower`, `social-engineering-simulator` and `cli-cyber-defender` E2E on both projects 85 passed, 3 skipped.
+- Docs impact: `client/src/features/auth/README.md` (wipe paragraph) and this record; no route, control or setting changed.
+
 **COH-04 — One class per student** · Status: **Review** · Contributor: **Boey** (implemented by Claude Code) · Branch: `coh-04-one-class` · Plan approved by Boey on 30 October 2026 (mega-batch, `.local-handover/MEGA-BATCH-PLAN-2026-10-30.md`); Boey states the team has consented to this feature. Pre-approved for the batch: branch, commit and `--no-ff` merge into local `main` after checks; no push.
 
 - **Scope:** Server cohorts module refuses a join request or invitation (409, generic message) while the student has an active or pending membership, rechecked at approval; the join-class page explains and links to Your classes. Staff unchanged; existing extra memberships kept (Atlas had none on 30 Oct: 2 memberships, no student in two classes).
