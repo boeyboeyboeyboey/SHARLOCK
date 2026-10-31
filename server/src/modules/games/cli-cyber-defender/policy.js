@@ -9,6 +9,7 @@ export const TWO_STEP_INCIDENTS = 2
 export const TOTAL_STEPS = INCIDENT_COUNT + TWO_STEP_INCIDENTS
 export const MAX_LOOKUPS_PER_INCIDENT = 6
 export const MAX_MISTAKES_PER_INCIDENT = 3
+export const MAX_HINT_TIER = 2
 export const TIME_PENALTY_SECONDS = 5
 export const MIN_PENALISED_WINDOW_SECONDS = 5
 export const POINTS_PER_STEP = 100
@@ -160,6 +161,10 @@ export function hintUnavailable() {
     'Hints are only available during untimed practice.',
     409,
   )
+}
+
+export function hintExhausted() {
+  return new CliError('CLI_HINT_EXHAUSTED', 'Both hints are already used for this incident.', 409)
 }
 
 export function commandLimit() {

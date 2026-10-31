@@ -410,13 +410,14 @@ test('taps an alert name to complete a command and explains the outcome', async 
   } else await expect(review).toBeHidden()
 })
 
-test('gives one practice hint per incident and marks it in the debrief', async ({ page }) => {
+test('gives two practice hint tiers per incident and marks it in the debrief', async ({ page }) => {
   await startShift(page, 'practice')
-  const hint = page.getByRole('button', { name: 'Hint', exact: true })
-  await hint.click()
+  await page.getByRole('button', { name: 'Hint', exact: true }).click()
   await expect(banner(page).locator('.cli-hint-line')).toHaveCount(1)
   await expect(banner(page).locator('.cli-hint-line')).toContainText('hint')
-  await expect(hint).toBeDisabled()
+  await page.getByRole('button', { name: 'Hint 2', exact: true }).click()
+  await expect(banner(page).locator('.cli-hint-concept')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'No more hints for this incident' })).toBeDisabled()
   await useMenu(page, 'End practice')
   await expect(page.getByText('hint used')).toHaveCount(1)
 })

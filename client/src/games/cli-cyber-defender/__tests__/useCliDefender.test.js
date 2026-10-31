@@ -461,23 +461,34 @@ describe('cli defender composable', () => {
     expect(game.lines.value.map((line) => line.text).join('\n')).toContain('Try "whois 192.0.2.50"')
   })
 
-  it('requests a hint only in practice and only once per incident', async () => {
+  it('requests a hint only in practice and at most twice per incident', async () => {
     startRun.mockResolvedValue(snapshot({ mode: 'practice' }))
-    requestHint.mockResolvedValue(
-      snapshot({ mode: 'practice', current: { ...snapshot().current, hintLine: 0 } }),
-    )
+    const tiered = (hintTier, extra = {}) =>
+      snapshot({
+        mode: 'practice',
+        current: { ...snapshot().current, hintLine: 0, hintTier, ...extra },
+        hint: { incidentId: 'incident-01', tier: hintTier, concept: extra.hintConcept ?? null },
+      })
+    requestHint
+      .mockResolvedValueOnce(tiered(1))
+      .mockResolvedValueOnce(tiered(2, { hintConcept: 'Brute force is repeated guessing.' }))
     const { game } = harness({ now: 50_000 })
     await game.start('practice')
     await game.hint()
     expect(requestHint).toHaveBeenCalledWith(RUN, 'incident-01', expect.any(AbortSignal))
     expect(game.current.value.hintLine).toBe(0)
     await game.hint()
-    expect(requestHint).toHaveBeenCalledTimes(1)
+    expect(requestHint).toHaveBeenCalledTimes(2)
+    expect(game.lines.value.map((line) => line.text).join('\n')).toContain(
+      'Hint 2: Brute force is repeated guessing.',
+    )
+    await game.hint()
+    expect(requestHint).toHaveBeenCalledTimes(2)
     startRun.mockResolvedValue(snapshot())
     const timed = harness({ now: 50_000 })
     await timed.game.start('timed')
     await timed.game.hint()
-    expect(requestHint).toHaveBeenCalledTimes(1)
+    expect(requestHint).toHaveBeenCalledTimes(2)
   })
 
   it('stops its timer and listener on unmount', async () => {

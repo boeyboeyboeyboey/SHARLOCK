@@ -12,6 +12,9 @@ const props = defineProps({
 })
 const emit = defineEmits(['select-target', 'hint'])
 
+const hintTier = computed(() => props.incident?.hintTier ?? 0)
+const hintLabel = computed(() => (hintTier.value === 0 ? 'Hint' : 'Hint 2'))
+
 const lines = computed(
   () =>
     props.incident?.alert.segments ??
@@ -59,6 +62,9 @@ const urgent = computed(() => props.remainingMs != null && props.remainingMs <= 
           <span v-if="incident.hintLine === index" class="cli-hint-tag">hint</span>
         </li>
       </ul>
+      <p v-if="incident.hintConcept" class="cli-hint-concept">
+        <span class="cli-hint-tag">hint 2</span> {{ incident.hintConcept }}
+      </p>
       <p v-if="incident.lookups" class="cli-banner-status">
         Lookups used: {{ incident.lookups.used }} of {{ incident.lookups.limit }}
         <span v-if="incident.stepsDone > 0" class="cli-step-note"
@@ -74,9 +80,10 @@ const urgent = computed(() => props.remainingMs != null && props.remainingMs <= 
           type="button"
           class="btn cli-hint-button"
           :disabled="hintDisabled"
+          :aria-label="hintTier >= 2 ? 'No more hints for this incident' : undefined"
           @click="emit('hint')"
         >
-          <CliIcon name="hint" :size="16" />Hint
+          <CliIcon name="hint" :size="16" />{{ hintTier >= 2 ? 'No more hints' : hintLabel }}
         </button>
       </div>
       <div
