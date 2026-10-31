@@ -201,10 +201,6 @@ async function nextEmail() {
     <section v-if="!snapshot && !initializing" class="phish-state" aria-labelledby="phish-start">
       <h2 id="phish-start">Start a run</h2>
       <button type="button" class="triage-secondary" @click="showHowTo">How to play</button>
-      <p class="phish-mode-line">
-        Class: a 3-minute timed run for your class leaderboard. Personal: 12 emails, untimed
-        practice.
-      </p>
       <AttemptContextChooser
         :disabled="busy"
         label="Save this run to"

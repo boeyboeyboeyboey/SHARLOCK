@@ -348,7 +348,7 @@ test('recovers from blocked autoplay and keeps the reference readable when audio
     }
   })
   await page.goto('/games/threat-briefing?tab=owasp')
-  await expect(page.locator('.gazette-audio-status')).toContainText('Tap Sound')
+  await expect(page.locator('.gazette-audio-status')).toHaveCount(0)
   const sound = page.getByRole('button', { name: 'Play newspaper sound' })
   await expect(sound).toHaveAttribute('aria-pressed', 'false')
   await sound.click()

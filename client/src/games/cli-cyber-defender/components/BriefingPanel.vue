@@ -26,9 +26,6 @@ function startTimed() {
     <h2 id="cli-briefing-heading" class="cli-heading">Shift briefing</h2>
     <button type="button" class="btn mb-3" @click="emit('how-to-play')">How to play</button>
     <div v-if="!context" class="cli-context">
-      <p class="cli-note">
-        Timed games in a class count for its Best board. Practice counts toward all-time.
-      </p>
       <AttemptContextChooser
         :disabled="pending"
         label="Save this run to"

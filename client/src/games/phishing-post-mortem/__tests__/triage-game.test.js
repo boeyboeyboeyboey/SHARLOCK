@@ -129,12 +129,9 @@ afterEach(() => {
 })
 
 describe('triage game page', () => {
-  it('tells the player the two modes before starting', async () => {
+  it('offers the start control without helper copy', async () => {
     listAttemptContexts.mockResolvedValue({ cohorts: [], total: 0 })
     const { wrapper } = await mountGame()
-    expect(wrapper.text()).toContain(
-      'Class: a 3-minute timed run for your class leaderboard. Personal: 12 emails, untimed practice.',
-    )
     expect(button(wrapper, 'Start run')).toBeDefined()
   })
 

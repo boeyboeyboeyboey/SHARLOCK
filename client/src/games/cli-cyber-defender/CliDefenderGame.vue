@@ -154,9 +154,6 @@ watch([phase, paused], async ([next, isPaused], [previous]) => {
         />
       </nav>
       <h1 tabindex="-1">CLI Cyber Defender</h1>
-      <p class="cli-strap">
-        Contain fictional incidents from a simulated terminal. Nothing here is real.
-      </p>
     </div>
 
     <BriefingPanel

@@ -55,11 +55,9 @@ onBeforeUnmount(() => dialog.value?.close())
         alt="Your capybara newsstand vendor"
       />
       <div>
-        <p>EXTRA! EXTRA!</p>
         <h1 id="gazette-heading" ref="heading" data-news-heading tabindex="-1">
           The Sharlock Times
         </h1>
-        <p>Small town. Big stories. Stay curious.</p>
       </div>
       <PixelIcon class="gazette-seal" name="news" :size="52" />
     </header>

@@ -89,16 +89,6 @@
   display: flex;
   align-items: center;
 }
-.sql-game .sql-eyebrow {
-  color: var(--game-muted);
-  font-size: 14px;
-  margin: 0 0 3px;
-}
-.sql-game .sql-tagline {
-  color: var(--game-muted);
-  margin: 3px 0 0;
-  font-size: 14px;
-}
 .sql-game .text-link,
 .sql-game a {
   color: var(--game-cyan);
@@ -210,17 +200,8 @@
   max-width: 82ch;
   align-self: center;
 }
-.sql-game .sql-briefing-copy {
-  min-height: 0;
-}
-.sql-game .sql-briefing-copy > h2 {
-  margin-bottom: 1.3rem;
-}
-.sql-game .sql-briefing-copy > p {
-  margin-bottom: 1.3rem;
-}
-.sql-game .sql-briefing-copy > p:last-child {
-  margin-bottom: 0;
+.sql-game .sql-briefing-title {
+  margin-bottom: 1rem;
 }
 .sql-game .sql-briefing-start {
   flex-shrink: 0;
@@ -449,12 +430,6 @@
   }
 }
 @media (min-width: 768px) and (min-height: 600px) {
-  .sql-game .sql-briefing-copy {
-    overflow: auto;
-    position: relative;
-    margin-bottom: 1.3rem;
-    padding-right: 8px;
-  }
   .sql-game .sql-query-content {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);

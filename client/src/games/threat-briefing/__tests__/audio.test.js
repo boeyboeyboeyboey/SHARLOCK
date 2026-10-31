@@ -39,7 +39,7 @@ describe('newspaper sound lifecycle', () => {
     wrapper = undefined
     expect(audio.muted).toBe(true)
   })
-  it('explains autoplay rejection and retries through the sound button', async () => {
+  it('retries through the sound button after autoplay rejection', async () => {
     const play = vi
       .fn()
       .mockRejectedValueOnce(new DOMException('blocked', 'NotAllowedError'))
@@ -47,12 +47,12 @@ describe('newspaper sound lifecycle', () => {
     const audio = render(play)
     await flushPromises()
     expect(audio.muted).toBe(true)
-    expect(wrapper.emitted('status').at(-1)[0]).toContain('Tap Sound')
+    expect(wrapper.emitted('status')?.at(-1)?.[0] ?? '').toBe('')
     expect(wrapper.get('button').attributes('aria-pressed')).toBe('false')
     await wrapper.get('button').trigger('click')
     await flushPromises()
     expect(play).toHaveBeenCalledTimes(2)
-    expect(wrapper.emitted('status').at(-1)[0]).toBe('')
+    expect(wrapper.emitted('status')?.at(-1)?.[0] ?? '').toBe('')
     expect(audio.muted).toBe(false)
   })
   it('reports unavailable media and keeps the retry control usable', async () => {

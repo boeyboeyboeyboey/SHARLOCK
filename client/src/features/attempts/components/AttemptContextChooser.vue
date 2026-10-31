@@ -60,9 +60,6 @@ onBeforeUnmount(() => controller.abort())
     <p v-if="error" role="alert">
       {{ error }} <button type="button" class="text-link" @click="load">Retry class list</button>
     </p>
-    <p class="small">
-      Class attempts appear on that class's leaderboard. Personal practice does not.
-    </p>
-    <button class="btn btn-primary" :disabled="disabled || loading">{{ submitLabel }}</button>
+    <button class="btn btn-primary mt-2" :disabled="disabled || loading">{{ submitLabel }}</button>
   </form>
 </template>
