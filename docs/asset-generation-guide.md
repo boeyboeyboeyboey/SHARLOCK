@@ -53,41 +53,43 @@ Each theme plays while that game's room is open, and it is the only music on tha
 
 Shared by all games through `playSfx(name)`.
 
+jsfxr settings for every effect: sample rate **44k** and sample size **16 bit** (8 bit adds hiss). Lower **Gain** until the panel shows **Clipped: 0** (usually about -12 to -16 dB) and use the same gain for all five so they sound equally loud. Leave every slider not named below off or at 0. The values are starting points: match the readout beside each slider, then adjust by ear. Save each effect with **Save As** (.json) or copy its permalink so CREDITS.md can record the exact settings.
+
 Main route: **jsfxr** (sfxr.me), a free browser tool that makes 8-bit effects from presets. Lyria is a music model and returns long clips, so use it only as the fallback below and cut the first note out in an audio editor. For each sound: pick the preset, adjust as noted, press play until it sounds right, then **Export .wav** and convert to MP3 (Audacity: File > Export > MP3, or `ffmpeg -i in.wav -b:a 160k out.mp3`). jsfxr sounds are yours to use; credit them in `CREDITS.md` as "made by Boey with jsfxr (sfxr.me)".
 
 #### Correct call
 
 - Filename: `client/public/audio/games/sfx-correct.mp3`
 - Used: a verdict, case or round is right.
-- jsfxr (main route): **Pickup/Coin** preset; keep it bright and short (sustain about 0.05, decay about 0.15).
+- jsfxr (main route), about 0.25 s, two rising notes: **Square**, duty cycle 50%. Envelope: attack 0, sustain 0.06, punch 30%, decay 0.15. Frequency: start about 880 Hz, slide 0. Arpeggiation: frequency mult up about x1.26 (a major third), change speed about 0.06 s.
 - Lyria fallback prompt: A short bright 8-bit confirmation chime, two rising notes (major third), clean and friendly, under 0.5 seconds, no reverb tail. Instrumental, 8-bit, matching the hub's light chiptune feel.
 
 #### Wrong call
 
 - Filename: `client/public/audio/games/sfx-wrong.mp3`
 - Used: a verdict, case or round is wrong.
-- jsfxr (main route): **Hit/Hurt** preset, or **Blip/Select** with a negative frequency slide so it falls; lower the start frequency so it sounds soft, not harsh.
+- jsfxr (main route), about 0.35 s, a soft falling buzz: **Square**, duty cycle 50%. Envelope: attack 0, sustain 0.08, punch 0, decay 0.20. Frequency: start about 330 Hz, slide 0. Arpeggiation: frequency mult down about x0.94 (a semitone), change speed about 0.10 s. Low-pass filter: cutoff about 60% to take the harsh edge off.
 - Lyria fallback prompt: A short soft 8-bit error buzz, two falling notes (minor second), gentle not harsh, under 0.5 seconds, no reverb tail. Instrumental, 8-bit, matching the hub's light chiptune feel.
 
 #### Win
 
 - Filename: `client/public/audio/games/sfx-win.mp3`
 - Used: a run, call or climb ends well.
-- jsfxr (main route): **Powerup** preset; raise sustain so the whole thing lasts about 1 second.
+- jsfxr (main route), about 1 s, rising and cheerful: start from the **Powerup** preset, then set **Square**, duty cycle 50%. Envelope: attack 0, sustain 0.35, punch 40%, decay 0.45. Frequency: start about 520 Hz, slide +0.2 to +0.3 8va/sec. Retrigger: rate so you hear about 4 steps. Arpeggiation: frequency mult up about x1.5, change speed about 0.5 s, for a held top note at the end.
 - Lyria fallback prompt: A short 8-bit victory jingle, a rising major arpeggio ending on a held bright note, cheerful, about 1 second, no reverb tail. Instrumental, 8-bit, matching the hub's light chiptune feel.
 
 #### Lose
 
 - Filename: `client/public/audio/games/sfx-lose.mp3`
 - Used: a run ends badly (phishing: too many mistakes; social: call not resisted).
-- jsfxr (main route): **Powerup** preset with the frequency slide made negative so it falls, and a lower start frequency; about 1 second.
+- jsfxr (main route), about 1 s, slow and falling: **Square**, duty cycle 50%. Envelope: attack 0, sustain 0.40, punch 0, decay 0.50. Frequency: start about 440 Hz, min freq. cutoff about 100 Hz, slide -0.3 to -0.5 8va/sec. Vibrato: depth about 15%, speed about 6 Hz. Low-pass filter: cutoff about 70%, cutoff sweep slightly negative so it darkens as it falls. Retrigger and arpeggiation off.
 - Lyria fallback prompt: A short 8-bit defeat sting, a slow descending minor phrase ending on a low note, about 1 second, no reverb tail. Instrumental, 8-bit, matching the hub's light chiptune feel.
 
 #### Click
 
 - Filename: `client/public/audio/games/sfx-click.mp3`
 - Used: reserved for game buttons; available to any game that adds one-line `playSfx('click')` calls.
-- jsfxr (main route): **Blip/Select** preset; shorten sustain and decay until it is under 0.1 seconds.
+- jsfxr (main route), under 0.1 s, a tiny tick: **Square**, duty cycle 50%. Envelope: attack 0, sustain 0.01, punch 0, decay 0.04. Frequency: start about 1800 Hz, slide 0. High-pass filter: cutoff about 10% to remove any low thump.
 - Lyria fallback prompt: A tiny crisp 8-bit UI tick, a single very short high blip, under 0.15 seconds. Instrumental, 8-bit, matching the hub's light chiptune feel.
 
 ### Checking
