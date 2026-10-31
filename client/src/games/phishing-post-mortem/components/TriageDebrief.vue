@@ -61,6 +61,7 @@ function callLabel(item) {
         <p class="triage-type">{{ typeLabel(item.type) }}</p>
         <p>{{ item.explanation }}</p>
         <p class="triage-points">{{ item.points }} points</p>
+        <p v-if="item.hintTier > 0" class="triage-hint-used">Hint used</p>
       </li>
     </ol>
   </section>

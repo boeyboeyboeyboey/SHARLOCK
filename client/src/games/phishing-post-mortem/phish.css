@@ -754,3 +754,41 @@
 .phish-game .triage-live .triage-strip {
   padding-right: 6.5rem;
 }
+
+.phish-game .triage-hint {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}
+
+.phish-game .triage-hint-button {
+  justify-self: start;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0.5rem 1.25rem;
+  font: inherit;
+  font-weight: 700;
+  color: var(--game-accent);
+  background: var(--game-surface);
+  border: 2px solid var(--game-accent);
+  border-radius: 8px;
+}
+
+.phish-game .triage-hint-button:disabled {
+  opacity: 0.6;
+}
+
+.phish-game .triage-hint-lines {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.5rem 0.75rem 0.5rem 1.5rem;
+  margin: 0;
+  background: var(--game-accent-soft);
+  border: 1px solid var(--game-line-strong);
+  border-radius: 8px;
+}
+
+.phish-game .triage-hint-used {
+  font-size: 0.875rem;
+  font-weight: 700;
+}

@@ -8,6 +8,7 @@ export const PRACTICE_ROUNDS = 12
 export const TIMED_ROUND_CAP = 60
 export const TIER_POINTS = Object.freeze({ 1: 10, 2: 20, 3: 30 })
 export const TELL_BONUS = 10
+export const MAX_HINT_TIER = 2
 
 const ROUND_ID = /^[0-9a-z]{6}$/
 const PART_ID = /^p[0-9a-z]{4}$/
@@ -46,11 +47,23 @@ function invalid(fieldErrors) {
   )
 }
 
+// a hint names only the round; the server decides which tier comes next
+function parseHint(payload) {
+  const fieldErrors = Object.create(null)
+  for (const key of Object.keys(payload))
+    if (key !== 'roundId') fieldErrors[key] = 'unsupported field'
+  if (typeof payload.roundId !== 'string' || !ROUND_ID.test(payload.roundId))
+    fieldErrors.roundId = 'expected a valid identifier'
+  if (Object.keys(fieldErrors).length) throw invalid(fieldErrors)
+  return { roundId: payload.roundId }
+}
+
 export function parseAction(type, payload) {
-  if (type !== 'triage-call')
+  if (type !== 'triage-call' && type !== 'triage-hint')
     throw new TriageError('PHISH_INVALID_ACTION', 'Choose a supported triage action.')
   if (!payload || typeof payload !== 'object' || Array.isArray(payload))
     throw invalid({ body: 'expected an object' })
+  if (type === 'triage-hint') return parseHint(payload)
   const fieldErrors = Object.create(null)
   for (const key of Object.keys(payload))
     if (!ACTION_FIELDS.includes(key)) fieldErrors[key] = 'unsupported field'

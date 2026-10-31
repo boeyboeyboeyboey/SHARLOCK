@@ -6,6 +6,7 @@ import { useHowToPlay } from '../../composables/useHowToPlay.js'
 import { playSfx } from '../../composables/playSfx.js'
 import AttemptContextChooser from '../../features/attempts/components/AttemptContextChooser.vue'
 import SavedAttemptResult from '../../features/attempts/components/SavedAttemptResult.vue'
+import HintPanel from './components/HintPanel.vue'
 import HowToPlayScene from './components/HowToPlayScene.vue'
 import RoundFeedback from './components/RoundFeedback.vue'
 import TriageDebrief from './components/TriageDebrief.vue'
@@ -30,6 +31,9 @@ const {
   completed,
   legacy,
   current,
+  maxHintTier,
+  hintState,
+  hint,
   last,
   previousEmail,
   review,
@@ -273,6 +277,15 @@ async function nextEmail() {
               :disabled="locked"
               @select-part="pickPart"
               @cancel-pick="cancelPicking"
+            />
+
+            <HintPanel
+              v-if="!timed && maxHintTier > 0 && !picking"
+              :tier="hintState?.tier ?? 0"
+              :max-tier="maxHintTier"
+              :lines="hintState?.lines ?? []"
+              :disabled="locked"
+              @hint="hint"
             />
 
             <div v-if="picking" class="triage-pick-bar">
