@@ -623,6 +623,25 @@ export const PUZZLES = Object.freeze({
   account: { generate: account, check: checkIndex(4) },
 })
 
+// one fixed line per kind: names the mistake type, never the answer or a narrowed choice
+export const LATE_REASON = 'Too late: the patch window closed before you submitted'
+export const FAIL_REASONS = Object.freeze({
+  firewall:
+    'A rule was wrong: allow only what this role needs and block what it never should expose',
+  patch:
+    'A patch did not cover its install: match each install to the entry whose range includes it',
+  process:
+    'That process looked normal: compare names and file paths with what this system really runs',
+  hash: 'That hash was not an exact match: compare every character, not just the ends',
+  spoof: 'That sender was legitimate: read each domain letter by letter, not just the name',
+  account:
+    'That password was weaker than another option: length and unpredictability beat clever swaps',
+})
+
+export function failReason(kind) {
+  return Object.hasOwn(FAIL_REASONS, kind) ? FAIL_REASONS[kind] : 'That answer was wrong'
+}
+
 export function generatePuzzle(kind, rng) {
   const puzzle = Object.hasOwn(PUZZLES, kind) ? PUZZLES[kind] : null
   return puzzle ? puzzle.generate(rng) : null

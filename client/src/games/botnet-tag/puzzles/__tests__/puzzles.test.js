@@ -147,6 +147,9 @@ describe('puzzle result', () => {
   it('shows the lockout seconds, else Patched, else nothing', async () => {
     const wrapper = mount(PuzzleResult, { props: { lockMs: 4200, patched: true } })
     expect(wrapper.get('[data-testid="puzzle-locked"]').text()).toContain('5s')
+    expect(wrapper.find('[data-testid="puzzle-reason"]').exists()).toBe(false)
+    await wrapper.setProps({ reason: 'Too late: the window closed' })
+    expect(wrapper.get('[data-testid="puzzle-reason"]').text()).toContain('Too late')
     await wrapper.setProps({ lockMs: 0 })
     expect(wrapper.get('[data-testid="puzzle-patched"]').text()).toContain('Patched')
     await wrapper.setProps({ patched: false })

@@ -60,6 +60,16 @@ afterEach(() => {
 })
 
 describe('how to play dialog', () => {
+  it('shows catalog difficulty and background knowledge only for a known game', () => {
+    expect(mountDialog().wrapper.find('[data-testid="howto-level"]').exists()).toBe(false)
+    const level = mountDialog({ gameId: 'botnet-tag' }).wrapper.get('[data-testid="howto-level"]')
+    expect(level.text()).toContain('\u2605\u2605\u2606')
+    expect(level.text()).toContain('2 of 3')
+    expect(level.text()).toContain(
+      'Helps to know: Malware spread, Patching, Network services and ports',
+    )
+  })
+
   it('renders the steps, learn line, rules and controls', () => {
     const { wrapper } = mountDialog({ open: true })
     expect(wrapper.get('dialog').attributes('aria-labelledby')).toBeTruthy()
