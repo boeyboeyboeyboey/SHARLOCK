@@ -319,8 +319,22 @@ function samplePeers() {
     prev.every((q, i) => q.sid === list[i].sid && Math.abs(q.x - list[i].x) < 0.3 && Math.abs(q.z - list[i].z) < 0.3 && q.staff === list[i].staff)
   if (!same) view.peers = list
 }
+// pixels the bottom bar and the open talk panel cover, so the camera keeps Sharlock and the npc above them
+function syncInset() {
+  const root = stage.value?.parentElement
+  if (!hub || !root) return
+  const bottom = root.getBoundingClientRect().bottom
+  let top = bottom
+  for (const el of root.querySelectorAll('.hub-actions, .hub-talk-panel, [data-testid="npc-dialogue"]')) {
+    const box = el.getBoundingClientRect()
+    if (box.height > 0) top = Math.min(top, box.top)
+  }
+  hub.setBottomInset(Math.round(bottom - top))
+}
+
 function samplePlayer() {
   peerTick = (peerTick + 1) % 3
+  syncInset()
   if (peerTick === 0) samplePeers()
   const at = hub?.state?.player
   if (!at) return

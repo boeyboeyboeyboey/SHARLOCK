@@ -224,6 +224,7 @@ export function createHub({ container, joystick = {}, params = new URLSearchPara
     enter: (id) => api()?.enter(id) ?? Promise.resolve(false),
     back: () => api()?.back() ?? Promise.resolve(false),
     resetCamera: () => api()?.resetCamera(),
+    setBottomInset: (px) => api()?.setBottomInset(px),
     position: () => api()?.debug.position() ?? null,
     setPeers: (map) => api()?.setPeers(map),
     peerLabels: () => api()?.peerLabels() ?? [],

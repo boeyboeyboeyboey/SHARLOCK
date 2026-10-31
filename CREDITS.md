@@ -111,3 +111,4 @@ Game scenarios, rules, puzzles and copy were written by the team. Owners follow 
 - G-PHISH Phishing Post-Mortem: Athithya
 - G-SOC Social Engineering Simulator: Eric (its `llm/` engine is separately owned; provider details are in that module's records)
 - G-CLEAR Clearance Tower: Russell
+- Hub footstep and gas lamp hiss sound effects (`client/src/features/hub/audio/hubSfx.js`) are original code generated with the Web Audio API, no recorded audio: Boey (HUB-12).
