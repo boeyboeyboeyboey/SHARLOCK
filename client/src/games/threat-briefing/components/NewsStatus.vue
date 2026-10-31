@@ -1,6 +1,7 @@
 <script setup>
-import { newsDate } from '../news.js'
-defineProps({
+import { computed } from 'vue'
+import { newsDate, newsStamp } from '../news.js'
+const props = defineProps({
   loading: Boolean,
   error: { type: String, default: '' },
   stale: Boolean,
@@ -10,6 +11,11 @@ defineProps({
   canRefresh: Boolean,
 })
 defineEmits(['retry'])
+const nextCheck = computed(() =>
+  !props.loading && !props.canRefresh && props.refreshAvailableAt
+    ? newsStamp(props.refreshAvailableAt)
+    : '',
+)
 </script>
 <template>
   <div class="gazette-status" role="status" aria-live="polite" aria-atomic="true">
@@ -24,10 +30,12 @@ defineEmits(['retry'])
       A cached edition · check for a fresh update. Last successful update:
       {{ newsDate(fetchedAt, true) }} SGT
     </p>
-    <p v-else-if="fetchedAt">Edition checked {{ newsDate(fetchedAt, true) }} SGT</p>
+    <p v-else-if="fetchedAt">
+      Updated {{ newsStamp(fetchedAt) }} SGT{{ nextCheck ? ` · next ${nextCheck}` : '' }}
+    </p>
     <p v-if="partial">Some stories could not be included in this edition.</p>
-    <small v-if="!loading && !canRefresh && refreshAvailableAt"
-      >Next update check available {{ newsDate(refreshAvailableAt, true) }} SGT</small
+    <small v-if="nextCheck && (error || stale || !fetchedAt)"
+      >Next update check available {{ nextCheck }} SGT</small
     >
   </div>
 </template>

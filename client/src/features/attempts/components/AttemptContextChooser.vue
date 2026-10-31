@@ -43,7 +43,7 @@ onMounted(load)
 onBeforeUnmount(() => controller.abort())
 </script>
 <template>
-  <form @submit.prevent="start">
+  <form class="attempt-context-form" @submit.prevent="start">
     <label for="attempt-context">{{ label }}</label>
     <select
       id="attempt-context"
@@ -63,3 +63,9 @@ onBeforeUnmount(() => controller.abort())
     <button class="btn btn-primary mt-2" :disabled="disabled || loading">{{ submitLabel }}</button>
   </form>
 </template>
+<style>
+/* zero specificity so a game's own spacing still wins; only gaps a button placed right above */
+:where(button) + :where(.attempt-context-form) {
+  margin-top: 12px;
+}
+</style>

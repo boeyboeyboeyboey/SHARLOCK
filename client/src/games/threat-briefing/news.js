@@ -22,6 +22,22 @@ export function safeNewsLink(value) {
   }
 }
 
+// time only when it falls on today in singapore, otherwise day and time
+export function newsStamp(value, now = Date.now()) {
+  const date = new Date(value)
+  if (!Number.isFinite(date.getTime())) return ''
+  const day = (time) =>
+    new Intl.DateTimeFormat('en-SG', { timeZone: 'Asia/Singapore', dateStyle: 'short' }).format(
+      time,
+    )
+  return new Intl.DateTimeFormat('en-SG', {
+    timeZone: 'Asia/Singapore',
+    ...(day(date) !== day(new Date(now)) && { day: 'numeric', month: 'short' }),
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
+}
+
 export function newsDate(value, includeTime = false) {
   const date = new Date(value)
   if (!Number.isFinite(date.getTime())) return ''
