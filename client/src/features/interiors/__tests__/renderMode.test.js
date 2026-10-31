@@ -5,20 +5,14 @@ import { ROOM_IDS, roomFor, rooms } from '../rooms/index.js'
 describe('decideRender', () => {
   const base = { townMode: '3d', tierName: 'desktop' }
 
-  it('animates on the desktop and compact tiers', () => {
-    expect(decideRender(base)).toBe('loop')
-    expect(decideRender({ ...base, tierName: 'compact' })).toBe('loop')
-  })
-
-  it('renders one frame on the low tier or under reduced motion', () => {
-    expect(decideRender({ ...base, tierName: 'low' })).toBe('single')
-    expect(decideRender({ ...base, reducedMotion: true })).toBe('single')
-  })
-
-  it('shows the still in 2d mode, after a failure or a perf drop', () => {
+  it('always picks the still, whatever the mode, tier or motion setting', () => {
+    expect(decideRender(base)).toBe('still')
+    expect(decideRender({ ...base, tierName: 'compact' })).toBe('still')
+    expect(decideRender({ ...base, tierName: 'low' })).toBe('still')
+    expect(decideRender({ ...base, reducedMotion: true })).toBe('still')
     expect(decideRender({ ...base, townMode: '2d' })).toBe('still')
-    expect(decideRender({ ...base, failed: true })).toBe('still')
-    expect(decideRender({ ...base, slow: true })).toBe('still')
+    expect(decideRender({ ...base, failed: true, slow: true })).toBe('still')
+    expect(decideRender()).toBe('still')
   })
 })
 

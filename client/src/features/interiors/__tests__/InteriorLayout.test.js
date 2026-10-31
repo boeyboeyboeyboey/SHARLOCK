@@ -144,7 +144,7 @@ describe('hero layout fallback', () => {
   })
 })
 
-describe('hero surface styles', () => {
+describe('3d preference on a game route (INT-03)', () => {
   beforeEach(() => {
     localStorage.setItem('sharlock.townMode', '3d')
     localStorage.setItem('sharlock.hubForce3d', '1')
@@ -156,28 +156,33 @@ describe('hero surface styles', () => {
   })
 
   it.each([
-    ['phishing-post-mortem', 'paper'],
-    ['cli-cyber-defender', 'slate'],
-    ['sql-injection-arcade', 'slate'],
-    ['social-engineering-simulator', 'paper'],
-    ['clearance-tower', 'paper'],
-  ])('%s blends with a %s surface and a click-through overlay', async (id, surface) => {
+    'phishing-post-mortem',
+    'cli-cyber-defender',
+    'sql-injection-arcade',
+    'social-engineering-simulator',
+    'clearance-tower',
+  ])('%s shows the still with the centred desk and no live room', async (id) => {
     const wrapper = await mountAt(`/games/${id}`)
     const root = wrapper.get('[data-testid="interior"]')
-    expect(root.attributes('data-stage')).toBe('3d')
-    expect(root.attributes('data-surface')).toBe(surface)
-    expect(wrapper.get('.desk-surface').exists()).toBe(true)
-    const overlay = wrapper.get('[data-testid="desk-overlay"]')
-    expect(overlay.attributes('aria-hidden')).toBe('true')
-    expect(overlay.attributes('style')).toContain('width: 800px')
+    expect(root.attributes('data-stage')).toBe('still')
+    expect(root.attributes('data-hero')).toBeUndefined()
+    expect(wrapper.find('[data-testid="interior-canvas"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="interior-still"]').attributes('src')).toBe(
+      `/interiors/${id}.webp`,
+    )
+    expect(wrapper.find('.desk-surface').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="desk-overlay"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="interior-desk"]').classes()).not.toContain('is-hero')
     expect(wrapper.get('[data-testid="interior-desk"]').text()).toContain('game content')
     wrapper.unmount()
   })
 
-  it('keeps the shell paddings for a game that bleeds by the gutter', async () => {
-    const wrapper = await mountAt('/games/sql-injection-arcade')
-    expect(wrapper.get('[data-testid="interior"]').attributes('data-stage')).toBe('3d')
-    expect(wrapper.get('[data-testid="interior-desk"]').classes()).toContain('is-bleed')
+  it('keeps the 3d | 2d switch usable without starting a room', async () => {
+    const wrapper = await mountAt('/games/cli-cyber-defender')
+    await wrapper.get('[data-testid="town-mode-toggle"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('[data-testid="interior"]').attributes('data-stage')).toBe('still')
+    expect(wrapper.find('[data-testid="interior-canvas"]').exists()).toBe(false)
     wrapper.unmount()
   })
 })

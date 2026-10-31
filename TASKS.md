@@ -143,6 +143,12 @@ All records in this section were Review until 1 November 2026, when Boey accepte
 - Checks: vitest threat-briefing 13/13; prettier passes on the changed code files (DESIGN.md already failed at HEAD); E2E `news.spec.js` 18 passed, 2 skipped (phone-only tests on desktop); screenshots at 1280x800 and 375x812 checked.
 - Docs: DESIGN.md (Times look and the exclusion list, which also now names Botnet Tag), threat-briefing README (font line), this record.
 
+**INT-03 — Game rooms show stills only** · Status: **Review** · Contributor: **Boey** (asked on 1 November 2026, for performance), implemented by Claude Code · Branch: `int-03-room-stills`.
+- `renderMode.js` `decideRender` always returns `still`, so game routes show the pre-rendered WebP of each room (gradient if it fails) and never start Babylon; the E2E checks there is no canvas, no `window.__interior` and no Babylon request. INT-02's hero layout falls back to the centred desk. The live room code (`useInteriorEngine.js`, scenes, `scripts/capture-interiors.mjs`) is kept but unreachable; regenerating a still needs the live path forced back on.
+- Left for a clean-up: dead wiring in `InteriorLayout.vue` (createInterior call, perf sampler, failed/tier handling, hero rect and `.desk-surface` markup). The 3D | 2D switch on game pages now changes nothing visible (it was a per-visit override); hide or remove it in a follow-up. The hero stills show an empty board below the desk.
+- Checks: vitest interiors and router 50/50; E2E `interiors.spec.js` and `clearance-tower.spec.js` on desktop and mobile 40 passed, 2 skipped; eslint clean; prettier clean except DESIGN.md (already failed at HEAD); screenshot at 1280x800.
+- Docs: agents.md §8 (interiors sentence), interiors README, DESIGN.md, README "Using the app" (game rooms), this record.
+
 **DOC-20 — Accept the whole Review queue** · Status: **Done** · Contributor/reviewer: **Boey** (asked on 1 November 2026), implemented by Claude Code · Branch: `doc-20-review-acceptance`.
 - Scope: every record marked Review (143 bold status lines plus DOC-13, QA-01-A, G-SQL saved practice, the two GAME-01 field lists, the G-SOC current-status line and REC-01-A) now reads Done, accepted by Boey on 1 November 2026. This includes teammates' records (Xin Lei, Athithya, Eric, Russell), which Boey accepted as team lead. Records stay in their sections; a note at the top of In Progress and Review says so.
 - agents.md §3: the teammate-game sentence now records the acceptance, and the G-NEWS-03 inconsistency note is replaced by its acceptance.
