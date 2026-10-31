@@ -118,7 +118,7 @@ New pages, panels and game screens should size their major regions with the gold
 
 **Current use.** The Social Engineering Simulator conversation (changed on 15 October 2026 at Eric's request) splits the decision rail and the chat 1 : 1.618 from 768px upward and widens its chat view to 1100px (`.is-wide` in `client/src/games/social-engineering-simulator/sim.css`); below 768px it stacks. The reset code sits in a dashed ticket-style card at the top of the decision rail (`.soc-code-card`), not in the header, and in colleague mode a contact card (`.soc-colleague-card`) sits above the two choices; the cards keep their natural height, and while chatting the conversation card stops growing at 32rem (`.is-chat` on `.soc-conversation`) so that on tall windows the rail has no spare height to turn into gaps; the page background shows below the card instead, and the debrief is not capped (16 October 2026). On bigger windows the whole conversation screen, including the debrief, scales up in proportion with CSS `zoom`: `--soc-scale` in `sim.css` is the largest factor that still fits the window, never below 1 and never above 1.8, so the text, cards and spacing grow together; a browser without `zoom` and the CSS math functions skips the block and keeps the fixed size. Checked in Chrome at a 1536 × 791 window (factor about 1.11); larger factors were not rendered. Checked in a browser at a 791px-high window, with the 1280 × 720 fit worked out by measuring the rail's content (444px against 456px available), not yet at a real 720px viewport. When the colleague LLM is configured (15 October 2026), a tab strip sits above the chat to switch between the sender and the real colleague. It is styled with the existing game variables (`.soc-tabs`, `.soc-tab`, `.soc-tab-badge` in the same `sim.css`), with no change to the palette or layout rules. The 1280x720 fit for this state has not been checked yet. Other screens have not been realigned to the guideline.
 
-## 3D hub landing (HUB-01, in Review)
+## 3D hub landing (HUB-01)
 
 Approved by Boey on 20 October 2026 (record in [TASKS.md](TASKS.md)); implemented and on `main`, status Review (HUB-01, HUB-02 and HUB-03 records in TASKS.md). This is the only approved browser 3D surface.
 
@@ -206,11 +206,11 @@ The six activities are already registered. Keep their identities and placements 
 | Feature                                   | Catalog ID / route suffix      | Building  | Position   | Readiness                  |
 | ----------------------------------------- | ------------------------------ | --------- | ---------- | -------------------------- |
 | CLI Cyber Defender                        | `cli-cyber-defender`           | cottage   | (112, 112) | Playable, saved (accepted) |
-| The Phishing Post-Mortem                  | `phishing-post-mortem`         | library   | (480, 64)  | Playable, saved (Review)   |
+| The Phishing Post-Mortem                  | `phishing-post-mortem`         | library   | (480, 64)  | Playable, saved (Done)     |
 | SQL Injection Arcade                      | `sql-injection-arcade`         | hut       | (832, 128) | Saved practice             |
 | Cyber News Central / The daily briefing   | `threat-briefing`              | newsstand | (144, 480) | Accepted                   |
-| LLM Social Engineering Simulator          | `social-engineering-simulator` | office    | (432, 520) | Playable, saved (Review)   |
-| Clearance Tower (replaced Regex Defender) | `clearance-tower`              | shed      | (720, 496) | Playable, saved (Review)   |
+| LLM Social Engineering Simulator          | `social-engineering-simulator` | office    | (432, 520) | Playable, saved (Done)     |
+| Clearance Tower (replaced Regex Defender) | `clearance-tower`              | shed      | (720, 496) | Playable, saved (Done)     |
 
 A game that only works in 3D sets `needs3d: true` in its catalog entry: the 2D info card and the Places row then show a small "3D" badge (`aria-label` "Needs 3D"), and the game page shows a short "Needs 3D" state when WebGL2 is missing (the 2D town setting does not block it). Botnet Tag (`botnet-tag`, `warehouse` building at (240, 600), Server Yard on the east lane of the wharf) is the first.
 
