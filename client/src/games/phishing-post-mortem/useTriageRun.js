@@ -28,6 +28,8 @@ export function useTriageRun({ now = Date.now } = {}) {
   const roundsPlayed = computed(() => publicState.value?.roundsPlayed ?? 0)
   const totalRounds = computed(() => publicState.value?.totalRounds ?? null)
   const maxMistakes = computed(() => publicState.value?.maxMistakes ?? null)
+  const maxHintTier = computed(() => publicState.value?.maxHintTier ?? 0)
+  const hintState = computed(() => publicState.value?.hint ?? null)
   const completed = computed(() => status.value === 'completed')
   // attempts saved under an earlier ruleset have no triage state and are only summarised
   const legacy = computed(() => {
@@ -134,6 +136,12 @@ export function useTriageRun({ now = Date.now } = {}) {
     return false
   }
 
+  async function hint() {
+    const round = current.value
+    if (!round || !canAct.value || busy.value || finishing.value) return false
+    return attempt.mutate('triage-hint', { roundId: round.roundId })
+  }
+
   const report = (partId) => call({ call: 'report', partId })
   const trust = () => call({ call: 'trust' })
 
@@ -178,6 +186,9 @@ export function useTriageRun({ now = Date.now } = {}) {
     secondsLeft,
     needsCompletion,
     canAct,
+    maxHintTier,
+    hintState,
+    hint,
     start,
     resume,
     report,

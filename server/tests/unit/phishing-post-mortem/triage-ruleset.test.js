@@ -263,6 +263,7 @@ describe('triage public state', () => {
         'call',
         'correct',
         'explanation',
+        'hintTier',
         'points',
         'senderAddress',
         'subject',

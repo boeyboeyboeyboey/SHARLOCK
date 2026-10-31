@@ -83,6 +83,30 @@ test('a personal practice run plays 12 emails, shows the debrief and saves', asy
   await expect(page.getByRole('heading', { name: 'Start a run' })).toBeVisible()
 })
 
+test('practice hints come in two tiers, are free and show in the feedback', async ({ page }) => {
+  await startRun(page)
+  const hintButton = page.getByRole('button', { name: 'Hint', exact: true })
+  const hints = page.getByRole('region', { name: 'Hints' })
+  const hinted = (response) =>
+    ACTIONS.test(response.url()) &&
+    response.request().method() === 'POST' &&
+    response.request().postDataJSON().type === 'triage-hint'
+
+  const first = page.waitForResponse(hinted)
+  await hintButton.click()
+  expect((await first).status()).toBe(200)
+  await expect(hints.getByRole('listitem')).toHaveCount(1)
+
+  await page.getByRole('button', { name: 'Another hint' }).click()
+  await expect(hints.getByRole('listitem')).toHaveCount(2)
+  await expect(page.getByRole('button', { name: 'No more hints' })).toBeDisabled()
+
+  await call(page, 'trust')
+  await expect(page.getByText('Hint used', { exact: true })).toBeVisible()
+  await nextButton(page).click()
+  await expect(page.getByRole('button', { name: 'Hint', exact: true })).toBeEnabled()
+})
+
 test('a class run is timed and ends on the third mistake, then ranks on the class board', async ({
   browser,
   baseURL,
@@ -94,6 +118,7 @@ test('a class run is timed and ends on the third mistake, then ranks on the clas
     await startRun(page, seeded.classId)
     await expect(page.getByRole('timer')).toBeVisible()
     await expect(page.getByText('Mistakes 0 of 3')).toBeVisible()
+    await expect(page.getByRole('button', { name: /hint/i })).toHaveCount(0)
 
     // trusting every email hits three mistakes long before three minutes pass
     let mistakes = 0

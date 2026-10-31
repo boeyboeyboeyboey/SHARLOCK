@@ -4,6 +4,7 @@ import { AttemptError } from '../../../attempts/policy.js'
 import { GENERATOR_VERSION } from './generator/index.js'
 import {
   GAME_ID,
+  MAX_HINT_TIER,
   MAX_MISTAKES,
   PRACTICE_ROUNDS,
   RULESET_VERSION,
@@ -13,6 +14,7 @@ import {
   maxTimedScore,
   parseAction,
 } from './policy.js'
+import { hintLines, hintTypeFor } from './hints.js'
 import {
   PHISH_TYPE_TOPICS,
   judgeCall,
@@ -31,6 +33,14 @@ const roundSchema = new Schema(
     correct: { type: Boolean, required: true },
     tellHit: { type: Boolean, required: true },
     points: { type: Number, required: true, min: 0 },
+    hintTier: { type: Number, default: 0, min: 0, max: MAX_HINT_TIER },
+  },
+  { _id: false, strict: 'throw' },
+)
+const hintSchema = new Schema(
+  {
+    roundId: { type: String, required: true, maxlength: 8 },
+    tier: { type: Number, required: true, min: 1, max: MAX_HINT_TIER },
   },
   { _id: false, strict: 'throw' },
 )
@@ -43,6 +53,7 @@ const stateSchema = new Schema(
       default: [],
       validate: (rounds) => rounds.length <= TIMED_ROUND_CAP,
     },
+    hint: { type: hintSchema, default: null },
   },
   { _id: false, strict: 'throw' },
 )
@@ -70,6 +81,7 @@ function lastOutcome(state) {
     correct: round.correct,
     tellHit: round.tellHit,
     points: round.points,
+    hintTier: round.hintTier ?? 0,
     verdict: answer.verdict,
     type: answer.type,
     tellPartIds: [...answer.tellPartIds],
@@ -90,9 +102,30 @@ function buildReview(state) {
       correct: round.correct,
       tellHit: round.tellHit,
       points: round.points,
+      hintTier: round.hintTier ?? 0,
       explanation: answer.explanation,
     }
   })
+}
+
+function applyHint(state, action, metadata) {
+  if (metadata.mode !== 'practice')
+    fail('PHISH_HINT_UNAVAILABLE', 'Hints are only available in practice runs.', 409)
+  if (isOver(state, metadata)) fail('PHISH_RUN_OVER', 'This run has already ended.', 409)
+  const { roundId } = action.payload
+  if (roundId !== roundFor(state, state.rounds.length).email.roundId)
+    fail('PHISH_STALE_ROUND', 'That email is no longer the current one.', 409)
+  const given = state.hint?.roundId === roundId ? state.hint.tier : 0
+  if (given >= MAX_HINT_TIER)
+    fail('PHISH_HINT_EXHAUSTED', 'There are no more hints for this email.', 409)
+  return { ...state, hint: { roundId, tier: given + 1 } }
+}
+
+// hint lines already given for the current email, derived from the stored tier
+function currentHint(state, round) {
+  if (!state.hint || state.hint.roundId !== round.email.roundId) return null
+  const type = hintTypeFor(round, state.seed, state.rounds.length)
+  return { tier: state.hint.tier, lines: hintLines(type, state.hint.tier) }
 }
 
 // randomSeed is a test-only seam, never reachable from a request
@@ -126,6 +159,7 @@ export function createTriageRuleset({ randomSeed = () => randomBytes(16).toStrin
       }
     },
     applyAction(state, action, metadata) {
+      if (action.type === 'triage-hint') return applyHint(state, action, metadata)
       if (isOver(state, metadata)) fail('PHISH_RUN_OVER', 'This run has already ended.', 409)
       const current = roundFor(state, state.rounds.length)
       const { roundId, call, partId } = action.payload
@@ -134,14 +168,16 @@ export function createTriageRuleset({ randomSeed = () => randomBytes(16).toStrin
       if (call === 'report' && !current.email.parts.some((part) => part.id === partId))
         fail('PHISH_UNKNOWN_SELECTION', 'That part does not belong to this email.')
       const outcome = judgeCall(current, call, partId ?? null, tally(state.rounds).streak)
+      const hintTier = state.hint?.roundId === roundId ? state.hint.tier : 0
       const round = {
         roundId,
         tier: current.email.tier,
         call,
         partId: partId ?? null,
         ...outcome,
+        hintTier,
       }
-      return { ...state, rounds: [...state.rounds, round] }
+      return { ...state, rounds: [...state.rounds, round], hint: null }
     },
     canComplete(state, metadata) {
       return isOver(state, metadata)
@@ -151,6 +187,7 @@ export function createTriageRuleset({ randomSeed = () => randomBytes(16).toStrin
       const totals = tally(state.rounds)
       const completed = metadata.status === 'completed'
       const playable = metadata.status === 'active' && !isOver(state, metadata)
+      const currentRound = playable ? roundFor(state, state.rounds.length) : null
       const view = {
         mode: metadata.mode,
         totalRounds: timed ? null : PRACTICE_ROUNDS,
@@ -159,7 +196,9 @@ export function createTriageRuleset({ randomSeed = () => randomBytes(16).toStrin
         score: totals.score,
         streak: totals.streak,
         mistakes: totals.mistakes,
-        current: playable ? roundFor(state, state.rounds.length).email : null,
+        maxHintTier: timed ? 0 : MAX_HINT_TIER,
+        current: currentRound ? currentRound.email : null,
+        hint: currentRound ? currentHint(state, currentRound) : null,
         last: lastOutcome(state),
       }
       if (completed) view.review = buildReview(state)

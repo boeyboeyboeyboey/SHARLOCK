@@ -326,6 +326,57 @@ describe('saved phishing triage journey', () => {
     await post(other, `${path}/actions`, triageAction(start, trustCurrent(start))).expect(404)
   })
 
+  it('gives two free hint tiers in practice and records the use', async () => {
+    const student = await registerStudent(app)
+    const start = await startPersonal(student)
+    const path = `/api/attempts/${start.attemptId}/actions`
+    const roundId = start.publicState.current.roundId
+    const hintBody = (snapshot) => ({
+      ...triageAction(snapshot, { roundId }),
+      type: 'triage-hint',
+    })
+    expect(start.publicState.maxHintTier).toBe(2)
+    expect(start.publicState.hint).toBeNull()
+    const one = (await post(student, path, hintBody(start)).expect(200)).body
+    expect(one.publicState.hint.tier).toBe(1)
+    expect(one.publicState.hint.lines).toHaveLength(1)
+    expect(one.publicState.score).toBe(0)
+    const two = (await post(student, path, hintBody(one)).expect(200)).body
+    expect(two.publicState.hint.lines).toHaveLength(2)
+    const spent = await post(student, path, hintBody(two)).expect(409)
+    expect(spent.body.error.code).toBe('PHISH_HINT_EXHAUSTED')
+    const bad = { ...hintBody(two), payload: { roundId, extra: 1 } }
+    await post(student, path, bad).expect(400)
+    const played = await play(student, two, trustCurrent(two))
+    expect(played.publicState.last.hintTier).toBe(2)
+    expect(played.publicState.hint).toBeNull()
+  })
+
+  it('refuses hints in a timed run', async () => {
+    const student = await registerStudent(app)
+    const { start } = await startClass(student)
+    expect(start.publicState.maxHintTier).toBe(0)
+    const body = {
+      ...triageAction(start, { roundId: start.publicState.current.roundId }),
+      type: 'triage-hint',
+    }
+    const refused = await post(student, `/api/attempts/${start.attemptId}/actions`, body).expect(
+      409,
+    )
+    expect(refused.body.error.code).toBe('PHISH_HINT_UNAVAILABLE')
+  })
+
+  it('refuses a hint on another player attempt', async () => {
+    const student = await registerStudent(app)
+    const start = await startPersonal(student)
+    const other = await registerStudent(app)
+    const body = {
+      ...triageAction(start, { roundId: start.publicState.current.roundId }),
+      type: 'triage-hint',
+    }
+    await post(other, `/api/attempts/${start.attemptId}/actions`, body).expect(404)
+  })
+
   it('still reads an unfinished phish-2 attempt', async () => {
     const student = await registerStudent(app)
     const start = await startPersonal(student)

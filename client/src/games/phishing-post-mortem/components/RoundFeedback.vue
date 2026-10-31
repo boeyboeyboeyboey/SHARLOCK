@@ -61,6 +61,7 @@ onMounted(async () => {
     <p class="triage-type">{{ typeLabel(last.type) }}</p>
     <p>{{ last.explanation }}</p>
     <p class="triage-points">+{{ last.points }} points</p>
+    <p v-if="last.hintTier > 0" class="triage-hint-used">Hint used</p>
     <TriageEmailCard
       v-if="showEmail"
       :email="email"
