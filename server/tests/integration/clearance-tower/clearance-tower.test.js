@@ -101,6 +101,15 @@ function post(student, path, body) {
     .send(body)
 }
 
+function hintRequest(snapshot, levelId) {
+  return {
+    actionId: randomUUID(),
+    expectedRevision: snapshot.revision,
+    type: 'request-hint',
+    payload: { levelId },
+  }
+}
+
 function submitLevel(snapshot, levelId, overrides = {}) {
   const { policy, predictions } = SOLUTIONS[levelId]
   return {
@@ -140,6 +149,7 @@ describe('saved clearance tower journey', () => {
     const start = await post(student, attemptsPath, { context: { kind: 'personal' } }).expect(201)
     expect(start.body.gameId).toBe('clearance-tower')
     expect(start.body.maxScore).toBe(600)
+    expect(start.body.rulesetVersion).toBe('clear-3')
     const path = `/api/attempts/${start.body.attemptId}`
     const hidden = JSON.stringify(start.body)
     for (const level of LEVELS) {
@@ -202,6 +212,46 @@ describe('saved clearance tower journey', () => {
     const text = JSON.stringify(rest)
     for (const level of LEVELS.filter((item) => item.id !== 'the-matrix'))
       for (const prompt of level.predictions) expect(text).not.toContain(prompt.explanation)
+  })
+
+  it('charges ten points per hint, refuses a third and keeps hints private to the owner', async () => {
+    const student = await registerStudent(app)
+    const start = await post(student, attemptsPath, { context: { kind: 'personal' } }).expect(201)
+    const path = `/api/attempts/${start.body.attemptId}`
+    const matrix = (snapshot) => snapshot.publicState.levels.find((l) => l.id === 'the-matrix')
+    expect(matrix(start.body).hints).toEqual({ used: 0, max: 2, cost: 10, texts: [] })
+
+    const first = (
+      await post(student, `${path}/actions`, hintRequest(start.body, 'the-matrix')).expect(200)
+    ).body
+    expect(matrix(first).hints.texts).toHaveLength(1)
+    const second = (
+      await post(student, `${path}/actions`, hintRequest(first, 'the-matrix')).expect(200)
+    ).body
+    expect(matrix(second).hints).toMatchObject({ used: 2 })
+    expect(matrix(second).hints.texts).toHaveLength(2)
+    const third = await post(student, `${path}/actions`, hintRequest(second, 'the-matrix')).expect(
+      409,
+    )
+    expect(third.body.error.code).toBe('CLEAR_HINTS_EXHAUSTED')
+
+    const other = await registerStudent(app)
+    await post(other, `${path}/actions`, hintRequest(second, 'the-gift')).expect(404)
+
+    const played = (
+      await post(student, `${path}/actions`, submitLevel(second, 'the-matrix')).expect(200)
+    ).body
+    expect(matrix(played).result).toMatchObject({ score: 80, hintsUsed: 2, hintPenalty: 20 })
+    expect(played.score).toBe(80)
+    const late = await post(student, `${path}/actions`, hintRequest(played, 'the-matrix')).expect(
+      409,
+    )
+    expect(late.body.error.code).toBe('CLEAR_LEVEL_SUBMITTED')
+    const done = await post(student, `${path}/complete`, {
+      actionId: randomUUID(),
+      expectedRevision: played.revision,
+    }).expect(200)
+    expect(done.body).toMatchObject({ score: 80, rulesetVersion: 'clear-3' })
   })
 
   it('saves a class attempt onto the cohort leaderboard', async () => {

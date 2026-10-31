@@ -1,3 +1,4 @@
+import { HINT_COST } from './hints.js'
 import { checkStep, findDutyConflicts } from './models.js'
 
 export const MAX_SCORE = 100
@@ -96,7 +97,12 @@ export function reviewPredictions(level, predictions) {
   }))
 }
 
-export function scoreLevel(level, policy, predictions, events) {
+// each hint takes points off the level, never below zero
+export function hintPenaltyFor(rawScore, hintsUsed) {
+  return Math.min(rawScore, hintsUsed * HINT_COST)
+}
+
+export function scoreLevel(level, policy, predictions, events, hintsUsed = 0) {
   const weights = WEIGHTS[level.model]
   const workEvents = events.filter((event) => event.kind === 'work')
   const workDone = workEvents.filter((event) => event.outcome === 'done').length
@@ -135,9 +141,13 @@ export function scoreLevel(level, policy, predictions, events) {
     },
   ].filter((row) => row.max > 0)
 
-  const score = breakdown.reduce((total, row) => total + row.points, 0)
+  const rawScore = breakdown.reduce((total, row) => total + row.points, 0)
+  const hintPenalty = hintPenaltyFor(rawScore, hintsUsed)
+  const score = rawScore - hintPenalty
   return {
     score,
+    hintsUsed,
+    hintPenalty,
     maxScore: MAX_SCORE,
     stars: starsFor(score),
     breakdown,

@@ -114,6 +114,27 @@ test('the gift leaks through the trojan horse under discretionary control', asyn
   await expect(page.locator('.clear-score')).toContainText('80 / 100')
 })
 
+test('hints name the principle, cost ten points each and show on the case file', async ({
+  page,
+}) => {
+  const level = await openCase(page, 'the-matrix')
+  const { policy, predictions } = SOLUTIONS['the-matrix']
+  const first = page.getByRole('button', { name: 'Hint −10 points' })
+  await expect(first).toBeVisible()
+  await first.click()
+  await expect(page.getByText(/Check least privilege/)).toBeVisible()
+  await page.getByRole('button', { name: 'Another hint −10 points' }).click()
+  await expect(page.getByText(/Every extra cell in the matrix/)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'No more hints' })).toBeDisabled()
+
+  await setGrants(page, level, policy.grants)
+  await predict(page, level, predictions)
+  await runWholeDay(page)
+  await openCaseFile(page)
+  await expect(page.locator('.clear-score')).toContainText('80 / 100')
+  await expect(page.getByText('Hints: 2 (−20)')).toBeVisible()
+})
+
 test('compartment labels stop the trojan but let the clerk tamper', async ({ page }) => {
   const level = await openCase(page, 'compartments')
   await setLabels(page, level, SOLUTIONS.compartments.policy.objectLabels)

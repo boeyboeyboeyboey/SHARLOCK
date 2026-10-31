@@ -6,21 +6,26 @@ Learning content follows CS440 `07-access-control.pptx`: discretionary control a
 
 ## Files
 
-| File          | Responsibility                                                                                                                                                            |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `levels.js`   | Six levels as plain data: agents, files, the day's events, prediction answers and takeaways. `publicLevel()` strips everything the player must not see before submitting. |
-| `models.js`   | Pure rule checks: `checkStep()` for discretionary grants, Bell–LaPadula labels (`dominates()`) and roles, plus `findDutyConflicts()` for separation of duties.            |
-| `simulate.js` | `simulateDay()` replays the scripted day against a policy. Same input, same day.                                                                                          |
-| `scoring.js`  | Four score rows, stars, prediction review and the role-versus-matrix edit comparison.                                                                                     |
-| `policy.js`   | Constants, strict submission validation (unknown fields rejected) and `ClearanceError`.                                                                                   |
-| `ruleset.js`  | Registry entry for the shared attempt service: state schema, `submit-level` action, public state and summary. Registered in `attempts/production-registry.js`.            |
+| File          | Responsibility                                                                                                                                                                     |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `levels.js`   | Six levels as plain data: agents, files, the day's events, prediction answers and takeaways. `publicLevel()` strips everything the player must not see before submitting.          |
+| `models.js`   | Pure rule checks: `checkStep()` for discretionary grants, Bell–LaPadula labels (`dominates()`) and roles, plus `findDutyConflicts()` for separation of duties.                     |
+| `simulate.js` | `simulateDay()` replays the scripted day against a policy. Same input, same day.                                                                                                   |
+| `scoring.js`  | Four score rows, stars, prediction review and the role-versus-matrix edit comparison.                                                                                              |
+| `policy.js`   | Constants, strict submission validation (unknown fields rejected) and `ClearanceError`.                                                                                            |
+| `hints.js`    | Two hint texts per level (principle to check, then the idea applied to the case), `HINT_COST` 10 and `MAX_HINTS` 2.                                                                |
+| `legacy.js`   | `clear-2` (before hints) built from the same factory, registered but not current, so saved climbs still read.                                                                      |
+| `ruleset.js`  | Registry entry for the shared attempt service: state schema, `submit-level` and `request-hint` actions, public state and summary. Registered in `attempts/production-registry.js`. |
 
-## Saved attempts (`rulesetVersion: 'clear-2'`)
+## Saved attempts (`rulesetVersion: 'clear-3'`)
 
 Play uses the shared attempt API (see `server/src/modules/attempts/README.md`): `POST /api/games/clearance-tower/attempts` with a personal or cohort context, `POST /api/attempts/:id/actions`, `POST /api/attempts/:id/complete`.
 
-- Mode `practice`, not competitive, `maxScore` 600 (six levels at 100 each), `maxActions` 8.
+- Mode `practice`, not competitive, `maxScore` 600 (six levels at 100 each), `maxActions` 24 (six submissions and up to twelve hints).
 - Action `submit-level`, payload `{ levelId, policy, predictions }`. Policy shapes are listed below; predictions are `[{ id, verdict: 'allow' | 'deny' }]`, one per prompt. Unknown fields are rejected, so a browser score is never accepted.
+- Action `request-hint`, payload `{ levelId }` and nothing else. The server picks the tier: the first request is tier 1 (which principle to check), the second tier 2 (the idea applied to the case, never matrix cells, labels or roles). A third request is refused with `CLEAR_HINTS_EXHAUSTED` (409), and a hint for a level that already ran is refused with `CLEAR_LEVEL_SUBMITTED`. State keeps `hints: [{ levelId, count }]`, at most 2 per level.
+- Hint cost: 10 points per hint taken on a level, subtracted from that level's score and floored at 0 (`hintPenaltyFor()`), so `maxScore` stays 600. Public state adds `hints: { used, max, cost, texts }` to every level, and a submitted level's `result` adds `hintsUsed` and `hintPenalty` (the points actually lost). Stars and topic outcomes use the score after the cost.
+- Ruleset history: `clear-2` had no hints. It stays registered as a non-current ruleset (`legacy.js`), so saved `clear-2` climbs read the same; new climbs start on `clear-3` and class leaderboards, which rank one ruleset at a time, never mix the two.
 - Each level can be submitted once (`CLEAR_LEVEL_SUBMITTED`, 409). Completion needs at least one submitted level ("Finish climb"); unplayed levels score 0.
 - Score is the sum of the per-level scores, recomputed on the server from the stored policy and predictions. Topic outcomes (`discretionary-access-control`, `bell-lapadula`, `role-based-access-control`) are achieved when both levels of that model score 75 or more.
 - Stored state: per submitted level, `{ levelId, policyJson, predictions }` only. Day events, scores and answers are derived when the public state is built.
@@ -45,7 +50,7 @@ Play uses the shared attempt API (see `server/src/modules/attempts/README.md`): 
 
 Policy shapes: discretionary `{ grants: [{ subject, object, rights: ['r','w'] }] }` (up to 64); Bell–LaPadula `{ objectLabels: { [fileId]: { level, categories } } }` (one per file); role-based `{ roles: [{ id, name, permissions }], assignments: [{ agent, roleIds }] }` (up to 8 roles).
 
-Error codes: `CLEAR_INVALID_ACTION` (400), `CLEAR_LEVEL_SUBMITTED` (409), plus the shared `ATTEMPT_*` codes.
+Error codes: `CLEAR_INVALID_ACTION` (400), `CLEAR_LEVEL_SUBMITTED` (409), `CLEAR_HINTS_EXHAUSTED` (409), plus the shared `ATTEMPT_*` codes.
 
 ## Tests
 

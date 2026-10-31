@@ -105,6 +105,24 @@ describe('useClearanceTower', () => {
     expect(game.state.value.readyToComplete).toBe(true)
   })
 
+  it('asks for a hint on the open level without touching the policy', async () => {
+    const { exposed: game } = withSetup(useClearanceTower)
+    await game.load('climb-1')
+    game.openLevel('the-matrix')
+    writeAttempt.mockResolvedValue(climb({ revision: 1 }))
+    expect(await game.takeHint()).toBe(true)
+    expect(writeAttempt).toHaveBeenCalledWith(
+      '/attempts/climb-1/actions',
+      expect.objectContaining({
+        type: 'request-hint',
+        payload: { levelId: 'the-matrix' },
+      }),
+      expect.any(AbortSignal),
+    )
+    expect(game.phase.value).toBe('brief')
+    expect(game.policy.value).toEqual({ grants: [] })
+  })
+
   it('keeps the policy when a submit fails, then retries the identical request', async () => {
     const { exposed: game } = withSetup(useClearanceTower)
     await game.load('climb-1')

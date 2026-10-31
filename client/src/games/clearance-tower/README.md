@@ -4,11 +4,11 @@
 
 - **What it is:** a puzzle game (G-CLEAR) where you design who may see what in a fictional intelligence tower, predict a few decisions, then watch the day test your policy.
 - **Concept taught:** discretionary, Bell–LaPadula mandatory and role-based access control, including Trojan horses, tampering and separation of duties (CS440 07-access-control, slides 13–32).
-- **How to play:** a How to play guide opens on your first visit (**How to play** reopens it; "Don't show again" is saved to your account). Choose where to save the climb (personal practice or one of your classes), then run the six cases in any order. Each case runs once: read the dossier, set the policy, predict, run the day. **Finish climb** saves the total.
-- **Scoring:** one attempt is one tower climb, up to 600 points (six cases of 100). Skipped cases score 0. The server scores every submission; the browser never decides an outcome.
+- **How to play:** a How to play guide opens on your first visit (**How to play** reopens it; "Don't show again" is saved to your account). Choose where to save the climb (personal practice or one of your classes), then run the six cases in any order. Each case runs once: read the dossier, set the policy, predict, run the day. On the policy desk, **Hint** shows which principle to check and **Another hint** explains it for that case; each costs 10 points and the cost is shown on the button. **Finish climb** saves the total.
+- **Scoring:** one attempt is one tower climb, up to 600 points (six cases of 100). Skipped cases score 0. Each hint taken takes 10 points off that case (never below 0, at most two per case); the case file shows "Hints: n (−X)". The server scores every submission; the browser never decides an outcome.
 - **Saved data:** the attempt stores each submitted policy and predictions; the day script, answers and explanations are returned only after a case is submitted. Class climbs appear on that class's practice leaderboard; personal climbs do not.
 - **Technical:** `useClearanceTower()` wraps the shared `useAttempt('clearance-tower')`; `?attempt=<id>` resumes a climb. Server rules and endpoints: `server/src/modules/games/clearance-tower/README.md`.
-- **Status and limits:** saved attempts (ruleset `clear-2`); see the TASKS.md SAVE-CLEAR record. Scores are exercise performance, not a validated mastery measure.
+- **Status and limits:** saved attempts (ruleset `clear-3`; `clear-2` climbs, saved before hints, still read); see the TASKS.md SAVE-CLEAR record. Scores are exercise performance, not a validated mastery measure.
 
 ## Flow
 
@@ -21,6 +21,7 @@ ClearanceTowerGame.vue ── useClearanceTower() ── useAttempt('clearance-t
    ├─ DossierBrief       brief       → showPhase('design')
    ├─ TowerView          design … debrief: floors, rooms, visitors, leak flags
    ├─ AccessMatrix / LabelBoard / RoleDesigner   design: edit the policy (v-model)
+   ├─ HintPanel          design: takeHint() → action request-hint, shows the hint text and its cost
    ├─ PredictionPanel    predict     → runDay()            action submit-level
    ├─ DayControls + EventLog   day: useDayPlayback() steps through result.events
    ├─ LevelDebrief       debrief     → next case / all cases
@@ -36,6 +37,7 @@ ClearanceTowerGame.vue ── useClearanceTower() ── useAttempt('clearance-t
 | `composables/useClearanceTower.js` | Wraps the shared attempt client; phase, open level, policy draft, predictions, submit and retry of the action.  |
 | `composables/useDayPlayback.js`    | Which event of the day is showing; play, pause, step, skip and speed, with its timer cleared on unmount.        |
 | `components/HowToPlayScene.vue`    | Code-built animated mini matrix, log and score for each guide step; static under reduced motion.                |
+| `components/HintPanel.vue`         | Costed hint button (Hint, Another hint, No more hints) and the hint text taken so far; emits `request`.         |
 | `components/*.vue`                 | Presentational pieces with explicit props and emits; none of them call the API.                                 |
 | `howToPlay.js`                     | Steps, learning line, rules and controls passed to the shared `HowToPlayDialog` (HOW-01).                       |
 | `clearance.css`                    | Scoped under `.clearance-game`; town light palette, DotGothic16 body, Pixelify Sans headings (FONT-06).         |

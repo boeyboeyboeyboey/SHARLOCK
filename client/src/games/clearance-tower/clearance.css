@@ -181,6 +181,22 @@
   margin-top: 1rem;
 }
 
+/* hints */
+.clearance-game .clear-hints {
+  margin-top: 1rem;
+}
+
+.clearance-game .clear-hint-list {
+  margin: 0 0 0.75rem;
+  padding-left: 1.25rem;
+}
+
+.clearance-game .clear-hint-cost {
+  margin-left: 0.5rem;
+  font-weight: 400;
+  color: var(--game-muted);
+}
+
 /* saved result */
 .clearance-game .clear-saved {
   min-height: 0;
