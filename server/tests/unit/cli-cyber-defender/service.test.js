@@ -488,10 +488,14 @@ describe('cli defender service', () => {
       incidentId: 'incident-01',
       lineIndex: scenario.keyLine,
       lookup: scenario.hintLookup,
+      tier: 1,
+      concept: null,
     })
     expect(hinted.current).toMatchObject({
       hintLine: scenario.keyLine,
       hintLookup: scenario.hintLookup,
+      hintTier: 1,
+      hintConcept: null,
     })
     expectCliError(
       () => service.hintRun(RUN_ID, { incidentId: 'incident-02' }),
@@ -510,6 +514,25 @@ describe('cli defender service', () => {
       () => timed.service.hintRun(RUN_ID, { incidentId: 'incident-01' }),
       'CLI_HINT_UNAVAILABLE',
     )
+  })
+
+  it('gives a second hint tier with the concept, then refuses a third', () => {
+    const { service } = setup()
+    const started = service.startRun({ mode: 'practice' })
+    const scenario = scenarioOf(started)
+    expect(started.current).toMatchObject({ hintTier: 0, hintConcept: null })
+    service.hintRun(RUN_ID, { incidentId: 'incident-01' })
+    const second = service.hintRun(RUN_ID, { incidentId: 'incident-01' })
+    expect(second.hint).toMatchObject({ tier: 2, concept: scenario.hintConcept })
+    expect(second.current).toMatchObject({ hintTier: 2, hintConcept: scenario.hintConcept })
+    // the concept never carries the worked answer
+    for (const step of scenario.steps) expect(second.hint.concept).not.toContain(step.command)
+    expectCliError(
+      () => service.hintRun(RUN_ID, { incidentId: 'incident-01' }),
+      'CLI_HINT_EXHAUSTED',
+    )
+    solve(service, second)
+    expect(service.getRun(RUN_ID).current).toMatchObject({ hintTier: 0, hintConcept: null })
   })
 
   it('forgets idle runs', () => {
@@ -576,6 +599,8 @@ describe('scenario integrity', () => {
         expect(parseCommand(key)).toMatchObject({ ok: true, kind: 'lookup', normalized: key })
       expect(parseCommand(scenario.hintLookup)).toMatchObject({ ok: true, kind: 'lookup' })
       expect(scenario.explanation.length).toBeGreaterThan(20)
+      expect(scenario.hintConcept.length).toBeGreaterThan(20)
+      expect(scenario.hintConcept).not.toBe(scenario.explanation)
       expect([1, 2, 3]).toContain(scenario.tier)
       expect(scenario.alert.lines[scenario.keyLine]).toBeTruthy()
       expect(scenario.concepts.attack).toBeTruthy()

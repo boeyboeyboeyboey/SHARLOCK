@@ -955,7 +955,13 @@
 .cli-game .cli-hint-button {
   --bs-btn-padding-x: 0.75rem;
   --bs-btn-padding-y: 0.25rem;
-  min-height: 40px;
+  min-height: 44px;
+}
+
+.cli-hint-concept {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: var(--game-amber);
 }
 
 .cli-role {

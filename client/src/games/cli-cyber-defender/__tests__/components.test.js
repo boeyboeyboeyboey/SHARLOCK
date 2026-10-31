@@ -198,6 +198,33 @@ describe('cli defender components', () => {
     wrapper.unmount()
   })
 
+  it('steps the hint control from Hint to Hint 2 to a labelled disabled state', async () => {
+    const incident = (extra) => ({
+      incidentId: 'incident-01',
+      index: 0,
+      windowSeconds: null,
+      alert: { title: 'Port sweep', severity: 'low', source: 'Firewall', lines: ['a'] },
+      ...extra,
+    })
+    const wrapper = mount(IncidentBanner, {
+      props: { mode: 'practice', canHint: true, incident: incident({ hintTier: 0 }) },
+    })
+    const button = () => wrapper.get('button.cli-hint-button')
+    expect(button().text()).toBe('Hint')
+    await button().trigger('click')
+    expect(wrapper.emitted('hint')).toHaveLength(1)
+    await wrapper.setProps({ incident: incident({ hintTier: 1, hintLine: 0 }) })
+    expect(button().text()).toBe('Hint 2')
+    await wrapper.setProps({
+      incident: incident({ hintTier: 2, hintLine: 0, hintConcept: 'Brute force is guessing.' }),
+      hintDisabled: true,
+    })
+    expect(button().text()).toBe('No more hints')
+    expect(button().attributes('aria-label')).toBe('No more hints for this incident')
+    expect(button().attributes('disabled')).toBeDefined()
+    expect(wrapper.text()).toContain('Brute force is guessing.')
+  })
+
   it('makes alert names tappable and highlights the hinted line', async () => {
     const wrapper = mount(IncidentBanner, {
       props: {

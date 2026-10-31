@@ -310,6 +310,24 @@ describe('cli cyber defender http api', () => {
     expect(Number.isInteger(hint.body.hint.lineIndex)).toBe(true)
     expect(JSON.stringify(hint.body)).not.toContain('expectedCommand')
     expect(hint.body.hint.lookup).toBe(scenarioFor(practice.body.current).hintLookup)
+    expect(hint.body.hint).toMatchObject({ tier: 1, concept: null })
+  })
+
+  it('serves a second hint tier, refuses a third and keeps hints to the owner', async () => {
+    const student = await createStudent()
+    const other = await createStudent()
+    const practice = await post(student, base, { mode: 'practice', context: personal }).expect(200)
+    const url = `${base}/${practice.body.runId}/hint`
+    const body = { incidentId: 'incident-01' }
+    await post(student, url, body).expect(200)
+    const second = await post(student, url, body).expect(200)
+    expect(second.body.hint.tier).toBe(2)
+    expect(second.body.hint.concept).toBe(scenarioFor(practice.body.current).hintConcept)
+    expect(JSON.stringify(second.body)).not.toContain('expectedCommand')
+    const third = await post(student, url, body).expect(409)
+    expect(third.body.error.code).toBe('CLI_HINT_EXHAUSTED')
+    const foreign = await post(other, url, body)
+    expect([403, 404]).toContain(foreign.status)
   })
 
   it('serves scripted lookups and dismiss without leaking the answer', async () => {

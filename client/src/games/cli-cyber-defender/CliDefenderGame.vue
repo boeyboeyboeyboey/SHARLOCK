@@ -209,7 +209,7 @@ watch([phase, paused], async ([next, isPaused], [previous]) => {
               :mode="mode"
               :interactive="phase === 'running'"
               :can-hint="mode === 'practice' && phase === 'running'"
-              :hint-disabled="hinting || !current || current.hintLine != null"
+              :hint-disabled="hinting || !current || (current.hintTier ?? 0) >= 2"
               @select-target="insertTarget"
               @hint="hint"
             />

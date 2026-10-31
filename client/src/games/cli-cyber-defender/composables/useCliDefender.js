@@ -332,16 +332,18 @@ export function useCliDefender({ now = () => Date.now(), tickMs = 100, onEvent =
   async function hint() {
     const incident = current.value
     if (mode.value !== 'practice' || phase.value !== 'running' || !incident || hinting.value) return
-    if (incident.hintLine != null) return
+    if ((incident.hintTier ?? 0) >= 2) return
     hinting.value = true
     try {
       const data = await requestHint(snapshot.value.runId, incident.incidentId, controller?.signal)
       if (disposed) return
       apply(data)
-      print(
-        'info',
-        `Hint: the highlighted line holds key evidence. Try "${data.hint?.lookup ?? 'logs'}" first.`,
-      )
+      if (data.hint?.tier === 2 && data.hint.concept) print('info', `Hint 2: ${data.hint.concept}`)
+      else
+        print(
+          'info',
+          `Hint: the highlighted line holds key evidence. Try "${data.hint?.lookup ?? 'logs'}" first.`,
+        )
     } catch (requestError) {
       if (disposed || controller?.signal.aborted) return
       print('error', errorMessage(requestError, 'No hint is available right now.'))

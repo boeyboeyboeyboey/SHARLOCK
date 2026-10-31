@@ -4,6 +4,7 @@ import {
   GAME_ID,
   INCIDENT_COUNT,
   MAX_COMMANDS_PER_RUN,
+  MAX_HINT_TIER,
   MAX_LOOKUPS_PER_INCIDENT,
   MAX_MISTAKES_PER_INCIDENT,
   MAX_SCORE,
@@ -11,6 +12,7 @@ import {
   TIME_PENALTY_SECONDS,
   actionConflict,
   commandLimit,
+  hintExhausted,
   hintUnavailable,
   incidentClosed,
   pauseUnavailable,
@@ -266,6 +268,8 @@ export function createCliDefenderService({
         alert: run.pausedAt === null ? publicAlert(scenario) : null,
         hintLine: incident.hintUsed ? scenario.keyLine : null,
         hintLookup: incident.hintUsed ? scenario.hintLookup : null,
+        hintTier: incident.hintTier ?? 0,
+        hintConcept: (incident.hintTier ?? 0) >= 2 ? scenario.hintConcept : null,
         stepsDone: progress.current.stepsDone,
         mistakes: progress.current.mistakes,
         penaltySeconds: progress.current.penaltySeconds,
@@ -313,6 +317,7 @@ export function createCliDefenderService({
         windowSeconds: windows[index],
         resolution: null,
         hintUsed: false,
+        hintTier: 0,
         events: [],
         lookups: [],
         commands: [],
@@ -330,7 +335,7 @@ export function createCliDefenderService({
     return snapshot(run, gameTime(run, now()))
   }
 
-  // practice only: names the evidence line, never the answer, and is marked in the debrief
+  // practice only, two tiers: 1 names the evidence line and a lookup, 2 adds the concept; never the answer
   function hintRun(runId, { incidentId: target }, owner) {
     const run = requireRun(runId, owner)
     const wall = now()
@@ -338,6 +343,8 @@ export function createCliDefenderService({
     const progress = deriveProgress(run, gameTime(run, wall))
     if (!progress.current || progress.current.incidentId !== target) throw incidentClosed()
     const incident = run.incidents[progress.current.index]
+    if ((incident.hintTier ?? 0) >= MAX_HINT_TIER) throw hintExhausted()
+    incident.hintTier = (incident.hintTier ?? 0) + 1
     incident.hintUsed = true
     run.lastActivityAt = wall
     return {
@@ -346,6 +353,8 @@ export function createCliDefenderService({
         incidentId: target,
         lineIndex: incident.scenario.keyLine,
         lookup: incident.scenario.hintLookup,
+        tier: incident.hintTier,
+        concept: incident.hintTier >= 2 ? incident.scenario.hintConcept : null,
       },
     }
   }
