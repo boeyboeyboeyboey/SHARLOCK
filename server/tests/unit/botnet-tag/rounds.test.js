@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { createRound } from '../../../src/modules/games/botnet-tag/rounds.js'
 import { stationById } from '../../../src/modules/games/botnet-tag/arena.js'
-import { submissionFor } from '../../../src/modules/games/botnet-tag/puzzles.js'
+import {
+  submissionFor,
+  failReason,
+  LATE_REASON,
+} from '../../../src/modules/games/botnet-tag/puzzles.js'
 import {
   COUNTDOWN_MS,
   IMMUNITY_MS,
@@ -204,6 +208,24 @@ describe('station flow', () => {
     expect(b.lockedUntil).toBeGreaterThan(again.puzzle.deadline)
     expect(round.stationSubmit('s2', {}, again.puzzle.deadline + 2).reason).toBe('no_puzzle')
     expect(b.patches).toBe(0)
+  })
+
+  it('gives the failing player a reason that never reveals the answer', () => {
+    const { round, b } = setup()
+    place(round, 's2', station.x, station.z)
+    const started = round.stationStart('s2', 'st-hash', T0)
+    expect(round.snapshot('s2', T0 + 500).you.failReason).toBeNull()
+    round.stationSubmit('s2', { index: 99 }, T0 + 1000)
+    const mine = round.snapshot('s2', T0 + 1100)
+    expect(mine.you.failReason).toBe(failReason('hash'))
+    expect(round.snapshot('s3', T0 + 1100).you.failReason).toBeNull()
+    expect(JSON.stringify(round.snapshot('s3', T0 + 1100))).not.toContain(mine.you.failReason)
+    expect(round.snapshot('s2', T0 + 1000 + STATION_LOCKOUT_MS).you.failReason).toBeNull()
+    expect(started.puzzle).not.toHaveProperty('answer')
+    expect(b.failReason).toBe(failReason('hash'))
+    const again = round.stationStart('s2', 'st-hash', T0 + 1000 + STATION_LOCKOUT_MS)
+    round.tick(again.puzzle.deadline + 1)
+    expect(round.snapshot('s2', again.puzzle.deadline + 2).you.failReason).toBe(LATE_REASON)
   })
 
   it('rejects a late submission and cancels the puzzle when tagged or far away', () => {

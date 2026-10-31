@@ -405,7 +405,12 @@ const blockedText = {
         @jump="arena?.jump()"
         @sprint="arena?.sprint()"
       />
-      <PuzzleResult v-if="state.phase === 'playing'" :patched="patched" :lock-ms="lockMs" />
+      <PuzzleResult
+        v-if="state.phase === 'playing'"
+        :patched="patched"
+        :lock-ms="lockMs"
+        :reason="state.you?.failReason ?? ''"
+      />
     </template>
     <HowToPlayDialog
       v-if="capable"

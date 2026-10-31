@@ -1,6 +1,13 @@
 import { publicLook } from '../../presence/look.js'
 import { ARENA, stationById } from './arena.js'
-import { generatePuzzle, checkPuzzle, shuffle, submissionFor } from './puzzles.js'
+import {
+  generatePuzzle,
+  checkPuzzle,
+  shuffle,
+  submissionFor,
+  failReason,
+  LATE_REASON,
+} from './puzzles.js'
 import {
   COUNTDOWN_MS,
   IMMUNITY_MS,
@@ -74,6 +81,7 @@ export function createRound({ id, cohortId, now = 0, rng = Math.random, withBots
       infected: false,
       immuneUntil: 0,
       lockedUntil: 0,
+      failReason: null,
       lastMoveAt: null,
       sprintStartedAt: null,
       infectedAt: null,
@@ -123,6 +131,7 @@ export function createRound({ id, cohortId, now = 0, rng = Math.random, withBots
       infected: false,
       immuneUntil: 0,
       lockedUntil: 0,
+      failReason: null,
       lastMoveAt: null,
       sprintStartedAt: null,
       infectedAt: null,
@@ -205,8 +214,9 @@ export function createRound({ id, cohortId, now = 0, rng = Math.random, withBots
     startedAt = null
   }
 
-  function lockOut(player, t) {
+  function lockOut(player, t, reason) {
     player.lockedUntil = t + STATION_LOCKOUT_MS
+    player.failReason = reason
   }
 
   const api = {
@@ -346,11 +356,11 @@ export function createRound({ id, cohortId, now = 0, rng = Math.random, withBots
       if (!player || !puzzle || phase !== 'playing') return { ok: false, reason: 'no_puzzle' }
       puzzles.delete(sid)
       if (t > puzzle.deadline) {
-        lockOut(player, t)
+        lockOut(player, t, LATE_REASON)
         return { ok: false, reason: 'late' }
       }
       if (!checkPuzzle(puzzle.kind, puzzle.answer, submission)) {
-        lockOut(player, t)
+        lockOut(player, t, failReason(puzzle.kind))
         return { ok: false, reason: 'wrong' }
       }
       const station = stations.find((item) => item.id === puzzle.stationId)
@@ -381,7 +391,7 @@ export function createRound({ id, cohortId, now = 0, rng = Math.random, withBots
           if (t <= puzzle.deadline) continue
           puzzles.delete(sid)
           const player = getPlayer(sid)
-          if (player) lockOut(player, t)
+          if (player) lockOut(player, t, LATE_REASON)
         }
         for (const bot of [...players.values()].filter((player) => player.isBot)) {
           if (phase !== 'playing') break
@@ -435,6 +445,7 @@ export function createRound({ id, cohortId, now = 0, rng = Math.random, withBots
         you: me
           ? {
               lockedUntil: me.lockedUntil,
+              failReason: t < me.lockedUntil ? me.failReason : null,
               sprintReadyAt: sprintCooldownEnd(me),
               patches: me.patches,
               tags: me.tags,

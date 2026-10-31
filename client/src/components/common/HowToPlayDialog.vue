@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useAuthStore } from '../../features/auth/store.js'
 import { wipe } from '../../features/auth/pixel-wipe.js'
+import { gameCatalog } from '../../data/gameCatalog.js'
 
 const props = defineProps({
   gameId: { type: String, required: true },
@@ -29,6 +30,11 @@ let opener = null
 let timer = null
 
 const dismissed = computed(() => auth.user?.howToPlayDismissed?.includes(props.gameId) ?? false)
+const game = computed(() => gameCatalog.find((entry) => entry.id === props.gameId) ?? null)
+const stars = computed(() => {
+  const level = game.value?.difficulty ?? 0
+  return '\u2605'.repeat(level) + '\u2606'.repeat(3 - level)
+})
 const current = computed(() => props.steps[step.value] ?? { title: '', text: '' })
 
 function goTo(index) {
@@ -155,6 +161,11 @@ onBeforeUnmount(stopTimer)
       </section>
 
       <p class="howto-learn"><strong>What you'll learn:</strong> {{ learn }}</p>
+      <p v-if="game" class="howto-learn" data-testid="howto-level">
+        Difficulty: <span aria-hidden="true">{{ stars }}</span
+        ><span class="visually-hidden">{{ game.difficulty }} of 3</span> &middot; Helps to know:
+        {{ game.backgroundKnowledge.join(', ') }}
+      </p>
 
       <div class="howto-lists">
         <section v-if="rules.length" aria-labelledby="howto-rules-title">

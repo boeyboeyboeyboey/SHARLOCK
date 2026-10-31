@@ -13,6 +13,7 @@ import { userModel } from '../../../src/models/User.js'
 import { initializeAttemptStorage } from '../../../src/modules/attempts/storage.js'
 import { createProductionAttemptRegistry } from '../../../src/modules/attempts/production-registry.js'
 import { BOTNET_TAG_PATH } from '../../../src/modules/games/botnet-tag/protocol.js'
+import { failReason } from '../../../src/modules/games/botnet-tag/puzzles.js'
 import { createRng } from '../../../src/modules/games/botnet-tag/rules.js'
 import {
   COUNTDOWN_MS,
@@ -353,6 +354,11 @@ describe('botnet tag play rules', () => {
       await settle(60)
       if (me.patches > 0) solved = true
       else {
+        const locked = await until(
+          () => lastSnapshot(ws)?.you?.failReason && lastSnapshot(ws),
+          'reason',
+        )
+        expect(locked.you.failReason).toBe(failReason('hash'))
         clock += STATION_LOCKOUT_MS + 100
         send(ws, { type: 'station', id: station.id })
         await until(() => lastSnapshot(ws)?.you?.puzzle, 'next puzzle')

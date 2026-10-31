@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { STATION_KINDS } from '../../../src/modules/games/botnet-tag/arena.js'
 import {
   PUZZLES,
+  FAIL_REASONS,
+  failReason,
   checkPuzzle,
   generatePuzzle,
   looksMalicious,
@@ -233,5 +235,24 @@ describe('patch-station puzzles', () => {
     expect(scorePassword('Summer2024!')).toBeLessThan(scorePassword('ember-quartz-willow-tundra'))
     expect(scorePassword('qwerty123')).toBeLessThan(scorePassword('k7#Rw!9mQz2&Lp4x'))
     expect(scorePassword('p@ssw0rd')).toBeLessThan(scorePassword('Tq8!vZ3#nB'))
+  })
+})
+
+describe('failure reasons', () => {
+  it('has one fixed line per puzzle kind that never contains the answer', () => {
+    expect(Object.keys(FAIL_REASONS).sort()).toEqual(Object.keys(PUZZLES).sort())
+    for (const kind of Object.keys(PUZZLES)) {
+      const reason = failReason(kind)
+      expect(reason.length).toBeLessThanOrEqual(120)
+      for (let seed = 1; seed <= 20; seed += 1) {
+        const puzzle = generatePuzzle(kind, createRng(seed))
+        const answers = Array.isArray(puzzle.answer) ? puzzle.answer : [puzzle.answer]
+        const values = JSON.stringify(Object.values(puzzle.public))
+        for (const part of values.match(/[A-Za-z0-9.@_-]{6,}/g) ?? []) {
+          expect(reason).not.toContain(part)
+        }
+        for (const answer of answers) expect(reason).not.toContain(String(answer).padEnd(8, '#'))
+      }
+    }
   })
 })
