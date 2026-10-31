@@ -110,7 +110,7 @@ See `tests/e2e/portal.spec.js:6`.
 
 ## Arrival and talk framing (HUB-12)
 
-While the Talk/Enter bar or an open talk panel shows, `HubScene.vue` measures how many pixels they cover at the bottom (`syncInset`, every 100 ms) and passes it to `hub.setBottomInset(px)`. In `scenes/a-wharf.js` `liftFor` projects Sharlock's feet (and the nearby npc's) to the screen and raises `camera.targetScreenOffset.y` by just enough to keep them 32 px (`LIFT_GAP`) above the bar, easing in (instant under reduced motion) and relaxing to nothing when the bar goes away. It only ever raises; the normal framing is untouched when there is room. Checked at 1440 x 900, 1024 x 768 and 375 x 667.
+While the Talk/Enter bar or an open talk panel shows, `HubScene.vue` measures how many pixels they cover at the bottom (`syncInset`, every 100 ms) and passes it to `hub.setBottomInset(px)`. In `scenes/a-wharf.js` `liftFor` projects Sharlock's feet (and the nearby npc's) to the screen and raises `camera.targetScreenOffset.y` until their feet sit at 70% of the height above the bar (`LIFT_FRAC`) and at least 32 px (`LIFT_GAP`) above it, so heads stay clear of a tall bar on phones (FIX-09, checked at 1280x800 and 375x812), easing in (instant under reduced motion) and relaxing to nothing when the bar goes away. It only ever raises; the normal framing is untouched when there is room. Checked at 1440 x 900, 1024 x 768 and 375 x 667.
 
 ## Townsfolk (NPC-01)
 

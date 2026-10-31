@@ -95,7 +95,6 @@
   text-decoration: underline;
 }
 
-.cli-strap,
 .cli-note {
   color: var(--game-green-dim);
 }
@@ -1722,10 +1721,6 @@
     padding: 0;
   }
 
-  .cli-game.is-fitted .cli-strap {
-    display: none;
-  }
-
   .cli-game.is-fitted > .cli-panel {
     flex: 1 1 auto;
     min-height: 0;
@@ -2052,7 +2047,6 @@
     gap: 0.5rem;
   }
 
-  .cli-game.is-playing .cli-strap,
   .cli-game.is-playing .cli-banner-tip,
   .cli-game.is-playing .cli-hud .cli-stat-icon,
   .cli-game.is-playing .cli-hud .cli-steps,

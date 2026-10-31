@@ -40,8 +40,9 @@ import { selectionViews } from './wharf/views.js';
 import { createHubSfx } from '../audio/hubSfx.js';
 import { destinations, heightAt, obstacles, paths, spawn, walkable, waterY } from './wharf/layout.js';
 
-// pixels kept clear between the subject and the bar
+// pixels kept clear between the subject and the bar, and the share of the free height the feet may drop to
 const LIFT_GAP = 32;
+const LIFT_FRAC = 0.7;
 
 export async function build({ engine, scene, canvas, state, notify, params, joystick, spawnAt = null, quality = 'auto', resumeAt = null, wardrobe = null }) {
   const tier = getTier(params, quality);
@@ -213,7 +214,9 @@ export async function build({ engine, scene, canvas, state, notify, params, joys
       if (npc) low = Math.max(low, screenY(npc.x, feet.y, npc.z));
       // metres of view offset per pixel at the distance of the subject
       const perPx = (2 * camera.radius * Math.tan(camera.fov / 2)) / height;
-      want = Math.max(0, lift + (low - (height - insetPx - LIFT_GAP)) * perPx);
+      // feet sit in the upper-middle of the space above the bar, so heads stay clear of it on tall bars too
+      const free = height - insetPx;
+      want = Math.max(0, lift + (low - Math.min(free * LIFT_FRAC, free - LIFT_GAP)) * perPx);
     }
     return reduced() ? want : lift + (want - lift) * (1 - Math.exp(-dt * 6));
   };
