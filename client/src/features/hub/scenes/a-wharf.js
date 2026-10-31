@@ -37,7 +37,11 @@ import { npcs } from './wharf/npcs.js';
 import { setupLook } from './wharf/look.js';
 import { applyToon } from './wharf/toon.js';
 import { selectionViews } from './wharf/views.js';
+import { createHubSfx } from '../audio/hubSfx.js';
 import { destinations, heightAt, obstacles, paths, spawn, walkable, waterY } from './wharf/layout.js';
+
+// pixels kept clear between the subject and the bar
+const LIFT_GAP = 32;
 
 export async function build({ engine, scene, canvas, state, notify, params, joystick, spawnAt = null, quality = 'auto', resumeAt = null, wardrobe = null }) {
   const tier = getTier(params, quality);
@@ -191,9 +195,34 @@ export async function build({ engine, scene, canvas, state, notify, params, joys
   const frameOffset = -2.7;
   let frameNow = frameOffset;
   camera.targetScreenOffset.set(0, frameOffset);
+  // raises the frame just enough that sharlock and the npc he talks to stay above the bottom bar (insetPx, set by the shell)
+  let insetPx = 0;
+  let lift = 0;
+  const screenY = (x, y, z) => {
+    const m = scene.getTransformMatrix().m;
+    const w = x * m[3] + y * m[7] + z * m[11] + m[15];
+    return ((1 - (x * m[1] + y * m[5] + z * m[9] + m[13]) / w) / 2) * canvas.clientHeight;
+  };
+  const liftFor = (dt, at) => {
+    const height = canvas.clientHeight;
+    let want = 0;
+    if (insetPx > 0 && height > 0 && state.mode === 'explore') {
+      const feet = control.position();
+      let low = screenY(at.x, feet.y, at.z);
+      const npc = state.nearNpc ? townsfolk.list().find((n) => n.id === state.nearNpc) : null;
+      if (npc) low = Math.max(low, screenY(npc.x, feet.y, npc.z));
+      // metres of view offset per pixel at the distance of the subject
+      const perPx = (2 * camera.radius * Math.tan(camera.fov / 2)) / height;
+      want = Math.max(0, lift + (low - (height - insetPx - LIFT_GAP)) * perPx);
+    }
+    return reduced() ? want : lift + (want - lift) * (1 - Math.exp(-dt * 6));
+  };
   const peers = createRemotePeers({ scene, camera, engine, canvas, tier, reduced, look, getPlayer: () => state.player });
   disposers.push(() => peers.dispose());
   const metrics = createInstrumentation({ scene, state });
+  const sfx = createHubSfx({ spots: lamps.spots });
+  disposers.push(() => sfx.dispose());
+  let sfxAt = null;
   const windowLit = world.materials.windowLit;
   const start = performance.now();
   // the minimap reads this by reference on a timer, so nothing is allocated per frame
@@ -209,12 +238,19 @@ export async function build({ engine, scene, canvas, state, notify, params, joys
     state.player.x = at.x;
     state.player.z = at.z;
     state.player.heading = control.heading();
+    if (sfxAt && dt > 0) {
+      // speed from the position change, capped so a teleport does not read as a sprint
+      const pace = Math.min(Math.hypot(at.x - sfxAt.x, at.z - sfxAt.z) / dt, 14);
+      sfx.update(dt, { x: at.x, z: at.z, speed: pace, grounded: !control.airborne(), paused: state.paused });
+    }
+    sfxAt = { x: at.x, z: at.z };
     doors.update(dt, t);
     arm.update(dt);
     const armed = arm.state();
     const framed = doors.framedId() && control.isHeld() ? selectionViews[doors.framedId()].shift : frameOffset;
     frameNow = reduced() ? framed : frameNow + (framed - frameNow) * (1 - Math.exp(-dt * 5));
-    camera.targetScreenOffset.y = armed.active && armed.desired > 0 ? (frameNow * armed.effective) / armed.desired : frameNow;
+    lift = liftFor(dt, at);
+    camera.targetScreenOffset.y = (armed.active && armed.desired > 0 ? (frameNow * armed.effective) / armed.desired : frameNow) + lift;
     orbit.update(dt);
     // lit windows warm up as the sun sets, lamps come on one by one
     const warm = reduced() ? 1 : Math.min(1, t / 24);
@@ -262,6 +298,9 @@ export async function build({ engine, scene, canvas, state, notify, params, joys
   return {
     api: {
       select: doors.select,
+      setBottomInset: (px) => {
+        insetPx = Math.max(0, px || 0);
+      },
       resetCamera,
       enter: (id) => {
         // a small happy hop as the swoop starts

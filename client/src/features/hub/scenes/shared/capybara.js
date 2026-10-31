@@ -74,7 +74,7 @@ const SH_EARS = [
 const SH_MUZZLE = { c: [0, 0.725, 0.96], r: [0.185, 0.17, 0.12], e: [0.38, 0.5] };
 const SH_HIPS = HIPS.map((h) => ({ ...h, p: [h.p[0] * 1.11, h.p[1], h.p[2]] }));
 const SH_HEAD_SHIFT = [0, -0.02, -0.12];
-const SH_NOSE = { x: 0.062, z: 1.08, r: [0.04, 0.03, 0.007] };
+const SH_NOSE = { x: 0.062, z: 1.08, r: [0.035, 0.0262, 0.0061] };
 const SH_RUMP = { c: [0, 0.55, -0.42], r: [0.42, 0.32, 0.26] };
 // tapered neck volume from the shoulders into the back of the head, so there is no step between the two
 const SH_NECK = { z0: 0.15, z1: 0.42, from: { y: 0.6, rx: 0.36, ry: 0.385 }, to: { y: 0.66, rx: 0.28, ry: 0.29 } };
@@ -545,6 +545,18 @@ function addDeerstalker(kit) {
       return [HAT.c[0] + Math.cos(TAU * u) * r * HAT.rx, HAT.c[1] + y, HAT.c[2] + Math.sin(TAU * u) * r * HAT.rz];
     },
     color: (p, n) => tint(0.78 + 0.28 * smooth(-0.2, 0.9, n[1]))(),
+    uv,
+  });
+  // a short skirt round the back half of the rim, so the back edge closes onto the head with no inner face showing
+  hatSurface(kit, {
+    cols: 28,
+    rows: 3,
+    at: (u, v) => {
+      const a = Math.PI * (0.9 + 1.2 * u);
+      const k = 1 - 0.05 * v;
+      return [HAT.c[0] + Math.cos(a) * HAT.rx * k, HAT.c[1] - 0.1 * v * Math.sin(Math.PI * u) ** 0.5, HAT.c[2] + Math.sin(a) * HAT.rz * k];
+    },
+    color: tint(0.72),
     uv,
   });
   const part = (opts, k) => hatSurface(kit, { cols: 20, rows: 10, wrap: true, at: ellipsoid(opts), color: tint(k), uv });

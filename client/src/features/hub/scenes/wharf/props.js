@@ -128,6 +128,7 @@ export function buildLamps({ scene, world, extraHeads, reduced }) {
       poolTexture.dispose();
     },
     count: all.length,
+    spots,
     litFraction: () => {
       let on = 0;
       for (let i = 0; i < all.length; i += 1) if (colors[i * 4] > all[i].color[0] * 0.9) on += 1;
