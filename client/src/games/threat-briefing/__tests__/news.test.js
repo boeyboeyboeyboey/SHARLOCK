@@ -4,7 +4,8 @@ import { ref } from 'vue'
 import SafeInline from '../components/SafeInline.vue'
 import { parseNewsLocation, newsQuery, searchEdition } from '../composables/useNewsLocation.js'
 import { useCyberNews } from '../composables/useCyberNews.js'
-import { fetchEdition, safeNewsLink } from '../news.js'
+import NewsStatus from '../components/NewsStatus.vue'
+import { fetchEdition, newsStamp, safeNewsLink } from '../news.js'
 
 vi.mock('../news.js', async (original) => ({ ...(await original()), fetchEdition: vi.fn() }))
 afterEach(() => {
@@ -93,5 +94,41 @@ describe('newspaper reading boundaries', () => {
     wrapper.unmount()
     expect(finalSignal.aborted).toBe(true)
     expect(vi.getTimerCount()).toBe(0)
+  })
+})
+
+describe('edition status', () => {
+  const now = Date.parse('2026-10-31T08:00:00Z')
+
+  it('stamps today with the time only and other days with the date', () => {
+    expect(newsStamp('2026-10-31T08:17:00Z', now)).toBe('04:17 pm')
+    expect(newsStamp('2026-10-30T08:17:00Z', now)).toBe('30 Oct, 04:17 pm')
+    expect(newsStamp('not a date', now)).toBe('')
+  })
+
+  it('folds the next update check into the one status line', () => {
+    vi.useFakeTimers({ now })
+    const wrapper = mount(NewsStatus, {
+      props: {
+        fetchedAt: '2026-10-31T08:17:00Z',
+        refreshAvailableAt: Date.parse('2026-10-31T08:47:00Z'),
+        canRefresh: false,
+      },
+    })
+    expect(wrapper.text()).toBe('Updated 04:17 pm SGT · next 04:47 pm')
+    expect(wrapper.find('small').exists()).toBe(false)
+  })
+
+  it('keeps the next check line beside a cached edition', () => {
+    vi.useFakeTimers({ now })
+    const wrapper = mount(NewsStatus, {
+      props: {
+        stale: true,
+        fetchedAt: '2026-10-30T08:17:00Z',
+        refreshAvailableAt: Date.parse('2026-10-31T08:47:00Z'),
+        canRefresh: false,
+      },
+    })
+    expect(wrapper.find('small').text()).toBe('Next update check available 04:47 pm SGT')
   })
 })

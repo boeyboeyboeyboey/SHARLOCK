@@ -251,6 +251,10 @@
   max-width: 900px;
 }
 .news-dialog .gazette-article h2 a {
+  /* a 44px touch target for one-line headlines without moving the layout */
+  display: block;
+  padding-block: 7px;
+  margin-block: -7px;
   text-decoration: none;
 }
 .news-dialog .gazette-article h2 a:hover {
@@ -377,8 +381,14 @@
   .news-dialog .gazette-tools > label {
     flex-basis: 100%;
   }
-  .news-dialog .gazette-edition-line > span:first-child {
-    flex-basis: 100%;
+  .news-dialog .gazette-edition-line > span:first-child,
+  .news-dialog .gazette-edition-line > span:last-child {
+    display: none;
+  }
+  .news-dialog .gazette-status {
+    margin: 12px 0;
+    padding: 8px 12px;
+    font-size: 14px;
   }
   .news-dialog .gazette-page {
     padding: 6px;
@@ -386,6 +396,27 @@
 }
 @media (max-width: 575.98px) {
   .news-dialog .gazette-topbar > span > span {
+    display: none;
+  }
+}
+@media (max-height: 500px) and (pointer: coarse) {
+  .news-dialog .gazette-masthead {
+    padding: 8px 12px;
+  }
+  .news-dialog .gazette-masthead > img {
+    width: 48px;
+    height: 36px;
+  }
+  .news-dialog .gazette-masthead h1 {
+    font-size: 26px;
+    margin: 0;
+  }
+  .news-dialog .gazette-tabs {
+    padding-bottom: 10px;
+  }
+  .news-dialog .gazette-seal,
+  .news-dialog .gazette-edition-line > span:first-child,
+  .news-dialog .gazette-edition-line > span:last-child {
     display: none;
   }
 }

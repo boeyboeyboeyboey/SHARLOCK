@@ -367,3 +367,36 @@ test('recovers from blocked autoplay and keeps the reference readable when audio
   await expect(page.locator('.town-audio audio')).toHaveCount(1)
   await expect(page.getByRole('button', { name: /^(Turn on|Mute) town sound$/ })).toBeVisible()
 })
+
+test.describe('the Times on a phone', () => {
+  test.skip(({ viewport }) => viewport.width > 575, 'phone widths only')
+
+  test('drops the masthead decoration and keeps headlines full touch targets', async ({ page }) => {
+    await feed(page)
+    await page.setViewportSize({ width: 375, height: 667 })
+    await page.goto('/games/threat-briefing')
+    const times = page.getByRole('dialog', { name: 'The Sharlock Times' })
+    await expect(
+      times.getByRole('link', { name: /Synthetic cybersecurity headline 1\b/ }),
+    ).toBeVisible()
+    await expect(times.getByText('INDEPENDENT CURIOSITY · SHARLOCK TOWN')).toBeHidden()
+    await expect(times.getByText('FREE TO EXPLORE')).toBeHidden()
+    await expect(times.locator('.gazette-status')).toContainText(/Updated .+ SGT · next /)
+
+    for (const link of await times.getByRole('heading', { level: 2 }).getByRole('link').all()) {
+      const box = await link.boundingBox()
+      expect(box.height).toBeGreaterThanOrEqual(44)
+    }
+  })
+
+  test('keeps the masthead short when held sideways', async ({ page }) => {
+    await feed(page)
+    await page.setViewportSize({ width: 667, height: 375 })
+    await page.goto('/games/threat-briefing')
+    const times = page.getByRole('dialog', { name: 'The Sharlock Times' })
+    await expect(times.getByRole('heading', { name: 'The Sharlock Times' })).toBeVisible()
+    const tabs = await times.getByRole('tab', { name: 'Latest news' }).boundingBox()
+    // masthead and tabs leave room below them before the edition starts
+    expect(tabs.y + tabs.height).toBeLessThanOrEqual(375 * 0.55)
+  })
+})

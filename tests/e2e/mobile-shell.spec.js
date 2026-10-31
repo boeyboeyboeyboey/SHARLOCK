@@ -165,4 +165,25 @@ test.describe('phone shell', () => {
       await context.close()
     }
   })
+
+  test('the save chooser keeps a gap below How to play', async ({ browser, baseURL }) => {
+    const room = await seedClass(`mc${Date.now().toString(36)}`)
+    const { context, page } = await open(
+      browser,
+      baseURL,
+      room.studentA,
+      '/games/phishing-post-mortem',
+      { width: 375, height: 667 },
+    )
+    try {
+      const howTo = page.getByRole('button', { name: 'How to play' })
+      const label = page.getByText('Save this run to', { exact: true })
+      await expect(label).toBeVisible()
+      const above = await howTo.boundingBox()
+      const below = await label.boundingBox()
+      expect(below.y - (above.y + above.height)).toBeGreaterThanOrEqual(8)
+    } finally {
+      await context.close()
+    }
+  })
 })
