@@ -138,6 +138,11 @@ Move the task's active record rather than duplicating it across board states. Re
 
 All records in this section were Review until 1 November 2026, when Boey accepted every Review record at once, teammates' work included as team lead (DOC-20). They are Done and stay here so existing links keep working.
 
+**FIX-10 — Newspaper headings in the Times** · Status: **Review** · Contributor: **Boey** (decided 1 November 2026; Boey owns G-NEWS), implemented by Claude Code · Branch: `fix-10-times-headings`.
+- `main.css` adds `.news-dialog *` to the pixel-heading exclusion list (shared file, Boey's; the only change there). `news.css` gives the Times `h1`-`h3` Libre Baskerville 700 through `--news-heading-font`; `NewsDialog.vue` imports `@fontsource/libre-baskerville/700.css` (already a dependency for the lore intro, no install). Body text is unchanged.
+- Checks: vitest threat-briefing 13/13; prettier passes on the changed code files (DESIGN.md already failed at HEAD); E2E `news.spec.js` 18 passed, 2 skipped (phone-only tests on desktop); screenshots at 1280x800 and 375x812 checked.
+- Docs: DESIGN.md (Times look and the exclusion list, which also now names Botnet Tag), threat-briefing README (font line), this record.
+
 **DOC-20 — Accept the whole Review queue** · Status: **Done** · Contributor/reviewer: **Boey** (asked on 1 November 2026), implemented by Claude Code · Branch: `doc-20-review-acceptance`.
 - Scope: every record marked Review (143 bold status lines plus DOC-13, QA-01-A, G-SQL saved practice, the two GAME-01 field lists, the G-SOC current-status line and REC-01-A) now reads Done, accepted by Boey on 1 November 2026. This includes teammates' records (Xin Lei, Athithya, Eric, Russell), which Boey accepted as team lead. Records stay in their sections; a note at the top of In Progress and Review says so.
 - agents.md §3: the teammate-game sentence now records the acceptance, and the G-NEWS-03 inconsistency note is replaced by its acceptance.

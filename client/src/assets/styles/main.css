@@ -74,7 +74,8 @@ h6,
   .clearance-game *,
   .soc-game *,
   .cli-game *,
-  .botnet-tag-game *
+  .botnet-tag-game *,
+  .news-dialog *
 ) {
   font-family: var(--font-pixel);
 }

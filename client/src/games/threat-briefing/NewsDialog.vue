@@ -6,6 +6,7 @@ import OwaspTopTen from './components/OwaspTopTen.vue'
 import NewsAudio from './components/NewsAudio.vue'
 import { useNewsLocation } from './composables/useNewsLocation.js'
 import PixelIcon from '../../components/town/PixelIcon.vue'
+import '@fontsource/libre-baskerville/700.css'
 import './news.css'
 
 defineEmits(['request-close'])
