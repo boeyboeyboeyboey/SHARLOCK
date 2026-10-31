@@ -6,18 +6,12 @@ export function stillUrl(id) {
   return `${STILL_DIR}/${id}.webp`
 }
 
-// townMode is the resolved '3d' or '2d'; failed covers a webgl start-up error, slow a perf drop
+// INT-03: game routes always show the pre-rendered still, the live room code is kept but never started
+// the inputs stay so the live path can come back; 'loop' and 'single' are currently unreachable
 // returns 'loop' (animated), 'single' (one frame, then the loop stops) or 'still' (image, no canvas)
-export function decideRender({
-  townMode,
-  tierName,
-  reducedMotion = false,
-  failed = false,
-  slow = false,
-}) {
-  if (townMode !== '3d' || failed || slow) return 'still'
-  if (tierName === 'low' || reducedMotion) return 'single'
-  return 'loop'
+// eslint-disable-next-line no-unused-vars
+export function decideRender(options = {}) {
+  return 'still'
 }
 
 // what the room is allowed to build per tier: draw call ceiling, ambient motion and the resident rig
