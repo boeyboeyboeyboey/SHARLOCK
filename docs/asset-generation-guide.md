@@ -75,7 +75,15 @@ Main route: **jsfxr** (sfxr.me), a free browser tool that makes 8-bit effects fr
 
 - Filename: `client/public/audio/games/sfx-win.mp3`
 - Used: a run, call or climb ends well.
-- jsfxr (main route), about 1 s, rising and cheerful: start from the **Powerup** preset, then set **Square**, duty cycle 50%. Envelope: attack 0, sustain 0.35, punch 40%, decay 0.45. Frequency: start about 520 Hz, slide +0.2 to +0.3 8va/sec. Retrigger: rate so you hear about 4 steps. Arpeggiation: frequency mult up about x1.5, change speed about 0.5 s, for a held top note at the end.
+- jsfxr (main route), about 0.8 s, rising and cheerful, step by step:
+  1. Click **Powerup**, then **Square**.
+  2. Duty cycle: drag the slider fully left so it reads **50.00%**; Sweep stays 0.000%/sec.
+  3. Envelope: attack **0.000 sec**, sustain **about 0.35 sec**, punch **about +40%**, decay **about 0.45 sec**.
+  4. Frequency: start **about 520 Hz**, slide **about +0.30 8va/sec**, delta slide 0. Min freq. cutoff stays where it is.
+  5. Retrigger: drag Rate right from OFF until the waveform box on the right shows **4 separate humps**. Each repeat restarts the rising note, which gives the "da-da-da-daa" climb.
+  6. Arpeggiation: Frequency mult stays **OFF** (centre). With retrigger on, an arpeggio would restart on every repeat and sound messy.
+  7. Vibrato, flanger, low-pass and high-pass stay **OFF**.
+  8. Check **Clipped: 0** (lower Gain if not), then play it. If it sounds too fast, move Retrigger left until you see 3 humps; if too low, raise the start frequency.
 - Lyria fallback prompt: A short 8-bit victory jingle, a rising major arpeggio ending on a held bright note, cheerful, about 1 second, no reverb tail. Instrumental, 8-bit, matching the hub's light chiptune feel.
 
 #### Lose
