@@ -3,6 +3,7 @@ import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import HowToPlayDialog from '../HowToPlayDialog.vue'
 import { useAuthStore } from '../../../features/auth/store.js'
+import { wipe } from '../../../features/auth/pixel-wipe.js'
 
 const steps = [
   { title: 'Look', text: 'Look at the board.' },
@@ -53,6 +54,7 @@ beforeEach(() => {
   }
 })
 afterEach(() => {
+  wipe.phase = 'idle'
   vi.useRealTimers()
   document.body.innerHTML = ''
 })
@@ -133,6 +135,18 @@ describe('how to play dialog', () => {
     expect(wrapper.emitted('update:open')[0]).toEqual([false])
     await wrapper.get('[aria-label="Close how to play"]').trigger('click')
     expect(wrapper.emitted('update:open').length).toBeGreaterThan(0)
+  })
+
+  it('waits for the game doors to open before showing', async () => {
+    wipe.phase = 'cover'
+    const { wrapper } = mountDialog({ open: true })
+    expect(wrapper.get('dialog').attributes('open')).toBeUndefined()
+    wipe.phase = 'reveal'
+    await wrapper.vm.$nextTick()
+    expect(wrapper.get('dialog').attributes('open')).toBeUndefined()
+    wipe.phase = 'idle'
+    await wrapper.vm.$nextTick()
+    expect(wrapper.get('dialog').attributes('open')).toBeDefined()
   })
 
   it('closes the native dialog when open turns false', async () => {
