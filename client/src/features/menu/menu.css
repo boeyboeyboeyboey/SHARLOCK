@@ -3,7 +3,7 @@
 .immersive-controls,
 .site-menu,
 .menu-overlay {
-  --hub-glass-bg: rgb(20 32 46 / 72%);
+  --hub-glass-bg: rgb(20 32 46 / 80%);
   --hub-glass-solid: #14202e;
   --hub-glass-edge: rgb(243 238 221 / 28%);
   --hub-glass-ink: #f3eedd;
@@ -163,6 +163,7 @@
 }
 .mode-switch button:not([aria-pressed='true']):hover:not(:disabled) {
   background: var(--hub-glass-btn-hover);
+  color: var(--hub-glass-ink);
 }
 .mode-switch button:disabled {
   opacity: 0.5;

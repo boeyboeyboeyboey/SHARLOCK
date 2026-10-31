@@ -416,12 +416,6 @@
   border-radius: 8px;
 }
 
-.phish-game .phish-mode-line {
-  max-width: 62ch;
-  margin: 0.75rem 0;
-  color: var(--game-muted);
-}
-
 .phish-game .phish-earlier-score {
   font-size: 1.25rem;
   font-weight: 700;

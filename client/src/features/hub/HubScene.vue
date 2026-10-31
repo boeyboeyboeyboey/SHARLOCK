@@ -728,7 +728,7 @@ defineExpose({
   left: 0;
   padding: 1px 7px;
   border-radius: 999px;
-  background: rgb(20 32 46 / 72%);
+  background: rgb(20 32 46 / 80%);
   color: #f3eedd;
   font-size: 12px;
   line-height: 1.4;
@@ -837,9 +837,9 @@ defineExpose({
   place-items: center;
   width: 120px;
   height: 120px;
-  border: 2px solid rgb(243 238 221 / 55%);
+  border: 2px solid rgb(243 238 221 / 85%);
   border-radius: 50%;
-  background: rgb(20 32 46 / 45%);
+  background: rgb(20 32 46 / 70%);
   touch-action: none;
 }
 .hub-jump {
@@ -851,7 +851,7 @@ defineExpose({
   height: 64px;
   align-items: center;
   justify-content: center;
-  border: 2px solid rgb(243 238 221 / 55%);
+  border: 2px solid rgb(243 238 221 / 85%);
   border-radius: 50%;
   background: rgb(20 32 46 / 70%);
   color: var(--hub-glass-ink);
@@ -1049,7 +1049,7 @@ defineExpose({
 <!-- smoked glass for every hud panel in the hub; unscoped so the children and the Dashboard slot share it, and the custom properties stay on the hub root -->
 <style>
 .hub-scene {
-  --hub-glass-bg: rgb(20 32 46 / 72%);
+  --hub-glass-bg: rgb(20 32 46 / 80%);
   --hub-glass-solid: #14202e;
   --hub-glass-edge: rgb(243 238 221 / 28%);
   --hub-glass-ink: #f3eedd;
