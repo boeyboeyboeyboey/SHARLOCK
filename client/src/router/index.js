@@ -140,7 +140,7 @@ export const routes = [
     path: '/instructor',
     component: () => import('../features/cohorts/pages/ClassManagementPage.vue'),
     meta: {
-      title: 'Class enrollment',
+      title: 'Manage your classes',
       requiresAccount: true,
       allowedRoles: ['instructor', 'admin'],
     },
@@ -165,7 +165,7 @@ export const routes = [
     path: `/games/${previous}`,
     redirect: `/games/${current}`,
   })),
-  // the five game routes render inside a Babylon room; /games alone is not a page
+  // the game routes render inside a room still; /games alone is not a page
   {
     path: '/games',
     redirect: '/',

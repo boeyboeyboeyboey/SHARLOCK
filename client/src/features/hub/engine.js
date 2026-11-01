@@ -31,7 +31,7 @@ function freshCanvas(old) {
   return next;
 }
 
-async function createEngine(canvas, params) {
+export async function createEngine(canvas, params) {
   if (params.get('renderer') !== 'webgl2' && navigator.gpu) {
     try {
       if (await WebGPUEngine.IsSupportedAsync) {
@@ -83,7 +83,6 @@ export function createHub({ container, joystick = {}, params = new URLSearchPara
     drawCalls: 0,
     triangles: 0,
     trianglesAllPasses: 0,
-    paused: false,
     inputPaused: false,
     sprint: { phase: 'ready', at: 0 },
     reducedMotion: motionQuery.matches,
@@ -109,6 +108,8 @@ export function createHub({ container, joystick = {}, params = new URLSearchPara
   let engineType = null;
   let scene = null;
   let built = null;
+  // the scene adds its cleanup here as it builds, so a build that stops or throws halfway still undoes its work
+  const sceneDisposers = [];
   let observer = null;
   let fpsTimer = null;
   const manualWatch = realSamplingOff();
@@ -142,7 +143,7 @@ export function createHub({ container, joystick = {}, params = new URLSearchPara
     scene.enablePhysics(new Vector3(0, -9.81, 0), new HavokPlugin(true, hk));
     const { build } = await import('./scenes/a-wharf.js');
     if (disposed) return;
-    built = await build({ engine, scene, canvas, state, notify: emit, params, joystick, spawnAt, quality, resumeAt, wardrobe });
+    built = await build({ engine, scene, canvas, state, notify: emit, params, joystick, spawnAt, quality, resumeAt, wardrobe, disposers: sceneDisposers, isDisposed: () => disposed });
     if (disposed) return;
 
     const rendered = new Promise((resolve) => scene.onAfterRenderObservable.addOnce(resolve));
@@ -177,22 +178,25 @@ export function createHub({ container, joystick = {}, params = new URLSearchPara
     emit();
   }
 
-  // the build can fail halfway, so teardown must cope with any missing piece
+  // the build can fail halfway, so teardown must cope with any missing piece; one failing step must not skip the rest
+  function attempt(label, step) {
+    try {
+      step();
+    } catch (error) {
+      console.warn(`hub teardown: ${label}`, error);
+    }
+  }
   function teardown() {
     if (torn) return;
     torn = true;
     clearInterval(fpsTimer);
     observer?.disconnect();
     motionQuery.removeEventListener('change', onMotion);
-    engine?.stopRenderLoop();
-    try {
-      built?.dispose?.();
-    } catch (error) {
-      console.warn('hub scene teardown', error);
-    }
-    scene?.dispose();
-    engine?.dispose();
-    if (engineType === 'webgl2') canvas.getContext('webgl2')?.getExtension('WEBGL_lose_context')?.loseContext();
+    attempt('render loop', () => engine?.stopRenderLoop());
+    for (const dispose of sceneDisposers.reverse()) attempt('scene', dispose);
+    attempt('scene', () => scene?.dispose());
+    attempt('engine', () => engine?.dispose());
+    if (engineType === 'webgl2') attempt('context', () => canvas.getContext('webgl2')?.getExtension('WEBGL_lose_context')?.loseContext());
     canvas.remove();
     state.ready = false;
     state.scene = null;

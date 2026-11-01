@@ -10,9 +10,10 @@
 - Data: reads `GET /api/news` only; it saves no scores, accounts or reading history.
 - Status: see the G-NEWS records in [TASKS.md](../../../../TASKS.md).
 - Phones: the edition line keeps only the date, the status is one line and headline links are 44px targets; short landscape uses a one-row masthead (MOB-01 stage 3).
+- Sample edition: with no key, or when the publisher cannot be reached and nothing is cached, the server sends a labelled sample edition of our own made-up stories. The page says "Sample edition. These stories are made up for this project. This is not real news.", each story carries "SAMPLE STORY, NOT REAL NEWS", and there is no Guardian logo, attribution or link out.
 - Limits: live stories need a Guardian key in the server environment; unscored; sound state is local and non-persistent.
 
-Cyber News Central retains catalog ID `threat-briefing` and `/games/threat-briefing`. Its paper reads live Guardian stories, without accounts, scores, reflections or saved reading history.
+Cyber News Central retains catalog ID `threat-briefing` and `/games/threat-briefing`. Its paper reads live Guardian stories (or the labelled sample edition above), without accounts, scores, reflections or saved reading history.
 
 **Status: completed and accepted by Boey on 19 September 2026**, including The Sharlock Times branding, OWASP reference and newspaper sound. The requested lo-fi MP3 replaces the mistakenly supplied WAV; task evidence is retained in the root TASKS.md.
 
@@ -27,18 +28,18 @@ Cyber News Central retains catalog ID `threat-briefing` and `/games/threat-brief
 
 ## Component contracts
 
-| Component          | Inputs                                                                    | Events / responsibility                                                  |
-| ------------------ | ------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `NewsDialog`       | none                                                                      | `request-close`, native modal lifecycle                                  |
-| `NewsTabs`         | activeTab                                                                 | update:tab; arrows/Home/End focus tabs, Enter/Space select               |
-| `OwaspTopTen`      | none                                                                      | bundled 2025 risk reference with native disclosures and official sources |
-| `NewsAudio`        | none                                                                      | status event; automatic loop, mute/retry and media cleanup               |
-| `CyberNewsCentral` | location, update callback                                                 | live news composition; unmounted outside the news tab                    |
-| `NewsFilters`      | section, range, query, loading, canRefresh                                | section/range/query updates, refresh; mobile Browse & search disclosure  |
-| `NewsArticle`      | article, featured                                                         | full title, inline byline/excerpt, safe publisher links and dates        |
-| `SafeInline`       | nodes                                                                     | escaped text, safe links and line breaks; no raw HTML                    |
-| `NewsPagination`   | page, pageCount                                                           | update:page                                                              |
-| `NewsStatus`       | loading, error, stale, partial, fetchedAt, refreshAvailableAt, canRefresh | retry and honest cache/error feedback                                    |
+| Component          | Inputs                                                                            | Events / responsibility                                                  |
+| ------------------ | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `NewsDialog`       | none                                                                              | `request-close`, native modal lifecycle                                  |
+| `NewsTabs`         | activeTab                                                                         | update:tab; arrows/Home/End focus tabs, Enter/Space select               |
+| `OwaspTopTen`      | none                                                                              | bundled 2025 risk reference with native disclosures and official sources |
+| `NewsAudio`        | none                                                                              | status event; automatic loop, mute/retry and media cleanup               |
+| `CyberNewsCentral` | location, update callback                                                         | live news composition; unmounted outside the news tab                    |
+| `NewsFilters`      | section, range, query, loading, canRefresh                                        | section/range/query updates, refresh; mobile Browse & search disclosure  |
+| `NewsArticle`      | article, featured, sample                                                         | full title, inline byline/excerpt, safe publisher links and dates        |
+| `SafeInline`       | nodes                                                                             | escaped text, safe links and line breaks; no raw HTML                    |
+| `NewsPagination`   | page, pageCount                                                                   | update:page                                                              |
+| `NewsStatus`       | loading, error, stale, partial, fetchedAt, refreshAvailableAt, canRefresh, sample | retry and honest cache/error feedback                                    |
 
 Newspaper query fields are `tab=owasp` (omit for Latest news), `section=cybersecurity|technology`, `range=week|month`, `q` (up to 80 characters) and `page` (1–5). Defaults are omitted from the URL. Filter changes replace the current history entry. Each edition contains at most 50 stories, with ten per page. Dates use Asia/Singapore. Tab changes retain section/range/search/page. A direct OWASP link makes no news request; leaving the news tab cancels its request and disposes the news timer. Returning reloads through the existing server cache.
 
@@ -46,7 +47,7 @@ Newspaper query fields are `tab=owasp` (omit for Latest news), `section=cybersec
 
 Shared changes are limited to the existing router, Dashboard, PortalLayout focus handling, TownMap activation/focus methods (2D mode), the newsstand building in the 3D hub, catalog/card and town links. The original newsstand SVG follows the shared asset convention in `client/public/images/town/newsstand.svg`; no second registry or camera is introduced. Other activity previews retain their existing card behaviour. Dashboard passes `soundSuspended` through TownMap to `TownAudio({ suspended })`; this pauses the same landing player and, after closing, restarts it unless the visitor muted it this session (AUDIO-01). The paper uses shared pixel tokens through `.news-dialog`-prefixed CSS; it never styles the document body or another page.
 
-Unit tests live in `__tests__/news.test.js` and `__tests__/audio.test.js`; browser journeys live in `tests/e2e/news.spec.js`. Deterministic stories are test fixtures only. The actual app never silently substitutes fixtures for live news.
+Unit tests live in `__tests__/news.test.js` and `__tests__/audio.test.js`; browser journeys live in `tests/e2e/news.spec.js`. Deterministic stories in tests are fixtures only. The app never passes off made-up stories as news: the sample edition comes from the server with `sample: true` and is always labelled. `__tests__/newsComponents.test.js` mounts the filters, tabs, pagination, article, status and the sample state; `tests/e2e/news.spec.js` also opens the real no-key path with no mock.
 
 ## Reference and audio
 

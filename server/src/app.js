@@ -34,6 +34,7 @@ export function createApp(
     authRateLimits,
     progress = {},
     news = {},
+    health = {},
     socialEngineering = {},
     cliDefender = {},
     presence: presenceOptions = {},
@@ -142,7 +143,7 @@ export function createApp(
     '/api',
     createAuditRouter(database, { ...audit, requireSession: authRuntime.requireSession }),
   )
-  app.use('/api', createHealthRouter(database))
+  app.use('/api', createHealthRouter(database, health))
   app.use('/api', createNewsRouter(database, news))
   // one attempts service records every server-recorded game
   const recordedAttempts = createAttemptService(database, {

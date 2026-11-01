@@ -194,6 +194,13 @@
   min-height: 46px;
   font: inherit;
 }
+.news-dialog .gazette-sample {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border: 2px dashed var(--border-strong);
+  color: var(--text-main);
+  font-weight: 600;
+}
 .news-dialog .gazette-status {
   margin: 18px 0;
   padding: 12px 14px;

@@ -83,7 +83,7 @@ export function buildTownsfolk({ scene, tier, reduced, look }) {
       }
       if (dist > UPDATE_RANGE) continue;
       let walking = false;
-      if (f.patrol && !holdsStill({ frozen, calm, dist, range: UPDATE_RANGE, near: STOP_RANGE, talking: talkId === f.npc.id })) {
+      if (f.patrol && !holdsStill({ frozen, calm, dist, near: STOP_RANGE, talking: talkId === f.npc.id })) {
         stepPatrol(f.patrol, f.npc.route, f.npc.pause, step);
         walking = f.patrol.moving;
         if (walking) {
@@ -110,8 +110,15 @@ export function buildTownsfolk({ scene, tier, reduced, look }) {
     return talk;
   }
 
+  // the one position the camera needs each frame, without building the whole list
+  const spotOf = (id) => {
+    for (const f of folk) if (f.npc.id === id) return f;
+    return null;
+  };
+
   return {
     list,
+    spotOf,
     meshes: folk.flatMap((f) => (f.rig ? f.rig.meshes : [f.mesh])),
     update,
     setFrozen(value) {

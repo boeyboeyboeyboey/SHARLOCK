@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { SPRINT, createSprint } from '../scenes/shared/sprint.js'
+import {
+  SPRINT_COOLDOWN_MS,
+  SPRINT_MS,
+  SPRINT_MULT,
+} from '../../../../../server/src/modules/games/botnet-tag/rules.js'
 
 describe('sprint', () => {
   it('matches the botnet tag rules', () => {
-    expect(SPRINT).toEqual({ MULT: 1.6, MS: 2500, COOLDOWN_MS: 6000 })
+    expect(SPRINT).toEqual({ MULT: SPRINT_MULT, MS: SPRINT_MS, COOLDOWN_MS: SPRINT_COOLDOWN_MS })
   })
 
   it('starts ready at normal speed', () => {

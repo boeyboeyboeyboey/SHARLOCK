@@ -2,9 +2,10 @@ import { computed, ref, watch } from 'vue'
 
 export const UI_SCALE_KEY = 'sharlock.uiScale'
 export const UI_SIZES = [
-  { value: 'small', label: 'Small', scale: 0.75 },
-  { value: 'medium', label: 'Medium', scale: 0.85 },
-  { value: 'large', label: 'Large', scale: 1 },
+  // the default keeps hud text at 12px or more
+  { value: 'small', label: 'Small', scale: 0.85 },
+  { value: 'medium', label: 'Medium', scale: 1 },
+  { value: 'large', label: 'Large', scale: 1.15 },
 ]
 export const DEFAULT_UI_SIZE = 'medium'
 

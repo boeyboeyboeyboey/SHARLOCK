@@ -43,6 +43,19 @@ describe('town wanderers', () => {
     }
   })
 
+  it('spend no frames while nothing can move, and carry on after start', () => {
+    let held = true
+    const npcs = useTownNpcs({ npcs: townNpcs, target: far, paused: () => held })
+    npcs.start()
+    run(1)
+    expect(queue).toHaveLength(0)
+    held = false
+    npcs.start()
+    run(8)
+    expect(sweeper(npcs).y).toBeGreaterThan(330)
+    npcs.dispose()
+  })
+
   it('stop and face sharlock when he is near', () => {
     const npcs = useTownNpcs({ npcs: townNpcs, target: () => ({ x: 540, y: 335 }) })
     npcs.start()

@@ -1,7 +1,5 @@
 import { Mesh } from '@babylonjs/core/Meshes/mesh.js';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData.js';
-import { VertexBuffer } from '@babylonjs/core/Buffers/buffer.js';
-import { Vector3 } from '@babylonjs/core/Maths/math.vector.js';
 
 const hexToRgb = (hex) => [parseInt(hex.slice(1, 3), 16) / 255, parseInt(hex.slice(3, 5), 16) / 255, parseInt(hex.slice(5, 7), 16) / 255];
 export const rgb = (hex, k = 1) => {
@@ -180,12 +178,3 @@ export class Batch {
     return mesh;
   }
 }
-
-// helpers for thin instances
-export function setInstances(mesh, matrices, colors = null) {
-  mesh.thinInstanceSetBuffer('matrix', matrices, 16, true);
-  if (colors) mesh.thinInstanceSetBuffer('color', colors, 4, true);
-  mesh.alwaysSelectAsActiveMesh = true;
-}
-
-export { Vector3, VertexBuffer };

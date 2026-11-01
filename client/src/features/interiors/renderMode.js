@@ -1,6 +1,6 @@
 // still image url and gradient fallback for a game room
 
-export const STILL_DIR = '/interiors'
+const STILL_DIR = '/interiors'
 
 export function stillUrl(id) {
   return `${STILL_DIR}/${id}.webp`

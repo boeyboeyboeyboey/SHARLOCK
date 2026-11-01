@@ -1,7 +1,7 @@
 <script setup>
-import { ref } from 'vue'
+import { nextTick, ref, watch } from 'vue'
 
-defineProps({
+const props = defineProps({
   name: { type: String, required: true },
   line: { type: String, required: true },
   last: { type: Boolean, default: false },
@@ -11,6 +11,16 @@ defineProps({
 })
 defineEmits(['next', 'enter', 'close'])
 const panel = ref(null)
+const actions = ref(null)
+// the last line swaps the next button for others, and focus must not fall to the page when it goes
+watch(
+  () => props.last,
+  async (last) => {
+    if (!last || !panel.value?.contains(document.activeElement)) return
+    await nextTick()
+    actions.value?.querySelector('button')?.focus()
+  },
+)
 defineExpose({ focus: () => panel.value?.focus() })
 </script>
 
@@ -24,8 +34,8 @@ defineExpose({ focus: () => panel.value?.focus() })
     tabindex="-1"
   >
     <h2 id="npc-dialogue-name" class="npc-name">{{ name }}</h2>
-    <p class="npc-line" data-testid="npc-line">{{ line }}</p>
-    <div class="npc-actions">
+    <p class="npc-line" data-testid="npc-line" aria-live="polite">{{ line }}</p>
+    <div ref="actions" class="npc-actions">
       <button
         v-if="!last"
         type="button"

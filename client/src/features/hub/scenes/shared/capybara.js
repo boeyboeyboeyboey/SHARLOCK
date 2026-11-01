@@ -760,6 +760,17 @@ export function createCapybaraCrowd(scene, { variants, count, size = 1.05, toon 
   legs.thinInstanceSetBuffer('matrix', legMatrices, 16, false);
   legs.thinInstanceSetBuffer('color', legTints, 4, true);
   let time = 0;
+  // reused for every worker every frame, so walking allocates nothing
+  const scratch = {
+    scale: new Vector3(),
+    turn: new Quaternion(),
+    at: new Vector3(),
+    world: new Matrix(),
+    rotate: new Matrix(),
+    shift: new Matrix(),
+    local: new Matrix(),
+    out: new Matrix(),
+  };
 
   return {
     meshes: [...groups.map((g) => g.mesh), legs],
@@ -783,11 +794,23 @@ export function createCapybaraCrowd(scene, { variants, count, size = 1.05, toon 
         }
         const bp = bodyPose(w.phase, w.amp, motion);
         const breathe = Math.sin(time * 2 + i) * 0.012 * (1 - w.amp) * (reduced() ? 0.3 : 1);
-        const world = Matrix.Compose(new Vector3(size, size * (1 + breathe), size), Quaternion.RotationYawPitchRoll(w.shownYaw, 0, 0), new Vector3(w.x, 0, w.z));
-        Matrix.RotationYawPitchRoll(0, bp.pitch, bp.roll).multiply(Matrix.Translation(bp.x, bp.y, 0)).multiply(world).copyToArray(w.group.matrices, w.slot * 16);
+        const { scale, turn, at, world, rotate, shift, local, out } = scratch;
+        scale.set(size, size * (1 + breathe), size);
+        Quaternion.RotationYawPitchRollToRef(w.shownYaw, 0, 0, turn);
+        at.set(w.x, 0, w.z);
+        Matrix.ComposeToRef(scale, turn, at, world);
+        Matrix.RotationYawPitchRollToRef(0, bp.pitch, bp.roll, rotate);
+        Matrix.TranslationToRef(bp.x, bp.y, 0, shift);
+        rotate.multiplyToRef(shift, local);
+        local.multiplyToRef(world, out);
+        out.copyToArray(w.group.matrices, w.slot * 16);
         HIPS.forEach((h, k) => {
           const pose = legPose(w.phase, h.pair, w.amp, motion);
-          Matrix.RotationX(-pose.angle).multiply(Matrix.Translation(h.p[0], h.p[1] + pose.lift, h.p[2])).multiply(world).copyToArray(legMatrices, (i * 4 + k) * 16);
+          Matrix.RotationXToRef(-pose.angle, rotate);
+          Matrix.TranslationToRef(h.p[0], h.p[1] + pose.lift, h.p[2], shift);
+          rotate.multiplyToRef(shift, local);
+          local.multiplyToRef(world, out);
+          out.copyToArray(legMatrices, (i * 4 + k) * 16);
         });
       });
       for (const g of groups) g.mesh.thinInstanceBufferUpdated('matrix');

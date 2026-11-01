@@ -26,15 +26,16 @@ function rawTexture(scene, data, width, height, alpha, metadata) {
 // loads a plate; a png with real alpha is used as is, an opaque one has its 00ff00 background keyed to transparent
 // cutBelow is the ground line row as a fraction from the top: everything at and below it becomes transparent
 // cropTo is a wanted aspect (21:9 for pieces): an image of about 3:2 is cropped to its centred band of that aspect first
+// scale shrinks the picture before any pixel work, so the lighter tiers spend less memory on it
 // resolves null when the file fails so callers can fall back to a painted stand-in
-export async function loadPlateTexture(scene, url, { cropTo = null, cutBelow: groundRow = null } = {}) {
+export async function loadPlateTexture(scene, url, { cropTo = null, cutBelow: groundRow = null, scale = 1 } = {}) {
   const image = await decode(url);
   if (!image) return null;
   const canvas = document.createElement('canvas');
-  canvas.width = image.naturalWidth;
-  canvas.height = image.naturalHeight;
+  canvas.width = Math.round(image.naturalWidth * scale);
+  canvas.height = Math.round(image.naturalHeight * scale);
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  ctx.drawImage(image, 0, 0);
+  ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
   let pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
   let { width, height } = canvas;
   let cropped = null;

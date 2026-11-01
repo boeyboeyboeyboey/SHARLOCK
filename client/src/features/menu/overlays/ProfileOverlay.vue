@@ -31,7 +31,11 @@ async function onKey(event, index) {
 </script>
 
 <template>
-  <OverlayPanel title="Profile & progress" @request-close="$emit('request-close')">
+  <OverlayPanel
+    title="Profile & progress"
+    :session-notice="false"
+    @request-close="$emit('request-close')"
+  >
     <template #tabs>
       <div class="overlay-tabs" role="tablist" aria-label="Profile and progress">
         <button

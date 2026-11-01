@@ -2,12 +2,20 @@
 import { computed } from 'vue'
 import SafeInline from './SafeInline.vue'
 import { newsDate, safeNewsLink } from '../news.js'
-const props = defineProps({ article: { type: Object, required: true }, featured: Boolean })
-const safeArticleUrl = computed(() => safeNewsLink(props.article.url))
+const props = defineProps({
+  article: { type: Object, required: true },
+  featured: Boolean,
+  // a made-up story: no publisher name and no link out
+  sample: Boolean,
+})
+const safeArticleUrl = computed(() => (props.sample ? null : safeNewsLink(props.article.url)))
 </script>
 <template>
   <article class="gazette-article" :class="{ 'gazette-featured': featured }">
-    <p class="gazette-kicker">{{ featured ? 'THE LEAD STORY' : 'IN THE NEWS' }} · THE GUARDIAN</p>
+    <p class="gazette-kicker">
+      {{ featured ? 'THE LEAD STORY' : 'IN THE NEWS' }} ·
+      {{ sample ? 'SAMPLE STORY, NOT REAL NEWS' : 'THE GUARDIAN' }}
+    </p>
     <h2>
       <a v-if="safeArticleUrl" :href="safeArticleUrl" target="_blank" rel="noopener noreferrer"
         >{{ article.title }}<span class="visually-hidden"> (opens in a new tab)</span></a

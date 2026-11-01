@@ -64,7 +64,7 @@ describe('town map controls', () => {
     expect(typeof controls.jumpTo.value).toBe('function')
     controls.jumpTo.value('threat-briefing')
     await flushPromises()
-    expect(wrapper.get('.game-info-card').text()).toContain(
+    expect(wrapper.get('[id^="game-card-"]').text()).toContain(
       gameCatalog.find((game) => game.id === 'threat-briefing').name,
     )
     wrapper.unmount()
@@ -136,10 +136,10 @@ describe('walking Sharlock', () => {
     )
     wrapper.findComponent(TownMap).vm.dismiss()
     await flushPromises()
-    expect(wrapper.find('.game-info-card').exists()).toBe(false)
+    expect(wrapper.find('[id^="game-card-"]').exists()).toBe(false)
     key('keydown', 'KeyE')
     await flushPromises()
-    expect(wrapper.get('.game-info-card').text()).toContain(name)
+    expect(wrapper.get('[id^="game-card-"]').text()).toContain(name)
     wrapper.unmount()
   })
 
@@ -170,13 +170,13 @@ describe('walking Sharlock', () => {
     key('keydown', 'KeyE')
     await flushPromises()
     expect(wrapper.get('[data-testid="npc-line"]').text()).not.toBe(first)
-    while (!wrapper.find('[data-testid="npc-enter"]').exists()) {
+    for (let line = 0; line < 8 && !wrapper.find('[data-testid="npc-enter"]').exists(); line += 1) {
       key('keydown', 'KeyE')
       await flushPromises()
     }
     await wrapper.get('[data-testid="npc-enter"]').trigger('click')
     expect(wrapper.find('[data-testid="npc-dialogue"]').exists()).toBe(false)
-    expect(wrapper.get('.game-info-card').text()).toContain('Social')
+    expect(wrapper.get('[id^="game-card-"]').text()).toContain('Social')
     wrapper.unmount()
   })
 

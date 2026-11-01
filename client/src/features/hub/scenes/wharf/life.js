@@ -39,7 +39,8 @@ function roundedLoop(points, radius) {
     const total = dist[dist.length - 1];
   return {
     total,
-    at(s) {
+    // into is reused by the frame loop, so no object is created per worker per frame
+    at(s, into = {}) {
       const d = ((s % total) + total) % total;
       let lo = 0;
       let hi = dist.length - 1;
@@ -51,7 +52,10 @@ function roundedLoop(points, radius) {
       const a = out[lo % out.length];
       const b = out[(lo + 1) % out.length];
       const k = (d - dist[lo]) / Math.max(1e-6, dist[hi] - dist[lo]);
-      return { x: a[0] + (b[0] - a[0]) * k, z: a[1] + (b[1] - a[1]) * k, yaw: Math.atan2(b[0] - a[0], b[1] - a[1]) };
+      into.x = a[0] + (b[0] - a[0]) * k;
+      into.z = a[1] + (b[1] - a[1]) * k;
+      into.yaw = Math.atan2(b[0] - a[0], b[1] - a[1]);
+      return into;
     },
   };
 }
@@ -93,7 +97,6 @@ function hansom(scene, material) {
 }
 
 export function buildLife({ scene, world, tier, reduced, chimneys, farStacks = [] }) {
-  const disposers = [];
   const rand = rng(31337);
 
   // dock workers: three variants, instanced, each walking its own loop at its own pace
@@ -116,7 +119,7 @@ export function buildLife({ scene, world, tier, reduced, chimneys, farStacks = [
   const workerCount = tier.workers;
   const crowd = createCapybaraCrowd(scene, { variants, count: workerCount, size: 1.05, toon, reduced });
   const workers = [];
-  for (let i = 0; i < workerCount; i += 1) workers.push({ path: loops[i % loops.length], speed: 1.1 + rand() * 0.7, start: rand() * 60, dir: i % 3 === 0 ? -1 : 1 });
+  for (let i = 0; i < workerCount; i += 1) workers.push({ path: loops[i % loops.length], speed: 1.1 + rand() * 0.7, start: rand() * 60, dir: i % 3 === 0 ? -1 : 1, at: { x: 0, z: 0, yaw: 0 } });
 
   // hansom cab on a big loop around the block
   const cabParts = hansom(scene, world.materials.wash);
@@ -179,6 +182,14 @@ export function buildLife({ scene, world, tier, reduced, chimneys, farStacks = [
     : null;
 
   let time = 0;
+  // reused every frame so the loop below allocates nothing
+  const ahead = { x: 0, z: 0, yaw: 0 };
+  const cp = { x: 0, z: 0, yaw: 0 };
+  const pose = { x: 0, z: 0, yaw: 0, speed: 0 };
+  const gullScale = new Vector3();
+  const gullTurn = new Quaternion();
+  const gullAt = new Vector3();
+  const gullMatrix = new Matrix();
   const update = (dt) => {
     if (!reduced()) time += dt;
     if (smoke) smoke.updateSpeed = reduced() ? 0 : 0.016;
@@ -186,13 +197,16 @@ export function buildLife({ scene, world, tier, reduced, chimneys, farStacks = [
     // workers face the way they walk: heading from a short look ahead along the loop
     workers.forEach((w, i) => {
       const s = w.start * 1.2 + time * w.speed * w.dir;
-      const p = w.path.at(s);
-      const ahead = w.path.at(s + w.dir * 0.5);
-      w.at = p;
-      crowd.setPose(i, { x: p.x, z: p.z, yaw: Math.atan2(ahead.x - p.x, ahead.z - p.z), speed: reduced() ? 0 : w.speed });
+      const p = w.path.at(s, w.at);
+      w.path.at(s + w.dir * 0.5, ahead);
+      pose.x = p.x;
+      pose.z = p.z;
+      pose.yaw = Math.atan2(ahead.x - p.x, ahead.z - p.z);
+      pose.speed = reduced() ? 0 : w.speed;
+      crowd.setPose(i, pose);
     });
     crowd.update(dt);
-    const cp = cabLoop.at(time * 5.2 + 40);
+    cabLoop.at(time * 5.2 + 40, cp);
     cabNode.position.set(cp.x, Math.abs(Math.sin(time * 9)) * 0.03, cp.z);
     cabNode.rotation.y = cp.yaw;
     for (const wh of wheels) wh.rotation.x = time * 5.2 / 0.74;
@@ -207,7 +221,11 @@ export function buildLife({ scene, world, tier, reduced, chimneys, farStacks = [
       const z = g.cz + Math.sin(a) * g.r * 0.6;
       const heading = Math.atan2(-Math.sin(a) * Math.sign(g.speed), Math.cos(a) * 0.6 * Math.sign(g.speed));
       const flap = reduced() ? 0.9 : 0.75 + 0.35 * Math.sin(time * g.flap + i);
-      Matrix.Compose(new Vector3(flap * 1.1, 1, 1.1), Quaternion.RotationYawPitchRoll(heading, 0, -0.35 * Math.sign(g.speed)), new Vector3(x, g.h + Math.sin(time * 0.4 + i) * 1.2, z)).copyToArray(gullMatrices, i * 16);
+      gullScale.set(flap * 1.1, 1, 1.1);
+      Quaternion.RotationYawPitchRollToRef(heading, 0, -0.35 * Math.sign(g.speed), gullTurn);
+      gullAt.set(x, g.h + Math.sin(time * 0.4 + i) * 1.2, z);
+      Matrix.ComposeToRef(gullScale, gullTurn, gullAt, gullMatrix);
+      gullMatrix.copyToArray(gullMatrices, i * 16);
     });
     gull.thinInstanceBufferUpdated('matrix');
   };
@@ -224,7 +242,6 @@ export function buildLife({ scene, world, tier, reduced, chimneys, farStacks = [
       crowd.dispose();
       for (const x of [cabParts.bodyMesh, cabParts.wheel, gull, jib, load, jibRoot, loadNode, cabNode]) x.dispose();
       gullMaterial.dispose();
-      for (const d of disposers) d();
     },
   };
 }

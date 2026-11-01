@@ -69,15 +69,16 @@ async function openMap() {
   closer.value?.focus()
 }
 
-function closeMap() {
+function closeMap({ restoreFocus = true } = {}) {
   if (!open.value) return
   open.value = false
-  nextTick(() => toggle.value?.focus())
+  if (restoreFocus) nextTick(() => toggle.value?.focus())
 }
 
+// the hub moves focus to the enter button after a pick, so the map must not take it back
 function pick(id) {
   emit('choose', id)
-  closeMap()
+  closeMap({ restoreFocus: false })
 }
 
 // the overlay keeps keyboard focus and owns Escape; on desktop Escape still reaches the hub
@@ -308,7 +309,7 @@ function onKeydown(event) {
   border: 1px solid var(--town-edge);
   background: var(--town-paper);
   color: var(--town-edge);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.3;
   white-space: nowrap;
   transform: translateX(-50%);

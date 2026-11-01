@@ -87,6 +87,25 @@ test.describe('a tab whose session was replaced by a newer sign-in', () => {
     }
   })
 
+  // the presence socket of a student with no class closes with 4403 and retries once a minute; once the session is
+  // replaced that retry is refused, and the idle tab must find out from it
+  test('an idle tab on the town finds out without any action', async ({ browser, baseURL }) => {
+    test.setTimeout(150_000)
+    const tab = await replacedTab(browser, baseURL)
+    try {
+      await tab.page.goto('/')
+      await expect(tab.page.getByTestId('town-player')).toBeVisible()
+      await replace(tab, baseURL)
+      await expect(tab.page).toHaveURL(/\/login\?reason=elsewhere$/, { timeout: 90_000 })
+      await expect(
+        tab.page.getByRole('status').filter({ hasText: 'signed in somewhere else' }),
+      ).toBeVisible()
+    } finally {
+      await tab.context.close()
+      await tab.elsewhere.close()
+    }
+  })
+
   test('keeps the profile open and shows the reason', async ({ browser, baseURL }) => {
     const tab = await replacedTab(browser, baseURL)
     try {

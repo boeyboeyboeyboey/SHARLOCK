@@ -75,6 +75,27 @@ test('asks before trying 3D and persists a confirmed choice', async ({ page }) =
   await expect(page.getByTestId('hub-3d-warning')).toHaveCount(0)
 })
 
+test('Settings > View on a 2D device shows the warning over the Settings dialog', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await expect(page.getByRole('region', { name: 'Interactive town map' })).toBeVisible()
+  await page.getByTestId('menu-button').click()
+  await page.getByRole('link', { name: 'Settings' }).click()
+  const settings = page.getByRole('dialog', { name: 'Settings' })
+  await expect(settings).toBeVisible()
+  await page.getByTestId('settings-view').click()
+  const warning = page.getByTestId('hub-3d-warning')
+  await expect(warning).toBeVisible()
+  const cancel = page.getByTestId('hub-3d-cancel')
+  await expect(cancel).toBeFocused()
+  // a real click lands on it, which proves it is not stuck behind the modal
+  await cancel.click()
+  await expect(warning).toHaveCount(0)
+  await expect(settings).toBeVisible()
+  await expect(page.getByTestId('settings-view')).toBeFocused()
+})
+
 test('explains the modes on the About page', async ({ page }) => {
   await page.goto('/about#graphics')
   await expect(

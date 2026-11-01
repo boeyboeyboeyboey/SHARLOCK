@@ -408,9 +408,10 @@ test('drags without opening a building and still selects with a fresh tap or cli
   await page.goto('/dashboard')
   const map = page.getByRole('region', { name: 'Interactive town map' })
   await map.scrollIntoViewIfNeeded()
-  const building = page.getByRole('button', { name: 'Explore CLI Cyber Defender', exact: true })
+  // the camera opens on sharlock, so this building is the one beside him at every size
+  const building = page.getByRole('button', { name: 'Explore Botnet Tag', exact: true })
   const before = await building.boundingBox()
-  const start = { x: before.x + before.width / 2, y: before.y + before.height / 2 }
+  const start = { x: before.x + 30, y: before.y + before.height / 2 }
   const mobile = testInfo.project.name === 'mobile-chromium'
   if (mobile) {
     const session = await page.context().newCDPSession(page)
@@ -432,11 +433,12 @@ test('drags without opening a building and still selects with a fresh tap or cli
     await page.mouse.move(start.x - 60, start.y - 60, { steps: 6 })
     await page.mouse.up()
   }
-  await expect.poll(async () => (await building.boundingBox()).y).toBeLessThan(before.y - 40)
+  // the camera opens on sharlock near the bottom edge of the town, so the drag shows on the x axis
+  await expect.poll(async () => (await building.boundingBox()).x).toBeLessThan(before.x - 40)
   await expect(page.locator('.game-info-card')).toHaveCount(0)
   if (mobile) await building.tap()
   else await building.click()
-  await expect(page.getByRole('heading', { name: 'CLI Cyber Defender', exact: true })).toBeFocused()
+  await expect(page.getByRole('heading', { name: 'Botnet Tag', exact: true })).toBeFocused()
 })
 
 test('supports pinch zoom and wheel panning while retaining camera bounds after resize', async ({

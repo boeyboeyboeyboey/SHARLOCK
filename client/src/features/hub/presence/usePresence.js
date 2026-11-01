@@ -20,6 +20,16 @@ export function presenceUrl(loc = globalThis.location) {
   return `${loc.protocol === 'https:' ? 'wss:' : 'ws:'}//${loc.host}/api/presence`
 }
 
+// ends the local session and moves to the login notice. a refused socket arrives after the session check already
+// cleared the identity; a sign-out in progress has no recorded end, so it stays where it is
+export function endSessionFromPresence(auth, router, reason) {
+  if (auth?.status !== 'authenticated' && !auth?.sessionEnd) return
+  const replaced = reason === 'replaced' || auth.sessionEnd === 'elsewhere'
+  const notice = replaced ? 'elsewhere' : 'expired'
+  if (auth.status === 'authenticated') auth.invalidateSession(notice)
+  void router?.replace({ path: '/login', query: { reason: notice } }).catch(() => {})
+}
+
 // one websocket to the class room: sends the player's moves, keeps the peer map, reconnects with backoff
 // getPlayer() returns { x, z, heading } (3d) or { x, y } (2d) or null, onPeers(map) gets every same-mode change
 // the roster counts every classmate online; the peer map only holds those in the same mode as this client
@@ -29,6 +39,8 @@ export function createPresence({
   onPeers = () => {},
   staff = false,
   onSessionEnded = () => {},
+  // resolves falsy once the session is gone; a socket refused at the handshake cannot say why itself
+  checkSession = null,
   loadClasses = async () => (await listManagedCohorts({ limit: 50 })).cohorts ?? [],
   WebSocketImpl = globalThis.WebSocket,
   now = () => performance.now(),
@@ -124,13 +136,34 @@ export function createPresence({
     sample = null
   }
 
+  // a browser reports a refused handshake only as a failed connection, and a replaced or expired session is refused
+  // that way once a student's retry or a reconnect comes round. asked only then, so an idle session is not kept alive
+  async function askSession() {
+    if (!checkSession) return
+    let user
+    try {
+      user = await checkSession()
+    } catch {
+      // an unreachable server says nothing about the session
+      return
+    }
+    if (user || stopped) return
+    stopped = true
+    halt()
+    clearPeers()
+    state.active = false
+    onSessionEnded('')
+  }
+
   function connect() {
     if (stopped || socket) return
     if (staff && !state.selectedCohortId) return
     const mine = new WebSocketImpl(url())
+    let opened = false
     room = state.selectedCohortId
     socket = mine
     mine.onopen = () => {
+      opened = true
       failures = 0
       if (staff) send({ type: 'join', cohortId: state.selectedCohortId })
       tick = setInterval(step, TICK_MS)
@@ -159,9 +192,12 @@ export function createPresence({
       } else if (decision === 'stop') {
         stopped = true
         if (!staff) state.active = false
-      } else if (failures < MAX_FAILED_CONNECTS) {
-        retry = setTimeout(connect, reconnectDelay(failures))
-        failures += 1
+      } else if (decision === 'retry') {
+        if (failures < MAX_FAILED_CONNECTS) {
+          retry = setTimeout(connect, reconnectDelay(failures))
+          failures += 1
+        }
+        if (!opened) void askSession()
       }
     }
   }

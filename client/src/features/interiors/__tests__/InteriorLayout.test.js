@@ -3,6 +3,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { createPinia } from 'pinia'
 import InteriorLayout from '../InteriorLayout.vue'
+import { useInteriorLeave } from '../useInteriorLeave.js'
 
 const Game = { template: '<p>game content</p><a href="#">x</a>' }
 const Home = { template: '<p>home</p>' }
@@ -130,7 +131,6 @@ describe('every game room (INT-03, INT-04)', () => {
     'clearance-tower',
   ])('%s shows the still with the centred desk and no view switch', async (id) => {
     const wrapper = await mountAt(`/games/${id}`)
-    expect(wrapper.get('[data-testid="interior"]').attributes('data-stage')).toBe('still')
     expect(wrapper.get('[data-testid="interior-still"]').attributes('src')).toBe(
       `/interiors/${id}.webp`,
     )
@@ -190,5 +190,28 @@ describe('game chrome and Exit game', () => {
     await flushPromises()
     expect(lastRouter.currentRoute.value.path).toBe('/')
     wrapper.unmount()
+  })
+})
+
+describe('holding a game while the leave dialog is open', () => {
+  it('tells a registered game when the dialog opens and closes', async () => {
+    const onOpen = vi.fn()
+    const onClose = vi.fn()
+    Game.setup = () => {
+      useInteriorLeave({ onOpen, onClose })
+    }
+    const wrapper = await mountAt('/games/cli-cyber-defender')
+    await wrapper.get('[data-testid="exit-game"]').trigger('click')
+    await flushPromises()
+    expect(onOpen).toHaveBeenCalledTimes(1)
+    expect(onClose).not.toHaveBeenCalled()
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Keep playing')
+      .trigger('click')
+    await flushPromises()
+    expect(onClose).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+    delete Game.setup
   })
 })

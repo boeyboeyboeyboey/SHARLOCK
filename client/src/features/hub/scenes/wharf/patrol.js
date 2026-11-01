@@ -39,7 +39,7 @@ export function stepPatrol(state, route, pause, dt, speed = WALK_SPEED) {
   state.moving = true
 }
 
-// a wanderer stays put while frozen, under reduced motion, out of range, within arm's reach of the player or in a talk with them
-export function holdsStill({ frozen, calm, dist, range, near, talking }) {
-  return frozen || calm || dist > range || dist < near || talking
+// a wanderer stays put while frozen, under reduced motion, within arm's reach of the player or in a talk with them
+export function holdsStill({ frozen, calm, dist, near, talking }) {
+  return frozen || calm || dist < near || talking
 }

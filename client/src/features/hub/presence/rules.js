@@ -4,15 +4,19 @@ export const MAX_DRAWN = 20
 export const MAX_FAILED_CONNECTS = 10
 export const NO_CLASS_RETRY_MS = 60000
 export const MAX_NO_CLASS_RETRIES = 10
+export const REPICK_MS = 1000
+const DRAWN_MARGIN = 3
+const EMPTY = new Set()
 const MOVED = 0.02
 const TAU = Math.PI * 2
 
 // close codes the server uses on purpose: 4401 session ended, 4403 no class access, 4408 too many bad messages, 4409 superseded by a newer tab
 // a student with no class yet retries slowly so an approval is picked up without a reload
+// staff refused a class wait, since picking another class in the menu can still work
 export function closeDecision(code, staff = false) {
   if (code === 4401) return 'stop-quiet'
   if (code === 4409) return 'superseded'
-  if (code === 4403) return staff ? 'stop' : 'slow-retry'
+  if (code === 4403) return staff ? 'wait-for-pick' : 'slow-retry'
   if (code === 4408) return 'stop'
   return 'retry'
 }
@@ -61,10 +65,11 @@ export function approachPeer(peer, dt, { rate = 12, snap = 8 } = {}) {
   return peer
 }
 
-// the nearest peers up to the cap
-export function pickDrawn(peers, from, cap = MAX_DRAWN) {
+// the nearest peers up to the cap; a peer already drawn only gives way to one nearer by the margin, so two peers
+// trading places around the cut do not swap rigs back and forth
+export function pickDrawn(peers, from, cap = MAX_DRAWN, drawn = EMPTY, margin = DRAWN_MARGIN) {
   const list = [...peers]
   if (list.length <= cap) return list
-  const d = (p) => Math.hypot(p.x - from.x, p.z - from.z)
+  const d = (p) => Math.hypot(p.x - from.x, p.z - from.z) - (drawn.has(p.sid) ? margin : 0)
   return list.sort((a, b) => d(a) - d(b)).slice(0, cap)
 }

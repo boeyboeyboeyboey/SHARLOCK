@@ -44,13 +44,14 @@ import { destinations, heightAt, obstacles, paths, spawn, walkable, waterY } fro
 const LIFT_GAP = 32;
 const LIFT_FRAC = 0.7;
 
-export async function build({ engine, scene, canvas, state, notify, params, joystick, spawnAt = null, quality = 'auto', resumeAt = null, wardrobe = null }) {
+// disposers: cleanup list owned by the engine, so a build that stops halfway can still undo what it made
+// isdisposed: true once the hub was left; the build then returns early with null
+export async function build({ engine, scene, canvas, state, notify, params, joystick, spawnAt = null, quality = 'auto', resumeAt = null, wardrobe = null, disposers = [], isDisposed = () => false }) {
   const tier = getTier(params, quality);
   state.desktop = tier.desktop;
   state.tier = tier.name;
   const reduced = () => state.reducedMotion;
   const t0 = performance.now();
-  const disposers = [];
 
   // higher three quarter follow view from the south, looking up the main street toward the river and the sun. close on sharlock
   // for wide screens, pulled back on tall ones so the street still fits
@@ -70,6 +71,7 @@ export async function build({ engine, scene, canvas, state, notify, params, joys
     limits: { radius: [9, 38], beta: [0.85, 1.4] },
   });
   if (returnTo) camera.alpha = alphaBehind(returnTo.face);
+  disposers.push(() => camera.detachControl());
   const indexes = loadIndexes();
   // the south plates are optional, so they are probed while the district builds
   const probing = probeOptionalPlates(indexes, plateBase);
@@ -102,10 +104,13 @@ export async function build({ engine, scene, canvas, state, notify, params, joys
   disposers.push(() => [...built.meshes, ...ground.meshes, ...cargo.meshes].forEach((m) => m.dispose()));
 
   // sky, river, far skyline, boats and street life
-  const sky = createSky(scene, tier.desktop ? {} : { width: 1024, height: 256 });
+  const sky = await createSky(scene, { ...(tier.desktop ? {} : { width: 1024, height: 256 }), isDisposed });
+  if (!sky) return null;
   disposers.push(() => sky.dispose());
   await probing;
-  const skyline = await buildSkyline({ scene, indexes, tier });
+  if (isDisposed()) return null;
+  const skyline = await buildSkyline({ scene, indexes, tier, isDisposed });
+  if (!skyline) return null;
   disposers.push(() => skyline.dispose());
   // river wall in front of the mid plates, hides their painted quay and the cross fades
   const farBank = buildFarBank({ scene, brick: world.textures.brickRed, tier });
@@ -149,6 +154,7 @@ export async function build({ engine, scene, canvas, state, notify, params, joys
   const colliderBody = new PhysicsBody(colliderNode, PhysicsMotionType.STATIC, false, scene);
   colliderBody.shape = compound;
   compound.material = { friction: 0.2, restitution: 0 };
+  disposers.push(() => colliderBody.dispose());
 
   // params only carries dev overrides, so the wardrobe preview never applies in a production build
   const previewWardrobe = params.get('wardrobe') ? { ...wardrobe, ...parseWardrobeParam(params.get('wardrobe')) } : wardrobe;
@@ -157,12 +163,10 @@ export async function build({ engine, scene, canvas, state, notify, params, joys
   for (const mesh of sharlock.casters) look.csm.addShadowCaster(mesh);
   const control = createPlayer({
     scene,
-    engine,
     canvas,
     camera,
     ground: built.meshes.find((m) => m.name === 'static-cobble') ?? ground.meshes[0],
     sharlock,
-    state,
     reduced,
     joystick,
     onSprint: (sprint) => {
@@ -171,6 +175,7 @@ export async function build({ engine, scene, canvas, state, notify, params, joys
     },
     nav: { spawn: origin, heading: origin.heading, heightAt, walkable, paths, destinations, door: doorSpot },
   });
+  disposers.push(() => control.dispose());
 
   // the focus point is read live so the views in selectionViews can be tuned while the hub runs
   const infos = destinations.map((d) => {
@@ -184,12 +189,14 @@ export async function build({ engine, scene, canvas, state, notify, params, joys
     };
   });
   const doors = createDoors({ scene, state, notify, infos, control, camera, reduced, groundY: heightAt, radiusNow: () => arm.state().desired });
+  disposers.push(() => doors.dispose());
 
   // keeps the follow camera out of the buildings. off while the enter swoop runs and once the debug camera has freed the limits
   let cameraFreed = false;
   const arm = createSpringArm({ camera, boxes: world.blockers, reduced, active: () => !cameraFreed && !doors.isEntering() });
   // the asked for radius goes back before the camera reads its inputs
   const armRestore = scene.onBeforeAnimationsObservable.add(() => arm.restore());
+  disposers.push(() => scene.onBeforeAnimationsObservable.remove(armRestore));
 
   // lower the player in the frame so the river and sky fill the top. a selection view brings its own shift, and the shift
   // shrinks with the spring arm so a pulled in camera does not drop the player to the bottom edge
@@ -210,7 +217,7 @@ export async function build({ engine, scene, canvas, state, notify, params, joys
     if (insetPx > 0 && height > 0 && state.mode === 'explore') {
       const feet = control.position();
       let low = screenY(at.x, feet.y, at.z);
-      const npc = state.nearNpc ? townsfolk.list().find((n) => n.id === state.nearNpc) : null;
+      const npc = state.nearNpc ? townsfolk.spotOf(state.nearNpc) : null;
       if (npc) low = Math.max(low, screenY(npc.x, feet.y, npc.z));
       // metres of view offset per pixel at the distance of the subject
       const perPx = (2 * camera.radius * Math.tan(camera.fov / 2)) / height;
@@ -223,30 +230,33 @@ export async function build({ engine, scene, canvas, state, notify, params, joys
   const peers = createRemotePeers({ scene, camera, engine, canvas, tier, reduced, look, getPlayer: () => state.player });
   disposers.push(() => peers.dispose());
   const metrics = createInstrumentation({ scene, state });
+  disposers.push(() => metrics.dispose());
   const sfx = createHubSfx({ spots: lamps.spots });
   disposers.push(() => sfx.dispose());
-  let sfxAt = null;
+  // the last position, kept in place so the frame loop allocates nothing for it
+  const sfxAt = { x: 0, z: 0, set: false };
   const windowLit = world.materials.windowLit;
   const start = performance.now();
   // the minimap reads this by reference on a timer, so nothing is allocated per frame
   state.player = { x: origin.x, z: origin.z, heading: origin.heading };
   const frame = scene.onBeforeRenderObservable.add(() => {
-    const dt = Math.min(engine.getDeltaTime() / 1000, 1 / 20);
+    // two renders can report one timestamp, and the character controller divides by dt
+    const dt = Math.min(Math.max(engine.getDeltaTime() / 1000, 1 / 240), 1 / 20);
     const t = (performance.now() - start) / 1000;
-    if (!state.paused) {
-      control.update(dt);
-      if (!reduced()) waterClock.time = t;
-    }
+    control.update(dt);
+    if (!reduced()) waterClock.time = t;
     const at = control.position();
     state.player.x = at.x;
     state.player.z = at.z;
     state.player.heading = control.heading();
-    if (sfxAt && dt > 0) {
+    if (sfxAt.set) {
       // speed from the position change, capped so a teleport does not read as a sprint
       const pace = Math.min(Math.hypot(at.x - sfxAt.x, at.z - sfxAt.z) / dt, 14);
-      sfx.update(dt, { x: at.x, z: at.z, speed: pace, grounded: !control.airborne(), paused: state.paused });
+      sfx.update(dt, { x: at.x, z: at.z, speed: pace, grounded: !control.airborne(), paused: inputPaused });
     }
-    sfxAt = { x: at.x, z: at.z };
+    sfxAt.x = at.x;
+    sfxAt.z = at.z;
+    sfxAt.set = true;
     doors.update(dt, t);
     arm.update(dt);
     const armed = arm.state();
@@ -273,6 +283,7 @@ export async function build({ engine, scene, canvas, state, notify, params, joys
       notify();
     }
   });
+  disposers.push(() => scene.onBeforeRenderObservable.remove(frame));
 
   state.look = { mirror: Boolean(mirror), lamps: lamps.count, boats: true, tier: tier.name };
   state.buildMs = Math.round(performance.now() - t0);
@@ -298,6 +309,7 @@ export async function build({ engine, scene, canvas, state, notify, params, joys
       });
   };
   const orbit = createOrbitKeys({ camera, enabled: () => !inputPaused && !doors.isEntering(), onReset: resetCamera });
+  disposers.push(() => orbit.dispose());
   return {
     api: {
       select: doors.select,
@@ -323,6 +335,7 @@ export async function build({ engine, scene, canvas, state, notify, params, joys
       },
       debug: {
         scene,
+        sfxPaused: () => sfx.isPaused(),
         sharlockLook: () => JSON.parse(JSON.stringify(sharlock.look)),
         teleport: (x, z) => control.teleport(x, z),
         position: () => control.position(),
@@ -359,17 +372,6 @@ export async function build({ engine, scene, canvas, state, notify, params, joys
         worker: (i) => life.workerAt(i),
         sunClock: () => (performance.now() - start) / 1000,
       },
-    },
-    dispose() {
-      scene.onBeforeRenderObservable.remove(frame);
-      scene.onBeforeAnimationsObservable.remove(armRestore);
-      metrics.dispose();
-      orbit.dispose();
-      doors.dispose();
-      control.dispose();
-      camera.detachControl();
-      colliderBody.dispose();
-      for (const fn of disposers.reverse()) fn();
     },
   };
 }

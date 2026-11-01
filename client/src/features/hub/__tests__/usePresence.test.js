@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createPresence, presenceUrl } from '../presence/usePresence.js'
+import { createPresence, endSessionFromPresence, presenceUrl } from '../presence/usePresence.js'
 import { resetRoster, usePresenceRoster } from '../presence/roster.js'
 
 class FakeSocket {
@@ -154,6 +154,94 @@ describe('presence connection', () => {
     expect(usePresenceRoster().state.active).toBe(code === 4403)
   })
 
+  it('lets staff pick another class after a 4403', async () => {
+    const classes = [{ cohortId: 'c1' }, { cohortId: 'c2' }]
+    const { presence } = make({ staff: true, loadClasses: async () => classes })
+    await presence.start()
+    const { state } = usePresenceRoster()
+    FakeSocket.all[0].open()
+    FakeSocket.all[0].drop(4403)
+    vi.advanceTimersByTime(60000)
+    expect(FakeSocket.all).toHaveLength(1)
+    state.selectedCohortId = 'c2'
+    presence.switchClass()
+    expect(FakeSocket.all).toHaveLength(2)
+    FakeSocket.all[1].open()
+    expect(FakeSocket.all[1].sent[0]).toEqual({ type: 'join', cohortId: 'c2' })
+    presence.stop()
+  })
+
+  it('stays stopped for staff after 4408', async () => {
+    const classes = [{ cohortId: 'c1' }, { cohortId: 'c2' }]
+    const { presence } = make({ staff: true, loadClasses: async () => classes })
+    await presence.start()
+    FakeSocket.all[0].open()
+    FakeSocket.all[0].drop(4408)
+    usePresenceRoster().state.selectedCohortId = 'c2'
+    presence.switchClass()
+    expect(FakeSocket.all).toHaveLength(1)
+    presence.stop()
+  })
+
+  describe('a socket refused at the handshake', () => {
+    it('asks the session and ends quietly once it is gone, with no more retries', async () => {
+      const onSessionEnded = vi.fn()
+      const checkSession = vi.fn(async () => null)
+      const { presence } = make({ onSessionEnded, checkSession })
+      await presence.start()
+      FakeSocket.all[0].open()
+      FakeSocket.all[0].drop(4403)
+      expect(checkSession).not.toHaveBeenCalled()
+      vi.advanceTimersByTime(60000)
+      // the newer sign-in has taken the session, so the retry never opens
+      FakeSocket.all[1].drop(1006)
+      await vi.advanceTimersByTimeAsync(0)
+      expect(checkSession).toHaveBeenCalledTimes(1)
+      expect(onSessionEnded).toHaveBeenCalledTimes(1)
+      expect(usePresenceRoster().state.active).toBe(false)
+      vi.advanceTimersByTime(600000)
+      expect(FakeSocket.all).toHaveLength(2)
+    })
+
+    it('keeps retrying when the session is fine', async () => {
+      const onSessionEnded = vi.fn()
+      const { presence } = make({ onSessionEnded, checkSession: async () => ({ id: 'u' }) })
+      await presence.start()
+      FakeSocket.all[0].drop(1006)
+      await vi.advanceTimersByTimeAsync(0)
+      expect(onSessionEnded).not.toHaveBeenCalled()
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(FakeSocket.all).toHaveLength(2)
+      presence.stop()
+    })
+
+    it('says nothing about the session when the server cannot be reached', async () => {
+      const onSessionEnded = vi.fn()
+      const { presence } = make({
+        onSessionEnded,
+        checkSession: async () => {
+          throw new Error('offline')
+        },
+      })
+      await presence.start()
+      FakeSocket.all[0].drop(1006)
+      await vi.advanceTimersByTimeAsync(0)
+      expect(onSessionEnded).not.toHaveBeenCalled()
+      presence.stop()
+    })
+
+    it('does not ask after a connection that had opened', async () => {
+      const checkSession = vi.fn(async () => ({ id: 'u' }))
+      const { presence } = make({ checkSession })
+      await presence.start()
+      FakeSocket.all[0].open()
+      FakeSocket.all[0].drop(1006)
+      await vi.advanceTimersByTimeAsync(0)
+      expect(checkSession).not.toHaveBeenCalled()
+      presence.stop()
+    })
+  })
+
   it('retries a student with no class every 60 s, up to 10 times', async () => {
     const { presence } = make()
     await presence.start()
@@ -295,5 +383,32 @@ describe('presence 2d mode', () => {
     expect([...onPeers.mock.lastCall[0].keys()]).toEqual(['deep'])
     expect(usePresenceRoster().count.value).toBe(2)
     presence.stop()
+  })
+})
+
+describe('endSessionFromPresence', () => {
+  const router = () => ({ replace: vi.fn(async () => {}) })
+
+  it('ends a live session and says why', () => {
+    const auth = { status: 'authenticated', sessionEnd: null, invalidateSession: vi.fn() }
+    const to = router()
+    endSessionFromPresence(auth, to, 'replaced')
+    expect(auth.invalidateSession).toHaveBeenCalledWith('elsewhere')
+    expect(to.replace).toHaveBeenCalledWith({ path: '/login', query: { reason: 'elsewhere' } })
+  })
+
+  it('moves the page when the session check already cleared the identity', () => {
+    const auth = { status: 'anonymous', sessionEnd: 'elsewhere', invalidateSession: vi.fn() }
+    const to = router()
+    endSessionFromPresence(auth, to, '')
+    expect(auth.invalidateSession).not.toHaveBeenCalled()
+    expect(to.replace).toHaveBeenCalledWith({ path: '/login', query: { reason: 'elsewhere' } })
+  })
+
+  it('stays put after a normal sign-out', () => {
+    const auth = { status: 'anonymous', sessionEnd: null, invalidateSession: vi.fn() }
+    const to = router()
+    endSessionFromPresence(auth, to, 'signed out')
+    expect(to.replace).not.toHaveBeenCalled()
   })
 })

@@ -4,6 +4,7 @@ import {
   editionWindow,
   FRESH_MS,
   LIFETIME_MS,
+  NewsError,
   parseNewsQuery,
 } from '../../../src/modules/news/policy.js'
 import {
@@ -12,6 +13,7 @@ import {
   normalizeGuardian,
 } from '../../../src/modules/news/providers/guardian.js'
 import { createNewsService } from '../../../src/modules/news/service.js'
+import { SAMPLE_PROVIDER, sampleEdition } from '../../../src/modules/news/sample.js'
 
 const now = Date.parse('2026-09-17T16:00:00Z')
 const edition = editionWindow('cybersecurity', 'week', now)
@@ -181,9 +183,95 @@ describe('edition cache lifecycle', () => {
     const { service, provider, store } = setup()
     await service.get(parseNewsQuery({}))
     provider.configured = false
-    await expect(service.get(parseNewsQuery({ section: 'technology' }))).rejects.toMatchObject({
-      code: 'NEWS_NOT_CONFIGURED',
-    })
+    const technology = await service.get(parseNewsQuery({ section: 'technology' }))
+    expect(technology).toMatchObject({ sample: true, section: 'technology' })
     expect(store.reserve).toHaveBeenCalledTimes(1)
+  })
+  it('serves the labelled sample without a key and never caches or counts it', async () => {
+    const { service, provider, store } = setup()
+    provider.configured = false
+    const result = await service.get(parseNewsQuery({}))
+    expect(result).toMatchObject({ sample: true, provider: SAMPLE_PROVIDER, stale: false })
+    expect(result.articles.length).toBeGreaterThan(0)
+    expect(store.reserve).not.toHaveBeenCalled()
+    expect(store.write).not.toHaveBeenCalled()
+    expect(provider.fetchEdition).not.toHaveBeenCalled()
+  })
+  it('serves the sample when the publisher cannot be reached and nothing is cached', async () => {
+    const { service, provider, store } = setup()
+    provider.fetchEdition.mockRejectedValue(
+      new NewsError('NEWS_UPSTREAM_UNAVAILABLE', 'Could not reach the publisher.', now + 60000),
+    )
+    const result = await service.get(parseNewsQuery({}))
+    expect(result.sample).toBe(true)
+    expect(store.write).not.toHaveBeenCalled()
+    // the cooldown still applies, so a failing publisher is not asked again at once
+    await service.get(parseNewsQuery({}))
+    expect(provider.fetchEdition).toHaveBeenCalledTimes(1)
+  })
+  it('prefers a cached edition, labelled stale, to the sample', async () => {
+    const { service, provider, advance } = setup()
+    const query = parseNewsQuery({})
+    await service.get(query)
+    advance(FRESH_MS)
+    provider.fetchEdition.mockRejectedValue(
+      new NewsError('NEWS_UPSTREAM_UNAVAILABLE', 'Could not reach the publisher.', now + 60000),
+    )
+    const result = await service.get(query)
+    expect(result.stale).toBe(true)
+    expect(result.sample).toBeUndefined()
+    expect(result.provider).toBe('The Guardian')
+  })
+  it('keeps the other refusals as they were', async () => {
+    const { service, provider, store } = setup()
+    store.reserve.mockRejectedValue(
+      new NewsError('NEWS_DAILY_LIMIT', 'Resting until tomorrow.', now + 3600000),
+    )
+    await expect(service.get(parseNewsQuery({}))).rejects.toMatchObject({
+      code: 'NEWS_DAILY_LIMIT',
+    })
+    expect(provider.fetchEdition).not.toHaveBeenCalled()
+  })
+})
+
+describe('sample edition content', () => {
+  const editions = ['cybersecurity', 'technology'].flatMap((section) =>
+    ['week', 'month'].map((range) => editionWindow(section, range, now)),
+  )
+  const realPublishers =
+    /guardian|reuters|bbc|new york times|associated press|bloomberg|microsoft|google|apple|amazon|meta\b|owasp/i
+
+  it.each(editions.map((edition) => [edition.section, edition.range, edition]))(
+    '%s %s is labelled, inert and inside its own window',
+    (_section, _range, edition) => {
+      const result = sampleEdition(edition, now)
+      expect(result).toMatchObject({ sample: true, provider: SAMPLE_PROVIDER })
+      expect(result.articles.length).toBeGreaterThan(0)
+      expect(new Set(result.articles.map((article) => article.id)).size).toBe(
+        result.articles.length,
+      )
+      for (const article of result.articles) {
+        expect(article.url).toBe('')
+        const time = Date.parse(article.publishedAt)
+        expect(time).toBeGreaterThanOrEqual(Date.parse(edition.window.from))
+        expect(time).toBeLessThan(now)
+        const inline = [...article.excerpt, ...article.byline]
+        expect(inline.every((node) => node.type === 'text')).toBe(true)
+        const text = [article.title, ...inline.map((node) => node.text)].join(' ')
+        expect(text).not.toMatch(realPublishers)
+        expect(text).not.toMatch(/https?:|www\.|<[a-z]/i)
+      }
+    },
+  )
+
+  it('adds older stories to the 30 day view only', () => {
+    const week = sampleEdition(editionWindow('cybersecurity', 'week', now), now)
+    const month = sampleEdition(editionWindow('cybersecurity', 'month', now), now)
+    expect(month.articles.length).toBeGreaterThan(week.articles.length)
+  })
+
+  it('expires later than now, so the browser accepts it', () => {
+    const result = sampleEdition(editionWindow('technology', 'week', now), now)
+    expect(Date.parse(result.expiresAt)).toBeGreaterThan(now)
   })
 })

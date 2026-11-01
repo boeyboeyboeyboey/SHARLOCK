@@ -34,13 +34,13 @@ export function ringTexture(scene) {
 
 // door triggers and the select / enter / back flow shared by every walkable scene
 // infos: [{ id, title, accent, x, z, face, reach, focus?: { x, y, z }, view?: { radius, beta, alphaOffset } }]
-export function createDoors({ scene, state, notify, infos, control, camera, reduced, radiusNow = () => camera.radius, groundY = () => 0, onGlow = null, ringRadius = 1.05, ringMaterial = null }) {
+export function createDoors({ scene, state, notify, infos, control, camera, reduced, radiusNow = () => camera.radius, groundY = () => 0 }) {
   const infoOf = (id) => infos.find((i) => i.id === id);
   const glow = new Map(infos.map((i) => [i.id, 0]));
 
   const discs = infos.map((info) => {
     const spot = doorSpot(info, info.reach);
-    const disc = CreateDisc(`marker-${info.id}`, { radius: ringRadius, tessellation: 40 }, scene);
+    const disc = CreateDisc(`marker-${info.id}`, { radius: 1.05, tessellation: 40 }, scene);
     disc.rotation.x = Math.PI / 2;
     disc.position.set(spot.x, groundY(spot.x, spot.z) + 0.05, spot.z);
     return { id: info.id, mesh: disc, accent: Color3.FromHexString(info.accent) };
@@ -58,17 +58,14 @@ export function createDoors({ scene, state, notify, infos, control, camera, redu
   ringMesh.setVerticesData(VertexBuffer.ColorKind, ringColors, true);
   // custom materials may read a second uv set
   ringMesh.setVerticesData(VertexBuffer.UV2Kind, new Float32Array(ringMesh.getTotalVertices() * 2));
-  let ownMaterial = null;
-  if (!ringMaterial) {
-    ownMaterial = new StandardMaterial('door-rings-mat', scene);
-    ownMaterial.disableLighting = true;
-    ownMaterial.emissiveTexture = ringTexture(scene);
-    ownMaterial.opacityTexture = ownMaterial.emissiveTexture;
-    ownMaterial.backFaceCulling = false;
-    ownMaterial.alphaMode = Constants.ALPHA_ADD;
-    ownMaterial.fogEnabled = false;
-  }
-  ringMesh.material = ringMaterial ?? ownMaterial;
+  const ringMaterial = new StandardMaterial('door-rings-mat', scene);
+  ringMaterial.disableLighting = true;
+  ringMaterial.emissiveTexture = ringTexture(scene);
+  ringMaterial.opacityTexture = ringMaterial.emissiveTexture;
+  ringMaterial.backFaceCulling = false;
+  ringMaterial.alphaMode = Constants.ALPHA_ADD;
+  ringMaterial.fogEnabled = false;
+  ringMesh.material = ringMaterial;
   ringMesh.useVertexColors = true;
   ringMesh.alphaIndex = 50;
 
@@ -98,6 +95,8 @@ export function createDoors({ scene, state, notify, infos, control, camera, redu
   const select = (id) => {
     // the enter swoop owns the camera, so a list or minimap pick during it is ignored
     if (entering) return;
+    // an id the scene does not know must not leave a half made pick behind
+    if (id && !infoOf(id)) return;
     state.selected = id;
     headingTo = id && id !== state.nearDoor ? id : null;
     notify();
@@ -127,6 +126,7 @@ export function createDoors({ scene, state, notify, infos, control, camera, redu
   const enter = async (id = state.selected) => {
     if (!id || entering) return false;
     const info = infoOf(id);
+    if (!info) return false;
     entering = true;
     control.setEnabled(false);
     saved = { alpha: camera.alpha, beta: camera.beta, radius: radiusNow() };
@@ -211,7 +211,6 @@ export function createDoors({ scene, state, notify, infos, control, camera, redu
         for (let v = 0; v < perDisc; v += 1) ringColors[(i * perDisc + v) * 4 + 3] = alpha;
         ringDirty = true;
       }
-      onGlow?.(info.id, value, t);
     });
     if (ringDirty) {
       ringMesh.updateVerticesData(VertexBuffer.ColorKind, ringColors);
@@ -229,8 +228,8 @@ export function createDoors({ scene, state, notify, infos, control, camera, redu
     framedId: () => framed,
     isEntering: () => entering,
     dispose() {
-      ownMaterial?.emissiveTexture?.dispose();
-      ownMaterial?.dispose();
+      ringMaterial.emissiveTexture.dispose();
+      ringMaterial.dispose();
       ringMesh.dispose();
     },
   };

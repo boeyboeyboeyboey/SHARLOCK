@@ -22,8 +22,6 @@ const props = defineProps({
   logoutPending: { type: Boolean, default: false },
   // a selector whose subtree keeps Escape for itself (a game panel with its own dialogs)
   escapeIgnoreWithin: { type: String, default: '' },
-  label3d: { type: String, default: '3D town' },
-  label2d: { type: String, default: '2D town' },
   // inline sits in the page's top bar: no 3D | 2D switch, and only the sound and end slots a page passes
   inline: { type: Boolean, default: false },
   // game pages pass false: the room is always a still, so there is no view to switch
@@ -105,7 +103,7 @@ defineExpose({ focusMenu: () => menuButton.value?.focus() })
       <div v-if="showMode" class="glass-surface mode-switch" role="group" aria-label="View mode">
         <button
           type="button"
-          :aria-label="label3d"
+          aria-label="3D town"
           :aria-pressed="String(mode === '3d')"
           :disabled="locked"
           :data-testid="mode === '3d' ? 'mode-3d' : 'town-mode-toggle'"
@@ -115,7 +113,7 @@ defineExpose({ focusMenu: () => menuButton.value?.focus() })
         </button>
         <button
           type="button"
-          :aria-label="label2d"
+          aria-label="2D town"
           :aria-pressed="String(mode === '2d')"
           :data-testid="mode === '2d' ? 'mode-2d' : 'town-mode-toggle'"
           @click="select('2d')"
