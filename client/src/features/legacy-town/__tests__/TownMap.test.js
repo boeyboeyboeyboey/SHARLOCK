@@ -180,6 +180,27 @@ describe('walking Sharlock', () => {
     wrapper.unmount()
   })
 
+  it('closes an open talk on Escape with focus on the map, without reaching the menu', async () => {
+    const wrapper = mountMap(null)
+    key('keydown', 'KeyA')
+    await frames(220)
+    key('keyup', 'KeyA')
+    await frames(3)
+    key('keydown', 'KeyE')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="npc-dialogue"]').exists()).toBe(true)
+    const map = wrapper.get('[aria-label="Interactive town map"]')
+    map.element.focus()
+    const reachedWindow = vi.fn()
+    window.addEventListener('keydown', reachedWindow)
+    await map.trigger('keydown', { key: 'Escape' })
+    window.removeEventListener('keydown', reachedWindow)
+    expect(wrapper.find('[data-testid="npc-dialogue"]').exists()).toBe(false)
+    expect(reachedWindow).not.toHaveBeenCalled()
+    expect(document.activeElement).toBe(map.element)
+    wrapper.unmount()
+  })
+
   it('marks a discovery found on E', async () => {
     localStorage.clear()
     const wrapper = mountMap(null)

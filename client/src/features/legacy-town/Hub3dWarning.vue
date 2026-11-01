@@ -71,12 +71,22 @@ function close(event) {
 
 <style scoped>
 .hub-3d-warning {
+  /* bootstrap sets these on .modal, which a native dialog does not use */
+  --bs-modal-bg: var(--surface);
+  --bs-modal-color: var(--text-main);
+  --bs-modal-border-width: 3px;
+  --bs-modal-border-color: var(--border-strong);
+  --bs-modal-header-padding: 1rem 1rem 0;
+  --bs-modal-padding: 1rem;
+  --bs-modal-footer-gap: 0.5rem;
+
   width: calc(100% - 1rem);
   max-width: 500px;
   margin: auto;
   padding: 0;
   border: 0;
   background: transparent;
+  box-shadow: var(--shadow-pixel);
 }
 .hub-3d-warning::backdrop {
   background: rgb(0 0 0 / 50%);

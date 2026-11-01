@@ -17,6 +17,7 @@ export function useTownNpcs({ npcs, target, paused = () => false, reducedMotion 
   }))
   let raf = null
   let last = null
+  let motionQuery = null
 
   function moveWanderer(npc, run, player, dt) {
     if (run.route.length < 2) return
@@ -62,9 +63,16 @@ export function useTownNpcs({ npcs, target, paused = () => false, reducedMotion 
     raf = requestAnimationFrame(tick)
   }
   function start() {
+    if (!motionQuery && typeof matchMedia === 'function') {
+      // the loop stops under reduced motion, so turning the setting off has to bring it back
+      motionQuery = matchMedia('(prefers-reduced-motion: reduce)')
+      motionQuery.addEventListener('change', start)
+    }
     if (raf === null) raf = requestAnimationFrame(tick)
   }
   function dispose() {
+    motionQuery?.removeEventListener('change', start)
+    motionQuery = null
     if (raf !== null) cancelAnimationFrame(raf)
     raf = null
   }

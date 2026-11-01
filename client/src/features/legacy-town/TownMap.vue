@@ -351,12 +351,13 @@ function startCamera(view, zoom) {
   const here = { x: walker.x.value, y: walker.y.value }
   return clampPan(panToCenter(here, zoom, view, TOWN_SIZE), zoom, view, TOWN_SIZE)
 }
-// escape belongs to the card only while one is open; otherwise it reaches the menu
+// escape belongs to an open card, then an open talk; otherwise it reaches the menu
 function frameEscape(event) {
-  if (!selectedId.value) return
+  if (!selectedId.value && !talk.open.value) return
   event.stopPropagation()
   event.preventDefault()
-  dismiss(true)
+  if (selectedId.value) dismiss(true)
+  else closeTalk()
 }
 function zoomStep(direction) {
   if (!camera) return

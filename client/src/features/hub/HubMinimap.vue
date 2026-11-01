@@ -75,10 +75,15 @@ function closeMap({ restoreFocus = true } = {}) {
   if (restoreFocus) nextTick(() => toggle.value?.focus())
 }
 
-// the hub moves focus to the enter button after a pick, so the map must not take it back
-function pick(id) {
+// the hub may move focus to the enter button on the next tick; if it did not, focus must not stay on the hidden pin
+async function pick(id) {
+  const wasOpen = open.value
   emit('choose', id)
   closeMap({ restoreFocus: false })
+  if (!wasOpen) return
+  await nextTick()
+  const active = document.activeElement
+  if (!active || active === document.body || panel.value?.contains(active)) toggle.value?.focus()
 }
 
 // the overlay keeps keyboard focus and owns Escape; on desktop Escape still reaches the hub

@@ -142,7 +142,7 @@ Use this path to run the submitted project exactly as demonstrated.
 
 **Demo accounts and connection details** are supplied privately in the submission copy. Passwords, keys and the `MONGO_URI` are never in this public README or anywhere else in the repository.
 
-1. Install Node.js 24.12.0 (any 24.x from 24.12.0 works; `.nvmrc` and `package.json` `engines` pin `>=24.12.0 <25`).
+1. Install Node.js 24.12.0, the version in `.nvmrc` and the only one this project is tested on (with pnpm 12.3.4). `package.json` `engines` asks for `>=24.12.0` and `pnpm >=12.3.4`, with no upper limit, so newer versions install but are untested.
 2. From the repository root:
 
    ```sh
@@ -166,7 +166,7 @@ Use this path to run the submitted project exactly as demonstrated.
 
 **No supplied URI?** Run `pnpm db:local` in a second terminal (it keeps a local MongoDB on 127.0.0.1:27018 and downloads a MongoDB 8.2.6 binary on first run), keep the `.env` default `MONGO_URI=mongodb://127.0.0.1:27018/sharlock_dev`, then run `pnpm dev` in the first terminal. This database is a single server without a replica set, so registration, sign-in, the 3D hub, the games and The Sharlock Times work, but the flows that need MongoDB transactions do not: joining a class, instructor activation, the admin workspace writes and `pnpm db:bootstrap-admin`. Use the supplied URI to review those.
 
-Requires Node.js 24 (24.12.0 or a later 24.x) and a MongoDB connection. Run from the repository root:
+Requires Node.js 24.12.0 (tested; `engines` allows newer, untested versions) and a MongoDB connection. Run from the repository root:
 
 ```sh
 npm install --global pnpm@12.3.4   # first setup only
@@ -210,7 +210,7 @@ pnpm test:e2e          # Playwright journeys on a phone and a desktop viewport
 
 Before the first `test:integration` or `test:e2e` run, allow for these: it downloads a MongoDB server of about 150 MB (internet needed; on x86 the CPU must support AVX, which many VMs and emulators lack). `test:e2e` needs ports 3001 and 5174 free and takes about 15 minutes in full. On Linux, install the browser with `pnpm exec playwright install --with-deps chromium`. If the global pnpm install fails with a permissions error, run `corepack enable` instead.
 
-`test:unit` needs no database. `test:integration` and `test:e2e` start and remove their own `_test` MongoDB; both run with a replica set, so the first run downloads the pinned MongoDB binary and the transactional account, class, admin and recovery tests run without extra flags. Each integration test file gets its own `_test` database on that server (`server/tests/integration/setup-database.js`), so files never see each other's data; the script runs the files one after another because parallel files trip the shared rate limits. `test:e2e` keeps its own Vite cache in `.local/e2e-vite-cache`, so a running `pnpm dev` is not disturbed. How these map to the WAD2 testing weeks is in [course alignment](docs/course-alignment.md).
+`test:unit` needs no database. `test:integration` and `test:e2e` start and remove their own `_test` MongoDB; both run with a replica set, so the first run downloads the pinned MongoDB binary and the transactional account, class, admin and recovery tests run without extra flags. Each integration test file gets its own `_test` database on that server (`server/tests/integration/setup-database.js`), so files never see each other's data; the files run one after another (`fileParallelism: false` in `vitest.config.js`) to keep the load on that one server down, because a test that takes 1.6 s alone took 10 s under full parallel load. `test:e2e` keeps its own Vite cache in `.local/e2e-vite-cache`, so a running `pnpm dev` is not disturbed. How these map to the WAD2 testing weeks is in [course alignment](docs/course-alignment.md).
 
 **Troubleshooting:**
 

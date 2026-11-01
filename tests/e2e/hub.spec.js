@@ -594,6 +594,16 @@ test('the mobile map opens from the Map button and closes with Escape', async ({
   await expect(toggle).toBeFocused()
   await expect(toggle).toHaveAttribute('aria-expanded', 'false')
 
+  // picking the selected place again deselects it, so the hub takes no focus and it returns to the button
+  const pin = page.getByTestId('hub-map-cli-cyber-defender')
+  await toggle.click()
+  await pin.click()
+  await expect(map).toBeHidden()
+  await toggle.click()
+  await pin.click()
+  await expect(map).toBeHidden()
+  await expect(toggle).toBeFocused()
+
   await toggle.click()
   await page.getByTestId('hub-map-close').click()
   await expect(map).toBeHidden()

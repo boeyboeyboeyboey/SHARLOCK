@@ -30,6 +30,7 @@ export function createNewsRouter(
           code: 'NEWS_RATE_LIMITED',
           message: 'Too many newspaper requests. Please try again shortly.',
         },
+        refreshAvailableAt: new Date(now() + 60000).toISOString(),
         requestId: response.locals.requestId,
       })
     },

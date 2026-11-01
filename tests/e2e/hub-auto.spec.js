@@ -56,6 +56,12 @@ test('asks before trying 3D and persists a confirmed choice', async ({ page }) =
   await expect(warning).toBeVisible()
   await expect(warning).toContainText('This device may struggle to run the 3D town')
   await expect(page.getByTestId('hub-3d-cancel')).toBeFocused()
+  // a native dialog gets no bootstrap modal variables, so the panel has to supply its own
+  await expect(warning.locator('.modal-content')).toHaveCSS(
+    'background-color',
+    'rgb(255, 248, 223)',
+  )
+  await expect(warning.locator('.modal-body')).toHaveCSS('padding-top', '16px')
   await page.keyboard.press('Escape')
   await expect(warning).toHaveCount(0)
   await expect(page.getByRole('region', { name: 'Interactive town map' })).toBeVisible()

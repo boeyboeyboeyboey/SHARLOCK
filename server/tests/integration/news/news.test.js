@@ -183,6 +183,10 @@ describe('news HTTP and Mongo persistence', () => {
     await request(limited).get('/api/news').expect(200)
     const refused = await request(limited).get('/api/news').expect(429).expect('Retry-After', '60')
     expect(refused.body.error.code).toBe('NEWS_RATE_LIMITED')
+    // the client holds its retry button until this time, the same minute as the header
+    const retryIn = Date.parse(refused.body.refreshAvailableAt) - Date.now()
+    expect(retryIn).toBeGreaterThan(55_000)
+    expect(retryIn).toBeLessThanOrEqual(60_000)
     expect(refused.body.requestId).toBe(refused.headers['x-request-id'])
   })
 })

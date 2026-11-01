@@ -30,7 +30,7 @@ export default defineConfig({
             'server/tests/support/supertest-loopback.js',
             'server/tests/integration/setup-database.js',
           ],
-          // several files wipe whole collections, so files must never run side by side
+          // each file has its own database, so this is about load: argon2 and one shared mongod slow tests under parallel files
           fileParallelism: false,
           testTimeout: 20000,
           hookTimeout: 30000,

@@ -1,4 +1,4 @@
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import HubMinimap from '../HubMinimap.vue'
@@ -31,9 +31,9 @@ describe('HubMinimap peers', () => {
 
 describe('HubMinimap full-screen map', () => {
   const games = [{ id: 'cli-cyber-defender', name: 'CLI Cyber Defender' }]
-  async function openMap() {
+  async function openMap(listeners = {}) {
     const wrapper = mount(HubMinimap, {
-      props: { games, player: { x: 0, z: 0, heading: 0 } },
+      props: { games, player: { x: 0, z: 0, heading: 0 }, ...listeners },
       attachTo: document.body,
     })
     await vi.waitFor(() =>
@@ -65,17 +65,32 @@ describe('HubMinimap full-screen map', () => {
     wrapper.unmount()
   })
 
-  it('reports the place and leaves focus to the hub after a pick', async () => {
+  it('reports the place and leaves focus where the hub moved it after a pick', async () => {
+    const enter = document.createElement('button')
+    document.body.append(enter)
+    // the hub moves focus on the tick after the pick
+    const wrapper = await openMap({ onChoose: () => nextTick(() => enter.focus()) })
+    const toggle = wrapper.get('[data-testid="hub-map-toggle"]')
+    const pin = wrapper.get('[data-testid="hub-map-cli-cyber-defender"]')
+    pin.element.focus()
+    await pin.trigger('click')
+    await flushPromises()
+    expect(wrapper.emitted('choose')).toEqual([['cli-cyber-defender']])
+    expect(toggle.attributes('aria-expanded')).toBe('false')
+    expect(document.activeElement).toBe(enter)
+    wrapper.unmount()
+    enter.remove()
+  })
+
+  it('returns focus to the toggle when the hub does not take it after a pick', async () => {
     const wrapper = await openMap()
     const toggle = wrapper.get('[data-testid="hub-map-toggle"]')
     const pin = wrapper.get('[data-testid="hub-map-cli-cyber-defender"]')
     pin.element.focus()
     await pin.trigger('click')
-    await nextTick()
-    await nextTick()
-    expect(wrapper.emitted('choose')).toEqual([['cli-cyber-defender']])
+    await flushPromises()
     expect(toggle.attributes('aria-expanded')).toBe('false')
-    expect(document.activeElement).not.toBe(toggle.element)
+    expect(document.activeElement).toBe(toggle.element)
     wrapper.unmount()
   })
 })
