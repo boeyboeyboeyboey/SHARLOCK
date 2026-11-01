@@ -121,7 +121,7 @@ Main route: **jsfxr** (sfxr.me), a free browser tool that makes 8-bit effects fr
 
 ## 2. Optional: AI-generated interior stills
 
-Since INT-03 (1 November 2026) every game page shows a still of its room behind the game panel, on every device: the live 3D room is no longer drawn. The current stills (`client/public/interiors/<id>.webp`) were rendered from the project's own Babylon scenes and show an empty board under the panel. A generated image is worth swapping in when it is clearly better and still looks like the same wharf. Botnet Tag has its own 3D arena and needs no still.
+Since INT-03 (1 November 2026) every game page shows a still of its room behind the game panel, on every device: the live 3D room is no longer drawn. The current stills (`client/public/interiors/<id>.webp`) are Gemini images (ASSET-01); the Babylon rooms and their capture script were removed in INT-04, so a new still always comes from these prompts. Botnet Tag has its own 3D arena and needs no still.
 
 Tool: Gemini or ChatGPT image generation. Generate one room, judge it against the checklist below, then generate the others in the same chat and add "Same art style, camera height and lighting quality as the previous image" so the five match.
 

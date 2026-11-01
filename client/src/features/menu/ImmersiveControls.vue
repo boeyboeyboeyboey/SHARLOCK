@@ -26,6 +26,8 @@ const props = defineProps({
   label2d: { type: String, default: '2D town' },
   // inline sits in the page's top bar and offers only the Menu button (no sound or 3D | 2D switch)
   inline: { type: Boolean, default: false },
+  // game pages pass false: the room is always a still, so there is no view to switch
+  showMode: { type: Boolean, default: true },
 })
 const emit = defineEmits(['update:menuOpen', 'toggle-mode', 'sign-out', 'navigate'])
 const menuButton = ref(null)
@@ -100,7 +102,7 @@ defineExpose({ focusMenu: () => menuButton.value?.focus() })
       <slot name="sound">
         <div ref="soundSlot" class="immersive-sound" data-testid="sound-slot"></div>
       </slot>
-      <div class="glass-surface mode-switch" role="group" aria-label="View mode">
+      <div v-if="showMode" class="glass-surface mode-switch" role="group" aria-label="View mode">
         <button
           type="button"
           :aria-label="label3d"

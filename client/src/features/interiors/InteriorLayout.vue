@@ -1,21 +1,14 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import ConfirmDialog from '../../components/common/ConfirmDialog.vue'
 import PixelIcon from '../../components/town/PixelIcon.vue'
 import { useGameAudio } from '../../composables/useGameAudio.js'
 import { useAuthStore } from '../auth/store.js'
-import { getDeviceCheck } from '../hub/deviceCheck.js'
-import { readGraphics } from '../hub/graphics.js'
-import { createSampler, decidePerf, realSamplingOff } from '../hub/perfWatch.js'
-import { getTier } from '../hub/scenes/shared/quality.js'
 import ImmersiveControls from '../menu/ImmersiveControls.vue'
 import { useSignOut, useTownControls } from '../menu/townControls.js'
-import { readStoredMode, resolveMode } from '../legacy-town/useTownMode.js'
-import { heroActive } from './heroRect.js'
-import { decideRender, fallbackGradient, stillUrl } from './renderMode.js'
-import { roomFor } from './rooms/index.js'
-import { createInterior } from './useInteriorEngine.js'
+import { fallbackGradient, stillUrl } from './renderMode.js'
+import { roomFor } from './rooms/palettes.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -32,106 +25,9 @@ const unregisterSound = controls?.sound.register(
 )
 onBeforeUnmount(() => unregisterSound?.())
 
-const device = getDeviceCheck()
-const stored = readStoredMode()
-const failed = ref(false)
-const slow = ref(false)
 const stillMissing = ref(false)
-const canvas = ref(null)
-const tier = getTier(new URLSearchParams(window.location.search), readGraphics())
-const reducedQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
-
-const resolved = computed(() => resolveMode({ stored, device, failed: failed.value }))
-// the switch in the game chrome overrides the stored choice for this visit only
-const override = ref(null)
-const townMode = computed(() =>
-  resolved.value.locked ? '2d' : (override.value ?? resolved.value.mode),
-)
-function toggleMode() {
-  const next = townMode.value === '3d' ? '2d' : '3d'
-  override.value = next
-  if (next === '3d') slow.value = false
-}
-const renderMode = computed(() =>
-  room.value
-    ? decideRender({
-        townMode: townMode.value,
-        tierName: tier.name,
-        reducedMotion: reducedQuery.matches,
-        failed: failed.value,
-        slow: slow.value,
-      })
-    : 'still',
-)
+watch(roomId, () => (stillMissing.value = false))
 const gradient = computed(() => fallbackGradient(room.value?.palette))
-const stage = computed(() => (renderMode.value === 'still' ? 'still' : '3d'))
-
-// a hero room seats the desk panel on its prop; narrow screens and the still keep the centred desk
-const wideQuery = window.matchMedia('(min-width: 768px)')
-const wide = ref(wideQuery.matches)
-const syncWide = () => (wide.value = wideQuery.matches)
-wideQuery.addEventListener?.('change', syncWide)
-onBeforeUnmount(() => wideQuery.removeEventListener?.('change', syncWide))
-const heroRect = ref(null)
-const heroOn = computed(() =>
-  heroActive({ hero: room.value?.hero, stage: stage.value, wide: wide.value }),
-)
-const surface = computed(() => (heroOn.value ? (room.value?.hero?.surface ?? 'slate') : null))
-// a game that bleeds by the shell gutter keeps the shell paddings so it fills the panel edge to edge
-const bleed = computed(() => heroOn.value && Boolean(room.value?.hero?.bleed))
-const deskStyle = computed(() => {
-  if (!heroOn.value) return null
-  const r = heroRect.value
-  if (!r) return { visibility: 'hidden' }
-  return {
-    left: `${r.left}px`,
-    top: `${r.top}px`,
-    width: `${r.width}px`,
-    height: `${r.height}px`,
-    '--shell-chrome': `calc(100dvh - ${r.height}px + 2rem)`,
-  }
-})
-
-let interior = null
-const manualWatch = realSamplingOff()
-let sampler = null
-
-function stop() {
-  interior?.dispose()
-  interior = null
-  heroRect.value = null
-}
-
-async function start() {
-  stop()
-  stillMissing.value = false
-  if (renderMode.value === 'still') return
-  await nextTick()
-  if (!canvas.value || renderMode.value === 'still') return
-  if (!manualWatch) {
-    sampler = createSampler({
-      onResult: (fps) => {
-        if (
-          decidePerf({ tier: tier.name, fps, explicit3d: stored === '3d' }).action === 'switch-2d'
-        )
-          slow.value = true
-      },
-    })
-  }
-  interior = createInterior({
-    canvas: canvas.value,
-    roomId: roomId.value,
-    tier,
-    renderMode: renderMode.value,
-    onFailed: () => (failed.value = true),
-    onHero: room.value?.hero ? (rect) => (heroRect.value = rect) : null,
-    onPerf: (ms) => sampler?.frame(ms, !document.hidden),
-  })
-}
-
-onMounted(start)
-watch([roomId, renderMode], start)
-onBeforeUnmount(stop)
 
 // leaving through our own chrome (Exit game, the site menu) asks first; the games' own links do not
 const menuOpen = ref(false)
@@ -172,49 +68,28 @@ onBeforeUnmount(() => clearTimeout(chromeTimer))
 </script>
 
 <template>
-  <div
-    class="interior"
-    :data-room="roomId"
-    :data-stage="stage"
-    :data-tier="tier.name"
-    :data-hero="heroOn ? 'on' : null"
-    :data-surface="surface"
-    data-testid="interior"
-  >
+  <div class="interior" :data-room="roomId" data-stage="still" data-testid="interior">
     <div class="interior-stage" aria-hidden="true">
-      <canvas
-        v-if="stage === '3d'"
-        :key="roomId"
-        ref="canvas"
-        class="interior-canvas"
-        data-testid="interior-canvas"
-      ></canvas>
-      <template v-else>
-        <div
-          class="interior-fallback"
-          :style="{ background: gradient }"
-          data-testid="interior-fallback"
-        ></div>
-        <img
-          v-if="roomId && !stillMissing"
-          class="interior-still"
-          :src="stillUrl(roomId)"
-          alt=""
-          data-testid="interior-still"
-          @error="stillMissing = true"
-        />
-      </template>
+      <div
+        class="interior-fallback"
+        :style="{ background: gradient }"
+        data-testid="interior-fallback"
+      ></div>
+      <img
+        v-if="roomId && !stillMissing"
+        class="interior-still"
+        :src="stillUrl(roomId)"
+        alt=""
+        data-testid="interior-still"
+        @error="stillMissing = true"
+      />
     </div>
     <ImmersiveControls
       v-model:menu-open="menuOpen"
-      :mode="townMode"
-      :locked="resolved.locked"
+      :show-mode="false"
       :user="auth.user"
       :logout-pending="auth.logoutPending"
-      label3d="3D room"
-      label2d="2D still"
       escape-ignore-within=".interior-desk"
-      @toggle-mode="toggleMode"
       @navigate="markMenuNavigation"
       @sign-out="signOut"
     >
@@ -254,22 +129,9 @@ onBeforeUnmount(() => clearTimeout(chromeTimer))
       @confirm="confirmLeave"
       @cancel="cancelLeave"
     />
-    <div v-if="heroOn" class="desk-surface" :style="deskStyle" aria-hidden="true"></div>
-    <div
-      class="interior-desk"
-      :class="{ 'is-hero': heroOn, 'is-bleed': bleed }"
-      :style="deskStyle"
-      data-testid="interior-desk"
-    >
+    <div class="interior-desk" data-testid="interior-desk">
       <RouterView />
     </div>
-    <div
-      v-if="heroOn"
-      class="desk-overlay"
-      :style="deskStyle"
-      aria-hidden="true"
-      data-testid="desk-overlay"
-    ></div>
   </div>
 </template>
 
@@ -337,7 +199,6 @@ onBeforeUnmount(() => clearTimeout(chromeTimer))
   pointer-events: none;
 }
 
-.interior-canvas,
 .interior-still,
 .interior-fallback {
   position: absolute;
@@ -351,8 +212,6 @@ onBeforeUnmount(() => clearTimeout(chromeTimer))
   object-fit: cover;
 }
 
-.interior[data-tier='desktop'] .interior-canvas,
-.interior[data-tier='compact'] .interior-canvas,
 .interior-still {
   filter: blur(1.5px);
   transform: scale(1.03);
@@ -367,79 +226,6 @@ onBeforeUnmount(() => clearTimeout(chromeTimer))
     0 10px 40px rgb(0 0 0 / 0.45);
   min-width: 0;
   padding: var(--pt) var(--gutter) var(--pb);
-}
-
-/* a hero room sits the panel on its prop: the prop frame is the border, the room stays sharp around it */
-.interior[data-hero='on'] .interior-canvas {
-  filter: none;
-  transform: none;
-}
-
-.interior-desk.is-hero:not(.is-bleed) {
-  --gutter: 1.25rem;
-  --pt: 1rem;
-  --pb: 1rem;
-}
-
-.interior-desk.is-hero {
-  position: absolute;
-  margin: 0;
-  overflow: auto;
-  overscroll-behavior: contain;
-  box-shadow:
-    inset 0 0 0 1px rgb(0 0 0 / 0.4),
-    inset 0 0 22px rgb(0 0 0 / 0.28);
-}
-
-/* blend: the panel is the prop's surface, so it has no edge of its own and the brass lip frames it.
-   the surface layer sits under the desk, the overlay above it; neither takes pointer events */
-.desk-surface,
-.desk-overlay {
-  position: absolute;
-  margin: 0;
-  pointer-events: none;
-}
-
-.desk-surface {
-  z-index: 1;
-}
-
-.interior-desk.is-hero {
-  z-index: 2;
-  background: transparent;
-  box-shadow: none;
-}
-
-.desk-overlay {
-  z-index: 3;
-}
-
-.interior[data-surface='paper'] .desk-surface {
-  background:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.35 0 0 0 0 0.25 0 0 0 0 0.1 0 0 0 0.16 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E"),
-    #efe2bd;
-}
-
-/* multiply keeps the ink dark and lets a light game background take the paper tone and grain */
-.interior[data-surface='paper'] .interior-desk.is-hero {
-  mix-blend-mode: multiply;
-}
-
-.interior[data-surface='paper'] .desk-overlay {
-  background:
-    radial-gradient(ellipse 60% 55% at 50% 0%, rgb(255 214 130 / 0.2), transparent 70%),
-    radial-gradient(ellipse 100% 100% at 50% 50%, transparent 62%, rgb(70 40 15 / 0.22) 100%);
-}
-
-.interior[data-surface='slate'] .desk-surface {
-  background: linear-gradient(160deg, #18221f, #0d1311);
-}
-
-.interior[data-surface='slate'] .desk-overlay {
-  background:
-    linear-gradient(115deg, rgb(255 255 255 / 0.07) 0%, transparent 28%, transparent 100%),
-    radial-gradient(ellipse 60% 55% at 50% 0%, rgb(255 190 90 / 0.14), transparent 70%),
-    radial-gradient(ellipse 100% 100% at 50% 50%, transparent 58%, rgb(0 0 0 / 0.4) 100%);
 }
 
 /* phones: the room is a header band above the game panel */
@@ -516,7 +302,6 @@ onBeforeUnmount(() => clearTimeout(chromeTimer))
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .interior-canvas,
   .interior-still {
     transform: none;
   }

@@ -45,7 +45,7 @@ Applies to shared pages, the hub and every game (including games' own design fre
 
 ### Phone touch targets (FIX-04, Boey, 1 November 2026)
 
-- Below 576px, and on short touch landscapes (under 500px high), a game page turns the Menu, Sound, 3D | 2D and Exit controls into a solid 64px top bar that owns its height, so no control covers the game (MOB-01). The game's Start still sits above the fold at 375 x 667.
+- Below 576px, and on short touch landscapes (under 500px high), a game page turns the Menu, Sound and Exit controls into a solid 64px top bar that owns its height, so no control covers the game (MOB-01). The game's Start still sits above the fold at 375 x 667.
 - Every 3D | 2D toggle, the hub map pins on touch screens and the "Sign in" switch link are at least 44px high; the Esc key badge is hidden on touch devices.
 
 ### Overlay consistency (UX-03, Boey, 1 November 2026)
@@ -152,8 +152,8 @@ Approved by Boey on 20 October 2026 (record in [TASKS.md](TASKS.md)); implemente
 
 - **Surface.** Shared shell around the five game routes: `client/src/features/interiors/InteriorLayout.vue` is the parent route component and shows a pre-rendered still of the room behind the game (INT-03, Boey, 1 November 2026: the live Babylon room is kept in code but not mounted, for performance), and the game sits in an inset "desk" panel. Each room is the inside of that game's building (1880 wharf). The stills were rendered from the hub's toon and glow materials and capybara rig; no new tokens or textures.
 - **Desk panel.** `--bg-primary` fill and a wood frame (`--room-wood`, scoped to the layout). From 768px up, 24 to 48px of room shows around it (`--room-gap`, 3vw clamped); on windows under 700px high the gap and frame drop so fitted games keep their full height. Below 768px the room is a 150px header band above a full width panel. The layout redefines `--shell-chrome` on the panel only; game CSS is not touched and no `:root`, `html` or `body` rule is added.
-- **Motion and fallbacks.** The still is static, so reduced motion and the Low tier need nothing extra. Every game route shows `/interiors/<id>.webp`, a render of the same room made with `scripts/capture-interiors.mjs`, or, when it is missing, a gradient in the room palette. The canvas is `aria-hidden`.
-- **Game-screen chrome (INT-02, Boey, 31 October 2026).** A game route looks like the town: no navbar, sidebar or footer (`meta.immersive` on the `/games` parent, footer gated on `meta.interior`). Only the town's glass controls remain: Menu top left (Esc opens it unless focus is inside the game panel), and top right the sound button, the 3D | 2D switch (no visible change on game pages since INT-03) and a glass **Exit game** button. Exit and any site menu link that leaves the game ask "Leave the game?" through the shared `components/common/ConfirmDialog.vue`; the games' own links are not guarded. A 60px strip above the desk keeps the controls clear of the panel.
+- **Motion and fallbacks.** The still is static, so reduced motion and the Low tier need nothing extra. Every game route shows `/interiors/<id>.webp` (Gemini images since ASSET-01) or, when it is missing, a gradient in the room palette; the stage is `aria-hidden`.
+- **Game-screen chrome (INT-02, Boey, 31 October 2026).** A game route looks like the town: no navbar, sidebar or footer (`meta.immersive` on the `/games` parent, footer gated on `meta.interior`). Only the town's glass controls remain: Menu top left (Esc opens it unless focus is inside the game panel), and top right the sound button and a glass **Exit game** button (the 3D | 2D switch is hidden on game pages through `ImmersiveControls`' `showMode` prop, INT-04). Exit and any site menu link that leaves the game ask "Leave the game?" through the shared `components/common/ConfirmDialog.vue`; the games' own links are not guarded. A 60px strip above the desk keeps the controls clear of the panel.
 
 ## Town interaction and responsiveness
 

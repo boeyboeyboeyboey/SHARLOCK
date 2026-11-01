@@ -1,28 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { decideRender, fallbackGradient, roomBudget, stillUrl } from '../renderMode.js'
-import { ROOM_IDS, roomFor, rooms } from '../rooms/index.js'
-
-describe('decideRender', () => {
-  const base = { townMode: '3d', tierName: 'desktop' }
-
-  it('always picks the still, whatever the mode, tier or motion setting', () => {
-    expect(decideRender(base)).toBe('still')
-    expect(decideRender({ ...base, tierName: 'compact' })).toBe('still')
-    expect(decideRender({ ...base, tierName: 'low' })).toBe('still')
-    expect(decideRender({ ...base, reducedMotion: true })).toBe('still')
-    expect(decideRender({ ...base, townMode: '2d' })).toBe('still')
-    expect(decideRender({ ...base, failed: true, slow: true })).toBe('still')
-    expect(decideRender()).toBe('still')
-  })
-})
-
-describe('roomBudget', () => {
-  it('keeps the draw call ceilings and the resident rig on the desktop only', () => {
-    expect(roomBudget('desktop')).toEqual({ drawCalls: 150, rig: true, animate: true })
-    expect(roomBudget('low')).toMatchObject({ drawCalls: 60, rig: false, animate: false })
-    expect(roomBudget('compact').rig).toBe(false)
-  })
-})
+import { fallbackGradient, stillUrl } from '../renderMode.js'
+import { ROOM_IDS, roomFor } from '../rooms/palettes.js'
 
 describe('still fallback', () => {
   it('points at the plate for a room id', () => {
@@ -35,34 +13,14 @@ describe('still fallback', () => {
   })
 })
 
-describe('room registry', () => {
-  it('has a room with a palette and loader for each of the five game ids', () => {
+describe('room palettes', () => {
+  it('has a three colour palette for each of the five game ids', () => {
     expect(ROOM_IDS).toHaveLength(5)
     for (const id of ROOM_IDS) {
       const room = roomFor(id)
       expect(room.id).toBe(id)
       expect(room.palette).toHaveLength(3)
-      expect(typeof room.load).toBe('function')
     }
-    expect(Object.keys(rooms).sort()).toEqual([...ROOM_IDS].sort())
-  })
-
-  it('loads a real builder module for every room', async () => {
-    const names = {
-      'cli-cyber-defender': 'buildCliRoom',
-      'phishing-post-mortem': 'buildPostRoom',
-      'sql-injection-arcade': 'buildCustomsRoom',
-      'social-engineering-simulator': 'buildSnugRoom',
-      'clearance-tower': 'buildClearanceRoom',
-    }
-    const builders = new Set()
-    for (const id of ROOM_IDS) {
-      const build = await roomFor(id).load()
-      expect(typeof build, id).toBe('function')
-      expect(build.name, id).toBe(names[id])
-      builders.add(build)
-    }
-    expect(builders.size).toBe(ROOM_IDS.length)
   })
 
   it('knows nothing about other ids', () => {
