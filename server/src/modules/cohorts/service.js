@@ -103,7 +103,7 @@ function conflict(code = 'COHORT_CONFLICT', message = 'Refresh and try again.') 
   return new CohortError(code, message, 409)
 }
 
-// the router logs causeName, because the 503 itself deliberately says nothing about the failure
+// the router logs the cause name, because the 503 itself deliberately says nothing about the failure
 function unavailable(cause) {
   const error = new CohortError(
     'COHORT_UNAVAILABLE',

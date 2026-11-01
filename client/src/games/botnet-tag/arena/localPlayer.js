@@ -25,7 +25,7 @@ const typing = (target) =>
 
 // the hub player is welded to the wharf (havok capsule, lane graph, ground picking), so the arena gets a slim kinematic one:
 // same keys, same sprint and jump modules, movement checked against the server's own walkable test
-// input: what the previous player was holding when the arena rebuilt, from inputState()
+// input: what the previous player was holding when the arena rebuilt
 export function createLocalPlayer({ spawn, camera, reduced, onSprint = () => {}, input = null }) {
   const keys = new Set(input?.keys)
   const pos = { x: spawn.x, z: spawn.z }

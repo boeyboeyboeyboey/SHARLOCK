@@ -98,7 +98,7 @@ test('the intro controls are full size on touch', async ({ page }, testInfo) => 
 test('Enter advances a card and Space skips the intro', async ({ page }) => {
   await page.goto('/')
   await expect(intro(page).getByText(FIRST_CARD)).toBeVisible()
-  // the text is in the page before the sound has started; Enter only counts once the card has faded in
+  // the text is in the page before the sound has started; enter only counts once the card has faded in
   await expect(page.getByTestId('lore-intro-card')).toHaveCSS('opacity', '1')
   await intro(page).focus()
   await page.keyboard.press('Enter')

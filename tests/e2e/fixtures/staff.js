@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test'
 
-// the provisioning forms sit in a collapsed section on the Instructors tab
+// the provisioning forms sit in a collapsed section on the instructors tab
 export async function openAddStaff(page) {
   const section = page.locator('details').filter({ hasText: 'Add staff' })
   if (!(await section.evaluate((element) => element.open))) {

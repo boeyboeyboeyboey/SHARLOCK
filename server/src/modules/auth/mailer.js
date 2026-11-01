@@ -13,7 +13,7 @@ export function createConsoleMailer(log = console.info) {
   })
 }
 
-// browser tests read codes from a file; only built when NODE_ENV=test and TEST_MAIL_OUTBOX is set
+// browser tests read codes from a file; only built in a test process with an outbox path set
 export function createFileMailer(outboxPath) {
   if (typeof outboxPath !== 'string' || !outboxPath) {
     throw new TypeError('An outbox path is required.')

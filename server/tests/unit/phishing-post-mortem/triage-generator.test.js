@@ -62,8 +62,8 @@ describe('triage generator', { timeout: 30000 }, () => {
     )
   })
 
-  // open attempts regenerate their emails from the stored seed, so this pins what a seed produces.
-  // if it fails, the change alters open and saved runs: see "Changing the generator" in the README
+  // open attempts regenerate their emails from the stored seed, so this pins what a seed produces
+  // if it fails, the change alters open and saved runs: see "changing the generator" in the readme
   it('still produces the same emails for a fixed seed', () => {
     const rounds = Array.from({ length: 60 }, (_, roundIndex) =>
       generateRound({ seed: SEEDS[0], roundIndex }),

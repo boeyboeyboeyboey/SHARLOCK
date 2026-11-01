@@ -121,7 +121,7 @@ test('a personal practice run plays 12 emails, shows the debrief and saves', asy
   await expect(runComplete(page)).toBeInViewport()
   await expect(page.getByText('All 12 emails checked')).toBeVisible()
   await expect(page.getByText('Result saved to your account.')).toBeVisible()
-  // the review list can be long, so Play again also sits above it
+  // the review list can be long, so play again also sits above it
   await page.getByRole('button', { name: 'Play again' }).first().click()
   await expect(page).not.toHaveURL(/attempt=/)
   await expect(page.getByRole('heading', { name: 'Start a run' })).toBeVisible()

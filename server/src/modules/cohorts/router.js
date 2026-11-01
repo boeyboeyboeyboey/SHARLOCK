@@ -59,7 +59,7 @@ function requireMiddlewareArray(middleware, name) {
   return middleware
 }
 
-// the library has already set Retry-After from the real window when this handler runs
+// the library has already set the retry header from the real window when this handler runs
 function createLimiter({ windowMs, limit, message, perUser = false, skipSuccessful = false }) {
   const store = new MemoryStore()
   const options = {

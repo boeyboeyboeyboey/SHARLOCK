@@ -2,7 +2,7 @@ import { reactive } from 'vue'
 import { gameCatalog } from '../../data/gameCatalog.js'
 
 // 8-bit screen wipes played when someone arrives on one of the main tabs from a different page:
-// town, profile, classes, the leaderboard or About, and when opening a game. Each tab has
+// town, profile, classes, the leaderboard or about, and when opening a game; each tab has
 // its own pattern, colour, emoji and label so moving between them feels different, and each game
 // gets a pair of pixel doors that close, hold, then swing open onto the game. `PixelWipe.vue` (mounted once in App.vue)
 // draws it; this module sequences it: blocks cover the screen, the route changes underneath, the

@@ -1,6 +1,6 @@
 // private answer data: only the alert reaches the browser before the incident closes
 // tier orders a shift from easy to hard; keyLine is the evidence a practice hint highlights and
-// hintLookup is the lookup a tier 1 practice hint points to and never ends with an answer's target; hintConcept is the tier 2 concept note and never gives a verdict; entities lists every tappable name in the alert
+// the hint lookup is what a tier 1 practice hint points to and never ends with an answer's target; the hint concept is the tier 2 note and never gives a verdict; entities lists every tappable name in the alert
 // steps is the ordered list of containment commands; a decoy has no steps and is answered with dismiss
 // lookups maps a normalised lookup command to the lines it prints; nothing here touches a real system
 // addresses use the rfc 5737 documentation ranges and internal 10.x lab space; names are fictional

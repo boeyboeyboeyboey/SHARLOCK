@@ -32,7 +32,7 @@ function createWriteLimiter({ windowMs, limit, message }) {
     ipv6Subnet: 56,
     standardHeaders: 'draft-7',
     legacyHeaders: false,
-    // the library has already set Retry-After from the real window when this runs
+    // the library has already set the retry header from the real window when this runs
     handler(_request, response) {
       response.set('Cache-Control', 'no-store')
       response.status(429).json({

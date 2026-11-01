@@ -71,7 +71,7 @@ describe('t1 login variants', () => {
     ['guest', 'pw', 'NO_BREAKOUT'],
     ["'", '', 'SYNTAX_ERROR'],
     ["' OR 1=1;", '', 'STACKED_NOT_RUN'],
-    // the lecture's own payload (12a-web-security-partII.pptx, slide 20)
+    // the lecture's own payload (12a web security part ii, slide 20)
     ["' OR '1'='1'; DROP TABLE Users; --", '', 'STACKED_NOT_RUN'],
     ["' OR 1=1 UNION SELECT 1 --", '', 'SYNTAX_ERROR'],
     ['x'.repeat(2), "' OR " + '1=1 OR '.repeat(10) + '1=1--', 'UNSUPPORTED'],

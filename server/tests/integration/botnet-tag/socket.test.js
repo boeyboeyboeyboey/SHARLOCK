@@ -75,7 +75,7 @@ beforeEach(async () => {
 
 afterEach(stopApp)
 
-// the tick interval is parked: tests step the rounds themselves with tickAll and a fake clock
+// the tick interval is parked: tests step the rounds themselves with a fake clock
 async function startApp(botnetTag = {}) {
   const seeded = createRng(7)
   const rng = () => {

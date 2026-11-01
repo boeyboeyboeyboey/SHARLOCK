@@ -22,7 +22,7 @@ const props = defineProps({
   logoutPending: { type: Boolean, default: false },
   // a selector whose subtree keeps Escape for itself (a game panel with its own dialogs)
   escapeIgnoreWithin: { type: String, default: '' },
-  // inline sits in the page's top bar: no 3D | 2D switch, and only the sound and end slots a page passes
+  // inline sits in the page's top bar: no 3d | 2d switch, and only the sound and end slots a page passes
   inline: { type: Boolean, default: false },
   // game pages pass false: the room is always a still, so there is no view to switch
   showMode: { type: Boolean, default: true },

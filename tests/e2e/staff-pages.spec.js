@@ -25,7 +25,7 @@ async function instructorSession(browser, baseURL, testInfo, who) {
   return session
 }
 
-// a phone widens its layout viewport to fit overflow, so window.innerWidth would hide the problem
+// a phone widens its layout viewport to fit overflow, so the window's inner width would hide the problem
 async function expectNoPageOverflow(page) {
   const { width } = page.viewportSize()
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)

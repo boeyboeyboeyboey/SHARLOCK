@@ -115,7 +115,7 @@ function duplicateConflict(error) {
   return error?.code === 11000
 }
 
-// the router logs causeName, because the 503 itself deliberately says nothing about the failure
+// the router logs the cause name, because the 503 itself deliberately says nothing about the failure
 function unavailableFrom(cause) {
   const error = new AdminError('ADMIN_UNAVAILABLE')
   error.causeName = cause?.name

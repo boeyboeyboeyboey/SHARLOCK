@@ -18,6 +18,17 @@ async function openTab(page, name) {
   )
 }
 
+// newest first, so institutions other specs create can push this one onto a later page
+async function editInstitution(page, name) {
+  const edit = page.getByRole('button', { name: `Edit ${name}`, exact: true })
+  const next = page.getByRole('button', { name: 'Next', exact: true }).first()
+  await expect(async () => {
+    if (!(await edit.isVisible())) await next.click({ timeout: 2000 })
+    await expect(edit).toBeVisible({ timeout: 2000 })
+  }).toPass({ timeout: 15_000 })
+  await edit.click()
+}
+
 // waits for the status change and the panel's own list reload, which would abort a filter request sent meanwhile
 async function changeAccountStatus(page, row, buttonName) {
   const panel = page.locator('section[aria-labelledby="account-controls-title"]')
@@ -297,8 +308,14 @@ test('admin manages institutions, assignments, audit history, and account access
       })
       .toContain(createdCohort.id)
 
+    const institutionsListed = page.waitForResponse(
+      (response) =>
+        response.request().method() === 'GET' &&
+        new URL(response.url()).pathname === '/api/admin/institutions',
+    )
     await openTab(page, 'Institutions & classes')
-    await page.getByRole('button', { name: `Edit ${renamedInstitution}`, exact: true }).click()
+    await institutionsListed
+    await editInstitution(page, renamedInstitution)
     await page
       .locator(`#admin-institution-edit-status-${createdInstitution.id}`)
       .selectOption('inactive')
@@ -310,7 +327,7 @@ test('admin manages institutions, assignments, audit history, and account access
       }),
     ).toBeVisible()
 
-    await page.getByRole('button', { name: `Edit ${renamedInstitution}`, exact: true }).click()
+    await editInstitution(page, renamedInstitution)
     await page
       .locator(`#admin-institution-edit-status-${createdInstitution.id}`)
       .selectOption('active')

@@ -24,7 +24,7 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
-  // these specs render Babylon in software WebGL, so they get their own projects with one worker each
+  // these specs render babylon in software webgl, so they get their own projects with one worker each
   projects: [
     {
       name: 'mobile-chromium',
