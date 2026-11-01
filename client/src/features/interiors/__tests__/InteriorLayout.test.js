@@ -4,13 +4,6 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import { createPinia } from 'pinia'
 import InteriorLayout from '../InteriorLayout.vue'
 
-vi.mock('../useInteriorEngine.js', () => ({
-  createInterior: vi.fn((opts) => {
-    opts.onHero?.({ left: 100, top: 80, width: 800, height: 520 })
-    return { state: {}, ready: Promise.resolve(), dispose: vi.fn() }
-  }),
-}))
-
 const Game = { template: '<p>game content</p><a href="#">x</a>' }
 const Home = { template: '<p>home</p>' }
 let lastRouter = null
@@ -89,12 +82,9 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('InteriorLayout in 2d mode', () => {
-  beforeEach(() => localStorage.setItem('sharlock.townMode', '2d'))
-
-  it('shows the still, no canvas, and the game inside the desk panel', async () => {
+describe('InteriorLayout', () => {
+  it('shows the still and the game inside the desk panel', async () => {
     const wrapper = await mountAt('/games/cli-cyber-defender')
-    expect(wrapper.find('[data-testid="interior-canvas"]').exists()).toBe(false)
     expect(wrapper.get('[data-testid="interior-still"]').attributes('src')).toBe(
       '/interiors/cli-cyber-defender.webp',
     )
@@ -131,70 +121,31 @@ describe('InteriorLayout in 2d mode', () => {
   })
 })
 
-describe('hero layout fallback', () => {
-  it('keeps the centred desk in 2d mode even for a hero room', async () => {
-    localStorage.setItem('sharlock.townMode', '2d')
-    const wrapper = await mountAt('/games/phishing-post-mortem')
-    const desk = wrapper.get('[data-testid="interior-desk"]')
-    expect(desk.classes()).not.toContain('is-hero')
-    expect(desk.attributes('style')).toBeUndefined()
-    expect(wrapper.get('[data-testid="interior"]').attributes('data-hero')).toBeUndefined()
-    expect(wrapper.find('.desk-surface').exists()).toBe(false)
-    wrapper.unmount()
-  })
-})
-
-describe('3d preference on a game route (INT-03)', () => {
-  beforeEach(() => {
-    localStorage.setItem('sharlock.townMode', '3d')
-    localStorage.setItem('sharlock.hubForce3d', '1')
-    vi.stubGlobal('matchMedia', (q) => ({
-      matches: q.includes('min-width'),
-      addEventListener() {},
-      removeEventListener() {},
-    }))
-  })
-
+describe('every game room (INT-03, INT-04)', () => {
   it.each([
     'phishing-post-mortem',
     'cli-cyber-defender',
     'sql-injection-arcade',
     'social-engineering-simulator',
     'clearance-tower',
-  ])('%s shows the still with the centred desk and no live room', async (id) => {
+  ])('%s shows the still with the centred desk and no view switch', async (id) => {
     const wrapper = await mountAt(`/games/${id}`)
-    const root = wrapper.get('[data-testid="interior"]')
-    expect(root.attributes('data-stage')).toBe('still')
-    expect(root.attributes('data-hero')).toBeUndefined()
-    expect(wrapper.find('[data-testid="interior-canvas"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="interior"]').attributes('data-stage')).toBe('still')
     expect(wrapper.get('[data-testid="interior-still"]').attributes('src')).toBe(
       `/interiors/${id}.webp`,
     )
-    expect(wrapper.find('.desk-surface').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="desk-overlay"]').exists()).toBe(false)
-    expect(wrapper.get('[data-testid="interior-desk"]').classes()).not.toContain('is-hero')
     expect(wrapper.get('[data-testid="interior-desk"]').text()).toContain('game content')
-    wrapper.unmount()
-  })
-
-  it('keeps the 3d | 2d switch usable without starting a room', async () => {
-    const wrapper = await mountAt('/games/cli-cyber-defender')
-    await wrapper.get('[data-testid="town-mode-toggle"]').trigger('click')
-    await flushPromises()
-    expect(wrapper.get('[data-testid="interior"]').attributes('data-stage')).toBe('still')
-    expect(wrapper.find('[data-testid="interior-canvas"]').exists()).toBe(false)
+    expect(wrapper.find('[aria-label="View mode"]').exists()).toBe(false)
     wrapper.unmount()
   })
 })
 
 describe('game chrome and Exit game', () => {
-  beforeEach(() => localStorage.setItem('sharlock.townMode', '2d'))
-
-  it('shows the menu, sound, view switch and Exit game', async () => {
+  it('shows the menu, sound and Exit game but no view switch', async () => {
     const wrapper = await mountAt('/games/cli-cyber-defender')
     expect(wrapper.find('[data-testid="menu-button"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="interior-sound"]').exists()).toBe(true)
-    expect(wrapper.get('[aria-label="View mode"]').exists()).toBe(true)
+    expect(wrapper.find('[aria-label="View mode"]').exists()).toBe(false)
     expect(wrapper.get('[data-testid="exit-game"]').text()).toBe('Exit game')
     wrapper.unmount()
   })

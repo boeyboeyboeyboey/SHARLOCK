@@ -46,6 +46,12 @@ describe('3D | 2D switch', () => {
     expect(wrapper.emitted('toggle-mode')).toHaveLength(1)
   })
 
+  it('hides the whole group when show-mode is false', () => {
+    const wrapper = mountControls({ mode: '2d', showMode: false })
+    expect(wrapper.find('[aria-label="View mode"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="menu-button"]').exists()).toBe(true)
+  })
+
   it('disables 3D when the wharf cannot start', () => {
     const wrapper = mountControls({ mode: '2d', locked: true })
     expect(wrapper.get('[aria-label="3D town"]').attributes('disabled')).toBeDefined()

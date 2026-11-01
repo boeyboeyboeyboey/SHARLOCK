@@ -40,7 +40,9 @@ test.describe('phone shell', () => {
         if (await control.isVisible()) boxes.push(await control.boundingBox())
       }
       await expect(page.getByTestId('interior-sound')).toBeVisible()
-      expect(boxes.length).toBeGreaterThanOrEqual(5)
+      // menu, sound and exit; game pages have no 3d | 2d switch since INT-04
+      expect(boxes.length).toBeGreaterThanOrEqual(3)
+      await expect(bar.getByRole('group', { name: 'View mode' })).toHaveCount(0)
       for (const b of boxes) {
         expect(b.x).toBeGreaterThanOrEqual(0)
         expect(b.x + b.width).toBeLessThanOrEqual(view.width)

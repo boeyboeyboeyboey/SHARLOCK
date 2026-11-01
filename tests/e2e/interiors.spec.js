@@ -51,13 +51,10 @@ test.describe('3d preferred', () => {
     })
   }
 
-  test('the 3d | 2d switch stays on the still', async ({ page }) => {
+  test('no view switch on a game page while the still shows', async ({ page }) => {
     await page.goto('/games/cli-cyber-defender')
     await expect(page.getByTestId('interior')).toHaveAttribute('data-stage', 'still')
-    await page.getByRole('button', { name: '2D still' }).click()
-    await expect(page.getByTestId('interior')).toHaveAttribute('data-stage', 'still')
-    await page.getByRole('button', { name: '3D room' }).click()
-    await expect(page.getByTestId('interior')).toHaveAttribute('data-stage', 'still')
+    await expect(page.getByRole('group', { name: 'View mode' })).toHaveCount(0)
     await expect(page.getByTestId('interior-canvas')).toHaveCount(0)
   })
 })
