@@ -29,6 +29,14 @@ describe('npc dialogue panel', () => {
     expect(wrapper.emitted('close')).toHaveLength(1)
   })
 
+  it('starts each new line at its top', async () => {
+    const wrapper = mount(NpcDialogue, { props })
+    const line = wrapper.get('[data-testid="npc-line"]').element
+    line.scrollTop = 40
+    await wrapper.setProps({ line: 'The next line.' })
+    expect(line.scrollTop).toBe(0)
+  })
+
   it('offers only Bye for a wanderer', async () => {
     const wrapper = mount(NpcDialogue, { props: { ...props, last: true } })
     expect(wrapper.find('[data-testid="npc-enter"]').exists()).toBe(false)

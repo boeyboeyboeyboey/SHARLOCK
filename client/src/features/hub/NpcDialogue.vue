@@ -12,6 +12,14 @@ const props = defineProps({
 defineEmits(['next', 'enter', 'close'])
 const panel = ref(null)
 const actions = ref(null)
+const lineEl = ref(null)
+// a new line starts at its top, even if the last one was scrolled
+watch(
+  () => props.line,
+  () => {
+    if (lineEl.value) lineEl.value.scrollTop = 0
+  },
+)
 // the last line swaps the next button for others, and focus must not fall to the page when it goes
 watch(
   () => props.last,
@@ -34,7 +42,7 @@ defineExpose({ focus: () => panel.value?.focus() })
     tabindex="-1"
   >
     <h2 id="npc-dialogue-name" class="npc-name">{{ name }}</h2>
-    <p class="npc-line" data-testid="npc-line" aria-live="polite">{{ line }}</p>
+    <p ref="lineEl" class="npc-line" data-testid="npc-line" aria-live="polite">{{ line }}</p>
     <div ref="actions" class="npc-actions">
       <button
         v-if="!last"
@@ -78,6 +86,8 @@ defineExpose({ focus: () => panel.value?.focus() })
 
 <style scoped>
 .npc-dialogue {
+  display: flex;
+  flex-direction: column;
   width: min(420px, calc(100% - 16px));
   padding: 12px 14px;
   pointer-events: auto;
@@ -92,11 +102,15 @@ defineExpose({ focus: () => panel.value?.focus() })
   font-size: 16px;
 }
 .npc-line {
+  /* a short panel scrolls the line, so the buttons below it stay on screen */
+  min-height: 0;
+  overflow-y: auto;
   margin: 0 0 8px;
   font-size: 14px;
   line-height: 1.4;
 }
 .npc-actions {
+  flex: none;
   display: flex;
   gap: 8px;
   justify-content: flex-end;

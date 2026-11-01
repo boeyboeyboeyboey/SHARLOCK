@@ -1031,6 +1031,34 @@ defineExpose({
     left: auto;
   }
 }
+/* short, narrow touch screens: a talk takes the free space between the touch controls and the map, and the bar, which does nothing during a talk, steps aside */
+@media (pointer: coarse) and (max-width: 843.98px) and (max-height: 500px) {
+  .hub-talk-panel + .hub-actions {
+    display: none;
+  }
+  .hub-talk-panel.npc-dialogue {
+    right: 76px;
+    bottom: 8px;
+    left: 286px;
+    width: auto;
+    max-height: calc(100% - 130px);
+    transform: none;
+  }
+}
+/* below 576px the touch controls sit on the right, so the panel and the bar stay in the bottom stack, left of them */
+@media (pointer: coarse) and (max-width: 575.98px) and (max-height: 500px) {
+  .hub-dock {
+    top: 64px;
+  }
+  .hub-talk-panel.npc-dialogue {
+    width: calc(100% - 104px);
+    max-height: none;
+  }
+  .hub-actions {
+    align-self: flex-start;
+    max-width: calc(100% - 104px);
+  }
+}
 @media (min-width: 768px) and (min-height: 600px) {
   .hub-scene {
     flex: 1 1 auto;

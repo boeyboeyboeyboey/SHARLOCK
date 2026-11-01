@@ -133,9 +133,7 @@ test('a patrolling wanderer can be talked to at its live position', async ({ pag
     window.__hub.debug.npcs().find((n) => n.id === 'lamplighter'),
   )
   await page.evaluate(({ x, z }) => window.__hub.debug.teleport(x, z - 1.5), lamplighter)
-  await expect
-    .poll(() => page.evaluate(() => window.__hub.state.nearNpc), slow)
-    .toBe('lamplighter')
+  await expect.poll(() => page.evaluate(() => window.__hub.state.nearNpc), slow).toBe('lamplighter')
   const still = await page.evaluate(() =>
     window.__hub.debug.npcs().find((n) => n.id === 'lamplighter'),
   )
@@ -145,3 +143,58 @@ test('a patrolling wanderer can be talked to at its live position', async ({ pag
     page.getByTestId('npc-dialogue').getByRole('heading', { name: 'Lamplighter' }),
   ).toBeVisible()
 })
+
+for (const [width, height] of [
+  [667, 375],
+  [568, 320],
+]) {
+  test.describe(`a talk on a ${width}x${height} touch screen`, () => {
+    test.use({ viewport: { width, height } })
+
+    test('reads every line and clicks every talk button', async ({ page, isMobile }) => {
+      test.skip(!isMobile, 'touch layout only')
+      await page.goto('/')
+      await hubReady(page)
+      await pickDest(page, 'cli-cyber-defender')
+      await expect(page.getByTestId('talk')).toBeVisible(slow)
+      await page.getByTestId('talk').click({ timeout: 5000 })
+
+      const line = page.getByTestId('npc-line')
+      const next = page.getByTestId('npc-next')
+      await expect(line).toBeInViewport({ ratio: 1 })
+      while (await next.isVisible()) {
+        await next.click({ timeout: 5000 })
+        await line.scrollIntoViewIfNeeded()
+        await expect(line).toBeInViewport({ ratio: 1 })
+      }
+
+      // the controls that still work during a talk stay clear of the panel
+      const panel = await page.getByTestId('npc-dialogue').boundingBox()
+      for (const control of [
+        page.getByTestId('menu-button'),
+        page.getByRole('button', { name: 'Hub sound' }),
+        page.getByTestId('destinations-toggle'),
+        page.getByTestId('hub-map-toggle'),
+        page.getByTestId('hub-jump'),
+        page.getByTestId('hub-sprint'),
+        page.locator('.hub-joystick'),
+      ]) {
+        const box = await control.boundingBox()
+        const apart =
+          box.x >= panel.x + panel.width ||
+          box.x + box.width <= panel.x ||
+          box.y >= panel.y + panel.height ||
+          box.y + box.height <= panel.y
+        expect(apart, `${control} overlaps the talk panel`).toBe(true)
+      }
+
+      await page.getByTestId('npc-close').click({ timeout: 5000 })
+      await expect(page.getByTestId('npc-dialogue')).toHaveCount(0)
+      await expect(page.getByTestId('talk')).toBeFocused()
+      await page.getByTestId('talk').click({ timeout: 5000 })
+      while (await next.isVisible()) await next.click({ timeout: 5000 })
+      await page.getByTestId('npc-enter').click({ timeout: 5000 })
+      await expect(page).toHaveURL(/\/games\/cli-cyber-defender$/, slow)
+    })
+  })
+}
