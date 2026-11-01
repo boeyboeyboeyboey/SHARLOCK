@@ -291,7 +291,8 @@ test('reporting the real tell earns the bonus and marks what gave it away', asyn
       .click()
     const body = await (await responded).json()
     expect(body.publicState.last.tellHit).toBe(true)
-    await expect(page.getByText('What gave it away', { exact: true })).toBeVisible()
+    // an email can have two tells, and each one is marked
+    await expect(page.getByText('What gave it away', { exact: true }).first()).toBeVisible()
     await expect(page.getByText(`+${body.publicState.last.points} points`)).toBeVisible()
     return
   }

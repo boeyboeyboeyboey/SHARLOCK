@@ -9,8 +9,10 @@ import {
   generateCase,
   junkAction,
   openRun,
+  openRunWithCase,
   playCase,
   playStep,
+  playUpTo,
   solutionFor,
   waitForCase,
 } from './fixtures/sql.js'
@@ -163,58 +165,40 @@ test('a class run that reaches its deadline completes itself and saves', async (
 test('the lecture payload teaches instead of reading as unsupported, and keeps the bonus', async ({
   page,
 }) => {
-  const seed = await openRun(page)
-  for (let index = 0; index < 15; index += 1) {
-    const c = generateCase({ seed, index })
-    if (c.private.kind !== 'login-tautology') {
-      await playCase(page, c, solutionFor(c))
-      await page.getByRole('button', { name: 'Next case' }).click()
-      continue
-    }
-    await waitForCase(page, c)
-    await playStep(page, c, {
-      type: 'attempt',
-      payload: { caseId: c.public.caseId, inputs: ["' OR '1'='1'; DROP TABLE Users; --", 'x'] },
-    })
-    const result = page.getByTestId('sql-result')
-    await expect(result).toContainText('never run')
-    await expect(result).toBeFocused()
-    // focus that moves after every action can be seen
-    const outline = await result.evaluate((element) => getComputedStyle(element).outlineStyle)
-    expect(outline).toBe('solid')
-    await playStep(page, c, solutionFor(c)[0])
-    await expect(result).toContainText('Solved: +20 points')
-    return
-  }
-  test.skip(true, 'this seed drew no tautology case')
+  const { seed, index } = await openRunWithCase(page, 'login-tautology')
+  const c = await playUpTo(page, seed, index)
+  await waitForCase(page, c)
+  await playStep(page, c, {
+    type: 'attempt',
+    payload: { caseId: c.public.caseId, inputs: ["' OR '1'='1'; DROP TABLE Users; --", 'x'] },
+  })
+  const result = page.getByTestId('sql-result')
+  await expect(result).toContainText('never run')
+  await expect(result).toBeFocused()
+  // focus that moves after every action can be seen
+  const outline = await result.evaluate((element) => getComputedStyle(element).outlineStyle)
+  expect(outline).toBe('solid')
+  await playStep(page, c, solutionFor(c)[0])
+  await expect(result).toContainText('Solved: +20 points')
 })
 
 test('a blind answer asks for a second press before it is sent', async ({ page }) => {
-  const seed = await openRun(page)
-  for (let index = 0; index < 15; index += 1) {
-    const c = generateCase({ seed, index })
-    if (c.private.kind !== 'blind') {
-      await playCase(page, c, solutionFor(c))
-      await page.getByRole('button', { name: 'Next case' }).click()
-      continue
-    }
-    const steps = solutionFor(c)
-    await playCase(page, c, steps.slice(0, 3))
-    let answers = 0
-    page.on('request', (request) => {
-      if (request.method() === 'POST' && /\/actions$/.test(request.url())) answers += 1
-    })
-    await page.getByRole('button', { name: 'Yes', exact: true }).click()
-    await expect(page.getByText('You are answering Yes.')).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Confirm answer' })).toBeFocused()
-    expect(answers).toBe(0)
-    await page.getByRole('button', { name: 'Change answer' }).click()
-    await expect(page.getByRole('button', { name: 'Yes', exact: true })).toBeFocused()
-    await playStep(page, c, steps[3])
-    await expect(page.getByTestId('sql-result')).toContainText('Solved')
-    return
-  }
-  test.skip(true, 'this seed drew no blind case')
+  const { seed, index } = await openRunWithCase(page, 'blind')
+  const c = await playUpTo(page, seed, index)
+  const steps = solutionFor(c)
+  await playCase(page, c, steps.slice(0, 3))
+  let answers = 0
+  page.on('request', (request) => {
+    if (request.method() === 'POST' && /\/actions$/.test(request.url())) answers += 1
+  })
+  await page.getByRole('button', { name: 'Yes', exact: true }).click()
+  await expect(page.getByText('You are answering Yes.')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Confirm answer' })).toBeFocused()
+  expect(answers).toBe(0)
+  await page.getByRole('button', { name: 'Change answer' }).click()
+  await expect(page.getByRole('button', { name: 'Yes', exact: true })).toBeFocused()
+  await playStep(page, c, steps[3])
+  await expect(page.getByTestId('sql-result')).toContainText('Solved')
 })
 
 test('reflows with keyboard access at required widths and fits the laptop viewport', async ({
