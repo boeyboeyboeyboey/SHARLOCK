@@ -22,9 +22,9 @@ export const SOLUTIONS = {
     },
     predictions: { p1: 'deny', p2: 'deny', p3: 'allow' },
   },
-  // the best discretionary answer still blocks some work, so it tops out below three stars
+  // every fix blocks three tasks; clear-4 scores the work row out of seven, clear-3 scored this 91
   'the-gift': {
-    score: 91,
+    score: 100,
     policy: {
       grants: [
         { subject: 'cfo', object: 'merger', rights: ['r', 'w'] },

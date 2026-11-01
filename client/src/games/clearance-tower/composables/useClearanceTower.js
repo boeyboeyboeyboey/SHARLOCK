@@ -1,5 +1,11 @@
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useAttempt } from '../../../features/attempts/useAttempt.js'
+import {
+  clearAttemptDrafts,
+  forgetLevelDraft,
+  readLevelDraft,
+  saveLevelDraft,
+} from './clearanceDraft.js'
 
 // phases inside an active climb: levels → brief → design → predict → day → debrief
 export function useClearanceTower() {
@@ -9,6 +15,7 @@ export function useClearanceTower() {
   const levelId = ref(null)
   const policy = ref(null)
   const predictions = ref({})
+  const draftRestored = ref(false)
 
   const state = computed(() => snapshot.value?.publicState ?? null)
   const levels = computed(() => state.value?.levels ?? [])
@@ -30,14 +37,36 @@ export function useClearanceTower() {
     if (!item) return
     levelId.value = id
     predictions.value = {}
+    draftRestored.value = false
     if (item.submitted) {
       policy.value = structuredClone(item.result.policy)
       phase.value = 'day'
-    } else {
-      policy.value = structuredClone(item.startPolicy)
-      phase.value = 'brief'
+      return
     }
+    const draft = readLevelDraft(snapshot.value.attemptId, item)
+    draftRestored.value = Boolean(draft)
+    policy.value = draft?.policy ?? structuredClone(item.startPolicy)
+    predictions.value = draft?.predictions ?? {}
+    phase.value = 'brief'
   }
+
+  // keeps unsubmitted work across a reload; the attempt snapshot stays the source of truth
+  watch(
+    [policy, predictions],
+    () => {
+      const item = level.value
+      if (!item || item.submitted || !policy.value || snapshot.value?.status !== 'active') return
+      saveLevelDraft(snapshot.value.attemptId, item, policy.value, predictions.value)
+    },
+    { deep: true },
+  )
+
+  watch(
+    () => snapshot.value?.status,
+    (status) => {
+      if (status === 'completed') clearAttemptDrafts(snapshot.value.attemptId)
+    },
+  )
 
   async function runDay() {
     const ok = await attempt.mutate('submit-level', {
@@ -48,8 +77,13 @@ export function useClearanceTower() {
         verdict: predictions.value[prompt.id],
       })),
     })
-    if (ok) phase.value = 'day'
+    if (ok) enterDay()
     return ok
+  }
+
+  function enterDay() {
+    forgetLevelDraft(snapshot.value.attemptId, levelId.value)
+    phase.value = 'day'
   }
 
   async function takeHint() {
@@ -58,7 +92,14 @@ export function useClearanceTower() {
 
   async function retry() {
     const ok = await attempt.retry()
-    if (ok && phase.value === 'predict') phase.value = 'day'
+    if (ok && phase.value === 'predict') enterDay()
+    return ok
+  }
+
+  // after a stale tab or an expired session: a case that ran elsewhere cannot stay open as a draft
+  async function reload() {
+    const ok = await attempt.load(snapshot.value.attemptId)
+    if (ok && level.value?.submitted && phase.value !== 'levels') phase.value = 'levels'
     return ok
   }
 
@@ -72,6 +113,7 @@ export function useClearanceTower() {
     levelId.value = null
     policy.value = null
     predictions.value = {}
+    draftRestored.value = false
     phase.value = 'levels'
   }
 
@@ -93,6 +135,8 @@ export function useClearanceTower() {
     load: attempt.load,
     complete: attempt.complete,
     retry,
+    reload,
+    draftRestored,
     openLevel,
     runDay,
     takeHint,

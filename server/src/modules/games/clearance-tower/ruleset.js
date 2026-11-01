@@ -3,7 +3,7 @@ import { AttemptError } from '../../attempts/policy.js'
 import { HINT_COST, MAX_HINTS, hintTexts } from './hints.js'
 import { LEVELS, findLevel, publicLevel } from './levels.js'
 import { ClearanceError, GAME_ID, RULESET_VERSION, parseSubmission } from './policy.js'
-import { MAX_SCORE, scoreLevel } from './scoring.js'
+import { MAX_SCORE, SCORING_RULES, scoreLevel } from './scoring.js'
 import { simulateDay } from './simulate.js'
 
 const TOPICS = {
@@ -56,7 +56,7 @@ function invalid(code, message, status = 400) {
 }
 
 // replays the stored submission; the day script and answers never leave the server before this
-function playLevel(entry, hintsUsed = 0) {
+function playLevel(entry, hintsUsed, rules) {
   const level = findLevel(entry.levelId)
   const policy = JSON.parse(entry.policyJson)
   const predictions = Object.fromEntries(entry.predictions.map((item) => [item.id, item.verdict]))
@@ -65,7 +65,7 @@ function playLevel(entry, hintsUsed = 0) {
     level,
     policy,
     events,
-    scored: scoreLevel(level, policy, predictions, events, hintsUsed),
+    scored: scoreLevel(level, policy, predictions, events, hintsUsed, rules),
   }
 }
 
@@ -77,8 +77,13 @@ function hintsUsedFor(state, levelId) {
   return state.hints?.find((entry) => entry.levelId === levelId)?.count ?? 0
 }
 
-// clear-3 adds the hint action and its score cost; clear-2 stays readable through the same rules without it
-export function createClearanceRuleset({ rulesetVersion, current, hints }) {
+export function levelMastered(scored, rules) {
+  if (!scored || scored.score < MASTERY_SCORE) return false
+  return !rules.leakBlocksTopic || scored.meters.leaks === 0
+}
+
+// clear-2 has no hints; clear-3 adds them; clear-4 keeps hints and changes the scoring rules
+export function createClearanceRuleset({ rulesetVersion, current, hints, rules }) {
   const usedFor = (state, levelId) => (hints ? hintsUsedFor(state, levelId) : 0)
 
   return {
@@ -171,7 +176,7 @@ export function createClearanceRuleset({ rulesetVersion, current, hints }) {
             }),
           }
           if (!entry) return base
-          const { policy, events, scored } = playLevel(entry, used)
+          const { policy, events, scored } = playLevel(entry, used, rules)
           return { ...base, result: { ...scored, policy, events, takeaways: level.takeaways } }
         }),
       }
@@ -180,7 +185,7 @@ export function createClearanceRuleset({ rulesetVersion, current, hints }) {
       const results = new Map(
         state.levels.map((entry) => [
           entry.levelId,
-          playLevel(entry, usedFor(state, entry.levelId)).scored,
+          playLevel(entry, usedFor(state, entry.levelId), rules).scored,
         ]),
       )
       const score = [...results.values()].reduce((total, scored) => total + scored.score, 0)
@@ -197,7 +202,7 @@ export function createClearanceRuleset({ rulesetVersion, current, hints }) {
         },
         topicOutcomes: Object.entries(TOPICS).map(([model, topic]) => {
           const group = LEVELS.filter((level) => level.model === model)
-          const achieved = group.every((level) => results.get(level.id)?.score >= MASTERY_SCORE)
+          const achieved = group.every((level) => levelMastered(results.get(level.id), rules))
           return {
             topic,
             achieved,
@@ -215,4 +220,5 @@ export const clearanceRuleset = createClearanceRuleset({
   rulesetVersion: RULESET_VERSION,
   current: true,
   hints: true,
+  rules: SCORING_RULES,
 })

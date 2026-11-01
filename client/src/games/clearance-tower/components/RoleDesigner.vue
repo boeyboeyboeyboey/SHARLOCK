@@ -102,13 +102,15 @@ function togglePermission(role, permissionId) {
               {{ agent.name }}<span class="clear-row-note">{{ agent.title }}</span>
             </th>
             <td v-for="role in roles" :key="role.id">
-              <input
-                type="checkbox"
-                :checked="roleIdsFor(modelValue, agent.id).includes(role.id)"
-                :aria-label="`${agent.name} holds ${role.name}`"
-                :disabled="disabled"
-                @change="update(toggleAssignment(modelValue, agent.id, role.id))"
-              />
+              <label class="clear-badge-cell">
+                <input
+                  type="checkbox"
+                  :checked="roleIdsFor(modelValue, agent.id).includes(role.id)"
+                  :disabled="disabled"
+                  @change="update(toggleAssignment(modelValue, agent.id, role.id))"
+                />
+                <span class="visually-hidden">{{ agent.name }} holds {{ role.name }}</span>
+              </label>
             </td>
           </tr>
         </tbody>

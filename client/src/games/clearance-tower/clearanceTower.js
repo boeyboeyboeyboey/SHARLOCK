@@ -55,6 +55,11 @@ export function formatLabel(level, label) {
   return `${nameOf(level.clearances, label.level)} {${categories.join(', ')}}`
 }
 
+export function stepVerdict(step) {
+  if (step.allowed === null) return 'not reached'
+  return step.allowed ? 'allowed' : 'blocked'
+}
+
 export function starText(stars) {
   return '★'.repeat(stars) + '☆'.repeat(3 - stars)
 }

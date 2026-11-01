@@ -252,7 +252,7 @@ Games open a **How to play** guide on your first visit. Tick "Don't show again" 
 | CLI Cyber Defender (`/games/cli-cyber-defender`)                                           | Investigate fictional alerts, then contain or dismiss them; timed runs rank on class boards.                                             | Playable, saved · Accepted (see [TASKS](TASKS.md#accepted-cli-cyber-defender-work)) | [module README](client/src/games/cli-cyber-defender/README.md)           |
 | The Phishing Post-Mortem (`/games/phishing-post-mortem`)                                   | Triage a run of fictional emails: Report or Trust each one, then tap the part that gave it away.                                         | Playable, saved · Done (see [SAVE-01](TASKS.md#review))                             | [module README](client/src/games/phishing-post-mortem/README.md)         |
 | Help Desk Shift (LLM Social Engineering Simulator) (`/games/social-engineering-simulator`) | Take 4 help desk calls, check callers with desk tools, then grant, call back, refuse or escalate; a shift saves as one practice attempt. | Playable, saved · Done (see [SAVE-01](TASKS.md#review))                             | [module README](client/src/games/social-engineering-simulator/README.md) |
-| Clearance Tower (`/games/clearance-tower`)                                                 | Design who may see what in an intelligence tower; a six-case climb saves up to 600 points; optional hints cost 10 points each.           | Playable, saved · Done (see [SAVE-01](TASKS.md#review))                             | [module README](client/src/games/clearance-tower/README.md)              |
+| Clearance Tower (`/games/clearance-tower`)                                                 | Design who may see what in an intelligence tower; six cases save up to 600 points; a leak fails a topic; hints cost 10 each.             | Playable, saved · Done (see [SAVE-01](TASKS.md#review))                             | [module README](client/src/games/clearance-tower/README.md)              |
 | SQL Injection Arcade (`/games/sql-injection-arcade`)                                       | Crack a run of simulated injection cases, then pick the fix; timed class runs rank on boards.                                            | Playable, saved · Done (see [SAVE-01](TASKS.md#review))                             | [module README](client/src/games/sql-injection-arcade/README.md)         |
 | Botnet Tag (`/games/botnet-tag`), needs 3D                                                 | Play infection tag with your class: spread the botnet or patch stations to stay clean.                                                   | In progress · lobby and results only (see [G-TAG](TASKS.md))                        | [module README](client/src/games/botnet-tag/README.md)                   |
 | The daily briefing / Threat Briefing (`/games/threat-briefing`)                            | Read The Sharlock Times for recent cybersecurity and technology stories; opens as an overlay.                                            | Playable                                                                            | [module README](client/src/games/threat-briefing/README.md)              |
@@ -559,7 +559,7 @@ The screen never authenticates the player as a real administrator.
 
 **Difficulty:** ★★★
 
-**Required concepts:** Authentication versus authorization, access matrices, ACLs and capabilities, Trojan horses, Bell–LaPadula labels and categories, role-based access control and separation of duties. Source: CS440 `07-access-control.pptx` slides 4–7, 13–25, 26–32 and 34–38.
+**Required concepts:** Authentication versus authorization, access matrices, ACLs and capabilities, Trojan horses, Bell–LaPadula labels and categories, role-based access control and separation of duties. Source: CS440 `07-access-control.pptx` slides 4–7, 13–25, 26–32 and 34–38; slides 18–19 are non-examinable background, and separation of duties is a team design built on the roles on slide 36.
 
 **Gameplay / interaction loop**
 
@@ -568,7 +568,7 @@ The screen never authenticates the player as a real administrator.
 3. Set the policy: matrix rights (with access-list and capability views), file labels with categories, or roles and badges.
 4. Predict allow/deny for three requests before the day runs.
 5. Run the day: animated visits stamp Allowed/Blocked in the tower while a duty log explains each decision; play, pause, step or skip.
-6. Score out of 100: no leaks 40 (minus 20 per leak), work completed 30, least privilege 15 (minus 5 per unneeded right or separation-of-duties conflict) and predictions 15. Bell–LaPadula cases drop the privilege row and score predictions out of 30. Stars at 95/75/50. The debrief reviews each call with slide references; retry is unlimited.
+6. Score out of 100: no leaks 40 (any leak loses the row), work completed 30, least privilege 15 (minus 5 per unneeded right or separation-of-duties conflict) and predictions 15. Bell–LaPadula cases drop the privilege row and score predictions out of 30. Below three quarters of the work, no leaks and least privilege shrink with the work share. "The Gift" counts 7 of 10 tasks as full work, because every fix blocks 3. A topic is achieved only when both its cases reach 75 with no leaks. Stars at 95/75/50. The debrief reviews each call with slide references; retry is unlimited.
 
 **Architectural blueprint**
 
@@ -583,9 +583,11 @@ The screen never authenticates the player as a real administrator.
 
 The game follows the hub's light town palette, with DotGothic16 body text and Pixelify Sans headings, scoped under `.clearance-game`. Reduced motion stops autoplay and animations, so players step through the duty log.
 
-**Acceptance:** Known solutions score as specified; the Trojan horse leaks under discretionary control and is stopped by the star property; Bell–LaPadula allows integrity tampering; separation-of-duties conflicts and excess rights cost points; strict validation rejects unknown fields and IDs; no answers reach the browser before submission; keyboard, touch, reduced motion and 375–1440px layouts work.
+**Acceptance:** Known solutions score as specified; leaving "The Gift" unchanged scores below the mastery line and does not achieve its topic; the Trojan horse leaks under discretionary control and is stopped by the star property; Bell–LaPadula allows integrity tampering; separation-of-duties conflicts and excess rights cost points; strict validation rejects unknown fields and IDs; no answers reach the browser before submission; keyboard, touch, reduced motion and 375–1440px layouts work.
 
 **Update (27 October 2026, SAVE-01):** the game now plays through the shared saved-attempt contract: one attempt is one six-level climb with a `submit-level` action per level (max 600, practice best), and the in-memory `/runs` routes are removed. See the SAVE-01 record in TASKS.md.
+
+**Update (1 November 2026, REVFIX-01 stage 5):** ruleset `clear-4` applies the rebalanced scoring in step 6; `clear-2` and `clear-3` stay registered, so saved climbs keep their own rules. Every case can now reach 100, so the 600 maximum is reachable. See the REVFIX-01 record in TASKS.md.
 
 **Implemented in this version (15 October 2026, Russell):** playable at `/games/clearance-tower` and now saved (SAVE-01), pending review. See TASKS.md for the G-CLEAR record and module READMEs for the client/server flow.
 

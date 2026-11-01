@@ -52,9 +52,9 @@ export const LEVELS = [
     act: 1,
     model: 'dac',
     title: 'The Matrix',
-    slides: 'CS440 07-access-control, slides 13–21',
+    slides: 'CS440 07-access-control, slides 6 and 13–21 (18–19 are non-examinable background)',
     brief:
-      'Halcyon Agency runs on an access matrix: every agent, every file, every right. Grant exactly what today’s work needs. Somebody on the contractor list has been asking questions.',
+      'Halcyon Agency runs on an access matrix: every agent, every file, every right. Authentication has already proved who each agent is; access control decides what they may do. Grant exactly what today’s work needs. Somebody on the contractor list has been asking questions.',
     agents: [
       { id: 'director', name: 'Director Hale', title: 'Director' },
       { id: 'analyst', name: 'Analyst Okafor', title: 'Intelligence analyst' },
@@ -97,18 +97,20 @@ export const LEVELS = [
       {
         id: 'p2',
         context:
-          'Payroll is a UNIX file owned by Auditor Lim with mode 754 (owner rwx, group r-x, others r--). Director Hale is in its group.',
+          'Optional background, not examinable: Payroll is a UNIX file owned by Auditor Lim with mode 754 (owner rwx, group r-x, others r--). Director Hale is in its group.',
         request: 'Director Hale writes to Payroll.',
         answer: 'deny',
-        explanation: 'The group bits are r-x: read and execute, but no write (slides 18–19).',
+        explanation:
+          'The group bits are r-x: read and execute, but no write (slides 18–19, marked non-examinable in the deck).',
       },
       {
         id: 'p3',
-        context: 'Same file, same mode 754. Contractor Vance falls under “others”.',
+        context:
+          'Optional background, not examinable: same file, same mode 754. Contractor Vance falls under “others”.',
         request: 'Contractor Vance reads Payroll.',
         answer: 'allow',
         explanation:
-          'Others get r--, so anyone outside the owner and group can read it. A generous mode is a leak waiting to happen (slides 18–19).',
+          'Others get r--, so anyone outside the owner and group can read it. A generous mode is a leak waiting to happen (slides 18–19, marked non-examinable in the deck).',
       },
     ],
     takeaways: [
@@ -132,6 +134,8 @@ export const LEVELS = [
       { id: 'merger', name: 'Merger File' },
       { id: 'board', name: 'Board Report' },
     ],
+    // every fix for the trojan blocks three tasks, so the work row counts seven of ten as full marks
+    unavoidableWorkLoss: 3,
     startPolicy: {
       grants: [
         { subject: 'cfo', object: 'merger', rights: ['r', 'w'] },
@@ -367,7 +371,7 @@ export const LEVELS = [
         request: 'Clerk Ashby writes into a Top Secret {Defense, Cyber} file.',
         answer: 'allow',
         explanation:
-          'Writing up is always allowed. Bell–LaPadula protects secrecy, not integrity (slide 28).',
+          'Writing up is allowed when the file’s label dominates the clerk’s (slide 29): Top Secret {Defense, Cyber} covers Confidential {}, so the write succeeds even though the clerk can never read it back. Bell–LaPadula protects secrecy, not integrity (slide 28).',
       },
     ],
     takeaways: [
@@ -437,7 +441,7 @@ export const LEVELS = [
     ],
     takeaways: [
       'Role-based control assigns users to roles and permissions to roles, which maps naturally onto how an organisation works (slides 34–36).',
-      'Separation of duties keeps doing, granting and auditing in different hands (slide 36).',
+      'Separation of duties keeps doing, granting and auditing in different hands. The deck lists the three roles on slide 36; the rule itself is a team design built on them.',
     ],
   },
   {

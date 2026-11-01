@@ -8,6 +8,7 @@ import {
   hasRight,
   removeRole,
   starText,
+  stepVerdict,
   toggleAssignment,
   toggleRight,
 } from '../clearanceTower.js'
@@ -21,6 +22,14 @@ const labelLevel = publicLevel(findLevel('compartments'))
 const roleLevel = publicLevel(findLevel('roles-not-people'))
 
 describe('clearance tower helpers', () => {
+  it('words a step as allowed, blocked or not reached', () => {
+    expect([true, false, null].map((allowed) => stepVerdict({ allowed }))).toEqual([
+      'allowed',
+      'blocked',
+      'not reached',
+    ])
+  })
+
   it('toggles one right at a time and drops empty grants', () => {
     let grants = toggleRight([], 'director', 'ops', 'w')
     grants = toggleRight(grants, 'director', 'ops', 'r')

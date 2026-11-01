@@ -141,11 +141,11 @@
   transition: transform 0.08s ease;
 }
 
-.clearance-game .clear-button:hover:not(:disabled) {
+.clearance-game .clear-button:hover:not(:disabled, [aria-disabled='true']) {
   background: var(--game-accent-soft);
 }
 
-.clearance-game .clear-button:active:not(:disabled) {
+.clearance-game .clear-button:active:not(:disabled, [aria-disabled='true']) {
   transform: translate(2px, 2px);
   box-shadow: none;
 }
@@ -163,7 +163,8 @@
   color: var(--game-bar-ink);
 }
 
-.clearance-game .clear-button:disabled {
+.clearance-game .clear-button:disabled,
+.clearance-game .clear-button[aria-disabled='true'] {
   opacity: 0.55;
   cursor: not-allowed;
 }
@@ -458,7 +459,17 @@
   overflow-wrap: normal;
 }
 
-.clearance-game .clear-table td input[type='checkbox'] {
+/* the label is the 44px target; the checkbox inside stays a readable size */
+.clearance-game .clear-badge-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.clearance-game .clear-badge-cell input[type='checkbox'] {
   width: 24px;
   height: 24px;
 }

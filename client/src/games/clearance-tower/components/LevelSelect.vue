@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 const props = defineProps({
   levels: { type: Array, required: true },
@@ -9,6 +9,19 @@ const props = defineProps({
 const emit = defineEmits(['select', 'finish'])
 
 const submittedCount = computed(() => props.levels.filter((level) => level.submitted).length)
+const unplayedCount = computed(() => props.levels.length - submittedCount.value)
+const confirmingFinish = ref(false)
+
+// finishing closes the climb for good, so an unfinished climb needs a second press
+function pressFinish() {
+  if (props.pending) return
+  if (unplayedCount.value > 0 && !confirmingFinish.value) {
+    confirmingFinish.value = true
+    return
+  }
+  confirmingFinish.value = false
+  emit('finish')
+}
 
 const acts = computed(() => {
   const groups = []
@@ -57,11 +70,20 @@ const acts = computed(() => {
       <button
         type="button"
         class="clear-button is-primary"
-        :disabled="!readyToComplete || pending"
-        @click="emit('finish')"
+        :disabled="!readyToComplete"
+        :aria-disabled="pending"
+        @click="pressFinish"
+        @blur="confirmingFinish = false"
       >
-        Finish climb
+        {{
+          confirmingFinish
+            ? `Finish with ${submittedCount} of ${levels.length} cases? Press again to save`
+            : 'Finish climb'
+        }}
       </button>
+      <p v-if="confirmingFinish" class="clear-warning" role="status">
+        The climb closes for good and the {{ unplayedCount }} cases you have not run score 0.
+      </p>
     </div>
   </section>
 </template>

@@ -149,7 +149,7 @@ describe('saved clearance tower journey', () => {
     const start = await post(student, attemptsPath, { context: { kind: 'personal' } }).expect(201)
     expect(start.body.gameId).toBe('clearance-tower')
     expect(start.body.maxScore).toBe(600)
-    expect(start.body.rulesetVersion).toBe('clear-3')
+    expect(start.body.rulesetVersion).toBe('clear-4')
     const path = `/api/attempts/${start.body.attemptId}`
     const hidden = JSON.stringify(start.body)
     for (const level of LEVELS) {
@@ -174,8 +174,16 @@ describe('saved clearance tower journey', () => {
 
     const finish = { actionId: randomUUID(), expectedRevision: snapshot.revision }
     const done = await post(student, `${path}/complete`, finish).expect(200)
-    expect(done.body).toMatchObject({ score: total, status: 'completed', persisted: true })
+    expect(done.body).toMatchObject({ score: 600, maxScore: 600, status: 'completed' })
+    expect(total).toBe(600)
+    expect(done.body.persisted).toBe(true)
     expect(done.body.mode).toBe('practice')
+    expect(done.body.topicOutcomes.every((outcome) => outcome.achieved)).toBe(true)
+    const progress = await student.agent.get('/api/me/progress').expect(200)
+    const earned = progress.body.achievements
+      .filter((item) => item.earnedAt)
+      .map((item) => item.key)
+    expect(earned).toContain('perfect-case')
     expect((await student.agent.get(path).expect(200)).body).toEqual(done.body)
 
     const other = await registerStudent(app)
@@ -251,7 +259,59 @@ describe('saved clearance tower journey', () => {
       actionId: randomUUID(),
       expectedRevision: played.revision,
     }).expect(200)
-    expect(done.body).toMatchObject({ score: 80, rulesetVersion: 'clear-3' })
+    expect(done.body).toMatchObject({ score: 80, rulesetVersion: 'clear-4' })
+  })
+
+  it('leaves the topic unachieved when the gift runs unchanged', async () => {
+    const student = await registerStudent(app)
+    const start = await post(student, attemptsPath, { context: { kind: 'personal' } }).expect(201)
+    const path = `/api/attempts/${start.body.attemptId}`
+    const matrix = await post(student, `${path}/actions`, submitLevel(start.body, 'the-matrix'))
+    const startPolicy = start.body.publicState.levels.find(
+      (level) => level.id === 'the-gift',
+    ).startPolicy
+    const gift = await post(
+      student,
+      `${path}/actions`,
+      submitLevel(matrix.body, 'the-gift', { policy: startPolicy }),
+    ).expect(200)
+    expect(gift.body.score).toBe(160)
+    const played = gift.body.publicState.levels.find((level) => level.id === 'the-gift').result
+    expect(played).toMatchObject({ score: 60, stars: 1 })
+    expect(played.meters).toMatchObject({ leaks: 1, topicBlockedByLeak: true })
+    const done = await post(student, `${path}/complete`, {
+      actionId: randomUUID(),
+      expectedRevision: gift.body.revision,
+    }).expect(200)
+    expect(done.body.topicOutcomes[0]).toMatchObject({
+      topic: 'discretionary-access-control',
+      achieved: false,
+    })
+  })
+
+  it('finishes a climb saved under clear-3 with the rules it started on', async () => {
+    const student = await registerStudent(app)
+    const start = await post(student, attemptsPath, { context: { kind: 'personal' } }).expect(201)
+    const attemptId = new Types.ObjectId(start.body.attemptId)
+    const legacy = createProductionAttemptRegistry().get('clearance-tower', 'clear-3')
+    await database.db
+      .collection('game_attempts')
+      .updateOne(
+        { _id: attemptId },
+        { $set: { rulesetVersion: 'clear-3', rulesetKey: legacy.storageKey } },
+      )
+    const path = `/api/attempts/${start.body.attemptId}`
+    const resumed = (await student.agent.get(path).expect(200)).body
+    expect(resumed.rulesetVersion).toBe('clear-3')
+    const gift = await post(student, `${path}/actions`, submitLevel(resumed, 'the-gift')).expect(
+      200,
+    )
+    expect(gift.body.score).toBe(91)
+    const done = await post(student, `${path}/complete`, {
+      actionId: randomUUID(),
+      expectedRevision: gift.body.revision,
+    }).expect(200)
+    expect(done.body).toMatchObject({ score: 91, maxScore: 600, rulesetVersion: 'clear-3' })
   })
 
   it('saves a class attempt onto the cohort leaderboard', async () => {

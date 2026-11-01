@@ -175,6 +175,116 @@ describe('useClearanceTower', () => {
   })
 })
 
+describe('useClearanceTower drafts and reload', () => {
+  const edited = { grants: [{ subject: 'director', object: 'ops', rights: ['r'] }] }
+
+  beforeEach(() => {
+    sessionStorage.clear()
+    readAttempt.mockResolvedValue(climb())
+  })
+
+  async function freshGame() {
+    const { exposed: game } = withSetup(useClearanceTower)
+    await game.load('climb-1')
+    return game
+  }
+
+  it('restores an unsubmitted policy and calls after a reload', async () => {
+    const before = await freshGame()
+    before.openLevel('the-matrix')
+    expect(before.draftRestored.value).toBe(false)
+    before.policy.value = edited
+    before.predictions.value = { p1: 'deny' }
+    await flushPromises()
+
+    const after = await freshGame()
+    after.openLevel('the-matrix')
+    expect(after.policy.value).toEqual(edited)
+    expect(after.predictions.value).toEqual({ p1: 'deny' })
+    expect(after.draftRestored.value).toBe(true)
+    after.openLevel('the-gift')
+    expect(after.draftRestored.value).toBe(false)
+    expect(after.policy.value).toEqual(after.level.value.startPolicy)
+  })
+
+  it('stores nothing for a case left untouched', async () => {
+    const before = await freshGame()
+    before.openLevel('the-matrix')
+    await flushPromises()
+    expect(sessionStorage.length).toBe(0)
+  })
+
+  it('forgets the draft once the case has run, and every draft once the climb is saved', async () => {
+    const game = await freshGame()
+    game.openLevel('the-matrix')
+    game.policy.value = edited
+    game.predictions.value = { p1: 'deny', p2: 'deny', p3: 'allow' }
+    await flushPromises()
+    const result = { score: 85, stars: 2, events: [], policy: edited }
+    const ran = withSubmitted(climb(), 'the-matrix', result)
+    writeAttempt.mockResolvedValueOnce(ran)
+    await game.runDay()
+    expect(sessionStorage.length).toBe(0)
+
+    game.openLevel('the-gift')
+    game.predictions.value = { p1: 'allow' }
+    await flushPromises()
+    expect(sessionStorage.length).toBe(1)
+    writeAttempt.mockResolvedValueOnce({ ...ran, status: 'completed' })
+    await game.complete()
+    await flushPromises()
+    expect(sessionStorage.length).toBe(0)
+  })
+
+  it('ignores a draft that does not fit the case', async () => {
+    sessionStorage.setItem(
+      'sharlock.clearance.draft.climb-1',
+      JSON.stringify({
+        'the-matrix': { policy: { roles: [] }, predictions: {} },
+        compartments: { policy: { objectLabels: {} }, predictions: {} },
+        'the-gift': 'nonsense',
+      }),
+    )
+    const game = await freshGame()
+    for (const id of ['the-matrix', 'compartments', 'the-gift']) {
+      game.openLevel(id)
+      expect(game.policy.value).toEqual(game.level.value.startPolicy)
+      expect(game.draftRestored.value).toBe(false)
+    }
+    sessionStorage.setItem('sharlock.clearance.draft.climb-1', '{not json')
+    game.openLevel('the-matrix')
+    expect(game.draftRestored.value).toBe(false)
+  })
+
+  it('reloads after a stale revision and leaves a case that already ran elsewhere', async () => {
+    const game = await freshGame()
+    game.openLevel('the-matrix')
+    game.showPhase('predict')
+    const stale = Object.assign(new Error('This case changed in another tab.'), { status: 409 })
+    writeAttempt.mockRejectedValueOnce(stale)
+    await game.takeHint()
+    expect(game.error.value).toBe('This case changed in another tab.')
+    expect(game.retryable.value).toBe(false)
+
+    const ran = { score: 70, stars: 1, events: [], policy: edited }
+    readAttempt.mockResolvedValue(withSubmitted(climb(), 'the-matrix', ran))
+    expect(await game.reload()).toBe(true)
+    expect(readAttempt).toHaveBeenLastCalledWith('climb-1', expect.any(AbortSignal))
+    expect(game.error.value).toBe('')
+    expect(game.phase.value).toBe('levels')
+  })
+
+  it('stays on the open case when a reload finds it still unsubmitted', async () => {
+    const game = await freshGame()
+    game.openLevel('the-matrix')
+    game.showPhase('design')
+    game.policy.value = edited
+    expect(await game.reload()).toBe(true)
+    expect(game.phase.value).toBe('design')
+    expect(game.policy.value).toEqual(edited)
+  })
+})
+
 describe('useDayPlayback', () => {
   const events = ref([{ id: 'e1' }, { id: 'e2' }, { id: 'e3' }])
 
