@@ -5,7 +5,6 @@ const props = defineProps({
   email: { type: Object, required: true },
   picking: { type: Boolean, default: false },
   highlightIds: { type: Array, default: () => [] },
-  selectedPartId: { type: String, default: null },
   disabled: { type: Boolean, default: false },
 })
 const emit = defineEmits(['select-part', 'cancel-pick'])
@@ -89,21 +88,22 @@ function onKeydown(event) {
                       type: 'button',
                       disabled,
                       'aria-label': partName(senderPart),
-                      'aria-pressed': selectedPartId === senderPart.id,
                     }
                   : {}
               "
               class="triage-part"
               :class="{
                 'is-tell': isHighlighted(senderPart),
-                'is-selected': selectedPartId === senderPart.id,
                 'is-pickable': picking,
               }"
               @click="picking && emit('select-part', senderPart.id)"
             >
               <span class="triage-sender-name">{{ senderPart.name }}</span>
               <span class="triage-address">&lt;{{ senderPart.address }}&gt;</span>
-              <span v-if="isHighlighted(senderPart)" class="triage-tell-mark"
+              <span
+                v-if="isHighlighted(senderPart)"
+                class="triage-tell-mark"
+                data-testid="triage-tell-mark"
                 >What gave it away</span
               >
             </component>
@@ -120,20 +120,21 @@ function onKeydown(event) {
                       type: 'button',
                       disabled,
                       'aria-label': partName(replyToPart),
-                      'aria-pressed': selectedPartId === replyToPart.id,
                     }
                   : {}
               "
               class="triage-part"
               :class="{
                 'is-tell': isHighlighted(replyToPart),
-                'is-selected': selectedPartId === replyToPart.id,
                 'is-pickable': picking,
               }"
               @click="picking && emit('select-part', replyToPart.id)"
             >
               <span class="triage-address">{{ replyToPart.address }}</span>
-              <span v-if="isHighlighted(replyToPart)" class="triage-tell-mark"
+              <span
+                v-if="isHighlighted(replyToPart)"
+                class="triage-tell-mark"
+                data-testid="triage-tell-mark"
                 >What gave it away</span
               >
             </component>
@@ -157,7 +158,6 @@ function onKeydown(event) {
                   type: 'button',
                   disabled,
                   'aria-label': partName(part),
-                  'aria-pressed': selectedPartId === part.id,
                 }
               : {}
           "
@@ -166,7 +166,6 @@ function onKeydown(event) {
             `triage-part-${part.kind}`,
             {
               'is-tell': isHighlighted(part),
-              'is-selected': selectedPartId === part.id,
               'is-pickable': picking,
             },
           ]"
@@ -196,7 +195,9 @@ function onKeydown(event) {
           <template v-else>
             <span class="triage-text">{{ part.text }}</span>
           </template>
-          <span v-if="isHighlighted(part)" class="triage-tell-mark">What gave it away</span>
+          <span v-if="isHighlighted(part)" class="triage-tell-mark" data-testid="triage-tell-mark"
+            >What gave it away</span
+          >
         </component>
       </div>
     </div>

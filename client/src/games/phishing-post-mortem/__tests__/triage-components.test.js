@@ -86,7 +86,7 @@ describe('TriageEmailCard', () => {
 
   it('marks highlighted parts with text', () => {
     const wrapper = card({ highlightIds: ['p-link'] })
-    expect(wrapper.findAll('.triage-tell-mark')).toHaveLength(1)
+    expect(wrapper.findAll('[data-testid="triage-tell-mark"]')).toHaveLength(1)
     expect(wrapper.text()).toContain('What gave it away')
     wrapper.unmount()
   })
@@ -228,7 +228,7 @@ describe('TriageDebrief', () => {
     const wrapper = mount(TriageDebrief, {
       props: { review, score: 10, mistakes: 1, roundsPlayed: 2, timed: true, endReason: 'time' },
     })
-    expect(wrapper.find('h2').text()).toBe('Run complete')
+    expect(wrapper.find('h2').exists()).toBe(false)
     expect(wrapper.text()).toContain("Time's up")
     expect(wrapper.text()).toContain('Timed class run')
     expect(wrapper.text()).toContain('Correct calls1 of 2')
@@ -252,10 +252,23 @@ describe('TriageDebrief', () => {
     expect(rounds.text()).toContain('Practice')
   })
 
-  it('shows the round cap end line and no play again button', () => {
+  it('shows the round cap end line and offers Play again before the review list', async () => {
     const wrapper = mount(TriageDebrief, { props: { review, endReason: 'cap', timed: false } })
     expect(wrapper.text()).toContain('Round limit reached')
-    expect(wrapper.findAll('button').filter((item) => item.text() === 'Play again')).toHaveLength(0)
+    const again = wrapper.get('button')
+    expect(again.text()).toBe('Play again')
+    const order = again.element.compareDocumentPosition(wrapper.get('ol').element)
+    expect(order & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    await again.trigger('click')
+    expect(wrapper.emitted('replay')).toHaveLength(1)
+  })
+
+  it('labels the score against the maximum and says when par is reached', async () => {
+    const wrapper = mount(TriageDebrief, { props: { review, score: 640, maxScore: 1000 } })
+    expect(wrapper.text()).toContain('Score640 of 1000')
+    expect(wrapper.text()).not.toContain('Par reached')
+    await wrapper.setProps({ score: 1000 })
+    expect(wrapper.text()).toContain('Par reached')
   })
 })
 

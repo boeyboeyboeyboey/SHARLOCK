@@ -1,8 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { createProductionAttemptRegistry } from '../../../src/modules/attempts/production-registry.js'
-import { generateRound } from '../../../src/modules/games/phishing-post-mortem/triage/generator/index.js'
-import { createTriageRuleset } from '../../../src/modules/games/phishing-post-mortem/triage/ruleset.js'
 import {
+  GENERATOR_VERSION,
+  generateRound,
+} from '../../../src/modules/games/phishing-post-mortem/triage/generator/index.js'
+import {
+  createTriageRuleset,
+  triageLegacyRuleset,
+} from '../../../src/modules/games/phishing-post-mortem/triage/ruleset.js'
+import {
+  PAR_SCORE,
   TIER_POINTS,
   maxTimedScore,
   multiplier,
@@ -83,7 +90,7 @@ describe('triage createState', () => {
       const json = JSON.stringify(ruleset.serializePublicState(run.state, meta))
       seen.push(json)
       for (let i = 0; i + 8 <= SEED.length; i += 1) expect(json).not.toContain(SEED.slice(i, i + 8))
-      expect(json).not.toContain('triage-1')
+      expect(json).not.toContain(GENERATOR_VERSION)
     }
     check(run.meta)
     for (let i = 0; i < 3; i += 1) {
@@ -283,14 +290,80 @@ describe('triage public state', () => {
 })
 
 describe('triage summary and registry', () => {
-  it('maxScore bounds a perfect 60 round run', () => {
+  it('caps a saved score at the documented par of 1,000', () => {
     const run = start()
     for (let i = 0; i < 60; i += 1) step(run, true)
     expect(run.state.rounds).toHaveLength(60)
-    const summary = ruleset.summarize(run.state, run.meta)
-    expect(summary.score).toBeLessThanOrEqual(maxTimedScore())
-    expect(ruleset.maxScore).toBe(maxTimedScore())
+    expect(ruleset.maxScore).toBe(1000)
+    expect(ruleset.summarize(run.state, run.meta).score).toBe(PAR_SCORE)
+    expect(ruleset.serializePublicState(run.state, run.meta).score).toBe(PAR_SCORE)
     expect(ruleset.canComplete(run.state, run.meta)).toBe(true)
+  })
+
+  it('reaches par with real play: 16 straight right calls in a class run, every seed tried', () => {
+    for (let index = 0; index < 200; index += 1) {
+      const seed = index.toString(16).padStart(32, '0')
+      const seeded = createTriageRuleset({ randomSeed: () => seed })
+      const created = seeded.createState({ now: NOW, context: classContext })
+      const meta = {
+        now: NOW,
+        deadlineAt: created.deadlineAt,
+        mode: created.mode,
+        status: 'active',
+      }
+      let { state } = created
+      for (let round = 0; round < 17; round += 1) {
+        const [call, partId] = callFor(state, true)
+        const { email } = roundAt(state)
+        const payload =
+          call === 'report'
+            ? { roundId: email.roundId, call, partId }
+            : { roundId: email.roundId, call }
+        state = seeded.applyAction(state, { type: 'triage-call', payload }, meta)
+      }
+      expect(seeded.summarize(state, meta).score, seed).toBe(PAR_SCORE)
+    }
+  })
+
+  it('earns a practice run most of the par, never all of it', () => {
+    const scores = []
+    for (let index = 0; index < 200; index += 1) {
+      const seed = index.toString(16).padStart(32, '0')
+      const seeded = createTriageRuleset({ randomSeed: () => seed })
+      const context = { kind: 'personal', cohortId: null }
+      const created = seeded.createState({ now: NOW, context })
+      const meta = { now: NOW, deadlineAt: null, mode: 'practice', status: 'active' }
+      let { state } = created
+      for (let round = 0; round < 12; round += 1) {
+        const [call, partId] = callFor(state, true)
+        const { email } = roundAt(state)
+        const payload =
+          call === 'report'
+            ? { roundId: email.roundId, call, partId }
+            : { roundId: email.roundId, call }
+        state = seeded.applyAction(state, { type: 'triage-call', payload }, meta)
+      }
+      scores.push(seeded.summarize(state, meta).score)
+    }
+    expect(Math.min(...scores)).toBeGreaterThanOrEqual(580)
+    expect(Math.max(...scores)).toBeLessThan(PAR_SCORE)
+  })
+
+  it('keeps the phish-3 maximum for attempts saved or open under it', () => {
+    expect(triageLegacyRuleset.rulesetVersion).toBe('phish-3')
+    expect(triageLegacyRuleset.current).toBe(false)
+    expect(triageLegacyRuleset.maxScore).toBe(maxTimedScore())
+    expect(maxTimedScore()).toBe(6610)
+    const run = start()
+    for (let i = 0; i < 60; i += 1) step(run, true)
+    const raw = run.state.rounds.reduce((sum, round) => sum + round.points, 0)
+    expect(raw).toBeGreaterThan(PAR_SCORE)
+    expect(triageLegacyRuleset.summarize(run.state, run.meta).score).toBe(raw)
+  })
+
+  it('reports the server time for the browser countdown', () => {
+    const run = start()
+    expect(ruleset.serializePublicState(run.state, run.meta).serverNow).toBe(NOW.getTime())
   })
 
   it('summarizes topics by phish type', () => {
@@ -303,11 +376,13 @@ describe('triage summary and registry', () => {
     expect(JSON.stringify(summary)).not.toContain(SEED)
   })
 
-  it('registers phish-3 as current and keeps phish-2', () => {
+  it('registers phish-4 as current and keeps phish-3 and phish-2', () => {
     const registry = createProductionAttemptRegistry()
     const current = registry.getCurrent('phishing-post-mortem')
-    expect(current.rulesetVersion).toBe('phish-3')
+    expect(current.rulesetVersion).toBe('phish-4')
     expect(current.competitive).toBe(true)
+    expect(registry.get('phishing-post-mortem', 'phish-3').current).toBe(false)
+    expect(registry.get('phishing-post-mortem', 'phish-3').maxScore).toBe(6610)
     expect(registry.get('phishing-post-mortem', 'phish-2').current).toBe(false)
   })
 })

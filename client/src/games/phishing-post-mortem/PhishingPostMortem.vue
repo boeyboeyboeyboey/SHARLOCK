@@ -57,6 +57,9 @@ const {
 const initializing = ref(true)
 const picking = ref(false)
 const reportButton = ref(null)
+const gameRoot = ref(null)
+const statusBar = ref(null)
+const desk = ref(null)
 // practice shows the explanation until Next, so this remembers the last round already read
 const readRound = ref(null)
 
@@ -75,6 +78,8 @@ const endReason = computed(() => {
 
 onMounted(async () => {
   if (typeof route.query.attempt === 'string') {
+    // a resumed run's clock is already running, so the guide must not cover it
+    howToOpen.value = false
     await resume(route.query.attempt)
     // a finished run opens on its debrief, not on the last explanation
     if (completed.value) readRound.value = last.value?.roundId ?? null
@@ -88,6 +93,22 @@ watch(
     picking.value = false
   },
 )
+
+// the bar above the email is pinned, so a new email must not open with its sender hidden behind it
+watch([() => current.value?.roundId, holdFeedback], async () => {
+  await nextTick()
+  const barBottom = statusBar.value?.$el?.getBoundingClientRect?.().bottom
+  const deskTop = desk.value?.getBoundingClientRect?.().top
+  if (barBottom === undefined || deskTop === undefined || deskTop >= barBottom) return
+  globalThis.scrollBy?.({ top: deskTop - barBottom - 8 })
+})
+
+// the result opens at its heading, not wherever the last email left the page
+watch(showResult, async (shown) => {
+  if (!shown) return
+  await nextTick()
+  gameRoot.value?.scrollIntoView?.({ block: 'start' })
+})
 
 // brief stamp and shake after each timed call, never blocks input
 const STAMP_MS = 450
@@ -185,7 +206,7 @@ async function nextEmail() {
 </script>
 
 <template>
-  <div class="phish-game">
+  <div ref="gameRoot" class="phish-game">
     <div class="phish-intro">
       <RouterLink to="/" class="phish-back back-link">Back to town</RouterLink>
       <h1 tabindex="-1">The Phishing Post-Mortem</h1>
@@ -228,14 +249,17 @@ async function nextEmail() {
         v-if="showResult"
         :review="review ?? []"
         :score="score"
+        :max-score="snapshot.maxScore"
         :mistakes="mistakes"
         :rounds-played="roundsPlayed"
         :timed="timed"
         :end-reason="endReason"
+        @replay="replay"
       />
 
       <div v-else class="triage-run">
         <TriageStatusBar
+          ref="statusBar"
           :timed="timed"
           :seconds-left="secondsLeft ?? 0"
           :score="score"
@@ -246,8 +270,8 @@ async function nextEmail() {
           :total-rounds="totalRounds ?? 12"
         />
 
-        <div class="triage-desk" :class="{ 'is-shaking': shaking }">
-          <div v-if="timed" class="triage-live" aria-live="polite">
+        <div ref="desk" class="triage-desk" :class="{ 'is-shaking': shaking }">
+          <div v-if="timed" class="triage-live" data-testid="triage-live" aria-live="polite">
             <span
               v-if="stamp"
               :key="stamp.key"
@@ -280,11 +304,11 @@ async function nextEmail() {
             />
 
             <HintPanel
-              v-if="!timed && maxHintTier > 0 && !picking"
+              v-if="!timed && maxHintTier > 0"
               :tier="hintState?.tier ?? 0"
               :max-tier="maxHintTier"
               :lines="hintState?.lines ?? []"
-              :disabled="locked"
+              :disabled="locked || picking"
               @hint="hint"
             />
 

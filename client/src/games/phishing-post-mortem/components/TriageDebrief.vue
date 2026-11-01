@@ -5,11 +5,13 @@ import { typeLabel } from './triageLabels.js'
 const props = defineProps({
   review: { type: Array, default: () => [] },
   score: { type: Number, default: 0 },
+  maxScore: { type: Number, default: 0 },
   mistakes: { type: Number, default: 0 },
   roundsPlayed: { type: Number, default: 0 },
   timed: { type: Boolean, default: false },
   endReason: { type: String, default: null },
 })
+defineEmits(['replay'])
 const END_LINES = {
   mistakes: 'Ended on the third mistake',
   time: "Time's up",
@@ -18,6 +20,7 @@ const END_LINES = {
 }
 const correctCalls = computed(() => props.review.filter((item) => item.correct).length)
 const endLine = computed(() => END_LINES[props.endReason] ?? '')
+const reachedPar = computed(() => props.maxScore > 0 && props.score >= props.maxScore)
 const modeNote = computed(() => (props.timed ? 'Timed class run' : 'Practice'))
 
 function callLabel(item) {
@@ -27,13 +30,14 @@ function callLabel(item) {
 
 <template>
   <section class="triage-debrief">
-    <h2>Run complete</h2>
     <p v-if="endLine" class="triage-end">{{ endLine }}</p>
     <p class="triage-mode">{{ modeNote }}</p>
     <dl class="triage-totals">
       <div>
         <dt>Score</dt>
-        <dd>{{ score }}</dd>
+        <dd>
+          {{ score }}<span v-if="maxScore" class="triage-of-max"> of {{ maxScore }}</span>
+        </dd>
       </div>
       <div>
         <dt>Correct calls</dt>
@@ -44,6 +48,8 @@ function callLabel(item) {
         <dd>{{ mistakes }}</dd>
       </div>
     </dl>
+    <p v-if="reachedPar" class="triage-par">Par reached: the most one run can save.</p>
+    <button type="button" class="triage-next" @click="$emit('replay')">Play again</button>
     <ol class="triage-review">
       <li
         v-for="(item, index) in review"

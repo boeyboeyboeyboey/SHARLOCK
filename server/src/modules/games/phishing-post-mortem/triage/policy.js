@@ -1,7 +1,10 @@
 import { tierForRound } from './generator/index.js'
 
 export const GAME_ID = 'phishing-post-mortem'
-export const RULESET_VERSION = 'phish-3'
+export const RULESET_VERSION = 'phish-4'
+export const LEGACY_RULESET_VERSION = 'phish-3'
+// what a strong class run saves: about 16 emails in a row with no mistake, 11 seconds each
+export const PAR_SCORE = 1000
 export const TIMED_SECONDS = 180
 export const MAX_MISTAKES = 3
 export const PRACTICE_ROUNDS = 12
@@ -15,12 +18,11 @@ const PART_ID = /^p[0-9a-z]{4}$/
 const ACTION_FIELDS = ['roundId', 'call', 'partId']
 
 export class TriageError extends Error {
-  constructor(code, message, status = 400, fieldErrors = null) {
+  constructor(code, message, status = 400) {
     super(message)
     this.name = 'TriageError'
     this.code = code
     this.status = status
-    this.fieldErrors = fieldErrors
   }
 }
 
@@ -29,7 +31,8 @@ export function multiplier(streakBefore) {
   return streakBefore >= 3 ? 2 : 1
 }
 
-// upper bound for a full timed run: every round a phish with its tell found on a perfect streak
+// the phish-3 maximum, kept for saved results: 60 rounds, each a phish with its tell found, on a
+// perfect streak, which no run reaches
 export function maxTimedScore() {
   let total = 0
   for (let index = 0; index < TIMED_ROUND_CAP; index += 1) {
@@ -38,43 +41,30 @@ export function maxTimedScore() {
   return total
 }
 
-function invalid(fieldErrors) {
+function invalid() {
   return new TriageError(
     'PHISH_INVALID_REQUEST',
     'That call could not be read. Check your selection and try again.',
-    400,
-    fieldErrors,
   )
 }
 
 // a hint names only the round; the server decides which tier comes next
 function parseHint(payload) {
-  const fieldErrors = Object.create(null)
-  for (const key of Object.keys(payload))
-    if (key !== 'roundId') fieldErrors[key] = 'unsupported field'
-  if (typeof payload.roundId !== 'string' || !ROUND_ID.test(payload.roundId))
-    fieldErrors.roundId = 'expected a valid identifier'
-  if (Object.keys(fieldErrors).length) throw invalid(fieldErrors)
+  if (Object.keys(payload).some((key) => key !== 'roundId')) throw invalid()
+  if (typeof payload.roundId !== 'string' || !ROUND_ID.test(payload.roundId)) throw invalid()
   return { roundId: payload.roundId }
 }
 
 export function parseAction(type, payload) {
   if (type !== 'triage-call' && type !== 'triage-hint')
     throw new TriageError('PHISH_INVALID_ACTION', 'Choose a supported triage action.')
-  if (!payload || typeof payload !== 'object' || Array.isArray(payload))
-    throw invalid({ body: 'expected an object' })
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw invalid()
   if (type === 'triage-hint') return parseHint(payload)
-  const fieldErrors = Object.create(null)
-  for (const key of Object.keys(payload))
-    if (!ACTION_FIELDS.includes(key)) fieldErrors[key] = 'unsupported field'
+  if (Object.keys(payload).some((key) => !ACTION_FIELDS.includes(key))) throw invalid()
   const { roundId, call, partId } = payload
-  if (typeof roundId !== 'string' || !ROUND_ID.test(roundId))
-    fieldErrors.roundId = 'expected a valid identifier'
-  if (call !== 'report' && call !== 'trust') fieldErrors.call = 'expected report or trust'
-  if (call === 'report' && (typeof partId !== 'string' || !PART_ID.test(partId)))
-    fieldErrors.partId = 'expected the part you are reporting'
-  if (call === 'trust' && Object.hasOwn(payload, 'partId'))
-    fieldErrors.partId = 'not allowed when trusting an email'
-  if (Object.keys(fieldErrors).length) throw invalid(fieldErrors)
+  if (typeof roundId !== 'string' || !ROUND_ID.test(roundId)) throw invalid()
+  if (call !== 'report' && call !== 'trust') throw invalid()
+  if (call === 'report' && (typeof partId !== 'string' || !PART_ID.test(partId))) throw invalid()
+  if (call === 'trust' && Object.hasOwn(payload, 'partId')) throw invalid()
   return call === 'report' ? { roundId, call, partId } : { roundId, call }
 }

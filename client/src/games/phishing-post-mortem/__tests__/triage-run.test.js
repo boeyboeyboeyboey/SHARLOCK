@@ -192,4 +192,37 @@ describe('triage run', () => {
     wrapper.unmount()
     expect(vi.getTimerCount()).toBe(0)
   })
+
+  it('counts down on the server clock when the device clock runs ahead', async () => {
+    // the device is five minutes ahead, which used to make the run unplayable
+    vi.setSystemTime(new Date(START.getTime() + 300_000))
+    const { game } = harness()
+    writeAttempt.mockResolvedValueOnce(snap({}, { serverNow: START.getTime() }))
+    await game.start({ kind: 'personal' })
+    await flushPromises()
+    expect(game.secondsLeft.value).toBe(180)
+    expect(game.needsCompletion.value).toBe(false)
+    expect(game.canAct.value).toBe(true)
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(game.secondsLeft.value).toBe(120)
+    expect(writeAttempt).toHaveBeenCalledTimes(1)
+  })
+
+  it('counts down on the server clock when the device clock runs behind', async () => {
+    vi.setSystemTime(new Date(START.getTime() - 300_000))
+    const { game } = harness()
+    writeAttempt.mockResolvedValueOnce(snap({}, { serverNow: START.getTime() }))
+    await game.start({ kind: 'personal' })
+    await flushPromises()
+    expect(game.secondsLeft.value).toBe(180)
+  })
+
+  it('asks for a hint on the current round', async () => {
+    const { game } = await started(practice())
+    writeAttempt.mockResolvedValueOnce(practice())
+    await game.hint()
+    const [path, body] = writeAttempt.mock.calls.at(-1)
+    expect(path).toBe('/attempts/att-1/actions')
+    expect(body).toMatchObject({ type: 'triage-hint', payload: { roundId: 'r1' } })
+  })
 })

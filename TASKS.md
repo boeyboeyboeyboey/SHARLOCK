@@ -1794,6 +1794,8 @@ Prompt instructions are not an authorization boundary. Give the model no tools o
 
 ### G-PHISH — The Phishing Post-Mortem
 
+**Update (1 November 2026, REVFIX-01 stage 6):** ruleset `phish-4` keeps these rules with a reachable maximum of 1,000 (`phish-3` stays registered with its 6,610). See the [server README](server/src/modules/games/phishing-post-mortem/README.md).
+
 **Update (28 October 2026, PHISH-01, Review):** the 20-email Patient Zero investigation below was replaced by a triage run of single emails (ruleset `phish-3`): Report or Trust, then tap the part that gave a phish away; timed 3:00 class runs are ranked as "Timed runs", personal practice is 12 untimed emails. The inbox components named below were removed. The text below is retained as history; see the PHISH-01 record.
 
 **Concept:** Investigate 20 synthetic emails and identify “Patient Zero”: the email that caused the first confirmed compromise.

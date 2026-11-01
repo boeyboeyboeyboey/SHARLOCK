@@ -172,11 +172,6 @@
   border-color: var(--game-accent);
 }
 
-.phish-game .triage-part.is-selected {
-  background: var(--game-accent-soft);
-  border-color: var(--game-accent);
-}
-
 .phish-game .triage-part.is-tell {
   background: var(--game-bad-soft);
   border-color: var(--game-bad);
@@ -774,7 +769,8 @@
   border-radius: 8px;
 }
 
-.phish-game .triage-hint-button:disabled {
+.phish-game .triage-hint-button[aria-disabled='true'] {
+  cursor: default;
   opacity: 0.6;
 }
 
@@ -791,4 +787,99 @@
 .phish-game .triage-hint-used {
   font-size: 0.875rem;
   font-weight: 700;
+}
+
+/* the clock and the decision stay on screen however long the email is; --top-band is the height
+   of the shared floating controls, and it is unset outside a game room */
+.phish-game {
+  scroll-margin-top: var(--top-band, 0px);
+}
+
+.phish-game .triage-status {
+  position: sticky;
+  top: var(--top-band, 0px);
+  z-index: 5;
+}
+
+.phish-game .triage-controls,
+.phish-game .triage-pick-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+}
+
+.phish-game .triage-controls {
+  margin: 0 -0.75rem -0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--game-desk-deep);
+  border-top: 1px solid var(--game-line-strong);
+}
+
+.phish-game .triage-of-max {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--game-muted);
+}
+
+.phish-game .triage-par {
+  font-weight: 700;
+  color: var(--game-good);
+}
+
+.phish-game .triage-debrief > .triage-next {
+  justify-self: start;
+}
+
+/* small screens: fewer lines above the email, so sender and subject fit the first screen */
+@media (max-width: 575.98px) {
+  .phish-game .phish-intro {
+    margin-bottom: 0.5rem;
+  }
+
+  .phish-game .phish-back {
+    min-height: 44px;
+    padding: 0.4rem 0;
+  }
+
+  .phish-game h1 {
+    margin: 0;
+    font-size: 1.25rem;
+  }
+
+  .phish-game .triage-run {
+    gap: 0.5rem;
+  }
+
+  .phish-game .triage-status {
+    gap: 0.15rem 0.75rem;
+    padding: 0.35rem 0.6rem;
+    font-size: 0.9rem;
+  }
+
+  .phish-game .triage-clock {
+    font-size: 1.1rem;
+  }
+
+  .phish-game .triage-desk {
+    gap: 0.5rem;
+    padding: 0.5rem;
+  }
+
+  .phish-game .triage-controls {
+    margin: 0 -0.5rem -0.5rem;
+    padding: 0.5rem;
+  }
+
+  .phish-game .triage-report,
+  .phish-game .triage-trust {
+    min-height: 48px;
+  }
+
+  .phish-game .triage-card-head {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .phish-game .triage-card-body {
+    padding: 0.5rem 0.75rem 0.75rem;
+  }
 }
