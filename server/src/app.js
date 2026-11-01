@@ -14,6 +14,7 @@ import { createProgressRouter } from './modules/progress/router.js'
 import { createClassResultsRouter } from './modules/class-results/router.js'
 import { createLeaderboardRouter } from './modules/leaderboards/router.js'
 import { createBotnetTagService } from './modules/games/botnet-tag/socket.js'
+import { createTagTestRouter } from './modules/games/botnet-tag/testControls.js'
 import { createPresenceService } from './modules/presence/service.js'
 import { createProfileRouter } from './modules/profile/router.js'
 import { createWardrobeRouter } from './modules/wardrobe/router.js'
@@ -67,6 +68,10 @@ export function createApp(
   app.locals.presence = presence
   const adminRouter = createAdminRouter(database, {
     ...admin,
+    // closes live sockets at once, as a replaced login does
+    onSessionsEnded: (sessionIds) => {
+      for (const sessionId of sessionIds) authRuntime.events.emit('session-ended', sessionId)
+    },
     now: admin.now ?? authRuntime.now,
     clientOrigin: authRuntime.clientOrigin,
     requireSession: authRuntime.requireSession,
@@ -156,6 +161,9 @@ export function createApp(
     botnetTag.disconnectSession(sessionId, reason),
   )
   app.locals.botnetTag = botnetTag
+  if (process.env.NODE_ENV === 'test' && botnetTagOptions.testControls) {
+    app.use('/api/test/botnet-tag', createTagTestRouter(botnetTag))
+  }
   app.use(
     '/api',
     createSocialEngineeringRouter({

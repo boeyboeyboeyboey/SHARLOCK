@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { onBeforeRouteLeave, useRouter } from 'vue-router'
+import ConfirmDialog from '../../components/common/ConfirmDialog.vue'
 import HowToPlayDialog from '../../components/common/HowToPlayDialog.vue'
 import PixelIcon from '../../components/town/PixelIcon.vue'
 import { useHowToPlay } from '../../composables/useHowToPlay.js'
@@ -40,6 +41,7 @@ const router = useRouter()
 const auth = useAuthStore()
 const signOut = useSignOut()
 const menuOpen = ref(false)
+const confirmOpen = ref(false)
 
 // the game needs webgl2; the 2d town setting does not matter
 const capable = !getDeviceCheck().reasons.includes('no-webgl2')
@@ -47,9 +49,26 @@ const staff = (auth.user?.globalRoles ?? []).some((role) => ['instructor', 'admi
 const classes = ref([])
 const cohortId = ref('')
 const className = ref('')
+const classesFailed = ref(false)
+const standing = ref(null)
 
-const tag = useTagSocket({ staff, getCohortId: () => cohortId.value })
+const tag = useTagSocket({
+  staff,
+  getCohortId: () => cohortId.value,
+  // 4401: the session is gone server side, so drop it locally and show the login notice
+  onSessionEnded: (reason) => {
+    if (auth.status !== 'authenticated') return
+    auth.invalidateSession()
+    void router
+      ?.replace({
+        path: '/login',
+        query: { reason: reason === 'replaced' ? 'elsewhere' : 'expired' },
+      })
+      .catch(() => {})
+  },
+})
 const { state } = tag
+const offline = computed(() => state.status === 'reconnecting')
 
 // a coarse clock drives the timers between snapshots
 const clock = ref(Date.now())
@@ -64,6 +83,14 @@ const me = computed(() => state.players.find((player) => player.sid === state.si
 const infectedCount = computed(() => state.players.filter((player) => player.infected).length)
 const immunityMs = computed(() =>
   me.value?.immuneUntil ? msUntil(me.value.immuneUntil, clock.value, state.offset) : 0,
+)
+const graceMs = computed(() =>
+  state.phase === 'playing' && state.graceEndsAt
+    ? msUntil(state.graceEndsAt, clock.value, state.offset)
+    : 0,
+)
+const readyMs = computed(() =>
+  state.you?.readyBy ? msUntil(state.you.readyBy, clock.value, state.offset) : null,
 )
 const nameOf = (sid) => state.players.find((player) => player.sid === sid)?.username ?? ''
 // toasts come from server events only, and fade out after a few seconds
@@ -98,7 +125,6 @@ const lockMs = computed(() =>
 const puzzleOpen = computed(
   () => Boolean(puzzle.value) && puzzleKey.value !== dismissed.value && !state.blocked,
 )
-watch(puzzleOpen, (open) => arena?.setInputEnabled(!open))
 
 // a clean player beside a ready station gets the Use prompt
 const nearStation = computed(() =>
@@ -106,7 +132,9 @@ const nearStation = computed(() =>
     ? nearestStation(me.value, state.stations, clock.value + state.offset)
     : null,
 )
-const showUse = computed(() => Boolean(nearStation.value) && !puzzleOpen.value && !state.blocked)
+const showUse = computed(
+  () => Boolean(nearStation.value) && !puzzleOpen.value && !state.blocked && !offline.value,
+)
 let lastUseAt = 0
 function useStation() {
   if (!showUse.value || lockMs.value > 0) return
@@ -120,14 +148,14 @@ function useStation() {
   tag.station(nearStation.value.id)
 }
 function onKeydown(event) {
-  if (howToOpen.value || menuOpen.value) return
+  if (howToOpen.value || menuOpen.value || confirmOpen.value) return
   if (isInteractKey(event) || isEnterKey(event)) useStation()
 }
 
 // infected players tag by touching: the nearest clean player in reach, at a capped rate
 let lastTagAt = 0
 const tagTimer = setInterval(() => {
-  if (state.phase !== 'playing' || state.blocked || !me.value?.infected) return
+  if (state.phase !== 'playing' || state.blocked || !me.value?.infected || graceMs.value > 0) return
   const t = Date.now()
   if (t - lastTagAt < TAG_GAP_MS) return
   const target = nearestTarget(me.value, state.players, t + state.offset)
@@ -150,7 +178,14 @@ function onSprint() {
   sound.play('sprint')
   return tag.sprint()
 }
-const touchOn = computed(() => state.phase === 'playing' && !state.blocked && !puzzleOpen.value)
+const touchOn = computed(
+  () =>
+    state.phase === 'playing' &&
+    Boolean(me.value) &&
+    !state.blocked &&
+    !offline.value &&
+    !puzzleOpen.value,
+)
 const patchedUntil = ref(0)
 const patched = computed(() => clock.value < patchedUntil.value)
 watch(
@@ -191,21 +226,40 @@ function submitPuzzle(submission) {
   dismissed.value = puzzleKey.value
 }
 
+const CLASS_PAGE = 50
+const MAX_CLASS_PAGES = 20
+
+// an administrator can manage many classes, so the picker walks every page
+async function loadClasses() {
+  classesFailed.value = false
+  const found = []
+  try {
+    for (let page = 1; page <= MAX_CLASS_PAGES; page += 1) {
+      const { cohorts = [], total = 0 } = await listManagedCohorts({ page, limit: CLASS_PAGE })
+      found.push(...cohorts)
+      if (cohorts.length === 0 || found.length >= total) break
+    }
+  } catch {
+    classesFailed.value = true
+  }
+  classes.value = found
+  // one class is no choice; with more, staff pick so nobody lands in another class's lobby
+  if (found.length === 1 && !classesFailed.value) cohortId.value = found[0].cohortId
+}
+
 async function load() {
   if (staff) {
-    try {
-      classes.value = (await listManagedCohorts({ limit: 50 })).cohorts ?? []
-    } catch {
-      classes.value = []
-    }
-    cohortId.value = classes.value[0]?.cohortId ?? ''
+    await loadClasses()
     return
   }
   try {
-    const active = ((await listMemberships({ limit: 20 })).memberships ?? []).find(
-      (item) => item.status === 'active',
-    )
+    const memberships = (await listMemberships({ limit: 20 })).memberships ?? []
+    const active = memberships.find((item) => item.status === 'active')
     className.value = active?.cohortName ?? ''
+    standing.value =
+      memberships.find((item) => item.status === 'pending') ??
+      memberships.findLast((item) => item.status === 'removed') ??
+      null
   } catch {
     className.value = ''
   }
@@ -216,10 +270,21 @@ watch(cohortId, (id) => {
   if (id) tag.rejoin()
 })
 
+// the first-visit guide holds the socket back, so reading it does not spend the 45 s limit
+let pageGone = false
+let startAfterGuide = false
+onBeforeUnmount(() => (pageGone = true))
 onMounted(async () => {
   if (!capable) return
   await load()
-  if (!staff) tag.start()
+  if (staff || pageGone) return
+  if (howToOpen.value) startAfterGuide = true
+  else tag.start()
+})
+watch(howToOpen, (open) => {
+  if (open || !startAfterGuide) return
+  startAfterGuide = false
+  tag.start()
 })
 
 // the 3d yard exists only while a round is on screen; babylon loads the first time it is needed
@@ -233,6 +298,15 @@ const arenaOn = computed(
 )
 let arena = null
 let arenaToken = 0
+const inputOn = computed(
+  () =>
+    !puzzleOpen.value &&
+    !offline.value &&
+    !howToOpen.value &&
+    !menuOpen.value &&
+    !confirmOpen.value,
+)
+watch(inputOn, (on) => arena?.setInputEnabled(on))
 async function mountArena() {
   const token = ++arenaToken
   if (typeof WebGL2RenderingContext === 'undefined' || !arenaEl.value) return
@@ -247,10 +321,12 @@ async function mountArena() {
       wardrobe: auth.user?.wardrobe ?? null,
       params: import.meta.env.DEV ? new URLSearchParams(location.search) : new URLSearchParams(),
     })
-    arena.setInputEnabled(!puzzleOpen.value)
+    arena.setInputEnabled(inputOn.value)
   } catch (error) {
     console.warn('tag arena failed to start', error)
     arena = null
+    // leave the round so nobody waits on a player who cannot move
+    tag.leave('arena-failed')
   }
 }
 function unmountArena() {
@@ -275,14 +351,70 @@ function leave() {
   router.push('/')
 }
 
+// leaving through the page's own chrome asks first while a round is on, as the other games do
+const midRound = computed(() => !state.blocked && ['countdown', 'playing'].includes(state.phase))
+let pendingLeave = null
+let leaveConfirmed = false
+let menuLeave = false
+let menuLeaveTimer = null
+function markMenuNavigation() {
+  menuLeave = true
+  clearTimeout(menuLeaveTimer)
+  menuLeaveTimer = setTimeout(() => (menuLeave = false), 1000)
+}
+function askLeave() {
+  if (!midRound.value) {
+    leave()
+    return
+  }
+  pendingLeave = '/'
+  confirmOpen.value = true
+}
+function cancelLeave() {
+  confirmOpen.value = false
+  pendingLeave = null
+}
+function confirmLeave() {
+  confirmOpen.value = false
+  leaveConfirmed = true
+  tag.leave()
+  router.push(pendingLeave ?? '/')
+  pendingLeave = null
+}
+onBeforeRouteLeave((to) => {
+  if (leaveConfirmed || !menuLeave || !midRound.value) return true
+  menuLeave = false
+  pendingLeave = to.fullPath
+  confirmOpen.value = true
+  return false
+})
+onBeforeUnmount(() => clearTimeout(menuLeaveTimer))
+
 const blockedText = {
-  'no-class': 'Join a class first',
   superseded: 'Open in another tab',
   ended: 'Signed out',
   stopped: 'Connection closed',
   failed: 'Connection lost',
   left: 'You left the round',
+  idle: 'Removed from the lobby',
+  'arena-failed': 'The 3D yard could not start',
 }
+const blockedDetail = {
+  idle: 'You did not press Ready within 45 seconds, so the others are not kept waiting.',
+  'arena-failed': 'You left the round so the others can carry on. Try again or come back later.',
+}
+const canRetry = computed(() =>
+  ['failed', 'stopped', 'idle', 'arena-failed'].includes(state.blocked),
+)
+const blockedTitle = computed(() => {
+  if (state.blocked !== 'no-class') return blockedText[state.blocked]
+  if (standing.value?.status === 'pending') {
+    return `Your request for ${standing.value.cohortName} is waiting for approval`
+  }
+  if (standing.value?.status === 'removed')
+    return `You were removed from ${standing.value.cohortName}`
+  return 'Join a class first'
+})
 </script>
 
 <template>
@@ -294,6 +426,7 @@ const blockedText = {
       :user="auth.user"
       :logout-pending="auth.logoutPending"
       @sign-out="signOut"
+      @navigate="markMenuNavigation"
     >
       <template #sound>
         <div class="immersive-sound">
@@ -316,13 +449,38 @@ const blockedText = {
           v-if="capable"
           type="button"
           class="glass-surface glass-button"
+          aria-label="How to play"
           data-testid="tag-howto-open"
           @click="showHowTo"
         >
-          How to play
+          <span class="tag-long">How to play</span>
+          <span class="tag-short" aria-hidden="true">?</span>
+        </button>
+        <button
+          v-if="capable && !state.blocked"
+          type="button"
+          class="glass-surface glass-button"
+          aria-label="Leave game"
+          data-testid="tag-leave-game"
+          @click="askLeave"
+        >
+          <span class="tag-long">Leave game</span>
+          <span class="tag-short" aria-hidden="true">Leave</span>
         </button>
       </template>
     </ImmersiveControls>
+    <ConfirmDialog
+      :open="confirmOpen"
+      title="Leave the game?"
+      message="An unfinished round won't be saved."
+      confirm-label="Leave game"
+      cancel-label="Keep playing"
+      @confirm="confirmLeave"
+      @cancel="cancelLeave"
+    />
+    <p v-if="offline" class="tag-reconnect tag-glass" role="status" data-testid="tag-reconnecting">
+      Connection lost, reconnecting
+    </p>
     <NeedsThreeD v-if="!capable" />
     <template v-else>
       <section
@@ -331,18 +489,22 @@ const blockedText = {
         role="status"
         data-testid="tag-notice"
       >
-        <h1>{{ blockedText[state.blocked] }}</h1>
+        <h1>{{ blockedTitle }}</h1>
+        <p v-if="blockedDetail[state.blocked]" class="tag-note">
+          {{ blockedDetail[state.blocked] }}
+        </p>
         <div class="tag-foot is-end">
           <RouterLink v-if="state.blocked === 'no-class'" to="/classes" class="tag-btn is-primary"
             >Your classes</RouterLink
           >
           <button
-            v-else-if="state.blocked === 'failed' || state.blocked === 'stopped'"
+            v-else-if="canRetry"
             type="button"
             class="tag-btn is-primary"
+            data-testid="tag-retry"
             @click="tag.rejoin()"
           >
-            Retry
+            {{ state.blocked === 'idle' ? 'Rejoin' : 'Retry' }}
           </button>
           <RouterLink to="/" class="tag-btn">Back to town</RouterLink>
         </div>
@@ -352,11 +514,33 @@ const blockedText = {
         <label v-if="classes.length" class="tag-field"
           >Class
           <select v-model="cohortId" data-testid="tag-class-select">
+            <option value="" disabled>Choose a class</option>
             <option v-for="item in classes" :key="item.cohortId" :value="item.cohortId">
               {{ item.cohortName }}
             </option>
           </select>
         </label>
+        <p
+          v-else-if="classesFailed"
+          class="tag-note"
+          role="status"
+          data-testid="tag-classes-failed"
+        >
+          Classes could not load
+        </p>
+        <p v-else class="tag-note" data-testid="tag-no-classes">You have no active classes</p>
+        <div class="tag-foot is-end">
+          <button
+            v-if="classesFailed"
+            type="button"
+            class="tag-btn is-primary"
+            data-testid="tag-classes-retry"
+            @click="loadClasses"
+          >
+            Retry
+          </button>
+          <RouterLink to="/" class="tag-btn">Back to town</RouterLink>
+        </div>
       </section>
       <TagLobby
         v-else-if="state.phase === 'lobby' || state.phase === 'countdown'"
@@ -364,6 +548,10 @@ const blockedText = {
         :sid="state.sid"
         :class-name="className"
         :countdown-ms="countdownMs"
+        :ready-ms="readyMs"
+        :staff="staff"
+        :round-lost="state.roundLost"
+        :offline="offline"
         @ready="tag.ready"
       />
       <TagHud
@@ -373,6 +561,8 @@ const blockedText = {
         :total="state.players.length"
         :immunity-ms="immunityMs"
         :self-infected="Boolean(me?.infected)"
+        :watching="state.watching"
+        :grace-ms="graceMs"
         :toast="toast"
         :toast-key="toastEvent?.at ?? 0"
       />
@@ -410,6 +600,7 @@ const blockedText = {
         :patched="patched"
         :lock-ms="lockMs"
         :reason="state.you?.failReason ?? ''"
+        :notice="state.you?.notice ?? ''"
       />
     </template>
     <HowToPlayDialog

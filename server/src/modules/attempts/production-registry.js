@@ -1,7 +1,7 @@
 import { createAttemptRegistry } from './registry.js'
 import { cliLegacyRuleset } from '../games/cli-cyber-defender/legacy.js'
 import { cliRuleset } from '../games/cli-cyber-defender/ruleset.js'
-import { botnetTagRuleset } from '../games/botnet-tag/ruleset.js'
+import { botnetTagLegacyRuleset, botnetTagRuleset } from '../games/botnet-tag/ruleset.js'
 import { clearanceHintsRuleset, clearanceLegacyRuleset } from '../games/clearance-tower/legacy.js'
 import { clearanceRuleset } from '../games/clearance-tower/ruleset.js'
 import { phishingRuleset } from '../games/phishing-post-mortem/ruleset.js'
@@ -25,6 +25,7 @@ export function createProductionAttemptRegistry() {
     cliLegacyRuleset,
     cliRuleset,
     socialEngineeringRuleset,
+    botnetTagLegacyRuleset,
     botnetTagRuleset,
     socialEngineeringShiftRuleset,
   ])

@@ -37,7 +37,6 @@ export function createLocalPlayer({ spawn, camera, reduced, onSprint = () => {} 
   let y = 0
   let vy = 0
   const lastDir = { x: 0, z: 1 }
-  let sprintPhase = 'ready'
   // dev and test only: walk straight at a spot through the normal movement rules
   let auto = null
 
@@ -78,7 +77,6 @@ export function createLocalPlayer({ spawn, camera, reduced, onSprint = () => {} 
 
   function update(dt, server) {
     const top = BASE_SPEED * sprint.multiplier()
-    sprintPhase = sprint.state()
     const ix = (keys.has('r') ? 1 : 0) - (keys.has('l') ? 1 : 0) + pad.x
     const iy = (keys.has('f') ? 1 : 0) - (keys.has('b') ? 1 : 0) + pad.y
     const manual = enabled && (Math.abs(ix) > 0.05 || Math.abs(iy) > 0.05)
@@ -158,7 +156,6 @@ export function createLocalPlayer({ spawn, camera, reduced, onSprint = () => {} 
     update,
     jump: () => enabled && jump.request(),
     sprint: startSprint,
-    sprintState: () => ({ phase: sprintPhase, left: sprint.cooldownLeft() }),
     setJoystick(x, yv) {
       pad.x = x
       pad.y = yv
@@ -173,11 +170,6 @@ export function createLocalPlayer({ spawn, camera, reduced, onSprint = () => {} 
     },
     walkTo(x, z) {
       auto = x === null ? null : { x, z }
-    },
-    teleport(x, z) {
-      pos.x = x
-      pos.z = z
-      curSpeed = 0
     },
     position: () => ({ x: pos.x, z: pos.z }),
     dispose() {

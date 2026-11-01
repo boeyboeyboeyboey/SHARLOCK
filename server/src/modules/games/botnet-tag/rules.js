@@ -15,23 +15,19 @@ export const COUNTDOWN_MS = 10000
 export const RESULTS_MS = 15000
 export const MIN_PLAYERS = 3
 export const MAX_PLAYERS = 8
+export const GRACE_MS = 5000
+export const MIN_SAVED_ROUND_MS = 20000
+export const LOBBY_IDLE_MS = 45000
+// a steady solver patches about once every 17 s; a survivor tagged late can still catch the
+// other survivors, which is everyone but themselves and the two patient zeros of a full round
+export const PAR_PATCHES = 10
+export const PAR_TAGS = 5
 
 const MOVE_TOLERANCE = 1.25
 const MOVE_SLACK = 0.5
+const MOVE_CREDIT_CAP = BASE_SPEED * MOVE_TOLERANCE + MOVE_SLACK
 const MAX_ELAPSED_MS = 1000
 const FIRST_MOVE_MS = 100
-
-// small seeded generator so tests and bots stay deterministic
-export function createRng(seed) {
-  let state = seed >>> 0
-  return () => {
-    state = (state + 0x6d2b79f5) >>> 0
-    let t = state
-    t = Math.imul(t ^ (t >>> 15), t | 1)
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
-  }
-}
 
 export const patientZeroCount = (playerCount) => (playerCount >= 7 ? 2 : 1)
 
@@ -56,7 +52,29 @@ function sprintOverlapMs(player, from, to) {
   return Math.max(0, Math.min(to, start + SPRINT_MS) - Math.max(from, start))
 }
 
-// returns { ok, x, z, reason }; a rejected move keeps the last accepted position
+const spawnGap = (a, b) => Math.hypot(a.x - b.x, a.z - b.z)
+
+// keeps the closest survivor as far from patient zero as the spawn set allows; ties go to the first, so shuffle first
+export function pickSpawns(spawns, playerCount, zeroCount) {
+  const options =
+    zeroCount === 1
+      ? spawns.map((spawn) => [spawn])
+      : spawns.flatMap((a, i) => spawns.slice(i + 1).map((b) => [a, b]))
+  let best = null
+  for (const zeros of options) {
+    const gapTo = (spawn) => Math.min(...zeros.map((zero) => spawnGap(zero, spawn)))
+    const others = spawns
+      .filter((spawn) => !zeros.includes(spawn))
+      .sort((a, b) => gapTo(b) - gapTo(a))
+      .slice(0, playerCount - zeroCount)
+    const nearest = Math.min(...others.map(gapTo))
+    if (!best || nearest > best.nearest) best = { zeros, others, nearest }
+  }
+  return best
+}
+
+// returns { ok, x, z, credit, reason }; a rejected move keeps the last accepted position
+// each step spends a credit that refills with time, so flooding messages earns no extra travel
 export function validateMove(player, pos, now) {
   const keep = (reason) => ({ ok: false, reason, x: player.x, z: player.z })
   if (!pos || !isTime(pos.x) || !isTime(pos.z) || !isTime(now)) return keep('invalid')
@@ -64,8 +82,10 @@ export function validateMove(player, pos, now) {
   const last = isTime(player.lastMoveAt) ? player.lastMoveAt : now - FIRST_MOVE_MS
   const elapsed = Math.min(Math.max(now - last, 0), MAX_ELAPSED_MS)
   const boost = Math.min(sprintOverlapMs(player, now - elapsed, now), elapsed)
-  const budget = (BASE_SPEED * (elapsed + boost * (SPRINT_MULT - 1))) / 1000
-  const allowed = budget * MOVE_TOLERANCE + MOVE_SLACK
+  const walked = (BASE_SPEED * MOVE_TOLERANCE * elapsed) / 1000
+  const sprinted = (BASE_SPEED * MOVE_TOLERANCE * boost * (SPRINT_MULT - 1)) / 1000
+  const credit = isTime(player.moveCredit) ? player.moveCredit : MOVE_SLACK
+  const allowed = Math.min(MOVE_CREDIT_CAP, credit + walked) + sprinted
   const distance = Math.hypot(pos.x - player.x, pos.z - player.z)
   if (distance > allowed) return keep('too_fast')
   // sample the path so a long step can't pass through a wall
@@ -76,7 +96,7 @@ export function validateMove(player, pos, now) {
       return keep('blocked')
     }
   }
-  return { ok: true, x: pos.x, z: pos.z }
+  return { ok: true, x: pos.x, z: pos.z, credit: Math.min(MOVE_CREDIT_CAP, allowed - distance) }
 }
 
 export function canTag(tagger, target, now) {
@@ -91,3 +111,9 @@ export function scoreFor(player, outcome) {
   const bonus = outcome?.sideWon === true ? 100 : 0
   return seconds + 50 * (player.patches ?? 0) + 30 * (player.tags ?? 0) + bonus
 }
+
+// the ceiling of the current ruleset; a saved or live score stops here
+export const MAX_SCORE = scoreFor(
+  { survivalSeconds: ROUND_MS / 1000, patches: PAR_PATCHES, tags: PAR_TAGS },
+  { sideWon: true },
+)

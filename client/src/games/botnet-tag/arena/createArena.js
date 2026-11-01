@@ -43,7 +43,6 @@ export function createArena({
   wardrobe = null,
   params = new URLSearchParams(),
   watch = true,
-  onTier = () => {},
 }) {
   const canvas = document.createElement('canvas')
   canvas.className = 'tag-canvas'
@@ -283,7 +282,6 @@ export function createArena({
     rebuilds += 1
     built = assemble(resume)
     startSampler()
-    onTier(tier.name)
   }
 
   // same watch as the hub: median fps over a few seconds, lowering one tier per struggle; below low it stays on low

@@ -1,5 +1,5 @@
 import { createServer } from 'node:http'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import request from 'supertest'
 import { WebSocket } from 'ws'
 import { Types } from 'mongoose'
@@ -11,15 +11,23 @@ import { instructorAssignmentModel } from '../../../src/models/InstructorAssignm
 import { membershipModel } from '../../../src/models/Membership.js'
 import { userModel } from '../../../src/models/User.js'
 import { initializeAttemptStorage } from '../../../src/modules/attempts/storage.js'
+import { createAttemptRegistry } from '../../../src/modules/attempts/registry.js'
+import { createAttemptService } from '../../../src/modules/attempts/service.js'
 import { createProductionAttemptRegistry } from '../../../src/modules/attempts/production-registry.js'
 import { BOTNET_TAG_PATH } from '../../../src/modules/games/botnet-tag/protocol.js'
 import { failReason } from '../../../src/modules/games/botnet-tag/puzzles.js'
-import { createRng } from '../../../src/modules/games/botnet-tag/rules.js'
+import { botnetTagLegacyRuleset } from '../../../src/modules/games/botnet-tag/ruleset.js'
+import { createTagTestRouter } from '../../../src/modules/games/botnet-tag/testControls.js'
 import {
   COUNTDOWN_MS,
+  GRACE_MS,
+  LOBBY_IDLE_MS,
+  MAX_SCORE,
+  RESULTS_MS,
   ROUND_MS,
   STATION_LOCKOUT_MS,
 } from '../../../src/modules/games/botnet-tag/rules.js'
+import { createRng } from '../../unit/botnet-tag/rng.js'
 import {
   createTestApp,
   disposeTestAuthApps,
@@ -33,6 +41,7 @@ let app
 let server
 let port
 let clock
+let rngFails
 const sockets = []
 
 beforeAll(async () => {
@@ -59,9 +68,21 @@ beforeEach(async () => {
     ].map((name) => database.db.collection(name).deleteMany({})),
   )
   clock = 1_000_000
-  // the tick interval is parked: tests step the rounds themselves with tickAll and a fake clock
+  rngFails = false
+  await startApp()
+})
+
+afterEach(stopApp)
+
+// the tick interval is parked: tests step the rounds themselves with tickAll and a fake clock
+async function startApp(botnetTag = {}) {
+  const seeded = createRng(7)
+  const rng = () => {
+    if (rngFails) throw new Error('synthetic rng failure')
+    return seeded()
+  }
   app = createTestApp(database, authOptions, {
-    botnetTag: { now: () => clock, tickMs: 3_600_000, rng: createRng(7) },
+    botnetTag: { now: () => clock, tickMs: 3_600_000, rng, ...botnetTag },
   })
   server = createServer(app)
   server.on('upgrade', (req, socket, head) => {
@@ -71,14 +92,14 @@ beforeEach(async () => {
   })
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
   port = server.address().port
-})
+}
 
-afterEach(async () => {
+async function stopApp() {
   for (const socket of sockets.splice(0)) socket.terminate()
   app.locals.botnetTag.close()
   app.locals.presence.close()
   await new Promise((resolve) => server.close(resolve))
-})
+}
 
 afterAll(async () => {
   await disposeTestAuthApps()
@@ -141,12 +162,15 @@ function cookieOf(account) {
   return jar.map((cookie) => `${cookie.name}=${cookie.value}`).join('; ')
 }
 
-function connect(account, { origin = authOptions.clientOrigin, cookie = cookieOf(account) } = {}) {
+function connect(
+  account,
+  { origin = authOptions.clientOrigin, cookie = cookieOf(account), autoPong = true } = {},
+) {
   return new Promise((resolve) => {
     const headers = {}
     if (origin) headers.Origin = origin
     if (cookie) headers.Cookie = cookie
-    const ws = new WebSocket(`ws://127.0.0.1:${port}${BOTNET_TAG_PATH}`, { headers })
+    const ws = new WebSocket(`ws://127.0.0.1:${port}${BOTNET_TAG_PATH}`, { headers, autoPong })
     ws.messages = []
     ws.on('message', (raw) => ws.messages.push(JSON.parse(raw.toString())))
     ws.closed = new Promise((done) =>
@@ -178,7 +202,17 @@ async function until(check, label = 'condition') {
 const send = (ws, message) => ws.send(JSON.stringify(message))
 const last = (ws, type) => ws.messages.findLast((message) => message.type === type)
 const lastSnapshot = (ws) => last(ws, 'snapshot')
-const settle = (ms = 80) => new Promise((resolve) => setTimeout(resolve, ms))
+
+// messages on one socket are handled in order and ready always answers with a snapshot,
+// so once that snapshot is back every earlier message has been dealt with
+async function flush(ws) {
+  const seen = ws.messages.filter((message) => message.type === 'snapshot').length
+  const ready = Boolean(
+    lastSnapshot(ws)?.players.find((p) => p.sid === lastSnapshot(ws).sid)?.ready,
+  )
+  send(ws, { type: 'ready', ready })
+  await until(() => ws.messages.filter((m) => m.type === 'snapshot').length > seen, 'flush')
+}
 
 // waits for a snapshot newer than the ones already received
 async function freshSnapshot(ws, label = 'snapshot') {
@@ -301,7 +335,7 @@ describe('botnet tag play rules', () => {
     const start = { x: me.x, z: me.z }
     advance(1000)
     send(ws, { type: 'move', x: start.x + 30, z: start.z, yaw: 0 })
-    await settle()
+    await flush(ws)
     expect({ x: humanOf(ws).x, z: humanOf(ws).z }).toEqual(start)
     clock += 1000
     send(ws, { type: 'move', x: start.x + 0.5, z: start.z, yaw: 0 })
@@ -321,10 +355,18 @@ describe('botnet tag play rules', () => {
     const zero = round.players().find((player) => player.infected)
     const target = round.players().find((player) => !player.infected)
     const zeroSocket = sockets3.find((ws) => lastSnapshot(ws).sid === zero.sid)
-    Object.assign(zero, { x: -8, z: 0 })
-    Object.assign(target, { x: 8, z: 0, immuneUntil: 0 })
+    Object.assign(zero, { x: -7.5, z: 0 })
+    Object.assign(target, { x: -7, z: 0, immuneUntil: 0 })
+    // close enough, but the grace period is still running
+    expect(lastSnapshot(zeroSocket).graceEndsAt).toBe(round.startedAt + GRACE_MS)
     send(zeroSocket, { type: 'tag', target: target.sid })
-    await settle()
+    await flush(zeroSocket)
+    expect(round.getPlayer(target.sid).infected).toBe(false)
+    clock += GRACE_MS
+    Object.assign(zero, { x: -8, z: 0 })
+    Object.assign(target, { x: 8, z: 0 })
+    send(zeroSocket, { type: 'tag', target: target.sid })
+    await flush(zeroSocket)
     expect(round.getPlayer(target.sid).infected).toBe(false)
     Object.assign(target, { x: -7.5, z: 0 })
     send(zeroSocket, { type: 'tag', target: target.sid })
@@ -351,7 +393,7 @@ describe('botnet tag play rules', () => {
     let solved = false
     for (let guess = 0; guess < 3 && !solved; guess += 1) {
       send(ws, { type: 'submit', submission: { index: guess } })
-      await settle(60)
+      await flush(ws)
       if (me.patches > 0) solved = true
       else {
         const locked = await until(
@@ -445,7 +487,7 @@ describe('botnet tag saving', () => {
     await until(() => lastSnapshot(wsOne)?.players.length === 3, 'three in lobby')
     await finishRound([wsOne, wsTwo, wsTeacher])
     await until(() => last(wsTwo, 'saved'), 'saved notice')
-    await settle()
+    await app.locals.botnetTag.settleSaves()
     const attempts = await database.db.collection('game_attempts').find({}).toArray()
     expect(attempts).toHaveLength(2)
     expect(new Set(attempts.map((item) => item.playerId.toString()))).toEqual(
@@ -474,12 +516,278 @@ describe('botnet tag saving', () => {
     await app.locals.botnetTag.settleSaves()
     advance(100)
     advance(100)
-    await settle()
+    await app.locals.botnetTag.settleSaves()
+    expect(await database.db.collection('game_attempts').countDocuments({})).toBe(1)
+  })
+
+  it('saves every play of one lobby under its own key, with its own score', async () => {
+    const account = await student(await makeClass('a'))
+    const ws = await connect(account)
+    await until(() => lastSnapshot(ws), 'snapshot')
+    await startRound(ws)
+    advance(ROUND_MS + 10)
+    await until(() => last(ws, 'saved'), 'first saved notice')
+    const first = last(ws, 'saved')
+    expect(first).toMatchObject({ saved: true, maxScore: MAX_SCORE })
+
+    advance(RESULTS_MS + 10)
+    await until(() => lastSnapshot(ws)?.phase === 'lobby', 'back in the lobby')
+    await startRound(ws)
+    humanOf(ws).patches = 3
+    advance(ROUND_MS + 10)
+    await until(() => ws.messages.filter((m) => m.type === 'saved').length === 2, 'second notice')
+    expect(last(ws, 'saved').score).toBe(first.score + 150)
+
+    const attempts = await database.db.collection('game_attempts').find({}).toArray()
+    expect(attempts).toHaveLength(2)
+    expect(new Set(attempts.map((item) => item.resultKey)).size).toBe(2)
+    expect(attempts.every((item) => item.rulesetVersion === '2')).toBe(true)
+  })
+
+  it('still replays an attempt saved earlier under the old key and ruleset', async () => {
+    const account = await student(await makeClass('b'))
+    const cohortId = (await membershipModel(database).findOne({})).cohortId.toString()
+    const options = {
+      context: { kind: 'cohort', cohortId },
+      mode: 'practice',
+      startedAt: new Date(),
+      resultKey: 'r-0123456789ab-oldsid',
+      state: { outcome: 'survived', sideWon: true, survivalSeconds: 180, patches: 1, tags: 0 },
+    }
+    const legacy = createAttemptService(database, {
+      registry: createAttemptRegistry([{ ...botnetTagLegacyRuleset, current: true }]),
+      now: () => clock,
+    })
+    const saved = await legacy.recordCompletedAttempt(
+      { id: account.user.id },
+      'botnet-tag',
+      options,
+    )
+    expect(saved).toMatchObject({ score: 330, maxScore: 3520 })
+    const current = createAttemptService(database, {
+      registry: createProductionAttemptRegistry(),
+      now: () => clock,
+    })
+    const replayed = await current.recordCompletedAttempt(
+      { id: account.user.id },
+      'botnet-tag',
+      options,
+    )
+    expect(replayed).toMatchObject({ score: 330, maxScore: 3520 })
+    expect(await database.db.collection('game_attempts').countDocuments({})).toBe(1)
+  })
+
+  it('does not save or rank a round under 20 seconds', async () => {
+    const ws = await connect(await student(await makeClass('a')))
+    await until(() => lastSnapshot(ws), 'snapshot')
+    await startRound(ws)
+    const round = liveRound()
+    const me = humanOf(ws)
+    const bots = round.players().filter((player) => player.isBot)
+    for (const player of round.players()) player.infected = player === bots[0] || player === me
+    Object.assign(me, { startedInfected: true, infectedAt: round.startedAt, x: -8, z: 0 })
+    Object.assign(bots[1], { x: -7.5, z: 0, immuneUntil: 0 })
+    clock += GRACE_MS + 10
+    send(ws, { type: 'tag', target: bots[1].sid })
+    await until(() => last(ws, 'results'), 'results')
+    expect(last(ws, 'results')).toMatchObject({ sideWon: 'botnet', unsaved: 'short' })
+    expect(last(ws, 'saved')).toEqual({ type: 'saved', saved: false, reason: 'short' })
+    expect(await database.db.collection('game_attempts').countDocuments({})).toBe(0)
+  })
+
+  it('tells the remaining players when a round is abandoned and stores nothing', async () => {
+    const cohort = await makeClass('a')
+    const wss = [
+      await connect(await student(cohort)),
+      await connect(await student(cohort)),
+      await connect(await student(cohort)),
+    ]
+    await until(() => lastSnapshot(wss[2])?.players.length === 3, 'lobby')
+    for (const ws of wss) send(ws, { type: 'ready', ready: true })
+    await until(() => lastSnapshot(wss[0])?.phase === 'countdown', 'countdown')
+    advance(COUNTDOWN_MS + 10)
+    await until(() => lastSnapshot(wss[0])?.phase === 'playing', 'playing')
+    const zero = liveRound()
+      .players()
+      .find((player) => player.infected)
+    const quitter = wss.find((ws) => lastSnapshot(ws).sid === zero.sid)
+    const left = wss.filter((ws) => ws !== quitter)
+    clock += 60000
+    send(quitter, { type: 'leave' })
+    expect(await quitter.closed).toBe(1000)
+    await until(() => left.every((ws) => last(ws, 'saved')), 'told why')
+    expect(last(left[0], 'results')).toMatchObject({ sideWon: null, unsaved: 'abandoned' })
+    expect(last(left[1], 'saved')).toMatchObject({ saved: false, reason: 'abandoned' })
+    expect(await database.db.collection('game_attempts').countDocuments({})).toBe(0)
+  })
+
+  it('tells the player when the save itself fails', async () => {
+    const cohort = await makeClass('a')
+    const account = await student(cohort)
+    const ws = await connect(account)
+    await until(() => lastSnapshot(ws), 'snapshot')
+    await startRound(ws)
+    // the attempt context is checked at save time, so a lost membership makes the save fail
+    await membershipModel(database).updateMany({}, { $set: { status: 'removed' } })
+    advance(ROUND_MS + 10)
+    await until(() => last(ws, 'saved'), 'saved notice')
+    expect(last(ws, 'saved')).toEqual({ type: 'saved', saved: false })
+  })
+})
+
+describe('botnet tag lobby waits', () => {
+  it('removes a classmate who never readies, and the others start without them', async () => {
+    const cohort = await makeClass('a')
+    const [wsReady, wsIdle] = [
+      await connect(await student(cohort)),
+      await connect(await student(cohort)),
+    ]
+    await until(() => lastSnapshot(wsIdle)?.players.length === 2, 'both in lobby')
+    expect(lastSnapshot(wsIdle).you.readyBy).toBe(clock + LOBBY_IDLE_MS)
+    send(wsReady, { type: 'ready', ready: true })
+    await until(() => lastSnapshot(wsReady)?.players.some((p) => p.isBot), 'bots fill')
+    expect(lastSnapshot(wsReady).phase).toBe('lobby')
+    advance(LOBBY_IDLE_MS)
+    expect(await wsIdle.closed).toBe(4410)
+    await until(() => lastSnapshot(wsReady)?.phase === 'countdown', 'countdown without them')
+    expect(lastSnapshot(wsReady).players.every((p) => p.sid !== lastSnapshot(wsIdle).sid)).toBe(
+      true,
+    )
+  })
+
+  it('lets staff watch without holding up the students, and saves nothing for them', async () => {
+    const cohort = await makeClass('a')
+    const wsStudent = await connect(await student(cohort))
+    await until(() => lastSnapshot(wsStudent), 'student in lobby')
+    const wsTeacher = await connect(await staff('instructor', cohort))
+    send(wsTeacher, { type: 'join', cohortId: cohort._id.toString() })
+    await until(() => lastSnapshot(wsTeacher), 'staff in lobby')
+    await startRound(wsStudent)
+    await until(() => lastSnapshot(wsTeacher)?.phase === 'playing', 'staff sees the round')
+    const watched = lastSnapshot(wsTeacher)
+    expect(watched.watching).toBe(true)
+    expect(watched.you).toBeNull()
+    expect(watched.players.some((p) => p.isStaff)).toBe(false)
+    advance(LOBBY_IDLE_MS + ROUND_MS)
+    await until(() => last(wsStudent, 'saved'), 'student saved')
+    await until(() => last(wsTeacher, 'results'), 'staff sees results')
+    expect(wsTeacher.readyState).toBe(WebSocket.OPEN)
+    expect(last(wsTeacher, 'saved')).toBeUndefined()
+    await app.locals.botnetTag.settleSaves()
     expect(await database.db.collection('game_attempts').countDocuments({})).toBe(1)
   })
 })
 
+describe('botnet tag failures', () => {
+  it('closes only the broken round when a tick throws', async () => {
+    const [classA, classB] = [await makeClass('a'), await makeClass('b')]
+    const ws = await connect(await student(classA))
+    await until(() => lastSnapshot(ws), 'snapshot')
+    await startRound(ws)
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    rngFails = true
+    advance(GRACE_MS + 100)
+    expect(await ws.closed).toBe(1011)
+    expect(error).toHaveBeenCalledWith('Botnet Tag closed a round after a tick failed.')
+    error.mockRestore()
+    expect(app.locals.botnetTag.roundCount()).toBe(0)
+    rngFails = false
+    const other = await connect(await student(classB))
+    await until(() => lastSnapshot(other), 'the service still works')
+  })
+
+  it('closes the socket when a message handler throws', async () => {
+    const ws = await connect(await student(await makeClass('a')))
+    await until(() => lastSnapshot(ws), 'snapshot')
+    await startRound(ws)
+    const me = humanOf(ws)
+    me.infected = false
+    const station = liveRound().stationList()[0]
+    Object.assign(me, { x: station.x, z: station.z })
+    // starting a puzzle draws from the rng
+    rngFails = true
+    send(ws, { type: 'station', id: station.id })
+    expect(await ws.closed).toBe(1011)
+  })
+
+  it('closes abusers of valid messages over the rate limit', async () => {
+    const ws = await connect(await student(await makeClass('a')))
+    await until(() => lastSnapshot(ws), 'snapshot')
+    for (let i = 0; i < 60; i += 1) send(ws, { type: 'move', x: 0, z: 0, yaw: 0 })
+    expect(await ws.closed).toBe(4408)
+  })
+
+  it('removes a socket that stops answering the heartbeat', async () => {
+    await stopApp()
+    await startApp({ heartbeatMs: 20 })
+    const ws = await connect(await student(await makeClass('a')), { autoPong: false })
+    await until(() => lastSnapshot(ws), 'snapshot')
+    expect(await ws.closed).toBe(1006)
+    await until(() => app.locals.botnetTag.roundCount() === 0, 'round cleared')
+  })
+})
+
+describe('botnet tag test controls', () => {
+  it('exist only when asked for in a test process', async () => {
+    const control = (target) =>
+      request(target)
+        .post('/api/test/botnet-tag/control')
+        .send({ classId: 'a'.repeat(24), action: 'finish' })
+    await control(app).expect(404)
+
+    const scripted = createTestApp(database, authOptions, { botnetTag: { testControls: true } })
+    await control(scripted).expect(409)
+    await request(scripted)
+      .post('/api/test/botnet-tag/control')
+      .send({ classId: 'a'.repeat(24), action: 'constructor' })
+      .expect(400)
+    scripted.locals.botnetTag.close()
+    scripted.locals.presence.close()
+
+    vi.stubEnv('NODE_ENV', 'production')
+    try {
+      const live = createTestApp(database, authOptions, { botnetTag: { testControls: true } })
+      await control(live).expect(404)
+      live.locals.botnetTag.close()
+      live.locals.presence.close()
+      expect(() => createTagTestRouter({})).toThrow('test only')
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+})
+
 describe('botnet tag staff and rechecks', () => {
+  it('ignores a second staff join and closes staff when the assignment goes', async () => {
+    const cohort = await makeClass('a')
+    const teacher = await staff('instructor', cohort)
+    const ws = await connect(teacher)
+    send(ws, { type: 'join', cohortId: cohort._id.toString() })
+    await until(() => lastSnapshot(ws), 'staff snapshot')
+    send(ws, { type: 'join', cohortId: cohort._id.toString() })
+    await flush(ws)
+    expect(app.locals.botnetTag.roundCount()).toBe(1)
+    await instructorAssignmentModel(database).updateMany({}, { $set: { status: 'removed' } })
+    await app.locals.botnetTag.refresh()
+    expect(await ws.closed).toBe(4403)
+  })
+
+  it('closes game sockets at once when an administrator disables the account', async () => {
+    const account = await student(await makeClass('a'))
+    const ws = await connect(account)
+    await until(() => lastSnapshot(ws), 'snapshot')
+    const administrator = await staff('admin')
+    const target = await userModel(database).findById(account.user.id).lean()
+    await administrator.agent
+      .patch(`/api/admin/users/${account.user.id}`)
+      .set('Origin', authOptions.clientOrigin)
+      .set('X-CSRF-Token', administrator.csrfToken)
+      .send({ accountStatus: 'disabled', expectedRevision: target.authVersion ?? 0 })
+      .expect(200)
+    expect(await ws.closed).toBe(4401)
+    expect(ws.closeReason).toBe('signed out')
+  })
+
   it('admits an assigned instructor and refuses an unassigned class', async () => {
     const [classA, classB] = [await makeClass('a'), await makeClass('b')]
     const teacher = await staff('instructor', classA)

@@ -134,6 +134,7 @@ export function createAdminService(
     clientOrigin = 'http://localhost:5173',
     recordAuditEvent,
     activationService: providedActivationService,
+    onSessionsEnded = () => {},
   } = {},
 ) {
   const User = userModel(database)
@@ -194,6 +195,8 @@ export function createAdminService(
     let result
     let preparation
     let cleanupFailed = false
+    // a retried transaction starts this list again; sockets are told only after it commits
+    const endedSessions = []
     try {
       await assertTransactionSupport(database)
     } catch (error) {
@@ -202,7 +205,10 @@ export function createAdminService(
     try {
       preparation = await prepare?.()
       session = await database.startSession()
-      result = await session.withTransaction(() => work(session, preparation), transactionOptions)
+      result = await session.withTransaction(() => {
+        endedSessions.length = 0
+        return work(session, preparation, endedSessions)
+      }, transactionOptions)
     } catch (error) {
       if (error instanceof AdminError) throw error
       if (duplicateConflict(error)) throw new AdminError(duplicateCode)
@@ -215,7 +221,16 @@ export function createAdminService(
       }
     }
     if (cleanupFailed) throw new AdminError('ADMIN_UNAVAILABLE')
+    if (endedSessions.length > 0) onSessionsEnded([...endedSessions])
     return result
+  }
+
+  async function endUserSessions(userId, session, endedSessions) {
+    const sessions = database.db.collection('auth_sessions')
+    const filter = { 'session.userId': idString(userId) }
+    const found = await sessions.find(filter, { session, projection: { _id: 1 } }).toArray()
+    endedSessions.push(...found.map((doc) => doc._id))
+    await sessions.deleteMany(filter, { session })
   }
 
   // every admin list is newest first, so a record the admin just created is on page 1
@@ -311,7 +326,7 @@ export function createAdminService(
     const targetId = objectId(parseAdminObjectId(userId, 'userId'))
     const parsed = parseAccountStatusInput(input)
     if (currentActor.id === idString(targetId)) throw new AdminError('ADMIN_FORBIDDEN')
-    return withTransaction(async (session) => {
+    return withTransaction(async (session, _preparation, endedSessions) => {
       await assertTransactionAdministrator(currentActor, session)
       const target = await User.findById(targetId)
         .select('_id username avatarId globalRoles accountStatus authVersion +recoveryRevision')
@@ -367,9 +382,7 @@ export function createAdminService(
         { $set: { revokedAt: occurredAt } },
         { session },
       )
-      await database.db
-        .collection('auth_sessions')
-        .deleteMany({ 'session.userId': idString(targetId) }, { session })
+      await endUserSessions(targetId, session, endedSessions)
       await recordAdminEvent(
         currentActor,
         parsed.accountStatus === 'disabled' ? 'admin.user.disable' : 'admin.user.enable',
@@ -401,7 +414,7 @@ export function createAdminService(
     if (!passwordMatches) throw new AdminError('ADMIN_PASSWORD_INVALID')
 
     return withTransaction(
-      async (session, unusableHash) => {
+      async (session, unusableHash, endedSessions) => {
         await assertTransactionAdministrator(currentActor, session)
         const target = await User.findById(targetId)
           .select('_id username globalRoles accountStatus authVersion +recoveryRevision')
@@ -480,9 +493,7 @@ export function createAdminService(
           await Membership.deleteMany({ userId: targetId }, { session })
           await PasswordReset.deleteMany({ userId: targetId }, { session })
         }
-        await database.db
-          .collection('auth_sessions')
-          .deleteMany({ 'session.userId': idString(targetId) }, { session })
+        await endUserSessions(targetId, session, endedSessions)
         const outcome = hasAttempts ? 'anonymised' : 'deleted'
         await recordAdminEvent(currentActor, 'admin.account.delete', targetId, session, {
           requestId,
@@ -1033,7 +1044,7 @@ export function createAdminService(
     assertEmptyAdminQuery(query)
     assertEmptyAdminBody(input)
     const id = parseAdminObjectId(userId)
-    return withTransaction(async (session) => {
+    return withTransaction(async (session, _preparation, endedSessions) => {
       await assertTransactionAdministrator(currentActor, session)
       const target = await findPendingAdministrator(id, session)
       if (!target) throw new AdminError('ADMIN_NOT_FOUND')
@@ -1043,9 +1054,7 @@ export function createAdminService(
       )
       if (removed.deletedCount !== 1) throw new AdminError('ADMIN_NOT_FOUND')
       await PasswordReset.deleteMany({ userId: target._id }, { session })
-      await database.db
-        .collection('auth_sessions')
-        .deleteMany({ 'session.userId': idString(target._id) }, { session })
+      await endUserSessions(target._id, session, endedSessions)
       await recordAdminEvent(currentActor, 'admin.administrator.cancel', target._id, session, {
         requestId,
       })
@@ -1058,7 +1067,7 @@ export function createAdminService(
     assertEmptyAdminQuery(query)
     assertEmptyAdminBody(input)
     const id = parseAdminObjectId(userId)
-    return withTransaction(async (session) => {
+    return withTransaction(async (session, _preparation, endedSessions) => {
       await assertTransactionAdministrator(currentActor, session)
       const target = await User.findOne({
         _id: objectId(id),
@@ -1077,9 +1086,7 @@ export function createAdminService(
       )
       if (removed.deletedCount !== 1) throw new AdminError('ADMIN_NOT_FOUND')
       await PasswordReset.deleteMany({ userId: target._id }, { session })
-      await database.db
-        .collection('auth_sessions')
-        .deleteMany({ 'session.userId': idString(target._id) }, { session })
+      await endUserSessions(target._id, session, endedSessions)
       await recordAdminEvent(currentActor, 'admin.instructor.cancel', target._id, session, {
         requestId,
       })

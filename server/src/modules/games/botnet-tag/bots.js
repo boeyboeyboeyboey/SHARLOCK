@@ -89,7 +89,8 @@ export function stepBot(round, bot, now, rng) {
   if (!round || !bot?.isBot || round.phase !== 'playing') return
   bot.brain ??= { station: null, solveAt: null, solveOk: false, nextPickAt: 0 }
   if (bot.infected) {
-    hunt(round, bot, now)
+    // survivors keep the grace period as a head start
+    if (now >= round.graceEndsAt) hunt(round, bot, now)
     return
   }
   const threat = nearest(

@@ -33,6 +33,7 @@ export function createBotnetTagService(
     attempts,
     now = Date.now,
     rng = Math.random,
+    botsIdle = false,
     tickMs = 1000 / 15,
     heartbeatMs = 30000,
     recheckMs = 60000,
@@ -65,9 +66,18 @@ export function createBotnetTagService(
   // wall clock start of the round, valid for a real or an injected clock
   const wallStart = (round) => new Date(Date.now() - (now() - round.startedAt))
 
-  // saves one practice attempt per human non-staff player, once per round
+  // a round too short or abandoned counts for nobody, so each student is told instead
+  function refuseSaving(members, results, reason) {
+    for (const member of members) {
+      const result = results.find((item) => item.sid === member.sid)
+      if (result && !member.isStaff) send(member, { type: 'saved', saved: false, reason })
+    }
+  }
+
+  // saves one practice attempt per human non-staff player, once per play of the lobby
   async function saveResults(entry, members, results) {
     const startedAt = wallStart(entry.round)
+    const playKey = `${entry.round.id}-${entry.round.play}`
     await Promise.all(
       members.map(async (connection) => {
         const result = results.find((item) => item.sid === connection.sid)
@@ -81,7 +91,7 @@ export function createBotnetTagService(
               context: { kind: 'cohort', cohortId: entry.cohortId },
               mode: 'practice',
               startedAt,
-              resultKey: `${entry.round.id}-${connection.sid}`,
+              resultKey: `${playKey}-${connection.sid}`,
               state: {
                 outcome: result.outcome,
                 sideWon: result.sideWon,
@@ -114,9 +124,15 @@ export function createBotnetTagService(
         const members = [...entry.members]
         const results = round.results()
         for (const member of members) {
-          send(member, { type: 'results', sideWon: round.sideWon, results })
+          send(member, {
+            type: 'results',
+            sideWon: round.sideWon,
+            unsaved: round.unsavedReason,
+            results,
+          })
         }
-        entry.savePending = saveResults(entry, members, results).catch(() => {})
+        if (round.unsavedReason) refuseSaving(members, results, round.unsavedReason)
+        else entry.savePending = saveResults(entry, members, results).catch(() => {})
       }
     } else entry.resultsSent = false
   }
@@ -129,17 +145,42 @@ export function createBotnetTagService(
     }
   }
 
+  function removeIdlePlayers(entry) {
+    const idle = entry.round.idlePlayers(now())
+    for (const member of [...entry.members]) {
+      if (!idle.includes(member.sid)) continue
+      leaveRound(member)
+      member.ws.close(4410, 'idle')
+    }
+  }
+
+  function failEntry(entry) {
+    dropEntry(entry)
+    for (const member of [...entry.members]) {
+      member.entry = null
+      entry.members.delete(member)
+      member.ws.close(1011, 'error')
+    }
+  }
+
+  // a timer callback has no caller to catch for it, so one bad round closes alone and the api stays up
   function tickEntry(entry) {
-    entry.round.tick(now())
-    afterChange(entry)
-    broadcastSnapshots(entry)
+    try {
+      entry.round.tick(now())
+      removeIdlePlayers(entry)
+      afterChange(entry)
+      broadcastSnapshots(entry)
+    } catch {
+      console.error('Botnet Tag closed a round after a tick failed.')
+      failEntry(entry)
+    }
   }
 
   function createEntry(cohortId) {
     const id = `r-${randomBytes(6).toString('hex')}`
     const entry = {
       cohortId,
-      round: createRound({ id, cohortId, now: now(), rng, withBots: true }),
+      round: createRound({ id, cohortId, now: now(), rng, withBots: true, botsIdle }),
       members: new Set(),
       resultsSent: false,
       savePending: null,
@@ -421,8 +462,6 @@ export function createBotnetTagService(
         4401,
         reason === 'replaced' ? 'replaced' : 'signed out',
       ),
-    disconnectUser: (userId) => closeWhere((entry) => entry.userId === userId, 4401, 'signed out'),
-    connectionCount: () => connections.size,
     roundCount: () => allEntries().length,
     // tests only: advances every round once, and exposes live rounds and pending saves
     tickAll: () => allEntries().forEach(tickEntry),

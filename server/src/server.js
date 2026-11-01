@@ -132,6 +132,8 @@ try {
     ...(config.nodeEnv === 'test' && {
       attempts: { limits: E2E_ATTEMPT_LIMITS },
       admin: { limits: E2E_ADMIN_LIMITS },
+      // browser specs script a botnet tag round; bots stand still so nothing moves under the test
+      botnetTag: { testControls: true, botsIdle: true },
     }),
   })
   server = app.listen(config.port, '127.0.0.1')

@@ -90,6 +90,7 @@ export function createAdminRouter(
     clientOrigin,
     recordAuditEvent,
     activationService,
+    onSessionsEnded,
     limits = {},
   } = {},
 ) {
@@ -100,6 +101,7 @@ export function createAdminRouter(
     clientOrigin,
     recordAuditEvent,
     activationService,
+    onSessionsEnded,
   })
   const router = Router()
   const ordinaryWrites = createWriteLimiter({

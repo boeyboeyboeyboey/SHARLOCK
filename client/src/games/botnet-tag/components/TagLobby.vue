@@ -8,6 +8,10 @@ const props = defineProps({
   sid: { type: String, default: '' },
   className: { type: String, default: '' },
   countdownMs: { type: Number, default: null },
+  readyMs: { type: Number, default: null },
+  staff: { type: Boolean, default: false },
+  roundLost: { type: Boolean, default: false },
+  offline: { type: Boolean, default: false },
 })
 defineEmits(['ready'])
 
@@ -27,6 +31,9 @@ const digit = computed(() =>
       >
     </header>
     <p v-if="className" class="tag-class" data-testid="tag-class">{{ className }}</p>
+    <p v-if="roundLost" class="tag-note is-warn" role="status" data-testid="tag-round-lost">
+      Your round ended while you were away
+    </p>
     <ul class="tag-cards" aria-label="Players">
       <li
         v-for="player in players"
@@ -63,11 +70,18 @@ const digit = computed(() =>
         type="button"
         class="tag-btn is-primary"
         :aria-pressed="String(ready)"
+        :disabled="offline"
         data-testid="tag-ready"
         @click="$emit('ready', !ready)"
       >
         {{ ready ? '✓ Ready' : 'Ready' }}
       </button>
     </div>
+    <p v-if="readyMs !== null" class="tag-note" data-testid="tag-ready-by">
+      Press Ready within {{ Math.floor(readyMs / 1000) }}s or you leave the lobby
+    </p>
+    <p v-else-if="staff && !ready" class="tag-note" data-testid="tag-watch-note">
+      You can watch from here: students do not wait for you. Press Ready to play.
+    </p>
   </section>
 </template>

@@ -18,6 +18,15 @@ describe('botnet tag how to play', () => {
     expect(keys).toMatch(/Space/)
   })
 
+  it('states the saving rules the game really has', () => {
+    const rules = HOW_TO_PLAY.rules.join(' ')
+    expect(rules).toContain('class practice board')
+    expect(rules).not.toContain('no leaderboard')
+    expect(rules).toContain('under 20 seconds')
+    expect(rules).toContain('first 5 seconds')
+    expect(rules).toContain('45 seconds')
+  })
+
   it('renders a caption per step', () => {
     for (let step = 0; step < HOW_TO_PLAY.steps.length; step++) {
       const wrapper = mount(HowToPlayScene, { props: { step } })
@@ -27,8 +36,8 @@ describe('botnet tag how to play', () => {
 
   it('shows a still frame under reduced motion', () => {
     const wrapper = mount(HowToPlayScene, { props: { step: 1, reducedMotion: true } })
-    expect(wrapper.get('[data-testid="tag-howto-scene"]').classes()).toContain('is-static')
+    expect(wrapper.get('[data-testid="tag-howto-scene"]').attributes('data-motion')).toBe('still')
     const live = mount(HowToPlayScene, { props: { step: 1 } })
-    expect(live.get('[data-testid="tag-howto-scene"]').classes()).not.toContain('is-static')
+    expect(live.get('[data-testid="tag-howto-scene"]').attributes('data-motion')).toBe('live')
   })
 })

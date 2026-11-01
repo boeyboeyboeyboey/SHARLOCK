@@ -12,10 +12,11 @@ export function tagUrl(loc = globalThis.location) {
   return `${loc.protocol === 'https:' ? 'wss:' : 'ws:'}//${loc.host}/api/botnet-tag`
 }
 
-// close codes the server uses on purpose: 4401 session ended, 4403 no class, 4408 too many bad messages, 4409 newer tab
+// close codes the server uses on purpose: 4401 session ended, 4403 no class, 4408 too many bad messages, 4409 newer tab, 4410 idle in the lobby
 export function closeDecision(code, staff = false) {
   if (code === 4401) return 'ended'
   if (code === 4409) return 'superseded'
+  if (code === 4410) return 'idle'
   if (code === 4403) return staff ? 'stopped' : 'no-class'
   if (code === 4408 || code === 1009) return 'stopped'
   return 'retry'
