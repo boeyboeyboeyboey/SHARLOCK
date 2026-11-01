@@ -22,6 +22,13 @@ onBeforeUnmount(() => controller.abort())
 const introAvatar = '/images/town/capybara-mint.svg'
 const expiredNotice = computed(() => route.query.reason === 'expired')
 const elsewhereNotice = computed(() => route.query.reason === 'elsewhere')
+// the town is simply the front door, so only another guarded page needs explaining
+const guardedPageNotice = computed(
+  () =>
+    route.query.reason === 'required' &&
+    Boolean(route.redirectedFrom) &&
+    route.redirectedFrom.path !== '/',
+)
 const passwordResetNotice = computed(() => route.query.passwordReset === '1')
 const fieldErrors = computed(() => auth.requestError?.fieldErrors || {})
 const errorMessage = computed(() => auth.requestError?.message || '')
@@ -117,6 +124,10 @@ async function resendCode() {
 
       <p v-if="expiredNotice" class="auth-field-hint" role="status">
         Your session has ended. Sign in again to continue. Your unfinished action was not repeated.
+      </p>
+
+      <p v-if="guardedPageNotice" class="auth-field-hint" role="status">
+        Sign in to open that page.
       </p>
 
       <!-- the signed-in view stays outside the transition: signing in navigates away at once, and

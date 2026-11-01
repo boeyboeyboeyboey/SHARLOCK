@@ -12,7 +12,10 @@ export const MAX_CLASS_STUDENTS = 2000
 // a board reads at most this many completed attempts
 export const MAX_BOARD_ATTEMPTS = 20000
 
-export function createLeaderboardService(database, { registry = createAttemptRegistry() } = {}) {
+export function createLeaderboardService(
+  database,
+  { registry = createAttemptRegistry(), maxBoardAttempts = MAX_BOARD_ATTEMPTS } = {},
+) {
   const permissions = createPermissionService(database)
   const Attempt = attemptModel(database, registry)
   const Membership = membershipModel(database)
@@ -104,14 +107,18 @@ export function createLeaderboardService(database, { registry = createAttemptReg
     const competitive = rulesetVersion === null ? false : isCompetitive(gameId, rulesetVersion)
     const empty = { rows: [], total: 0, me: null }
     let board = empty
+    let truncated = false
     if (rulesetVersion !== null && students.size > 0) {
+      // past the cap the newest plays count, so a new best still shows, and the response says so
       const attempts = await Attempt.find(
         { ...classFilter(cohortId, students), gameId, rulesetVersion },
         { playerId: 1, score: 1, maxScore: 1, completedAt: 1, competitiveEligible: 1 },
       )
-        .sort({ completedAt: 1 })
-        .limit(MAX_BOARD_ATTEMPTS)
+        .sort({ completedAt: -1 })
+        .limit(maxBoardAttempts + 1)
         .lean()
+      truncated = attempts.length > maxBoardAttempts
+      if (truncated) attempts.pop()
       board = buildBoard({
         attempts,
         students,
@@ -131,6 +138,7 @@ export function createLeaderboardService(database, { registry = createAttemptReg
       pageSize: BOARD_PAGE_SIZE,
       total: board.total,
       me: board.me,
+      truncated,
     }
   }
 

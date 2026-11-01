@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mount, RouterLinkStub } from '@vue/test-utils'
 import Navbar from '../Navbar.vue'
 
@@ -58,7 +58,6 @@ describe('top bar', () => {
     window.dispatchEvent(
       new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }),
     )
-    await new Promise((resolve) => setTimeout(resolve, 5))
-    expect(wrapper.emitted('update:menuOpen')?.[0]).toEqual([true])
+    await vi.waitFor(() => expect(wrapper.emitted('update:menuOpen')?.[0]).toEqual([true]))
   })
 })

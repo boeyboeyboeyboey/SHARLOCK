@@ -6,7 +6,6 @@ export function leaderboardErrorMessage(error) {
     : Number.isInteger(error?.status)
       ? error.status
       : 0
-  if (status === 401) return 'Your session has ended. Sign in again to see the leaderboard.'
   if (status === 404) return "This class's leaderboard is not available."
   if (status === 429) return 'Too many requests. Please wait a moment and try again.'
   if (status >= 500) return 'Sharlock is temporarily unavailable. Try again shortly.'

@@ -172,7 +172,6 @@ describe('LeaderboardPage', () => {
   it('loads classes, games and the board for a student', async () => {
     const wrapper = mountPage()
     await flushPromises()
-    expect(mocks.listMemberships).toHaveBeenCalled()
     expect(mocks.getLeaderboardGames).toHaveBeenCalledWith('c1', expect.anything())
     expect(mocks.getLeaderboard).toHaveBeenCalledWith(
       'c1',
@@ -256,6 +255,196 @@ describe('LeaderboardPage', () => {
     await flushPromises()
     expect(wrapper.text()).toContain('Join a class to see its leaderboard.')
     expect(wrapper.find('a').attributes('href')).toBe('/classes')
+  })
+
+  it('tells a student whose request is pending to wait, not to join', async () => {
+    mocks.listMemberships.mockResolvedValue({
+      memberships: [
+        { cohortId: 'c1', cohortName: 'Blue', status: 'pending', cohortStatus: 'active' },
+      ],
+    })
+    const wrapper = mountPage()
+    await flushPromises()
+    expect(wrapper.text()).toContain('Your class request is waiting for approval.')
+    expect(wrapper.text()).not.toContain('Join a class')
+    expect(mocks.getLeaderboardGames).not.toHaveBeenCalled()
+  })
+
+  it('does not count a pending request for a class that was deactivated', async () => {
+    mocks.listMemberships.mockResolvedValue({
+      memberships: [
+        { cohortId: 'c1', cohortName: 'Blue', status: 'pending', cohortStatus: 'inactive' },
+      ],
+    })
+    const wrapper = mountPage()
+    await flushPromises()
+    expect(wrapper.text()).toContain('Join a class to see its leaderboard.')
+  })
+
+  it.each([
+    ['instructor', 'No classes are assigned to you yet.', '/instructor'],
+    ['admin', 'No classes exist yet.', '/admin'],
+  ])('sends %s with no classes to their own page', async (role, text, link) => {
+    mocks.auth.user.globalRoles = [role]
+    mocks.listManagedCohorts.mockResolvedValue({ cohorts: [], total: 0 })
+    const wrapper = mountPage()
+    await flushPromises()
+    expect(wrapper.text()).toContain(text)
+    expect(wrapper.find('a').attributes('href')).toBe(link)
+  })
+
+  it('reads every page of an administrator class list and names the institution', async () => {
+    mocks.auth.user.globalRoles = ['admin']
+    mocks.listManagedCohorts
+      .mockResolvedValueOnce({
+        cohorts: [{ cohortId: 'c1', cohortName: 'Class 1A', institutionName: 'North' }],
+        total: 2,
+      })
+      .mockResolvedValueOnce({
+        cohorts: [{ cohortId: 'c2', cohortName: 'Class 1A', institutionName: 'South' }],
+        total: 2,
+      })
+    const wrapper = mountPage()
+    await flushPromises()
+    expect(mocks.listManagedCohorts).toHaveBeenCalledTimes(2)
+    expect(mocks.listManagedCohorts.mock.calls[1][0]).toMatchObject({ page: 2, limit: 50 })
+    expect(wrapper.findAll('option').map((option) => option.text())).toEqual([
+      'North · Class 1A',
+      'South · Class 1A',
+    ])
+  })
+
+  it('shows the game name without a ruleset code', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+    expect(wrapper.get('h2').text()).toBe('SQL Injection Arcade')
+    expect(wrapper.text()).not.toMatch(/ruleset/i)
+  })
+
+  it('says when the board could not read every play', async () => {
+    mocks.getLeaderboard.mockResolvedValue({ ...bestBoard, truncated: true })
+    const wrapper = mountPage()
+    await flushPromises()
+    expect(wrapper.text()).toContain('the oldest are not counted')
+  })
+
+  describe('paging', () => {
+    const paged = (page) => ({ ...bestBoard, total: 60, page, me: null })
+    const named = (wrapper, name) =>
+      wrapper.findAll('button').find((button) => button.text() === name)
+
+    beforeEach(() => {
+      mocks.getLeaderboard.mockImplementation(async (_id, { page }) => paged(page))
+    })
+
+    it('moves between pages and stops at the ends', async () => {
+      const wrapper = mountPage()
+      await flushPromises()
+      expect(wrapper.text()).toContain('Page 1 of 3')
+      expect(named(wrapper, 'Previous').attributes('disabled')).toBeDefined()
+      await named(wrapper, 'Next').trigger('click')
+      await flushPromises()
+      expect(mocks.getLeaderboard).toHaveBeenLastCalledWith(
+        'c1',
+        expect.objectContaining({ page: 2 }),
+      )
+      expect(wrapper.text()).toContain('Page 2 of 3')
+      await named(wrapper, 'Previous').trigger('click')
+      await flushPromises()
+      expect(wrapper.text()).toContain('Page 1 of 3')
+    })
+
+    it('asks for the board once when the view changes on a later page', async () => {
+      const wrapper = mountPage()
+      await flushPromises()
+      await named(wrapper, 'Next').trigger('click')
+      await flushPromises()
+      mocks.getLeaderboard.mockClear()
+      await wrapper
+        .findAll('[role="tab"]')
+        .find((tab) => tab.text() === 'All-time')
+        .trigger('click')
+      await flushPromises()
+      expect(mocks.getLeaderboard).toHaveBeenCalledTimes(1)
+      expect(mocks.getLeaderboard).toHaveBeenCalledWith(
+        'c1',
+        expect.objectContaining({ page: 1, view: 'all-time' }),
+      )
+    })
+  })
+
+  it('shows the newest answer when an older request finishes last', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+    const answers = []
+    mocks.getLeaderboard.mockImplementation(() => new Promise((resolve) => answers.push(resolve)))
+    const tab = (name) => wrapper.findAll('[role="tab"]').find((item) => item.text() === name)
+    await tab('All-time').trigger('click')
+    await flushPromises()
+    await tab('Best score').trigger('click')
+    await flushPromises()
+    expect(answers).toHaveLength(2)
+    answers[1]({ ...bestBoard, rows: [bestBoard.rows[1]] })
+    await flushPromises()
+    answers[0]({ ...bestBoard, view: 'all-time', rows: allTimeRows })
+    await flushPromises()
+    expect(wrapper.text()).toContain('Practice best scores')
+    expect(wrapper.text()).not.toContain('Casey_Student')
+  })
+
+  it('tries the class list again after a failure', async () => {
+    mocks.listMemberships.mockRejectedValueOnce({ response: { status: 503 } })
+    const wrapper = mountPage()
+    await flushPromises()
+    expect(wrapper.get('[role="alert"]').text()).toContain('temporarily unavailable')
+    await wrapper.get('[role="alert"] button').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Casey_Student')
+  })
+
+  it('tries the board again after a failure', async () => {
+    mocks.getLeaderboard.mockRejectedValueOnce({ response: { status: 503 } })
+    const wrapper = mountPage()
+    await flushPromises()
+    await wrapper.get('[role="alert"] button').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('Casey_Student')
+  })
+
+  it('has no sentence of its own for an ended session; the shared notice owns that', async () => {
+    mocks.getLeaderboard.mockRejectedValue({ response: { status: 401 } })
+    const wrapper = mountPage()
+    await flushPromises()
+    expect(wrapper.get('[role="alert"]').text()).not.toMatch(/session|sign in/i)
+  })
+
+  it('resets the game when the class changes', async () => {
+    mocks.listMemberships.mockResolvedValue({
+      memberships: [
+        { cohortId: 'c1', cohortName: 'Blue', status: 'active', cohortStatus: 'active' },
+        { cohortId: 'c2', cohortName: 'Red', status: 'active', cohortStatus: 'active' },
+      ],
+    })
+    mocks.route.query = { game: 'clearance-tower' }
+    const wrapper = mountPage()
+    await flushPromises()
+    await wrapper.get('select').setValue('c2')
+    await flushPromises()
+    expect(mocks.route.query).toMatchObject({ class: 'c2', game: '' })
+    expect(mocks.getLeaderboardGames).toHaveBeenLastCalledWith('c2', expect.anything())
+  })
+
+  it('moves between the two views with the arrow, Home and End keys', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+    const tablist = wrapper.find('[aria-label="Leaderboard view"]')
+    await tablist.trigger('keydown', { key: 'ArrowRight' })
+    expect(mocks.route.query.view).toBe('all-time')
+    await tablist.trigger('keydown', { key: 'Home' })
+    expect(mocks.route.query.view).toBe('best')
+    await tablist.trigger('keydown', { key: 'End' })
+    expect(mocks.route.query.view).toBe('all-time')
   })
 
   it('shows an empty state when no game has scores', async () => {

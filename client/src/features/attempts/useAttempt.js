@@ -1,6 +1,14 @@
 import { onBeforeUnmount, ref, shallowRef } from 'vue'
 import { readAttempt, safeAttemptError, writeAttempt } from './api.js'
 
+const NOT_SENT_MESSAGE = 'Could not reach saved play. Check your connection, then try again.'
+
+// resending can only help a lost response or a busy server; a refusal would just be refused again
+function canResend({ status, code }) {
+  if (status === 403) return code === 'CSRF_INVALID'
+  return ![400, 401, 404, 409].includes(status)
+}
+
 export function useAttempt(gameId) {
   const snapshot = shallowRef(null)
   const busy = ref(false)
@@ -24,8 +32,10 @@ export function useAttempt(gameId) {
     } catch (failure) {
       if (!controller.signal.aborted) {
         const safe = safeAttemptError(failure)
-        error.value = safe.message
-        retryable.value = Boolean(pending) && ![400, 401, 404, 409].includes(safe.status)
+        // a start or a read has no held request, so there is no same request to retry
+        const unreached = safe.status === 0 || safe.status >= 500
+        error.value = !pending && unreached ? NOT_SENT_MESSAGE : safe.message
+        retryable.value = Boolean(pending) && canResend(safe)
         if (!retryable.value) pending = null
       }
       return false

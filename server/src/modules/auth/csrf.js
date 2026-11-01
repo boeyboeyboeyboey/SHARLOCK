@@ -1,3 +1,4 @@
+// library: csrf-sync (isc), csrf protection; credited in credits.md
 import { csrfSync } from 'csrf-sync'
 import { AuthError } from './policy.js'
 

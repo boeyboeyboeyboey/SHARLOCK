@@ -1,6 +1,6 @@
 import { createConnection, Schema, Types } from 'mongoose'
 import { afterEach, describe, expect, it } from 'vitest'
-import { attemptModel, getRulesetModel } from '../../../src/modules/attempts/model.js'
+import { attemptModel } from '../../../src/modules/attempts/model.js'
 import { createAttemptRegistry } from '../../../src/modules/attempts/registry.js'
 
 const databases = []
@@ -29,7 +29,7 @@ function createFixture() {
   }
   const registry = createAttemptRegistry([entry])
   const BaseAttempt = attemptModel(database, registry)
-  const RulesetAttempt = getRulesetModel(database, registry, registry.entries[0])
+  const RulesetAttempt = BaseAttempt.discriminators[`GameAttempt:${registry.entries[0].storageKey}`]
   return { database, registry, BaseAttempt, RulesetAttempt }
 }
 

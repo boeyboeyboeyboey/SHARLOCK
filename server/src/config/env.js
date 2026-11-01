@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+// library: dotenv (bsd-2-clause), environment loading; credited in credits.md
 import { parse } from 'dotenv'
 import { assertSafeTestDatabaseUri, databaseNameFromUri } from './database-uri.js'
 

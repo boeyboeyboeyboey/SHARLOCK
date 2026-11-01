@@ -800,6 +800,8 @@ describe('admin workspace', () => {
       .findAll('button')
       .find((button) => button.text() === 'Close')
       .trigger('click')
+    expect(wrapper.find('dialog').text()).toContain('Link for Casey_Student (casey@example.test)')
+    await clickNamed(wrapper, 'Yes, close')
     expect(wrapper.find('dialog').exists()).toBe(false)
     expect(wrapper.find('input#recovery-link-value').exists()).toBe(false)
     expect(wrapper.find('.recovery-issue-form').exists()).toBe(true)

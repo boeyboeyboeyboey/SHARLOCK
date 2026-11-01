@@ -40,6 +40,8 @@ provide(INTERIOR_LEAVE, (hooks) => {
   return () => leaveHooks.delete(hooks)
 })
 watch(confirmOpen, (open) => {
+  // a confirmed leave unmounts the game, so its clock stays held
+  if (!open && leaveConfirmed) return
   for (const hooks of leaveHooks) (open ? hooks.onOpen : hooks.onClose)?.()
 })
 
@@ -106,7 +108,7 @@ onBeforeUnmount(() => clearTimeout(chromeTimer))
             class="sound-button interior-sound"
             type="button"
             data-testid="interior-sound"
-            :aria-label="isMuted ? 'Turn on game sound' : 'Mute game sound'"
+            aria-label="Game sound"
             :aria-pressed="!isMuted"
             :disabled="starting"
             @click="toggle"

@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount, RouterLinkStub } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
 import { listAttemptContexts } from '../../../features/attempts/api.js'
 import AttemptContextChooser from '../../../features/attempts/components/AttemptContextChooser.vue'
 import BriefingPanel from '../components/BriefingPanel.vue'
@@ -26,6 +27,8 @@ vi.mock('../../../features/attempts/api.js', () => ({
   listAttemptContexts: vi.fn().mockResolvedValue({ cohorts: [], total: 0 }),
   safeAttemptError: () => ({ message: 'error' }),
 }))
+
+beforeEach(() => setActivePinia(createPinia()))
 
 async function chooseContext(wrapper) {
   await flushPromises()

@@ -60,6 +60,29 @@ describe('local player', () => {
     expect(player.position()).toEqual({ x: -8, z: 12 })
   })
 
+  it('keeps moving across an arena rebuild without a new key press', () => {
+    press('KeyD')
+    player.setJoystick(0, 0.5)
+    player.walkTo(4, 12)
+    run(0.2)
+    const input = player.inputState()
+    const from = player.position()
+    player.dispose()
+    make({ spawn: from, input })
+    expect(player.inputState()).toEqual(input)
+    const moved = run(0.5)
+    expect(Math.hypot(moved.x - from.x, moved.z - from.z)).toBeGreaterThan(1)
+    // the new player owns the listeners, so the release still reaches it
+    press('KeyD', 'keyup')
+    expect(player.inputState().keys).toEqual([])
+    player.setJoystick(0, 0)
+    player.walkTo(null, null)
+    run(0.5)
+    const rest = player.position()
+    run(0.5)
+    expect(player.position()).toEqual(rest)
+  })
+
   it('walks straight at a spot and stops there', () => {
     player.walkTo(-5, 12)
     run(2)

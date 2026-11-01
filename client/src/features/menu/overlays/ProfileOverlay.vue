@@ -58,8 +58,8 @@ async function onKey(event, index) {
       </div>
     </template>
     <div :id="`profile-panel-${active}`" role="tabpanel" :aria-labelledby="`profile-tab-${active}`">
-      <ProfilePage v-if="active === 'profile'" embedded />
-      <ProgressPage v-else embedded />
+      <ProfilePage v-if="active === 'profile'" />
+      <ProgressPage v-else />
     </div>
   </OverlayPanel>
 </template>

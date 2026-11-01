@@ -29,6 +29,7 @@ import {
 } from '../../../src/modules/games/botnet-tag/rules.js'
 import { createRng } from '../../unit/botnet-tag/rng.js'
 import {
+  agentCookieHeader,
   createTestApp,
   disposeTestAuthApps,
   initializeTestAuth,
@@ -152,15 +153,7 @@ async function staff(role, assignedTo) {
   return account
 }
 
-function cookieOf(account) {
-  const jar = account.agent.jar.getCookies({
-    domain: '127.0.0.1',
-    path: '/api',
-    secure: false,
-    script: false,
-  })
-  return jar.map((cookie) => `${cookie.name}=${cookie.value}`).join('; ')
-}
+const cookieOf = (account) => agentCookieHeader(account.agent)
 
 function connect(
   account,

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   achievementCatalogue,
-  achievementKeys,
   deriveAchievements,
 } from '../../../src/modules/progress/achievements.js'
 import { summarizeGame, summarizeTopics } from '../../../src/modules/progress/points.js'
@@ -132,7 +131,7 @@ describe('achievements', () => {
 describe('achievement catalogue', () => {
   it('lists every achievement without criteria', () => {
     expect(achievementCatalogue).toHaveLength(16)
-    expect(achievementCatalogue.map((item) => item.key)).toEqual([...achievementKeys])
+    expect(new Set(achievementCatalogue.map((item) => item.key)).size).toBe(16)
     for (const item of achievementCatalogue) {
       expect(Object.keys(item).sort()).toEqual(['description', 'key', 'name'])
       expect(Object.values(item).every((value) => typeof value === 'string' && value)).toBe(true)

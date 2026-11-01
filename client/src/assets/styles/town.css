@@ -12,25 +12,6 @@
 .is-town .portal-workspace {
   margin-left: 0;
 }
-.is-town .portal-main {
-  padding: 24px 16px 12px;
-  min-height: auto;
-  max-width: 1200px;
-}
-.is-town .portal-header {
-  border-bottom: 3px solid var(--town-edge);
-  background: var(--town-paper);
-  box-shadow: 0 4px 0 rgb(80 99 77 / 14%);
-  gap: 16px;
-}
-.is-town .brand-title {
-  font-family: var(--font-pixel);
-  letter-spacing: 0;
-}
-.town-preview-tag {
-  font-size: 12px;
-  letter-spacing: 1px;
-}
 .is-town .icon-button {
   border: 2px solid var(--town-edge);
   border-radius: 0;
@@ -40,51 +21,6 @@
   border: 3px solid var(--town-edge);
   border-radius: 0;
   background: var(--town-paper);
-}
-.town-menu-profile {
-  display: grid;
-  justify-items: center;
-  gap: 6px;
-  text-align: center;
-}
-.town-menu-profile p {
-  margin: 0;
-  font-weight: 700;
-}
-.town-menu-profile small {
-  font-size: 12px;
-}
-.is-town .portal-footer {
-  border-top: 2px solid var(--town-edge);
-  max-width: 1168px;
-  margin: 0 auto;
-  padding: 20px 16px;
-}
-.town-player {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 16px 8px 8px;
-  border: 2px solid var(--town-edge);
-  background: var(--town-paper);
-  box-shadow: 4px 4px 0 rgb(80 99 77 / 22%);
-  text-decoration: none;
-}
-.town-player > span {
-  display: grid;
-  gap: 5px;
-}
-.town-player strong {
-  font-size: 17px;
-}
-.town-player > span > span {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
-}
-.town-player small {
-  font-size: 12px;
 }
 .town-map {
   border: 3px solid var(--town-edge);
@@ -255,7 +191,7 @@
   border-radius: 3px;
   background: rgba(30, 40, 34, 0.78);
   color: #fff8df;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 15px;
   white-space: nowrap;
 }
@@ -344,9 +280,7 @@
 .pixel-bush {
   position: absolute;
 }
-.town-world img,
-.town-player img,
-.town-menu-profile img {
+.town-world img {
   image-rendering: pixelated;
 }
 .town-buildings {
@@ -493,30 +427,7 @@
   width: 100%;
   justify-content: space-between;
 }
-@media (min-width: 768px) {
-  .is-town .portal-main {
-    padding: 32px 24px 16px;
-  }
-  .is-town .town-preview-tag {
-    display: none;
-  }
-}
-@media (min-width: 1200px) {
-  .is-town .town-preview-tag {
-    display: inline;
-  }
-}
 @media (max-width: 767.98px) {
-  .town-player {
-    padding: 4px 12px 4px 4px;
-  }
-  .town-player img {
-    width: 64px;
-    height: 48px;
-  }
-  .town-player > span {
-    gap: 2px;
-  }
   .sound-button {
     font-size: 14px;
     padding: 8px;
@@ -578,20 +489,6 @@
 @media (min-width: 768px) and (min-height: 600px) {
   .is-town {
     --shell-chrome: 140px;
-  }
-  .is-town .portal-main {
-    padding: 12px 16px 6px;
-    min-height: 0;
-  }
-  .is-town .portal-footer {
-    padding: 8px 16px;
-  }
-  .town-player {
-    padding: 4px 12px 4px 4px;
-  }
-  .town-player img {
-    width: 56px;
-    height: 42px;
   }
 }
 

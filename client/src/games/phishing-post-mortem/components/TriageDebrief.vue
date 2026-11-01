@@ -49,7 +49,10 @@ function callLabel(item) {
       </div>
     </dl>
     <p v-if="reachedPar" class="triage-par">Par reached: the most one run can save.</p>
-    <button type="button" class="triage-next" @click="$emit('replay')">Play again</button>
+    <div class="triage-debrief-actions">
+      <button type="button" class="triage-next" @click="$emit('replay')">Play again</button>
+      <RouterLink to="/" class="triage-next triage-town-link">Back to town</RouterLink>
+    </div>
     <ol class="triage-review">
       <li
         v-for="(item, index) in review"

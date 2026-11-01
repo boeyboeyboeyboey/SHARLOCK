@@ -62,9 +62,13 @@ Applies to shared pages, the hub and every game (including games' own design fre
 - Settings rows never wrap their control onto a second line at 375px; the Interface size radios share one row.
 - Start screens hold a short title, How to play, the save-to select and one Start button; teaching copy lives in How to play.
 
+### Pixel scrollbars
+
+The 18px block scrollbar in `main.css` applies only to a fine pointer (`@media (hover: hover) and (pointer: fine)`). Measured at 375px with touch emulation it took 18px from every inner scroller (a 200px box kept 182px), so touch screens keep their thin overlay bars; a mouse keeps the pixel bar, including in a narrow window. Firefox keeps its colour and width.
+
 ### How to play dialog
 
-Games show their guide through `client/src/components/common/HowToPlayDialog.vue` (HOW-01), not a custom modal. It is a native `<dialog>` with a step caption, step dots, Previous/Next, a "What you'll learn" line, one catalog line (stars with a screen-reader "n of 3" and "Helps to know", looked up by `gameId`), rules, controls, a "Don't show again" checkbox saved to the account, and a "Start playing" button. The game supplies the animated mini-UI through the `scene` slot, built in code (no images, GIF or video). The scene advances every 4 seconds with a **Pause animation** toggle (`aria-pressed`, WCAG 2.2.2); under `prefers-reduced-motion` it starts paused and shows static steps. A game themes the dialog from its own root with `--game-howto-*` variables (`surface`, `scene`, `edge`, `ink`, `muted`, `soft`, `bar`, `bar-ink`, `bad`, `bad-soft`, `font`), which fall back to the shared tokens; never style it from `:root` or another module.
+Games show their guide through `client/src/components/common/HowToPlayDialog.vue` (HOW-01), not a custom modal. It is a native `<dialog>` with a step caption, step dots, Previous/Next, a "What you'll learn" line, one catalog line (stars with a screen-reader "n of 3" and "Helps to know", looked up by `gameId`), rules, controls, a "Don't show again" checkbox saved to the account, and a "Start playing" button. Those last two stay in a footer pinned to the bottom of the dialog, so a long guide on a phone never hides them. The game supplies the animated mini-UI through the `scene` slot, built in code (no images, GIF or video). The scene advances every 4 seconds with a **Pause animation** toggle (`aria-pressed`, WCAG 2.2.2); under `prefers-reduced-motion` it starts paused and shows static steps. A game themes the dialog from its own root with `--game-howto-*` variables (`surface`, `scene`, `edge`, `ink`, `muted`, `soft`, `bar`, `bar-ink`, `bad`, `bad-soft`, `font`), which fall back to the shared tokens; never style it from `:root` or another module.
 
 ### Game design freedom and isolation
 
@@ -216,7 +220,7 @@ The six activities are already registered. Keep their identities and placements 
 | The Phishing Post-Mortem                  | `phishing-post-mortem`         | library   | (664, 380) | Playable, saved (Done)     |
 | SQL Injection Arcade                      | `sql-injection-arcade`         | hut       | (694, 180) | Saved practice             |
 | Cyber News Central / The daily briefing   | `threat-briefing`              | newsstand | (424, 0) | Accepted                   |
-| LLM Social Engineering Simulator          | `social-engineering-simulator` | office    | (234, 400) | Playable, saved (Done)     |
+| Help Desk Shift                           | `social-engineering-simulator` | office    | (234, 400) | Playable, saved (Done)     |
 | Clearance Tower (replaced Regex Defender) | `clearance-tower`              | shed      | (879, 565) | Playable, saved (Done)     |
 
 A game that only works in 3D sets `needs3d: true` in its catalog entry: the 2D info card and the Places row then show a small "3D" badge (`aria-label` "Needs 3D"), and the game page shows a short "Needs 3D" state when WebGL2 is missing (the 2D town setting does not block it). Botnet Tag (`botnet-tag`, `warehouse` building at (600, 580), Server Yard on the east lane of the wharf) is the first.

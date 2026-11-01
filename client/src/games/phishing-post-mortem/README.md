@@ -14,19 +14,19 @@
 
 ## Files
 
-| File                             | Responsibility                                                                                                                                  |
-| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PhishingPostMortem.vue`         | Route entry, context chooser, saved-result wrapper, Report/Trust controls, part picking, feedback hold in practice, error and retry states.     |
-| `components/HintPanel.vue`       | Practice hint button and lines. Props `tier`, `maxTier`, `lines`, `disabled`; emits `hint`. Stays focusable and announces new lines.            |
-| `useTriageRun.js`                | Module state: the attempt (via `useAttempt`), countdown, previous email, run-over detection, completion with brief retry, `report` and `trust`. |
-| `components/TriageEmailCard.vue` | The email with tappable parts. Props `email`, `picking`, `highlightIds`, `disabled`; emits `select-part` and `cancel-pick` (Escape).            |
-| `components/TriageStatusBar.vue` | Countdown (`role="timer"`), score, streak multiplier, mistakes and email number; announces 1 minute, 30 s and 10 s warnings.                    |
-| `components/RoundFeedback.vue`   | Outcome of the previous round with the explanation. Emits `next` in practice; announced politely in timed runs.                                 |
-| `components/TriageDebrief.vue`   | End-of-run totals, end reason and per-email review, with Play again above the list. Props add `maxScore`; emits `replay`.                       |
-| `components/triageLabels.js`     | Display names for email types and parts.                                                                                                        |
-| `howToPlay.js`                   | Guide content: two steps (Play, Modes) and a one-line learn note.                                                                               |
-| `components/HowToPlayScene.vue`  | Looping 9 s CSS-only replay preview, mounted only while the guide is open; static Report frame under reduced motion.                            |
-| `phish.css`                      | Every style, scoped under `.phish-game`.                                                                                                        |
+| File                             | Responsibility                                                                                                                                                                                             |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PhishingPostMortem.vue`         | Route entry, context chooser, saved-result wrapper, Report/Trust controls, part picking, feedback hold in practice, error and retry states.                                                                |
+| `components/HintPanel.vue`       | Practice hint button and lines. Props `tier`, `maxTier`, `lines`, `disabled`; emits `hint`. Stays focusable and announces new lines.                                                                       |
+| `useTriageRun.js`                | Module state: the attempt (via `useAttempt`), countdown, previous email, run-over detection, completion with brief retry, `report` and `trust`.                                                            |
+| `components/TriageEmailCard.vue` | The email with tappable parts. Props `email`, `picking`, `highlightIds`, `disabled`; emits `select-part` and `cancel-pick` (Escape).                                                                       |
+| `components/TriageStatusBar.vue` | Countdown (`role="timer"`), score, streak multiplier, mistakes and email number; announces 1 minute, 30 s and 10 s warnings.                                                                               |
+| `components/RoundFeedback.vue`   | Outcome of the previous round with the explanation. Emits `next` in practice; announced politely in timed runs.                                                                                            |
+| `components/TriageDebrief.vue`   | End-of-run totals, end reason and per-email review, with Play again and Back to town above the list (the shared result's own actions are hidden with `hideActions`). Props add `maxScore`; emits `replay`. |
+| `components/triageLabels.js`     | Display names for email types and parts.                                                                                                                                                                   |
+| `howToPlay.js`                   | Guide content: two steps (Play, Modes) and a one-line learn note.                                                                                                                                          |
+| `components/HowToPlayScene.vue`  | Looping 9 s CSS-only replay preview, mounted only while the guide is open; static Report frame under reduced motion.                                                                                       |
+| `phish.css`                      | Every style, scoped under `.phish-game`.                                                                                                                                                                   |
 
 ## State ownership
 

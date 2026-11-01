@@ -5,7 +5,7 @@ const firstCloseGames = Object.freeze([
   ['clearance-tower', 'Tower cleared', 'Clearance Tower'],
   ['phishing-post-mortem', 'Post sorted', 'Phishing Post-Mortem'],
   ['cli-cyber-defender', 'Wire held', 'CLI Cyber Defender'],
-  ['social-engineering-simulator', 'Talked down', 'Social Engineering Simulator'],
+  ['social-engineering-simulator', 'Talked down', 'Help Desk Shift'],
 ])
 
 // botnet tag rounds: fields come from the server-recorded attempt state, never the browser
@@ -114,7 +114,6 @@ const achievementDefinitions = Object.freeze([
   ...tagAchievements,
 ])
 
-export const achievementKeys = Object.freeze(achievementDefinitions.map(({ key }) => key))
 export const achievementNames = Object.freeze(
   Object.fromEntries(achievementDefinitions.map(({ key, name }) => [key, name])),
 )

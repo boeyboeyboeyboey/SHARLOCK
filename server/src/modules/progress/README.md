@@ -36,6 +36,8 @@ Per game, the best attempt is the highest `score / maxScore` among attempts on t
 | `well-rounded`          | completed attempts across 3 different games                 |
 | `persistent-detective`  | 5 completed attempts                                        |
 | `topic-expert`          | one attempt with at least one topic outcome, all `achieved` |
+| `first-close-<gameId>`  | a completed attempt in that game, one badge per saved game  |
+| `timed-run`             | a completed standard-mode attempt on a competitive ruleset  |
 | `tag-untouchable`       | a Botnet Tag round ended clean (`state.outcome` survived)   |
 | `tag-last-one-clean`    | Botnet Tag: survived, survivors won and `cleanAtEnd` is 1   |
 | `tag-super-spreader`    | Botnet Tag: 3 or more tags in one round                     |

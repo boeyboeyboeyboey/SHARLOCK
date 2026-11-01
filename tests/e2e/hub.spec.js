@@ -555,7 +555,7 @@ test('minimap selects a destination and follows the player', async ({ page }, te
     await expect(map).toBeVisible()
   }
   await expect(map).toHaveAccessibleName('Map')
-  await expect(pin).toHaveAccessibleName('Travel to LLM Social Engineering Simulator')
+  await expect(pin).toHaveAccessibleName('Travel to Help Desk Shift')
   await pin.click()
   await expect(page.getByTestId(`dest-${id}`)).toHaveAttribute('aria-pressed', 'true')
   await expect(pin).toHaveAttribute('aria-pressed', 'true')

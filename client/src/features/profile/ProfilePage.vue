@@ -2,7 +2,6 @@
 defineOptions({ name: 'SharlockProfile' })
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import PixelIcon from '../../components/town/PixelIcon.vue'
 import SessionNotice from '../auth/components/SessionNotice.vue'
 import { avatarFor } from '../auth/avatars.js'
 import { useAuthStore } from '../auth/store.js'
@@ -11,8 +10,6 @@ import ProfileEditor from './components/ProfileEditor.vue'
 import { getOwnProfile, safeError, updateOwnProfile } from './api.js'
 import './profile.css'
 
-// embedded: shown inside the profile overlay, which has its own way back to town
-defineProps({ embedded: { type: Boolean, default: false } })
 const route = useRoute()
 const auth = useAuthStore()
 const shownUsername = computed(() => profile.value?.username || auth.user?.username || '')
@@ -179,9 +176,6 @@ async function retrySession() {
           <h2>{{ shownUsername }}</h2>
           <p>{{ auth.user.email }}</p>
         </div>
-        <RouterLink v-if="!embedded" to="/" class="btn btn-secondary">
-          Town map <PixelIcon name="arrow" :size="18" aria-hidden="true" />
-        </RouterLink>
         <button
           ref="editButton"
           class="btn btn-primary profile-edit-button"

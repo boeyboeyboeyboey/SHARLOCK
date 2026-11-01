@@ -1,4 +1,6 @@
 import { randomBytes } from 'node:crypto'
+import { ipKeyGenerator, MemoryStore } from 'express-rate-limit'
+// library: ws (mit), websocket server; credited in credits.md
 import { WebSocketServer } from 'ws'
 import { hasExpectedOrigin } from '../auth/csrf.js'
 import { publicLook } from './look.js'
@@ -13,16 +15,24 @@ import { createRoomResolver } from './rooms.js'
 
 const STRIKE_LIMIT = 30
 const STRIKE_WINDOW_MS = 10000
+const JOIN_GAP_MS = 1000
+const IPV6_SUBNET = 56
+
+// a page load opens one socket, so these only bound scripted reconnects, which each cost several
+// queries; the address limit leaves room for a whole class behind one school address
+export const DEFAULT_CONNECT_LIMITS = Object.freeze({ user: 60, ip: 300, windowMs: 60 * 1000 })
 
 const REJECTIONS = Object.freeze({
   401: 'Unauthorized',
   403: 'Forbidden',
+  429: 'Too Many Requests',
 })
 
 function reject(socket, status) {
   if (socket.writable) {
+    const retry = status === 429 ? 'Retry-After: 60\r\n' : ''
     socket.write(
-      `HTTP/1.1 ${status} ${REJECTIONS[status]}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`,
+      `HTTP/1.1 ${status} ${REJECTIONS[status]}\r\nConnection: close\r\n${retry}Content-Length: 0\r\n\r\n`,
     )
   }
   socket.destroy()
@@ -37,9 +47,13 @@ export function createPresenceService(
     now = Date.now,
     heartbeatMs = 30000,
     recheckMs = 60000,
+    connectLimits = {},
     rooms = createRoomResolver(database),
   },
 ) {
+  const limits = { ...DEFAULT_CONNECT_LIMITS, ...connectLimits }
+  const connectHits = new MemoryStore()
+  connectHits.init({ windowMs: limits.windowMs })
   const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_PAYLOAD_BYTES })
   const connections = new Set()
   const roomMembers = new Map()
@@ -137,6 +151,10 @@ export function createPresenceService(
         strike(connection)
         return
       }
+      // a valid join costs queries, so a flood of them counts against the socket too
+      const joinedAt = now()
+      if (joinedAt - connection.lastJoinAt < JOIN_GAP_MS) strike(connection)
+      connection.lastJoinAt = joinedAt
       if (!(await rooms.staffMayJoin(connection.user, message.cohortId))) {
         connection.ws.close(4403, 'class not available')
         return
@@ -191,6 +209,7 @@ export function createPresenceService(
       moving: false,
       positioned: false,
       lastMoveAt: null,
+      lastJoinAt: -Infinity,
       strikes: 0,
       strikeWindowStart: now(),
       alive: true,
@@ -216,6 +235,11 @@ export function createPresenceService(
     if (cohortId) enterRoom(connection, cohortId)
   }
 
+  async function overLimit(key, limit) {
+    const { totalHits } = await connectHits.increment(key)
+    return totalHits > limit
+  }
+
   async function handleUpgrade(request, socket, head) {
     socket.on('error', () => socket.destroy())
     let pathname
@@ -234,9 +258,18 @@ export function createPresenceService(
       return
     }
     try {
+      const address = ipKeyGenerator(request.socket.remoteAddress ?? '', IPV6_SUBNET)
+      if (await overLimit(`ip:${address}`, limits.ip)) {
+        reject(socket, 429)
+        return
+      }
       const session = await resolveSessionUser(request)
       if (!session) {
         reject(socket, 401)
+        return
+      }
+      if (await overLimit(`user:${session.user.id}`, limits.user)) {
+        reject(socket, 429)
         return
       }
       const role = roleFor(session.user.globalRoles)
@@ -308,6 +341,7 @@ export function createPresenceService(
     closed = true
     clearInterval(heartbeat)
     clearInterval(recheckTimer)
+    connectHits.shutdown()
     for (const connection of connections) connection.ws.terminate()
     wss.close()
   }
@@ -321,8 +355,6 @@ export function createPresenceService(
         4401,
         reason === 'replaced' ? 'replaced' : 'signed out',
       ),
-    disconnectUser: (userId) => closeWhere((entry) => entry.userId === userId, 4401, 'signed out'),
-    connectionCount: () => connections.size,
     close,
   })
 }

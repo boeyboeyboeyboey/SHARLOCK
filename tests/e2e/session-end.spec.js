@@ -166,6 +166,20 @@ test('a signed-out visit logs no 401 on public pages and does not loop', async (
   expect(unauthorized).toEqual([])
 })
 
+test('a signed-out visitor to a guarded page is told why they are signing in', async ({ page }) => {
+  await forceTown2d(page)
+  await page.goto('/settings')
+  await expect(page).toHaveURL(/\/login\?reason=required$/)
+  await expect(
+    page.getByRole('status').filter({ hasText: 'Sign in to open that page.' }),
+  ).toBeVisible()
+  // the town is the front door, so arriving there needs no explaining
+  await page.goto('/')
+  await expect(page).toHaveURL(/\/login\?reason=required$/)
+  await expect(page.getByRole('heading', { name: 'Sign in to Sharlock' })).toBeVisible()
+  await expect(page.getByText('Sign in to open that page.')).toHaveCount(0)
+})
+
 test('a refresh during sign-up returns to the code screen, and cancelling sticks', async ({
   page,
 }, testInfo) => {

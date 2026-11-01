@@ -89,16 +89,6 @@ export function attemptModel(database, registry = createAttemptRegistry()) {
   return model
 }
 
-export function getRulesetModel(database, registry, entry) {
-  const registeredEntry = registry?.get?.(entry?.id, entry?.rulesetVersion)
-  if (!registeredEntry) throw new TypeError('The attempt ruleset is not registered.')
-  const baseModel = attemptModel(database, registry)
-  const discriminatorName = `GameAttempt:${registeredEntry.storageKey}`
-  const model = baseModel.discriminators?.[discriminatorName]
-  if (!model) throw new TypeError('The attempt ruleset model is unavailable.')
-  return model
-}
-
 function createBaseSchema(registry) {
   const allowedKeys = new Set(registry.entries.map((entry) => entry.storageKey))
   const schema = new Schema(

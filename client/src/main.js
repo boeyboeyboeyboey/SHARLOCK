@@ -1,3 +1,4 @@
+// libraries (mit): vue, pinia, bootstrap; versions and licences are in credits.md
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import 'bootstrap/dist/css/bootstrap.min.css'

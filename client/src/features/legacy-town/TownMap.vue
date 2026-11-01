@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, nextTick, onMounted, onBeforeUnmount, watch } from 'vue'
+// library: @panzoom/panzoom (mit), the 2d town camera; credited in credits.md
 import Panzoom from '@panzoom/panzoom'
 import { TOWN_SIZE } from '../../data/gameCatalog.js'
 import { MAX_ZOOM, clampPan, fitScale, panToCenter, stepZoom, viewCenter } from './townZoom.js'

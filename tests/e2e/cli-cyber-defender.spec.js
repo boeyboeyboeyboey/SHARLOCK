@@ -83,7 +83,7 @@ async function useMenu(page, item) {
     .click()
 }
 
-// the context chooser comes first; personal practice is its default
+// the context chooser comes first; these students have no class, so personal practice is selected
 async function chooseContext(page, classId) {
   const chooser = page.getByLabel('Save this run to')
   await expect(chooser).toBeEnabled()

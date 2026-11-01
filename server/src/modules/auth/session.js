@@ -1,3 +1,4 @@
+// libraries (mit): express-session, connect-mongo; credited in credits.md
 import session from 'express-session'
 import MongoStore from 'connect-mongo'
 

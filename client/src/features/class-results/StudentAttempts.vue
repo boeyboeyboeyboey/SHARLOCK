@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { avatarFor } from '../auth/avatars.js'
+import { topicLabel } from '../progress/topicLabel.js'
 import { formatDateTime, gameName } from './format.js'
 
 const props = defineProps({
@@ -21,7 +22,9 @@ const pageCount = computed(() => Math.max(1, Math.ceil(props.total / props.pageS
 
 function topicsPassed(attempt) {
   const outcomes = attempt.topicOutcomes || []
-  const passed = outcomes.filter((outcome) => outcome.achieved).map((outcome) => outcome.topic)
+  const passed = outcomes
+    .filter((outcome) => outcome.achieved)
+    .map((outcome) => topicLabel(outcome.topic))
   if (!outcomes.length) return 'None recorded'
   return passed.length ? passed.join(', ') : 'None passed'
 }

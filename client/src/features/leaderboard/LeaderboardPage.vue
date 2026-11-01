@@ -22,6 +22,7 @@ const VIEWS = [
 const cohorts = ref([])
 const cohortsLoaded = ref(false)
 const cohortsError = ref('')
+const pendingRequest = ref(false)
 const games = ref([])
 const gamesLoaded = ref(false)
 const board = ref(null)
@@ -39,6 +40,28 @@ let boardGeneration = 0
 const isStaff = computed(() => {
   const roles = auth.user?.globalRoles || []
   return roles.includes('instructor') || roles.includes('admin')
+})
+// the way out of an empty page depends on who is looking
+const noClassNotice = computed(() => {
+  const roles = auth.user?.globalRoles || []
+  if (roles.includes('admin')) {
+    return { text: 'No classes exist yet.', link: '/admin', label: 'Open the admin area' }
+  }
+  if (isStaff.value) {
+    return {
+      text: 'No classes are assigned to you yet.',
+      link: '/instructor',
+      label: 'Manage your classes',
+    }
+  }
+  if (pendingRequest.value) {
+    return {
+      text: 'Your class request is waiting for approval. You can still play personal practice.',
+      link: '/classes',
+      label: 'See your classes',
+    }
+  }
+  return { text: 'Join a class to see its leaderboard.', link: '/classes', label: 'Go to classes' }
 })
 const gameOptions = computed(() =>
   games.value.map((game) => ({
@@ -75,8 +98,27 @@ const meOffPage = computed(() => {
   return me && !board.value.rows.some((row) => row.isSelf) ? me : null
 })
 
+const cohortOption = ({ cohortId, cohortName, institutionName }) => ({
+  cohortId,
+  cohortName,
+  institutionName,
+})
+
 function updateQuery(changes) {
   router.replace({ query: { ...route.query, ...changes } })
+}
+
+// an administrator sees every class, so this can run past one page of the capped list
+async function allManagedCohorts(signal) {
+  const rows = []
+  let page = 1
+  let result
+  do {
+    result = await listManagedCohorts({ page, limit: 50, signal })
+    rows.push(...(result.cohorts || []))
+    page += 1
+  } while (rows.length < result.total && result.cohorts?.length && page <= 200)
+  return rows
 }
 
 async function loadCohorts() {
@@ -87,20 +129,21 @@ async function loadCohorts() {
   cohortsError.value = ''
   cohortsLoaded.value = false
   try {
-    const options = { limit: 50, signal: controller.signal }
     if (isStaff.value) {
-      const result = await listManagedCohorts(options)
+      const rows = await allManagedCohorts(controller.signal)
       if (current !== cohortsGeneration) return
-      cohorts.value = (result.cohorts || []).map(({ cohortId, cohortName }) => ({
-        cohortId,
-        cohortName,
-      }))
+      cohorts.value = rows.map(cohortOption)
+      pendingRequest.value = false
     } else {
-      const result = await listMemberships(options)
+      const result = await listMemberships({ limit: 50, signal: controller.signal })
       if (current !== cohortsGeneration) return
-      cohorts.value = (result.memberships || [])
+      const rows = result.memberships || []
+      cohorts.value = rows
         .filter((row) => row.status === 'active' && row.cohortStatus === 'active')
-        .map(({ cohortId, cohortName }) => ({ cohortId, cohortName }))
+        .map(cohortOption)
+      pendingRequest.value = rows.some(
+        (row) => row.status === 'pending' && row.cohortStatus === 'active',
+      )
     }
     cohortsLoaded.value = true
   } catch (error) {
@@ -171,7 +214,11 @@ watch(
 )
 watch(cohortId, loadGames, { immediate: true })
 watch([cohortId, gameId, view], () => {
-  page.value = 1
+  // the page watcher below loads the board when this reset changes the page
+  if (page.value !== 1) {
+    page.value = 1
+    return
+  }
   loadBoard()
 })
 watch(page, (next, previous) => {
@@ -224,8 +271,8 @@ function onTabKey(event) {
       <button class="btn btn-secondary" type="button" @click="loadCohorts">Try again</button>
     </div>
     <p v-else-if="!cohorts.length" class="preview-notice">
-      Join a class to see its leaderboard.
-      <RouterLink to="/classes">Go to classes</RouterLink>
+      {{ noClassNotice.text }}
+      <RouterLink :to="noClassNotice.link">{{ noClassNotice.label }}</RouterLink>
     </p>
     <template v-else>
       <LeaderboardFilters
@@ -247,10 +294,7 @@ function onTabKey(event) {
       </div>
       <p v-else-if="gamesLoaded && !games.length" class="preview-notice">No scores yet.</p>
       <section v-else-if="board" class="leaderboard__section" aria-labelledby="leaderboard-heading">
-        <h2 id="leaderboard-heading">
-          {{ gameName }}
-          <small v-if="board.rulesetVersion">(ruleset {{ board.rulesetVersion }})</small>
-        </h2>
+        <h2 id="leaderboard-heading">{{ gameName }}</h2>
         <div
           ref="tabs"
           class="leaderboard__tabs"
@@ -276,7 +320,7 @@ function onTabKey(event) {
           id="leaderboard-panel"
           role="tabpanel"
           :aria-labelledby="`leaderboard-tab-${view}`"
-          class="leaderboard__section"
+          class="leaderboard__panel"
         >
           <p v-if="!board.rows.length">No scores yet.</p>
           <LeaderboardTable
@@ -286,6 +330,9 @@ function onTabKey(event) {
             :view="board.view"
             :caption="caption"
           />
+          <p v-if="board.truncated">
+            This class has more plays than one board can read, so the oldest are not counted.
+          </p>
           <p v-if="meOffPage">Your rank: {{ meOffPage.rank }}</p>
           <nav
             v-if="board.total > board.pageSize"

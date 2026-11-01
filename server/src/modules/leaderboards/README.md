@@ -6,10 +6,10 @@ BOARD-01 server side. Read-only rankings over completed saved attempts in one cl
 
 Paths are relative to `/api`. Both need an active cookie session (401), send `Cache-Control: no-store`, reject unknown query keys and bad values with 400 `LEADERBOARD_INVALID_REQUEST`, and are limited to 120/user and 240/IP per minute.
 
-| Method/path                                                              | Success body                                                                         |
-| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
-| GET `/cohorts/:cohortId/leaderboard/games`                               | `{ games: [{ gameId, rulesetVersion, competitive }] }` sorted by `gameId`            |
-| GET `/cohorts/:cohortId/leaderboard?gameId=&rulesetVersion=&view=&page=` | `{ gameId, rulesetVersion, competitive, view, rows, page, pageSize: 25, total, me }` |
+| Method/path                                                              | Success body                                                                                    |
+| ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| GET `/cohorts/:cohortId/leaderboard/games`                               | `{ games: [{ gameId, rulesetVersion, competitive }] }` sorted by `gameId`                       |
+| GET `/cohorts/:cohortId/leaderboard?gameId=&rulesetVersion=&view=&page=` | `{ gameId, rulesetVersion, competitive, view, rows, page, pageSize: 25, total, me, truncated }` |
 
 `gameId` is required and must be a registered game or have completed class attempts. `rulesetVersion` defaults to the ruleset of the newest completed attempt in the class (null with empty `rows` if none). `view` is `best` (default) or `all-time`. `page` defaults to 1 (max 10000). The games endpoint accepts no query keys and lists each game with at least one counted attempt, using the ruleset of its newest one.
 
@@ -33,10 +33,10 @@ Row shapes (`isSelf` marks the caller; `me` is the caller's row on any page, or 
 
 ## Bounds
 
-A board reads at most 20000 completed attempts (`MAX_BOARD_ATTEMPTS`) and 2000 roster members, with explicit projections. Responses are built field by field: user ids, emails, attempt ids and rosters are never returned.
+A board reads at most 20000 completed attempts (`MAX_BOARD_ATTEMPTS`), newest first, and 2000 roster members, with explicit projections. Past the cap `truncated` is true and the oldest plays are not counted, so a new personal best still appears; the page says so. Responses are built field by field: user ids, emails, attempt ids and rosters are never returned.
 
-Games feeding boards (SAVE-01, see [TASKS.md](../../../../TASKS.md)): all five saved games. CLI Cyber Defender timed runs, Phishing Post-Mortem `phish-4` (and `phish-3` before it) timed runs (PHISH-01) and SQL Injection Arcade class runs are the competitive rulesets (the `sql` ruleset has `competitive: true`; a class-context run starts in standard mode with a timer, so it ranks by `competitiveEligible`, while personal runs are practice). CLI and Phishing practice count in the all-time view only. Clearance Tower (`clear-3`, practice-only with 10-point hints that lower a level's score) and Social are not competitive, so their `best` boards are practice best scores; a board shows one ruleset, by default the newest, so older `clear-2` scores are not mixed in. Phishing results saved under the earlier `phish-2` ruleset are not competitive.
+Games feeding boards (SAVE-01, see [TASKS.md](../../../../TASKS.md)): all five saved games. CLI Cyber Defender timed runs, Phishing Post-Mortem `phish-4` (and `phish-3` before it) timed runs (PHISH-01) and SQL Injection Arcade class runs are the competitive rulesets (the `sql` ruleset has `competitive: true`; a class-context run starts in standard mode with a timer, so it ranks by `competitiveEligible`, while personal runs are practice). CLI and Phishing practice count in the all-time view only. Clearance Tower (`clear-4`, practice-only with 10-point hints that lower a level's score) and Help Desk Shift are not competitive, so their `best` boards are practice best scores; a board shows one ruleset, by default the newest, so older Clearance Tower scores are not mixed in. Phishing results saved under the earlier `phish-2` ruleset are not competitive.
 
 Files: `policy.js` (query parsing), `rank.js` (pure ranking), `service.js` (access and queries), `router.js` (limits and errors).
 
-Tests: `server/tests/unit/leaderboards/` and `server/tests/integration/leaderboards/` (needs the disposable replica-set runner).
+Tests: `server/tests/unit/leaderboards/` and `server/tests/integration/leaderboards/`. The integration suite needs the disposable test database; one case, a removal through the real class route, also needs `--replica-set` and skips without it.

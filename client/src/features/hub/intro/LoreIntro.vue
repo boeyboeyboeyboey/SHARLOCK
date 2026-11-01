@@ -1,4 +1,5 @@
 <script setup>
+// font: libre baskerville (ofl-1.1), self-hosted; credited in credits.md
 import '@fontsource/libre-baskerville/400.css'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import PixelIcon from '../../../components/town/PixelIcon.vue'

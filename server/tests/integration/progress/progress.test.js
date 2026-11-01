@@ -218,6 +218,16 @@ async function completeOne(student, context, correct = true) {
 }
 
 describe('personal progress API', () => {
+  it('limits each user to 120 reads a minute without touching another user', async () => {
+    const [first, second] = [await createStudent(), await createStudent()]
+    const read = (student) => student.agent.get('/api/me/progress').set('Origin', origin)
+    for (let count = 0; count < 120; count += 1) await read(first).expect(200)
+    const limited = await read(first).expect(429)
+    expect(limited.body.error.code).toBe('PROGRESS_RATE_LIMITED')
+    expect(limited.headers['retry-after']).toBe('60')
+    await read(second).expect(200)
+  }, 30000)
+
   it('requires a session and sends no-store', async () => {
     for (const path of ['/api/me/progress', '/api/me/attempts']) {
       const response = await request(app).get(path).expect(401)

@@ -18,8 +18,9 @@ function identity(role, suffix) {
   }
 }
 
-// seeds an instructor, a class with two active students and the assignment
-export async function seedClass(suffix) {
+// seeds an instructor, a class with two active students and the assignment, plus any number of
+// students whose join request is waiting
+export async function seedClass(suffix, { pendingStudents = 0 } = {}) {
   const testUri = process.env.TEST_MONGODB_URI
   if (process.env.NODE_ENV !== 'test' || !testUri)
     throw new Error('Class E2E requires the guarded test database.')
@@ -27,6 +28,9 @@ export async function seedClass(suffix) {
   const instructor = identity('instructor', suffix)
   const studentA = identity('studenta', suffix)
   const studentB = identity('studentb', suffix)
+  const pending = Array.from({ length: pendingStudents }, (_, index) =>
+    identity(`pending${index}`, suffix),
+  )
   const database = await connectDatabase(testUri)
   try {
     const User = userModel(database)
@@ -44,10 +48,11 @@ export async function seedClass(suffix) {
       passwordChangedAt,
       howToPlayDismissed: [...HOW_TO_PLAY_GAME_IDS],
     })
-    const [teacherDoc, docA, docB] = await User.create([
+    const [teacherDoc, docA, docB, ...pendingDocs] = await User.create([
       await account(instructor, 'instructor'),
       await account(studentA, 'student'),
       await account(studentB, 'student'),
+      ...(await Promise.all(pending.map((who) => account(who, 'student')))),
     ])
     const institution = await institutionModel(database).create({
       name: `Class QA ${suffix}`,
@@ -71,7 +76,12 @@ export async function seedClass(suffix) {
         approvedAt: new Date(),
       })),
     )
-    return { instructor, studentA, studentB, classId: String(cohort._id) }
+    if (pendingDocs.length) {
+      await membershipModel(database).create(
+        pendingDocs.map((doc) => ({ userId: doc._id, cohortId: cohort._id, status: 'pending' })),
+      )
+    }
+    return { instructor, studentA, studentB, pending, classId: String(cohort._id) }
   } finally {
     await database.close()
   }

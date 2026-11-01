@@ -75,15 +75,14 @@ test('learner follows a class link and gets access after instructor approval', a
     codeLength: code.length,
     codeValid: /^[A-HJ-NP-Z2-9]{16}$/.test(code),
   }
-  expect(
-    linkChecks.originMatches &&
-      linkChecks.path === '/join-class' &&
-      !linkChecks.hasQuery &&
-      linkChecks.fragmentKeys.length === 1 &&
-      linkChecks.fragmentKeys[0] === 'code' &&
-      linkChecks.codeValid,
-    `Instructor invitation link metadata is invalid: ${JSON.stringify(linkChecks)}`,
-  ).toBe(true)
+  expect(linkChecks).toEqual({
+    originMatches: true,
+    path: '/join-class',
+    hasQuery: false,
+    fragmentKeys: ['code'],
+    codeLength: 16,
+    codeValid: true,
+  })
 
   const studentContext = await newTown2dContext(browser, {
     storageState: { cookies: [], origins: [] },
@@ -93,30 +92,6 @@ test('learner follows a class link and gets access after instructor approval', a
   })
   try {
     const studentPage = await studentContext.newPage()
-    const invitationCaptureResponses = []
-    const journeyResponses = []
-    studentPage.on('response', (response) => {
-      const path = new URL(response.url()).pathname
-      if (path === '/api/auth/csrf' || path === '/api/auth/class-invitation') {
-        invitationCaptureResponses.push({ path, status: response.status() })
-      }
-      if (
-        ['/api/auth/session', '/api/me/enrollment', '/api/cohorts/join-requests'].includes(path)
-      ) {
-        journeyResponses.push(
-          response.json().then(
-            (body) => ({
-              path,
-              status: response.status(),
-              hasInvitation: body?.hasInvitation,
-              onboardingCompleted: body?.onboardingCompleted,
-              code: body?.error?.code,
-            }),
-            () => ({ path, status: response.status() }),
-          ),
-        )
-      }
-    })
     await studentPage.goto(invitationUrl)
     await expect(studentPage).toHaveURL(/\/join-class$/)
     await studentPage.getByRole('button', { name: 'Sign in' }).click()
@@ -124,21 +99,7 @@ test('learner follows a class link and gets access after instructor approval', a
     await studentPage.getByLabel('Email or username').fill(studentIdentity.email)
     await studentPage.getByLabel('Password', { exact: true }).fill(studentIdentity.password)
     await studentPage.getByRole('button', { name: 'Sign in' }).click()
-    try {
-      await expect(studentPage).toHaveURL(/\/\?classRequest=pending$/, { timeout: 10000 })
-    } catch {
-      const enrollmentResponse = await studentContext.request.get(`${baseURL}/api/me/enrollment`)
-      const enrollment = enrollmentResponse.ok() ? await enrollmentResponse.json() : {}
-      const safeAlerts = await studentPage.getByRole('alert').allTextContents()
-      const sendButtonVisible = await studentPage
-        .getByRole('button', { name: 'Send class request' })
-        .isVisible()
-        .catch(() => false)
-      const responseState = await Promise.all(journeyResponses)
-      throw new Error(
-        `Invitation handoff did not reach the town; server hasInvitation=${Boolean(enrollment.hasInvitation)}; sendButtonVisible=${sendButtonVisible}; alerts=${JSON.stringify(safeAlerts)}; captureResponses=${JSON.stringify(invitationCaptureResponses)}; journeyResponses=${JSON.stringify(responseState)}.`,
-      )
-    }
+    await expect(studentPage).toHaveURL(/\/\?classRequest=pending$/, { timeout: 10000 })
     await expect(studentPage.getByText(/Class request pending staff approval/)).toBeVisible()
 
     await studentPage.goto('/classes')

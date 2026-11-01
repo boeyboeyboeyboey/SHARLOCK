@@ -10,7 +10,6 @@ const SAFE_MESSAGES = Object.freeze({
   RECOVERY_UNAVAILABLE: 'The recovery request could not be completed. Refresh and try again.',
   RECOVERY_FORBIDDEN: 'You do not have permission to issue recovery for this student.',
   RECOVERY_FAILED: 'The recovery request could not be completed. Try again later.',
-  AUTHENTICATION_REQUIRED: 'Your session has ended. Sign in again to continue.',
   CAPABILITY_FORBIDDEN: 'You do not have permission to manage this workspace.',
   CSRF_INVALID: 'The security check expired. Review and try again.',
   ORIGIN_FORBIDDEN: 'This request could not be verified. Refresh and try again.',

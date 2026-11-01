@@ -104,11 +104,12 @@ describe('InteriorLayout', () => {
   it('offers a sound control that mutes the room theme for the session', async () => {
     const wrapper = await mountAt('/games/cli-cyber-defender')
     const button = wrapper.get('[data-testid="interior-sound"]')
-    expect(button.attributes('aria-label')).toBe('Mute game sound')
+    expect(button.attributes('aria-label')).toBe('Game sound')
     expect(button.attributes('aria-pressed')).toBe('true')
     await button.trigger('click')
     await flushPromises()
-    expect(button.attributes('aria-label')).toBe('Turn on game sound')
+    expect(button.attributes('aria-label')).toBe('Game sound')
+    expect(button.attributes('aria-pressed')).toBe('false')
     expect(sessionStorage.getItem('sharlock.musicMuted')).toBe('1')
     wrapper.unmount()
   })
@@ -211,6 +212,26 @@ describe('holding a game while the leave dialog is open', () => {
       .trigger('click')
     await flushPromises()
     expect(onClose).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+    delete Game.setup
+  })
+
+  it('does not release the game when the player confirms leaving', async () => {
+    const onOpen = vi.fn()
+    const onClose = vi.fn()
+    Game.setup = () => {
+      useInteriorLeave({ onOpen, onClose })
+    }
+    const wrapper = await mountAt('/games/cli-cyber-defender')
+    await wrapper.get('[data-testid="exit-game"]').trigger('click')
+    await flushPromises()
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Leave game')
+      .trigger('click')
+    await flushPromises()
+    expect(onOpen).toHaveBeenCalledTimes(1)
+    expect(onClose).not.toHaveBeenCalled()
     wrapper.unmount()
     delete Game.setup
   })

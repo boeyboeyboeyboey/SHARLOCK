@@ -14,7 +14,7 @@ const gameNames = [
   'The Phishing Post-Mortem',
   'SQL Injection Arcade',
   'The daily briefing',
-  'LLM Social Engineering Simulator',
+  'Help Desk Shift',
   'Clearance Tower',
 ]
 

@@ -14,7 +14,7 @@ vi.mock('../api.js', async () => {
   }
 })
 
-async function mountAt(query) {
+async function mountAt(query, { arrivedFrom } = {}) {
   const page = { template: '<div />' }
   const router = createRouter({
     history: createMemoryHistory(),
@@ -22,9 +22,16 @@ async function mountAt(query) {
       { path: '/login', component: LoginPage },
       { path: '/register', component: page },
       { path: '/about', component: page },
+      { path: '/', component: page },
+      { path: '/settings', component: page },
     ],
   })
-  await router.push({ path: '/login', query })
+  if (arrivedFrom) {
+    router.beforeEach((to) =>
+      to.path === arrivedFrom ? { path: '/login', query: { reason: 'required' } } : true,
+    )
+    await router.push(arrivedFrom)
+  } else await router.push({ path: '/login', query })
   await router.isReady()
   const wrapper = mount(LoginPage, {
     global: { plugins: [router], stubs: { PixelIcon: true } },
@@ -47,6 +54,18 @@ describe('sign-in page', () => {
     expect(wrapper.text()).toContain(
       'Forgot your password? Ask your instructor or school administrator to send you a reset link.',
     )
+  })
+
+  it('says why a guarded page led here', async () => {
+    const wrapper = await mountAt({}, { arrivedFrom: '/settings' })
+    expect(wrapper.get('[role="status"]').text()).toBe('Sign in to open that page.')
+  })
+
+  it('has nothing to explain when the town or a typed sign-in link led here', async () => {
+    const town = await mountAt({}, { arrivedFrom: '/' })
+    expect(town.text()).not.toContain('Sign in to open that page.')
+    const direct = await mountAt({ reason: 'required' })
+    expect(direct.text()).not.toContain('Sign in to open that page.')
   })
 
   it('explains an expired session with nothing to press', async () => {

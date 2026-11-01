@@ -131,7 +131,11 @@ async function issueRecoveryLink({ identityVerified }) {
     )
       return
     recoveryIssueForm.value?.focusSubmitButton()
-    recoveryLink.value = link
+    recoveryLink.value = {
+      ...link,
+      username: recoveryStudent.value.username,
+      email: recoveryStudent.value.email,
+    }
   } catch (cause) {
     if (!controller.signal.aborted && operation === generation) {
       recoveryError.value = safeRecoveryError(cause).message

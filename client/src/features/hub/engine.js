@@ -1,3 +1,4 @@
+// libraries: @babylonjs/core and @babylonjs/havok (see credits.md for versions and licences)
 import { Engine } from '@babylonjs/core/Engines/engine.js';
 import { WebGPUEngine } from '@babylonjs/core/Engines/webgpuEngine.js';
 // every webgpu engine extension, since deep imports skip the ones the engine file does not pull in

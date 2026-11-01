@@ -25,10 +25,11 @@ const typing = (target) =>
 
 // the hub player is welded to the wharf (havok capsule, lane graph, ground picking), so the arena gets a slim kinematic one:
 // same keys, same sprint and jump modules, movement checked against the server's own walkable test
-export function createLocalPlayer({ spawn, camera, reduced, onSprint = () => {} }) {
-  const keys = new Set()
+// input: what the previous player was holding when the arena rebuilt, from inputState()
+export function createLocalPlayer({ spawn, camera, reduced, onSprint = () => {}, input = null }) {
+  const keys = new Set(input?.keys)
   const pos = { x: spawn.x, z: spawn.z }
-  const pad = { x: 0, y: 0 }
+  const pad = { x: input?.pad.x ?? 0, y: input?.pad.y ?? 0 }
   const sprint = createSprint()
   const jump = createJump()
   let enabled = true
@@ -38,7 +39,7 @@ export function createLocalPlayer({ spawn, camera, reduced, onSprint = () => {} 
   let vy = 0
   const lastDir = { x: 0, z: 1 }
   // dev and test only: walk straight at a spot through the normal movement rules
-  let auto = null
+  let auto = input?.auto ?? null
 
   const startSprint = () => {
     if (!enabled || !sprint.start()) return false
@@ -172,6 +173,7 @@ export function createLocalPlayer({ spawn, camera, reduced, onSprint = () => {} 
       auto = x === null ? null : { x, z }
     },
     position: () => ({ x: pos.x, z: pos.z }),
+    inputState: () => ({ keys: [...keys], pad: { ...pad }, auto }),
     dispose() {
       window.removeEventListener('keydown', down)
       window.removeEventListener('keyup', up)

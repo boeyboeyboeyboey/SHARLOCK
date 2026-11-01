@@ -7,28 +7,9 @@ import {
   rigOptionsFor,
 } from '../wardrobeLook.js'
 import { furStyles } from '../../features/hub/scenes/shared/capybara.js'
+import { WARDROBE_ITEMS } from '../../../../server/src/modules/wardrobe/catalog.js'
 
-const SERVER_IDS = [
-  'scarf-red',
-  'scarf-navy',
-  'scarf-forest',
-  'scarf-mustard',
-  'scarf-plum',
-  'scarf-teal',
-  'hat-deerstalker',
-  'hat-brown-tweed',
-  'hat-grey-tweed',
-  'hat-flat-cap',
-  'monocle-gold',
-  'monocle-silver',
-  'monocle-brass',
-  'accessory-none',
-  'accessory-magnifier',
-  'scarf-circuit',
-  'hat-hazmat-hood',
-  'accessory-shield',
-  'accessory-bandolier',
-]
+const SERVER_IDS = WARDROBE_ITEMS.map((entry) => entry.id)
 
 describe('wardrobe look', () => {
   it('has a look for every server item id and no extras', () => {

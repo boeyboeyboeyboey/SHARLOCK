@@ -9,8 +9,13 @@ import {
 } from './policy.js'
 import { sampleEdition } from './sample.js'
 
-// no key, or the publisher cannot be reached: with nothing cached the paper shows its labelled sample edition
-const SAMPLE_WHEN = new Set(['NEWS_NOT_CONFIGURED', 'NEWS_UPSTREAM_UNAVAILABLE'])
+// no key, publisher unreachable or the day's quota spent: with nothing cached the paper shows its
+// labelled sample edition. news_busy stays a retryable 503, because it clears in seconds
+const SAMPLE_WHEN = new Set([
+  'NEWS_NOT_CONFIGURED',
+  'NEWS_UPSTREAM_UNAVAILABLE',
+  'NEWS_DAILY_LIMIT',
+])
 
 function serializeInline(nodes) {
   return nodes.map(({ type, text, href }) => ({

@@ -13,7 +13,12 @@ export default defineConfig({
       },
       {
         extends: true,
-        test: { name: 'server', environment: 'node', include: ['server/tests/unit/**/*.test.js'] },
+        test: {
+          name: 'server',
+          environment: 'node',
+          include: ['server/tests/unit/**/*.test.js'],
+          setupFiles: ['server/tests/support/supertest-loopback.js'],
+        },
       },
       {
         extends: true,
@@ -21,7 +26,10 @@ export default defineConfig({
           name: 'integration',
           environment: 'node',
           include: ['server/tests/integration/**/*.test.js'],
-          setupFiles: ['server/tests/integration/setup-database.js'],
+          setupFiles: [
+            'server/tests/support/supertest-loopback.js',
+            'server/tests/integration/setup-database.js',
+          ],
           // several files wipe whole collections, so files must never run side by side
           fileParallelism: false,
           testTimeout: 20000,

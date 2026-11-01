@@ -121,11 +121,9 @@ describe('news validation and provider normalization', () => {
       code: 'NEWS_UPSTREAM_UNAVAILABLE',
     })
     fetchImpl.mockRejectedValue(new Error('https://provider/?api-key=private-key'))
-    try {
-      await provider.fetchEdition(edition)
-    } catch (error) {
-      expect(error.message).not.toContain('private-key')
-    }
+    const error = await provider.fetchEdition(edition).catch((failure) => failure)
+    expect(error).toBeInstanceOf(NewsError)
+    expect(error.message).not.toContain('private-key')
   })
 })
 
@@ -222,15 +220,56 @@ describe('edition cache lifecycle', () => {
     expect(result.sample).toBeUndefined()
     expect(result.provider).toBe('The Guardian')
   })
-  it('keeps the other refusals as they were', async () => {
+  it('serves the sample when the day quota is spent and nothing is cached', async () => {
     const { service, provider, store } = setup()
+    const midnight = now + 3600000
     store.reserve.mockRejectedValue(
-      new NewsError('NEWS_DAILY_LIMIT', 'Resting until tomorrow.', now + 3600000),
+      new NewsError('NEWS_DAILY_LIMIT', 'Resting until tomorrow.', midnight),
     )
-    await expect(service.get(parseNewsQuery({}))).rejects.toMatchObject({
-      code: 'NEWS_DAILY_LIMIT',
-    })
+    const result = await service.get(parseNewsQuery({}))
+    expect(result).toMatchObject({ sample: true, provider: SAMPLE_PROVIDER })
+    expect(result.refreshAvailableAt).toBe(new Date(midnight).toISOString())
+    expect(store.write).not.toHaveBeenCalled()
     expect(provider.fetchEdition).not.toHaveBeenCalled()
+  })
+  it('prefers the stale cached edition when the day quota is spent', async () => {
+    const { service, store, advance } = setup()
+    const query = parseNewsQuery({})
+    await service.get(query)
+    advance(FRESH_MS)
+    const midnight = now + FRESH_MS + 3600000
+    store.reserve.mockRejectedValue(
+      new NewsError('NEWS_DAILY_LIMIT', 'Resting until tomorrow.', midnight),
+    )
+    const result = await service.get(query)
+    expect(result.stale).toBe(true)
+    expect(result.sample).toBeUndefined()
+    expect(result.refreshAvailableAt).toBe(new Date(midnight).toISOString())
+  })
+  it('keeps the busy desk a retryable refusal, not the sample', async () => {
+    const { service, provider, advance } = setup()
+    // four refreshes hold the desk: every section and range of one day, none answered yet
+    let release
+    provider.fetchEdition.mockReturnValue(new Promise((_resolve, reject) => (release = reject)))
+    const queries = ['cybersecurity', 'technology'].flatMap((section) =>
+      ['week', 'month'].map((range) => parseNewsQuery({ section, range })),
+    )
+    const held = queries.map((query) => service.get(query))
+    await vi.waitFor(() => expect(provider.fetchEdition).toHaveBeenCalledTimes(4))
+    // the next day is another edition, and the desk has no room for it
+    advance(2 * 86400000)
+    const refused = await service.get(queries[0]).catch((error) => error)
+    expect(refused).toBeInstanceOf(NewsError)
+    expect(refused.code).toBe('NEWS_BUSY')
+    release(new Error('done'))
+    await Promise.allSettled(held)
+  })
+  it('keeps an unexpected failure as a refusal, not the sample', async () => {
+    const { service, provider } = setup()
+    provider.fetchEdition.mockRejectedValue(new Error('private detail'))
+    await expect(service.get(parseNewsQuery({}))).rejects.toMatchObject({
+      code: 'NEWS_UNAVAILABLE',
+    })
   })
 })
 

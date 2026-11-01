@@ -89,8 +89,39 @@ describe('news HTTP and Mongo persistence', () => {
     )
     expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1)
     expect((await models.Quota.findById(day)).used).toBe(450)
-    await request(app).get('/api/news').expect(503).expect('Retry-After', /\d+/)
     expect(provider.fetchEdition).not.toHaveBeenCalled()
+  })
+  it('answers a spent day with the sample edition, retry at midnight, when nothing is cached', async () => {
+    const now = Date.now()
+    const day = new Date(now).toISOString().slice(0, 10)
+    await models.Quota.create({
+      _id: day,
+      used: 450,
+      nextRequestAt: new Date(0),
+      expiresAt: new Date(now + 86400000),
+    })
+    const result = await request(app).get('/api/news').expect(200)
+    expect(result.body).toMatchObject({ sample: true, provider: 'Sample edition' })
+    expect(new Date(result.body.refreshAvailableAt).toISOString()).toBe(
+      `${new Date(now + 86400000).toISOString().slice(0, 10)}T00:00:00.000Z`,
+    )
+    expect(provider.fetchEdition).not.toHaveBeenCalled()
+    expect(await models.Cache.countDocuments()).toBe(0)
+  })
+  it('answers a spent day with the stale cached edition when one is usable', async () => {
+    await request(app).get('/api/news').expect(200)
+    await models.Cache.updateMany({}, { freshUntil: new Date(Date.now() - 1000) })
+    const day = new Date().toISOString().slice(0, 10)
+    await models.Quota.updateOne(
+      { _id: day },
+      { used: 450, nextRequestAt: new Date(0), expiresAt: new Date(Date.now() + 86400000) },
+      { upsert: true },
+    )
+    const stale = await request(app).get('/api/news').expect(200)
+    expect(stale.body.stale).toBe(true)
+    expect(stale.body.sample).toBeUndefined()
+    expect(new Date(stale.body.refreshAvailableAt).getUTCHours()).toBe(0)
+    expect(provider.fetchEdition).toHaveBeenCalledTimes(1)
   })
   it('persists the provider pacing gap independently of the daily budget key', async () => {
     const time = Date.now()

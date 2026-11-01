@@ -17,7 +17,7 @@ Owner: Boey. Integration-sensitive: the router (five game routes are children of
 - `InteriorLayout.vue`: stage (still over the palette gradient) plus the `<RouterView />` desk panel, sound, game chrome and the leave confirmation.
 - `renderMode.js`: pure helpers `stillUrl(id)` and `fallbackGradient(palette)`.
 - `rooms/palettes.js`: `palettes` and `roomFor(id)`, returning `{ palette }` (top, bottom and accent colours) or null.
-- `useInteriorLeave.js`: optional hook for a game under this layout: `useInteriorLeave({ onOpen, onClose })` runs when the shared leave dialog opens and closes, so a timed game can hold its clock. No game uses it yet.
+- `useInteriorLeave.js`: optional hook for a game under this layout: `useInteriorLeave({ onOpen, onClose })` runs when the shared leave dialog opens and closes, so a timed game can hold its clock; `onClose` runs only when the player stays. CLI Cyber Defender uses it.
 - `__tests__/`: unit and mount tests.
 
 ## Audio (AUDIO-04)

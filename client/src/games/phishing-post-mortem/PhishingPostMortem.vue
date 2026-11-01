@@ -243,7 +243,7 @@ async function nextEmail() {
     <component
       :is="showResult ? SavedAttemptResult : 'div'"
       v-else-if="snapshot"
-      v-bind="showResult ? { attempt: snapshot, onReplay: replay } : {}"
+      v-bind="showResult ? { attempt: snapshot, hideActions: true } : {}"
     >
       <TriageDebrief
         v-if="showResult"

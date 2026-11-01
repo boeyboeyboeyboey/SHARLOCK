@@ -1,10 +1,10 @@
 # Shared saved attempts and results
 
-GAME-01-A is the server foundation for saved gameplay. It is not a migration of Phishing, CLI or Social. Normal startup now registers the separately approved G-SQL `sql-1` practice adapter (since SQL-02, `sql-2` is current and `sql-1` stays registered with `current: false`); Phishing, CLI, Social and Clearance retain their unsaved endpoints and labels. The sample game used by integration tests lives only under `server/tests/integration/attempts/`; no HTTP field, environment switch or startup import enables it in the normal app.
+GAME-01-A is the server foundation for saved gameplay. Normal startup registers every saved game through [`production-registry.js`](production-registry.js): SQL Injection Arcade, Clearance Tower, Phishing Post-Mortem, CLI Cyber Defender, Help Desk Shift and Botnet Tag, each with its current ruleset and any older rulesets kept for saved attempts. The sample game used by integration tests lives only under `server/tests/integration/attempts/`; no HTTP field, environment switch or startup import enables it in the normal app.
 
 ## Request and storage flow
 
-Future owner-agreed game UI → existing credentialed Axios client → the four routes below → existing session/origin/CSRF checks → shared current account/context permissions → registered server ruleset → one `game_attempts` document. GAME-01-B supplies a shared browser request wrapper, context chooser and saved-result component for G-SQL. No aggregate points, awards, rankings or teaching dashboard is added.
+Game UI → existing credentialed Axios client → the four routes below → existing session/origin/CSRF checks → shared current account/context permissions → registered server ruleset → one `game_attempts` document. GAME-01-B supplies a shared browser request wrapper, context chooser and saved-result component. This module adds no aggregate points, awards, rankings or teaching dashboard; those are in [`progress/`](../progress/README.md), [`leaderboards/`](../leaderboards/README.md) and [`class-results/`](../class-results/) and only read saved attempts.
 
 `app.js` mounts only these handlers using its single auth runtime. `server.js` initializes the named collection and indexes additively, without seeding or rewriting existing records. The service uses the passed Mongoose connection. Writes affect one attempt document, so state, score, revision, action receipt and completed result are atomic without a multi-document transaction or replica-set prerequisite.
 

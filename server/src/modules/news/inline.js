@@ -1,3 +1,4 @@
+// library: parse5 (mit), bounded html parsing; credited in credits.md
 import { parseFragment } from 'parse5'
 
 const discarded = new Set([

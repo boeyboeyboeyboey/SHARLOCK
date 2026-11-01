@@ -70,6 +70,16 @@ async function seedCompleted(account, gameId, overrides = {}) {
 }
 
 describe('wardrobe API', () => {
+  it('limits each user to 60 requests a minute without touching another user', async () => {
+    const [first, second] = [await registerTestStudent(app), await registerTestStudent(app)]
+    for (let count = 0; count < 60; count += 1) {
+      await first.agent.get('/api/me/wardrobe').expect(200)
+    }
+    const limited = await first.agent.get('/api/me/wardrobe').expect(429)
+    expect(limited.body.error.code).toBe('WARDROBE_RATE_LIMITED')
+    await second.agent.get('/api/me/wardrobe').expect(200)
+  }, 30000)
+
   it('requires a session', async () => {
     await request(app).get('/api/me/wardrobe').expect(401)
   })

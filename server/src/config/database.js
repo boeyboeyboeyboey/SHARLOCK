@@ -1,3 +1,4 @@
+// library: mongoose (mit), models and queries; credited in credits.md
 import mongoose from 'mongoose'
 import { databaseNameFromUri } from './database-uri.js'
 

@@ -47,8 +47,7 @@ export const attemptIdOf = (page) => new URL(page.url()).searchParams.get('attem
 
 export async function openRun(page, contextOption = 'personal') {
   await page.goto('/games/sql-injection-arcade')
-  if (contextOption !== 'personal')
-    await page.getByLabel('Save this case to').selectOption(contextOption)
+  await page.getByLabel('Save this case to').selectOption(contextOption)
   await page.getByRole('button', { name: 'Open the case' }).click()
   await expect(page).toHaveURL(/attempt=/)
   return readSeed(attemptIdOf(page))

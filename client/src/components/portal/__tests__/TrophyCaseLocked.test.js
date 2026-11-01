@@ -16,6 +16,6 @@ describe('trophy case locked badges', () => {
     const locked = [{ id: 'b', name: 'Beta', description: 'Second.' }]
     const wrapper = mount(TrophyCase, { props: { achievements: earned, locked }, ...stubs })
     expect(wrapper.text()).toContain('Still to find')
-    expect(wrapper.get('.achievement-badge--locked').text()).toContain('Locked')
+    expect(wrapper.get('ul[aria-labelledby="locked-heading"] li').text()).toContain('Locked')
   })
 })

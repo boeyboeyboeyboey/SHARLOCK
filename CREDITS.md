@@ -32,6 +32,7 @@ What Sharlock Hub (IS216 Group 7) builds on. Versions and licences were read fro
 | argon2                        | 0.45.1  | MIT          | Argon2id password hashing        |
 | dotenv                        | 17.4.2  | BSD-2-Clause | Environment loading              |
 | parse5                        | 8.0.1   | MIT          | HTML parsing in the news service |
+| ws                            | 8.22.0  | MIT          | Presence and Botnet Tag sockets  |
 | nodemon (dev)                 | 3.1.14  | MIT          | Backend reload in development    |
 
 ## Tooling (root and client `devDependencies`)
@@ -111,6 +112,6 @@ Game scenarios, rules, puzzles and copy were written by the team. Owners follow 
 - G-SQL SQL Injection Arcade: Keane
 - G-CLI CLI Cyber Defender: Xin Lei
 - G-PHISH Phishing Post-Mortem: Athithya
-- G-SOC Social Engineering Simulator: Eric (its `llm/` engine is separately owned; provider details are in that module's records)
+- G-SOC Help Desk Shift (Social Engineering Simulator module): Eric (its `llm/` engine is separately owned; provider details are in that module's records)
 - G-CLEAR Clearance Tower: Russell
 - Hub footstep and gas lamp hiss sound effects (`client/src/features/hub/audio/hubSfx.js`) are original code generated with the Web Audio API, no recorded audio: Boey (HUB-12).

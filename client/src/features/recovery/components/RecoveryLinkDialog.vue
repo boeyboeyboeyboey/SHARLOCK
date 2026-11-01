@@ -1,5 +1,6 @@
 <script setup>
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import InlineConfirm from '../../cohorts/components/InlineConfirm.vue'
 
 const props = defineProps({
   link: { type: Object, required: true },
@@ -8,6 +9,7 @@ const emit = defineEmits(['close'])
 const dialog = ref(null)
 const copied = ref(false)
 const copyError = ref('')
+const confirmingClose = ref(false)
 let returnFocus = null
 let closed = false
 
@@ -26,13 +28,16 @@ function emitClose() {
   emit('close')
 }
 
-function closeDialog() {
-  emitClose()
+// escape and close must not lose an uncopied link
+function requestClose() {
+  if (copied.value) emitClose()
+  else confirmingClose.value = true
 }
 
 async function copyLink() {
   copied.value = false
   copyError.value = ''
+  confirmingClose.value = false
   try {
     await navigator.clipboard.writeText(props.link.resetUrl)
     copied.value = true
@@ -66,15 +71,17 @@ onBeforeUnmount(() => {
     class="recovery-dialog"
     aria-labelledby="recovery-link-title"
     @close="emitClose"
-    @cancel.prevent="closeDialog"
-    @keydown.esc.prevent.stop="emitClose"
+    @cancel.prevent="requestClose"
+    @keydown.esc.prevent.stop="requestClose"
   >
     <div class="recovery-dialog__card">
       <p class="recovery-eyebrow">PRIVATE STUDENT LINK</p>
       <h2 id="recovery-link-title">Deliver this reset link privately</h2>
-      <p>
-        Copy this link now. It won't be shown again; it still works once and expires in 30 minutes.
+      <p v-if="link.username">
+        Link for <strong>{{ link.username }}</strong
+        ><template v-if="link.email"> ({{ link.email }})</template>
       </p>
+      <p>Copy this link now. It won't be shown again. It works once and expires in 30 minutes.</p>
       <label class="recovery-label" for="recovery-link-value">Reset link</label>
       <input
         id="recovery-link-value"
@@ -93,10 +100,18 @@ onBeforeUnmount(() => {
         <button class="btn btn-primary recovery-button" type="button" @click="copyLink">
           Copy reset link
         </button>
-        <button class="btn btn-secondary recovery-button" type="button" @click="closeDialog">
+        <button class="btn btn-secondary recovery-button" type="button" @click="requestClose">
           Close
         </button>
       </div>
+      <InlineConfirm
+        v-if="confirmingClose"
+        message="Close without copying? You would have to prepare a new link."
+        confirm-label="Yes, close"
+        cancel-label="Keep open"
+        @confirm="emitClose"
+        @cancel="confirmingClose = false"
+      />
     </div>
   </dialog>
 </template>

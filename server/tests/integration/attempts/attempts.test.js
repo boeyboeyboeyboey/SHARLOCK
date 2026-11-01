@@ -254,6 +254,42 @@ describe('saved attempt API', () => {
     expect(limited.headers['ratelimit-policy']).toMatch(/^1;w=900/)
   })
 
+  it.each([
+    ['actionUser', 'per user'],
+    ['actionIp', 'per address'],
+  ])('applies the injected action limit %s (%s) and answers 429', async (limit) => {
+    app = createTestApp(
+      database,
+      { ...baseAuthOptions, now: testNow() },
+      { attempts: { registry, now: testNow(), limits: { [limit]: 1 } } },
+    )
+    const student = await createStudent()
+    const attempt = await createAttempt(student)
+    await answerAttempt(student, attempt)
+    const limited = await completeRequest(student, attempt.attemptId, {
+      actionId: randomUUID(),
+      expectedRevision: 1,
+    }).expect(429)
+    expect(limited.body.error.code).toBe('ATTEMPT_RATE_LIMITED')
+    expect(limited.headers['retry-after']).toBeDefined()
+  })
+
+  it('keys the read limit to the user, so a classmate can still read', async () => {
+    app = createTestApp(
+      database,
+      { ...baseAuthOptions, now: testNow() },
+      { attempts: { registry, now: testNow(), limits: { readUser: 1 } } },
+    )
+    const [first, second] = [await createStudent(), await createStudent()]
+    const own = await createAttempt(first)
+    const other = await createAttempt(second)
+    const read = (student, attempt) =>
+      student.agent.get(`/api/attempts/${attempt.attemptId}`).set('Origin', origin)
+    await read(first, own).expect(200)
+    await read(first, own).expect(429)
+    await read(second, other).expect(200)
+  })
+
   it('requires a live session and mutation checks, rejects extra fields, and returns only public state', async () => {
     const student = await createStudent()
     const anonymous = request(app)

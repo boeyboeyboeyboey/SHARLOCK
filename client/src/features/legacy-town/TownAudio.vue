@@ -36,7 +36,7 @@ const soundLabel = computed(() => {
       <button
         class="pixel-button sound-button"
         type="button"
-        :aria-label="isMuted ? 'Turn on town sound' : 'Mute town sound'"
+        aria-label="Town sound"
         :aria-pressed="!isMuted"
         :disabled="starting || suspended"
         @click="toggle"

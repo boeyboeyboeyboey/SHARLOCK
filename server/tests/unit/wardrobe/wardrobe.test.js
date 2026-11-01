@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { achievementKeys } from '../../../src/modules/progress/achievements.js'
+import { achievementCatalogue } from '../../../src/modules/progress/achievements.js'
 import {
   DEFAULT_WARDROBE,
   WARDROBE_ITEMS,
@@ -23,6 +23,7 @@ describe('wardrobe catalog', () => {
   })
 
   it('unlocks only through real achievement keys', () => {
+    const achievementKeys = achievementCatalogue.map((item) => item.key)
     for (const entry of WARDROBE_ITEMS) {
       if (entry.unlockedBy) expect(achievementKeys).toContain(entry.unlockedBy)
     }

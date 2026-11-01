@@ -75,6 +75,18 @@ function watchSafePageRequests(page, events) {
   })
 }
 
+// a reset token must never reach a query string or a request url
+function expectNoSecretsInUrls(events) {
+  const leaks = events.filter(
+    (event) =>
+      event.pageHasQuery ||
+      event.pageHasFragment ||
+      event.requestHasQuery ||
+      event.requestHasFragment,
+  )
+  expect(leaks).toEqual([])
+}
+
 async function navigateToSensitiveUrl(page, value) {
   await page.evaluate((url) => window.location.assign(url), value)
 }
@@ -195,6 +207,8 @@ test('admin recovery revokes sessions and requires normal sign-in', async ({
     await assertNoHorizontalOverflow(page, 812, 375, 'landscape')
     await page.setViewportSize(testInfo.project.use.viewport)
     await page.keyboard.press('Escape')
+    await expect(firstDialog).toContainText('Close without copying?')
+    await firstDialog.getByRole('button', { name: 'Yes, close' }).click()
     await expect(firstDialog).toHaveCount(0)
     await expect(page.locator('#recovery-link-value')).toHaveCount(0)
     await expect(prepareButton).toBeFocused()
@@ -236,15 +250,7 @@ test('admin recovery revokes sessions and requires normal sign-in', async ({
       hasFragment: false,
     })
     expect(queryEvents.some((event) => event.path === '/api/auth/reset-password')).toBe(false)
-    expect(
-      queryEvents.every(
-        (event) =>
-          !event.pageHasQuery &&
-          !event.pageHasFragment &&
-          !event.requestHasQuery &&
-          !event.requestHasFragment,
-      ),
-    ).toBe(true)
+    expectNoSecretsInUrls(queryEvents)
 
     replacedContext = await newTown2dContext(browser, isolatedContextOptions(testInfo))
     const replacedPage = await replacedContext.newPage()
@@ -264,15 +270,7 @@ test('admin recovery revokes sessions and requires normal sign-in', async ({
     await replacedPage.getByRole('button', { name: 'Set password' }).click()
     await expect(replacedPage.locator('#reset-password-error')).toHaveText(unavailableMessage)
     expect(replacedResponses).toEqual([400])
-    expect(
-      replacedEvents.every(
-        (event) =>
-          !event.pageHasQuery &&
-          !event.pageHasFragment &&
-          !event.requestHasQuery &&
-          !event.requestHasFragment,
-      ),
-    ).toBe(true)
+    expectNoSecretsInUrls(replacedEvents)
 
     const gateEvents = []
     const gateResponses = []
@@ -312,15 +310,7 @@ test('admin recovery revokes sessions and requires normal sign-in', async ({
     )
     expect(persistedToken).toBe(false)
     expect(gateEvents.length).toBeGreaterThan(0)
-    expect(
-      gateEvents.every(
-        (event) =>
-          !event.pageHasQuery &&
-          !event.pageHasFragment &&
-          !event.requestHasQuery &&
-          !event.requestHasFragment,
-      ),
-    ).toBe(true)
+    expectNoSecretsInUrls(gateEvents)
 
     await gatePage.getByRole('button', { name: 'Sign out before resetting password' }).click()
     await expect(gatePage.locator('#reset-password')).toBeVisible()
@@ -337,15 +327,7 @@ test('admin recovery revokes sessions and requires normal sign-in', async ({
       (event) => event.path === '/api/auth/reset-password',
     )
     expect(redemptionRequests).toHaveLength(1)
-    expect(
-      redemptionRequests.every(
-        (event) =>
-          !event.pageHasQuery &&
-          !event.pageHasFragment &&
-          !event.requestHasQuery &&
-          !event.requestHasFragment,
-      ),
-    ).toBe(true)
+    expectNoSecretsInUrls(redemptionRequests)
 
     reuseContext = await newTown2dContext(browser, isolatedContextOptions(testInfo))
     const reusePage = await reuseContext.newPage()
@@ -365,15 +347,7 @@ test('admin recovery revokes sessions and requires normal sign-in', async ({
     await reusePage.getByRole('button', { name: 'Set password' }).click()
     await expect(reusePage.locator('#reset-password-error')).toHaveText(unavailableMessage)
     expect(reuseResponses).toEqual([400])
-    expect(
-      reuseEvents.every(
-        (event) =>
-          !event.pageHasQuery &&
-          !event.pageHasFragment &&
-          !event.requestHasQuery &&
-          !event.requestHasFragment,
-      ),
-    ).toBe(true)
+    expectNoSecretsInUrls(reuseEvents)
 
     const originHeader = { Origin: origin }
     const staleSessionResponse = await oldSessionContext.request.get(`${baseURL}/api/auth/me`, {
@@ -562,7 +536,9 @@ test('instructors issue links; admin-only roles have no roster recovery control'
     await expect
       .poll(() => dialog.evaluate((node) => node.contains(document.activeElement)))
       .toBe(true)
+    await expect(dialog).toContainText(`Link for ${studentIdentity.username}`)
     await instructorPage.keyboard.press('Escape')
+    await dialog.getByRole('button', { name: 'Yes, close' }).click()
     await expect(dialog).toHaveCount(0)
     await expect(instructorPage.locator('#recovery-link-value')).toHaveCount(0)
     await expect(instructorIssueButton).toBeFocused()

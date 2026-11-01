@@ -1,4 +1,5 @@
 import { createHmac } from 'node:crypto'
+// library: express-rate-limit (mit); credited in credits.md
 import { ipKeyGenerator, MemoryStore, rateLimit } from 'express-rate-limit'
 import { AuthError } from './policy.js'
 

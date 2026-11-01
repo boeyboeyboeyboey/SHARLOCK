@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('../views/Dashboard.vue', () => ({ default: { render: () => null } }))
-vi.mock('../views/ComingSoon.vue', () => ({ default: { render: () => null } }))
+vi.mock('../views/NoAccess.vue', () => ({ default: { render: () => null } }))
 
 const TOKEN = 'T'.repeat(43)
 const OTHER_TOKEN = 'U'.repeat(43)

@@ -826,8 +826,17 @@
   color: var(--game-good);
 }
 
-.phish-game .triage-debrief > .triage-next {
+.phish-game .triage-debrief-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
   justify-self: start;
+}
+
+.phish-game .triage-town-link {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
 }
 
 /* small screens: fewer lines above the email, so sender and subject fit the first screen */

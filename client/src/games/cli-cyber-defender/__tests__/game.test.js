@@ -3,6 +3,7 @@ import { computed, nextTick, ref } from 'vue'
 import { flushPromises, mount, RouterLinkStub } from '@vue/test-utils'
 import { createPinia } from 'pinia'
 import CliDefenderGame from '../CliDefenderGame.vue'
+import { INTERIOR_LEAVE } from '../../../features/interiors/useInteriorLeave.js'
 
 const leaveGuard = vi.hoisted(() => ({ current: null }))
 const game = vi.hoisted(() => ({ current: null }))
@@ -94,9 +95,9 @@ function setPointer(coarse) {
   }))
 }
 
-function mountGame() {
+function mountGame(global = {}) {
   return mount(CliDefenderGame, {
-    global: { plugins: [createPinia()], stubs: { RouterLink: RouterLinkStub } },
+    global: { plugins: [createPinia()], stubs: { RouterLink: RouterLinkStub }, ...global },
     attachTo: document.body,
   })
 }
@@ -180,6 +181,44 @@ describe('cli defender game page', () => {
     await wrapper.get('button[aria-label^="Insert block ip"]').trigger('click')
     expect(document.activeElement.id).toBe('cli-command')
     wrapper.unmount()
+  })
+
+  describe('the shared leave dialog', () => {
+    function mountUnderLayout() {
+      let hooks = null
+      const unregister = vi.fn()
+      const wrapper = mountGame({
+        provide: {
+          [INTERIOR_LEAVE]: (registered) => {
+            hooks = registered
+            return unregister
+          },
+        },
+      })
+      return { wrapper, hooks: () => hooks, unregister }
+    }
+
+    it('holds a timed clock while the dialog is open and restarts it if the player stays', async () => {
+      game.current = fakeGame({ mode: 'timed' })
+      game.current.pause.mockResolvedValue(true)
+      const { wrapper, hooks, unregister } = mountUnderLayout()
+      await hooks().onOpen()
+      expect(game.current.pause).toHaveBeenCalledTimes(1)
+      expect(game.current.resume).not.toHaveBeenCalled()
+      hooks().onClose()
+      expect(game.current.resume).toHaveBeenCalledTimes(1)
+      wrapper.unmount()
+      expect(unregister).toHaveBeenCalledTimes(1)
+    })
+
+    it('does not resume a game it could not pause', async () => {
+      game.current = fakeGame({ mode: 'timed' })
+      const { wrapper, hooks } = mountUnderLayout()
+      await hooks().onOpen()
+      hooks().onClose()
+      expect(game.current.resume).not.toHaveBeenCalled()
+      wrapper.unmount()
+    })
   })
 
   it('warns before a reload only while a game is running', async () => {

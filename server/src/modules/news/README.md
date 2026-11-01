@@ -54,8 +54,8 @@ Week/month include the current Singapore day plus the previous 6/29 days. The ad
 - Coalescing: one promise per edition within the server process, at most four refreshes; failures impose at least a 60-second cooldown
 - Cached data is served on refresh failure only before hard expiry, labelled stale with the original retrieval time
 - Expired content is never served
-- **Sample edition:** with no key (`NEWS_NOT_CONFIGURED`), or when the publisher cannot be reached (`NEWS_UPSTREAM_UNAVAILABLE`, including its cooldown) and nothing usable is cached, the response is `sample: true`, `provider: "Sample edition"`, with fictional stories set in Sharlock Town, `url: ""` on every article and text-only inline nodes. It reserves no quota and is never written to the cache, so a usable cached edition always wins over it
-- Other failures (`NEWS_DAILY_LIMIT`, `NEWS_BUSY`, `NEWS_UNAVAILABLE`) with nothing usable cached still return a safe 503 with retry information
+- **Sample edition:** with no key (`NEWS_NOT_CONFIGURED`), when the publisher cannot be reached (`NEWS_UPSTREAM_UNAVAILABLE`, including its cooldown) or when the day's quota is spent (`NEWS_DAILY_LIMIT`, with `refreshAvailableAt` at UTC midnight), and nothing usable is cached, the response is `sample: true`, `provider: "Sample edition"`, with fictional stories set in Sharlock Town, `url: ""` on every article and text-only inline nodes. It reserves no quota and is never written to the cache, so a usable cached edition always wins over it
+- Other failures (`NEWS_BUSY`, which clears in seconds, and `NEWS_UNAVAILABLE`) with nothing usable cached still return a safe 503 with retry information
 - `GET /api/news` is limited to 60 requests a minute per address (`NEWS_RATE_LIMITED`, 429 with `Retry-After`); the health check has its own limit of 120 a minute, well above a readiness wait
 - Browser responses use `Cache-Control: no-store`; the client uses no durable content storage
 

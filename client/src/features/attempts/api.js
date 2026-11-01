@@ -19,7 +19,7 @@ export function safeAttemptError(error) {
     message = 'Your account cannot access this case or class now.'
   else if (status === 400 || status === 409)
     message = 'This action could not be accepted. Reload the case and review it.'
-  return { message, status: status || 0 }
+  return { message, status: status || 0, code }
 }
 
 export async function listAttemptContexts(page = 1, signal) {

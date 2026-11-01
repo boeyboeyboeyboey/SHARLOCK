@@ -157,7 +157,7 @@ describe('class results container', () => {
       signal: expect.any(AbortSignal),
     })
     expect(wrapper.text()).toContain('8 / 10')
-    expect(wrapper.text()).toContain('sql-injection')
+    expect(wrapper.text()).toContain('SQL injection')
     await wrapper.get('select').setValue('sql-injection-arcade')
     await flushPromises()
     expect(apiMocks.get.mock.calls.at(-1)[1].params.gameId).toBe('sql-injection-arcade')

@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+// library: express (mit), http api; credited in credits.md
 import express from 'express'
 import { createNewsRouter } from './modules/news/router.js'
 import { createSocialEngineeringRouter } from './modules/games/social-engineering-simulator/router.js'

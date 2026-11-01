@@ -1,3 +1,4 @@
+// library: argon2 (mit), argon2id password hashing; credited in credits.md
 import argon2 from 'argon2'
 import { AuthError } from './policy.js'
 

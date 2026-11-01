@@ -2,6 +2,7 @@ import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import ProgressSummary from '../components/ProgressSummary.vue'
 import AttemptHistory from '../components/AttemptHistory.vue'
+import { gameCatalog } from '../../../data/gameCatalog.js'
 
 const stubs = { PixelIcon: true }
 
@@ -29,10 +30,12 @@ describe('progress summary', () => {
     const saved = wrapper.get('[data-testid="game-sql-injection-arcade"]')
     expect(saved.text()).toContain('SQL Injection Arcade')
     expect(saved.text()).toContain('80 / 100')
-    expect(wrapper.findAll('.progress-game')).toHaveLength(7)
+    expect(wrapper.findAll('[data-testid^="game-"]')).toHaveLength(gameCatalog.length)
     expect(wrapper.get('[data-testid="game-clearance-tower"]').text()).toContain(
       'Not a scored activity',
     )
+    expect(wrapper.text()).toContain('SQL injection')
+    expect(wrapper.text()).not.toContain('sql-injection')
     expect(wrapper.text()).toContain('1 of 2 passed')
   })
 })

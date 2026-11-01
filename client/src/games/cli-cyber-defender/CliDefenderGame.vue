@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import HowToPlayDialog from '../../components/common/HowToPlayDialog.vue'
 import { useHowToPlay } from '../../composables/useHowToPlay.js'
+import { useInteriorLeave } from '../../features/interiors/useInteriorLeave.js'
 import BriefingPanel from './components/BriefingPanel.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
 import GameMenu from './components/GameMenu.vue'
@@ -108,6 +109,18 @@ function leave() {
   settleRouteLeave?.(true)
   settleRouteLeave = null
 }
+
+// the shared top bar's leave dialog holds the clock the same way, from the same pause budget
+let pausedForSharedLeave = false
+useInteriorLeave({
+  onOpen: async () => {
+    pausedForSharedLeave = await pause('Game paused while you decide whether to leave.')
+  },
+  onClose: () => {
+    if (pausedForSharedLeave) resume()
+    pausedForSharedLeave = false
+  },
+})
 
 // browser back or forward has no dialog of its own; our top bar asks through its own guard, and
 // only a history move has already updated history.state when this runs

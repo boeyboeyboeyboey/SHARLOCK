@@ -12,6 +12,7 @@ import { userModel } from '../../../src/models/User.js'
 import { membershipModel } from '../../../src/models/Membership.js'
 import { initializeCohortStorage } from '../../../src/modules/cohorts/storage.js'
 import { initializeAttemptStorage } from '../../../src/modules/attempts/storage.js'
+import { createLeaderboardService } from '../../../src/modules/leaderboards/service.js'
 import {
   createTestApp,
   disposeTestAuthApps,
@@ -248,6 +249,36 @@ async function setupClass() {
 }
 
 describe('class leaderboard API', () => {
+  it('counts the newest plays past the read cap and says it did', async () => {
+    const { cohortId, ann, bob } = await setupClass()
+    currentTime += 1000
+    await completeOne(bob, inClass(cohortId), true)
+    currentTime += 1000
+    await completeOne(ann, inClass(cohortId), true)
+    currentTime += 1000
+    await completeOne(ann, inClass(cohortId), false)
+    const service = createLeaderboardService(database, { registry, maxBoardAttempts: 2 })
+    const capped = await service.getBoard({ id: ann.user.id }, cohortId, {
+      gameId: syntheticGameId,
+      view: 'all-time',
+      page: 1,
+    })
+    expect(capped.truncated).toBe(true)
+    expect(capped.rows.map((row) => [row.username, row.plays])).toEqual([[ann.user.username, 2]])
+
+    const whole = await board(ann, cohortId, q('&view=all-time')).expect(200)
+    expect(whole.body.truncated).toBe(false)
+  })
+
+  it('limits each user to 120 reads a minute without touching another user', async () => {
+    const { cohortId, ann, bob } = await setupClass()
+    for (let count = 0; count < 120; count += 1) await games(ann, cohortId).expect(200)
+    const limited = await games(ann, cohortId).expect(429)
+    expect(limited.body.error.code).toBe('LEADERBOARD_RATE_LIMITED')
+    expect(limited.headers['retry-after']).toBe('60')
+    await games(bob, cohortId).expect(200)
+  }, 30000)
+
   it('ranks best scores for a student in the class and hides private fields', async () => {
     const { cohortId, ann, bob } = await setupClass()
     currentTime += 1000
@@ -269,6 +300,7 @@ describe('class leaderboard API', () => {
         'rows',
         'rulesetVersion',
         'total',
+        'truncated',
         'view',
       ].sort(),
     )

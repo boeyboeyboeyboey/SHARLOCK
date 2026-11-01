@@ -10,7 +10,7 @@
 - Data: reads `GET /api/news` only; it saves no scores, accounts or reading history.
 - Status: see the G-NEWS records in [TASKS.md](../../../../TASKS.md).
 - Phones: the edition line keeps only the date, the status is one line and headline links are 44px targets; short landscape uses a one-row masthead (MOB-01 stage 3).
-- Sample edition: with no key, or when the publisher cannot be reached and nothing is cached, the server sends a labelled sample edition of our own made-up stories. The page says "Sample edition. These stories are made up for this project. This is not real news.", each story carries "SAMPLE STORY, NOT REAL NEWS", and there is no Guardian logo, attribution or link out.
+- Sample edition: with no key, when the publisher cannot be reached, or when the day's quota is spent, and nothing is cached, the server sends a labelled sample edition of our own made-up stories. The page says "Sample edition. These stories are made up for this project. This is not real news.", each story carries "SAMPLE STORY, NOT REAL NEWS", and there is no Guardian logo, attribution or link out.
 - Limits: live stories need a Guardian key in the server environment; unscored; sound state is local and non-persistent.
 
 Cyber News Central retains catalog ID `threat-briefing` and `/games/threat-briefing`. Its paper reads live Guardian stories (or the labelled sample edition above), without accounts, scores, reflections or saved reading history.

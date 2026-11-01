@@ -561,7 +561,11 @@ async function issueRecoveryLink({ identityVerified }) {
     if (!isCurrentRequest('recovery-issue', controller) || recoveryStudent.value?.id !== selectedId)
       return
     recoveryIssueForm.value?.focusSubmitButton()
-    recoveryLink.value = link
+    recoveryLink.value = {
+      ...link,
+      username: recoveryStudent.value.username,
+      email: recoveryStudent.value.email,
+    }
   } catch (error) {
     if (isCurrentRequest('recovery-issue', controller)) {
       recoveryIssueError.value = safeRecoveryError(error).message

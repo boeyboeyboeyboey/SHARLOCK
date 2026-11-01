@@ -7,7 +7,6 @@ const GAME_ID_PATTERN = /^[a-z][a-z0-9-]{0,63}$/
 const USERNAME_PATTERN = /^[a-z0-9_-]{3,32}$/i
 
 const SAFE_MESSAGES = Object.freeze({
-  AUTHENTICATION_REQUIRED: 'Your session has ended. Sign in again to continue.',
   CSRF_INVALID: 'Your security check expired. Review your changes and try again.',
   ORIGIN_FORBIDDEN: 'This request could not be verified. Refresh and try again.',
   PROFILE_USERNAME_TAKEN: 'That username is already in use. Choose another one.',
