@@ -51,7 +51,7 @@ Input strings are at most 120 characters. The old `test-payload` and `select-rep
 The query is built exactly as the vulnerable page would, by pasting the raw input into fixed text. The text is tokenised and the condition is evaluated in memory against synthetic rows.
 
 - Tokens: integers (12 digits), quoted strings (80 characters, `''` escape), words, `( ) , = < >`. `--` and `#` start a comment that drops the rest. At most 48 tokens. Any other character (such as `;` or `*`) is `UNSUPPORTED`, so stacked statements never run. A stray `%` or an unterminated string is a `SYNTAX_ERROR`.
-- Condition: `operand (= | < | > | LIKE) operand`, joined by `AND`/`OR` (AND binds tighter). An operand is a number, a string, `NULL` or a known column. Unknown columns are a `SYNTAX_ERROR`.
+- Condition: `operand (= | < | > | LIKE) operand`, joined by `AND`/`OR` (AND binds tighter). An operand is a number, a string, `NULL` or a known column. Unknown columns are a `SYNTAX_ERROR`. `LIKE` treats `%` as its only wildcard and runs a non-backtracking matcher, because the player can type both sides.
 - Login (quoted, two fields): `WHERE user = '<u>' AND pass = '<p>'`. A tautology matches the first row. The comment variant must match the named account, otherwise `WRONG_ACCOUNT`.
 - Numeric: `WHERE badge = <input>` with no quotes, so a quote only causes a syntax error.
 - UNION: `WHERE col LIKE '%<input>%'` then `UNION [ALL] SELECT <n items> FROM <table>`. Items are literals, `NULL` or columns of that table. Wrong count is `COLUMN_MISMATCH`, only literals is `NO_DATA`, the decoy table is `WRONG_TABLE`, the target table is `SUCCESS`.

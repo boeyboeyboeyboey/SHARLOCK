@@ -159,6 +159,37 @@ describe('t3 second order', () => {
   })
 })
 
+describe('LIKE stays bounded', () => {
+  const crafted = (runs, pairs) => `x' OR '${'a'.repeat(runs)}' LIKE '%${'a%'.repeat(pairs)}b%`
+  const evaluate = (subject, pattern) => runLogin(users, [`x' OR '${subject}' LIKE '${pattern}'--`])
+
+  it('answers the crafted input that used to hang the api', () => {
+    const started = performance.now()
+    expect(runLogin(users, [crafted(30, 13)]).code).toBe('NO_MATCH')
+    expect(runLogin(users, [crafted(40, 38)]).code).toBe('NO_MATCH')
+    expect(performance.now() - started).toBeLessThan(50)
+  })
+
+  it.each([
+    ['abc', 'abc', true],
+    ['ABC', 'abc', true],
+    ['abc', '', false],
+    ['abc', '%', true],
+    ['abc', 'a%', true],
+    ['abc', '%c', true],
+    ['abc', 'a%c', true],
+    ['abcabc', '%b%b%', true],
+    ['abc', 'b%', false],
+    ['abc', '%b', false],
+    ['abc', 'abcd', false],
+    ['a.c', 'a.c', true],
+    ['abc', 'a.c', false],
+    ['a(c', 'a(%', true],
+  ])('%s LIKE %s is %s', (subject, pattern, expected) => {
+    expect(evaluate(subject, pattern).code === 'NO_MATCH').toBe(!expected)
+  })
+})
+
 describe('no execution by design', () => {
   it('has no way to reach a database, shell or eval', async () => {
     const { readFile } = await import('node:fs/promises')
@@ -166,7 +197,7 @@ describe('no execution by design', () => {
       new URL('../../../src/modules/games/sql-injection-arcade/engine.js', import.meta.url),
       'utf8',
     )
-    expect(source).not.toMatch(/child_process|mongoose|\beval\b|new Function|require\(/)
+    expect(source).not.toMatch(/child_process|mongoose|\beval\b|new Function|new RegExp|require\(/)
     expect(source.match(/^import /gm) ?? []).toHaveLength(0)
   })
 })

@@ -138,15 +138,36 @@ function valueOf(side, row) {
   return String(row[side.col]).slice(side.at - 1, side.at)
 }
 
+// % is the only wildcard. a player can type both sides, so this must not backtrack: remembering
+// just the last % keeps the work at subject length times pattern length for any input
+function likeMatches(subject, pattern) {
+  const text = subject.toUpperCase()
+  const wild = pattern.toUpperCase()
+  let textAt = 0
+  let wildAt = 0
+  let lastPercent = -1
+  let resumeAt = 0
+  while (textAt < text.length) {
+    if (wild[wildAt] === '%') {
+      lastPercent = wildAt
+      resumeAt = textAt
+      wildAt += 1
+    } else if (wildAt < wild.length && wild[wildAt] === text[textAt]) {
+      textAt += 1
+      wildAt += 1
+    } else if (lastPercent >= 0) {
+      resumeAt += 1
+      textAt = resumeAt
+      wildAt = lastPercent + 1
+    } else return false
+  }
+  while (wild[wildAt] === '%') wildAt += 1
+  return wildAt === wild.length
+}
+
 function compare(a, op, b) {
   if (a === null || b === null || a === undefined || b === undefined) return false
-  if (op === 'LIKE') {
-    const pattern = String(b)
-      .split('%')
-      .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-      .join('.*')
-    return new RegExp(`^${pattern}$`, 'is').test(String(a))
-  }
+  if (op === 'LIKE') return likeMatches(String(a), String(b))
   if (typeof a === 'number' && typeof b === 'number')
     return op === '=' ? a === b : op === '<' ? a < b : a > b
   const left = String(a).toUpperCase()
