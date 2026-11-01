@@ -160,7 +160,7 @@ All records in this section were Review until 1 November 2026, when Boey accepte
 **ASSET-01 — Game music, sound effects and room stills** · Status: **Review** · Contributor: **Boey** (generated the media on 1 November 2026), processed and wired by Claude Code · Branch: `asset-01-game-media`.
 - Five game themes (Gemini Lyria, delivered as MP4): fade-out and trailing silence cut, last 2 s crossfaded into the first 2 s for a gapless loop, -16 LUFS two-pass, stereo MP3 128 kbps (0.9 to 2.8 MB each). Four jsfxr effects (correct, wrong, lose, click) converted from WAV to mono MP3. Five Gemini room stills centre-cropped to 16:9, 1600 x 900 WebP quality 80 (65 to 128 KB), replacing the rendered ones. All play or show through the existing `useGameAudio` and `stillUrl` paths; no code change.
 - `sfx-win.mp3` (branch `asset-02-win-sfx`): Boey picked option 1 of three cuts from a 62 s Gemini track, the closing 3.1 s (56.5 to 59.6 s) with a 0.35 s fade-out, mono MP3 128 kbps.
-- Open: `botnet-tag-theme.mp3` (not generated yet); Botnet Tag stays silent until then. Originals kept locally in `.local-handover/asset-sources-2026-11-01/`.
+- `botnet-tag-theme.mp3` (branch `asset-03-botnet-theme`): Gemini track from the DOC-24 prompt, processed like the other themes (174.5 s loop, -16 LUFS, 2.8 MB). All game audio files are now in place. Originals kept locally in `.local-handover/asset-sources-2026-11-01/`.
 - Checks: E2E `interiors.spec.js` 14/14 (each still loads); vitest `useGameAudio.test.js` 9/9; stills checked by eye on a contact sheet. Loops and loudness not checked by ear.
 - Docs: CREDITS.md (themes, effects, room stills), this record.
 
