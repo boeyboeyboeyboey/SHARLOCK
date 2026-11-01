@@ -63,6 +63,7 @@ function sendAdminError(error, _request, response, next) {
         code: error.code,
         message: error.message,
         ...(error.fieldErrors && { fieldErrors: error.fieldErrors }),
+        ...(error.affectedStudents && { affectedStudents: error.affectedStudents }),
       },
       requestId: response.locals.requestId,
     })

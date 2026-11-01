@@ -42,12 +42,19 @@ function onExpired({ replaced = false } = {}) {
     void router.replace({ path: '/login', query: { reason } }).catch(() => {})
   }
 }
+const getSessionGeneration = () => auth.sessionGeneration()
 const removeAccountAccess = installBrowserAccountAccess(api, {
   checkSession,
   onExpired,
   isSignedIn,
+  getSessionGeneration,
 })
-const removeReturnCheck = installSessionReturnCheck({ checkSession, onExpired, isSignedIn })
+const removeReturnCheck = installSessionReturnCheck({
+  checkSession: () => auth.restoreSession({ force: true, quiet: true }),
+  onExpired,
+  isSignedIn,
+  getSessionGeneration,
+})
 if (!['/activate-account', '/join-class'].includes(window.location.pathname)) {
   void auth.restoreSession().catch(() => {})
 }

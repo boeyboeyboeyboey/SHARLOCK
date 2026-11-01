@@ -19,6 +19,10 @@ const COMMON = {
     'You changed which manifest rows came back, but nothing from another table. Try a UNION.',
   YES: 'The page says: in stock.',
   NO: 'The page says: not in stock.',
+  YES_OFF_TARGET:
+    'The page says: in stock. That probe read a different column or letter, so it is not evidence for this question. Ask about the first letter of the hidden column.',
+  NO_OFF_TARGET:
+    'The page says: not in stock. That probe read a different column or letter, so it is not evidence for this question. Ask about the first letter of the hidden column.',
   STORED: 'Registered. The quote was escaped on insert, so the name is stored exactly as typed.',
   TAKEN: 'That username is already registered. It counts as a try.',
   OWN_ACCOUNT: 'Only your own new account was updated.',

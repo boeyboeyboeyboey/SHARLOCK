@@ -93,8 +93,8 @@ export function requestHint(runId, incidentId, signal) {
   return writeAttempt(`${BASE}/${runId}/hint`, { incidentId }, signal)
 }
 
-export function pauseRun(runId, signal) {
-  return writeAttempt(`${BASE}/${runId}/pause`, {}, signal)
+export function pauseRun(runId, signal, body = {}) {
+  return writeAttempt(`${BASE}/${runId}/pause`, body, signal)
 }
 
 export function resumeRun(runId, signal) {

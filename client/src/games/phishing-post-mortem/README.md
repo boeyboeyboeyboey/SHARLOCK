@@ -30,7 +30,7 @@
 
 ## State ownership
 
-`useTriageRun()` owns everything outside the shared attempt: the countdown (`secondsLeft`, read from the snapshot's `deadlineAt` every 250 ms and corrected by `publicState.serverNow`, so a skewed device clock cannot end a run early), the previous email kept for feedback, and `needsCompletion`, true when the server has no current email or the clock reached zero. All scoring state (score, streak, mistakes, current email, last outcome) comes from `snapshot.publicState`; the browser never computes a score. The part being picked (`picking`) and the practice feedback hold are local to `PhishingPostMortem.vue`.
+`useTriageRun()` owns everything outside the shared attempt: the countdown (`secondsLeft`, read from the snapshot's `deadlineAt` every 250 ms and corrected by `publicState.serverNow`, keeping the highest offset seen in a run because a replayed retry repeats the time of its first answer, so a skewed device clock cannot end a run early), the previous email kept for feedback, and `needsCompletion`, true when the server has no current email or the clock reached zero. All scoring state (score, streak, mistakes, current email, last outcome) comes from `snapshot.publicState`; the browser never computes a score. The part being picked (`picking`) and the practice feedback hold are local to `PhishingPostMortem.vue`.
 
 ## Saved attempts
 

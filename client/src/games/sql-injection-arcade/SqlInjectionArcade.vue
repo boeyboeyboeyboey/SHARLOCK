@@ -89,7 +89,11 @@ watch(
   },
 )
 onMounted(async () => {
-  if (typeof route.query.attempt === 'string') await game.load(route.query.attempt)
+  if (typeof route.query.attempt === 'string') {
+    // a resumed run's clock is already running, so the guide must not cover it
+    howToOpen.value = false
+    await game.load(route.query.attempt)
+  }
   initializing.value = false
 })
 </script>

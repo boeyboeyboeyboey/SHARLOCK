@@ -208,6 +208,20 @@ describe('triage run', () => {
     expect(writeAttempt).toHaveBeenCalledTimes(1)
   })
 
+  it('keeps its clock correction when a replayed retry answers with an old time', async () => {
+    const { game } = harness()
+    writeAttempt.mockResolvedValueOnce(snap({}, { serverNow: START.getTime() }))
+    await game.start({ kind: 'personal' })
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(game.secondsLeft.value).toBe(120)
+    // the stored receipt still says the run has only just started
+    writeAttempt.mockResolvedValueOnce(snap({}, { serverNow: START.getTime() }))
+    await game.hint()
+    await flushPromises()
+    expect(game.secondsLeft.value).toBe(120)
+  })
+
   it('counts down on the server clock when the device clock runs behind', async () => {
     vi.setSystemTime(new Date(START.getTime() - 300_000))
     const { game } = harness()

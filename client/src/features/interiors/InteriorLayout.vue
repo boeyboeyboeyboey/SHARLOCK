@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, provide, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, provide, ref, shallowReactive, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import ConfirmDialog from '../../components/common/ConfirmDialog.vue'
 import PixelIcon from '../../components/town/PixelIcon.vue'
@@ -34,7 +34,13 @@ let leaveConfirmed = false
 let chromeTimer = null
 
 // a timed game can register here to hold its clock while the leave dialog is open
-const leaveHooks = new Set()
+const leaveHooks = shallowReactive(new Set())
+// a registered game may add a line to the dialog, such as what its clock is doing
+const leaveMessage = computed(() =>
+  ["An unfinished round won't be saved.", ...[...leaveHooks].map((hooks) => hooks.note?.value)]
+    .filter(Boolean)
+    .join(' '),
+)
 provide(INTERIOR_LEAVE, (hooks) => {
   leaveHooks.add(hooks)
   return () => leaveHooks.delete(hooks)
@@ -58,12 +64,21 @@ function cancelLeave() {
   confirmOpen.value = false
   pending = null
 }
-function confirmLeave() {
+async function confirmLeave() {
   confirmOpen.value = false
   leaveConfirmed = true
   const target = pending ?? '/'
   pending = null
-  router.push(target)
+  let failure
+  try {
+    failure = await router.push(target)
+  } catch (error) {
+    failure = error
+  }
+  if (!failure) return
+  // still here, so the next leave must ask again and a held clock must restart
+  leaveConfirmed = false
+  for (const hooks of leaveHooks) hooks.onClose?.()
 }
 onBeforeRouteLeave((to) => {
   if (leaveConfirmed || !chromeLeave) return true
@@ -131,7 +146,7 @@ onBeforeUnmount(() => clearTimeout(chromeTimer))
     <ConfirmDialog
       :open="confirmOpen"
       title="Leave the game?"
-      message="An unfinished round won't be saved."
+      :message="leaveMessage"
       confirm-label="Leave game"
       cancel-label="Keep playing"
       @confirm="confirmLeave"

@@ -36,7 +36,7 @@ export function useTownPresence({ getPlayer, reducedMotion = () => false }) {
     getPlayer,
     staff: (auth?.user?.globalRoles ?? []).some((role) => ['instructor', 'admin'].includes(role)),
     onPeers,
-    checkSession: () => auth?.restoreSession({ force: true }),
+    checkSession: () => auth?.restoreSession({ force: true, quiet: true }),
     // 4401 or a refused socket: the session is gone server side, so show the login notice
     onSessionEnded: (reason) => endSessionFromPresence(auth, router, reason),
   })

@@ -546,17 +546,67 @@ describe('cli defender service', () => {
   })
 })
 
+describe('holding the clock for a leave dialog', () => {
+  const hold = (service) => service.pauseRun(RUN_ID, undefined, { forLeave: true })
+
+  it('spends no pause and hides the alert like a pause', () => {
+    const { clock, service } = setup()
+    const started = service.startRun({ mode: 'timed' })
+    const held = hold(service)
+    expect(held.paused).toBe(true)
+    expect(held.heldForLeave).toBe(true)
+    expect(held.current.alert).toBeNull()
+    expect(held.pauseBudget).toEqual({ pausesLeft: 2, msLeft: 30_000, leaveHoldMsLeft: 30_000 })
+    clock.now += 10_000
+    expect(service.getRun(RUN_ID).serverNow).toBe(started.serverNow)
+    const resumed = service.resumeRun(RUN_ID)
+    expect(resumed.pauseBudget).toEqual({ pausesLeft: 2, msLeft: 30_000, leaveHoldMsLeft: 20_000 })
+    expect(resumed.current.closesAt).toBe(started.current.closesAt)
+  })
+
+  it('stops holding at the fixed total, then refuses another hold', () => {
+    const { clock, service } = setup()
+    const started = service.startRun({ mode: 'timed' })
+    hold(service)
+    clock.now += 34_000
+    // past the total the game clock runs again, so this cannot become an unlimited pause
+    expect(service.getRun(RUN_ID).serverNow).toBe(started.serverNow + 4000)
+    expect(service.resumeRun(RUN_ID).pauseBudget.leaveHoldMsLeft).toBe(0)
+    expectCliError(() => hold(service), 'CLI_PAUSE_UNAVAILABLE')
+    expect(service.getRun(RUN_ID).paused).toBe(false)
+    // the player's own pauses are untouched
+    expect(service.pauseRun(RUN_ID).pauseBudget).toMatchObject({ pausesLeft: 1, msLeft: 30_000 })
+  })
+
+  it('adds the hold to the player pauses only for game time, not their budget', () => {
+    const { clock, service } = setup()
+    const started = service.startRun({ mode: 'timed' })
+    service.pauseRun(RUN_ID)
+    clock.now += 5000
+    service.resumeRun(RUN_ID)
+    hold(service)
+    clock.now += 5000
+    service.resumeRun(RUN_ID)
+    expect(service.getRun(RUN_ID).serverNow).toBe(started.serverNow)
+    expect(service.getRun(RUN_ID).pauseBudget).toEqual({
+      pausesLeft: 1,
+      msLeft: 25_000,
+      leaveHoldMsLeft: 25_000,
+    })
+  })
+})
+
 describe('timed pause budget', () => {
   it('allows two pauses and refuses a third, keeping the clock running', () => {
     const { clock, service } = setup()
     const started = service.startRun({ mode: 'timed' })
-    expect(started.pauseBudget).toEqual({ pausesLeft: 2, msLeft: 30_000 })
-    expect(service.pauseRun(RUN_ID).pauseBudget).toEqual({ pausesLeft: 1, msLeft: 30_000 })
+    expect(started.pauseBudget).toMatchObject({ pausesLeft: 2, msLeft: 30_000 })
+    expect(service.pauseRun(RUN_ID).pauseBudget).toMatchObject({ pausesLeft: 1, msLeft: 30_000 })
     clock.now += 5000
-    expect(service.resumeRun(RUN_ID).pauseBudget).toEqual({ pausesLeft: 1, msLeft: 25_000 })
+    expect(service.resumeRun(RUN_ID).pauseBudget).toMatchObject({ pausesLeft: 1, msLeft: 25_000 })
     service.pauseRun(RUN_ID)
     clock.now += 5000
-    expect(service.resumeRun(RUN_ID).pauseBudget).toEqual({ pausesLeft: 0, msLeft: 20_000 })
+    expect(service.resumeRun(RUN_ID).pauseBudget).toMatchObject({ pausesLeft: 0, msLeft: 20_000 })
     expectCliError(() => service.pauseRun(RUN_ID), 'CLI_PAUSE_UNAVAILABLE')
     expect(service.getRun(RUN_ID).paused).toBe(false)
   })
@@ -646,6 +696,23 @@ describe('run store', () => {
     expect(service.getRun(first.runId, 'player-a').runId).toBe(first.runId)
     expect(service.getRun(third.runId, 'player-a').runId).toBe(third.runId)
     expectCliError(() => service.getRun(second.runId, 'player-a'), 'CLI_RUN_NOT_FOUND')
+  })
+
+  it('keeps an unsaved finished run over a paused one, whichever was active last', () => {
+    const { clock, service } = storeOf()
+    const finished = service.startRun({ mode: 'practice' }, 'player-a')
+    service.completeRun(finished.runId, { actionId: nextAction() }, 'player-a')
+    clock.now += 1000
+    const paused = service.startRun({ mode: 'timed' }, 'player-a')
+    service.pauseRun(paused.runId, 'player-a')
+    clock.now += 1000
+    const live = service.startRun({ mode: 'practice' }, 'player-a')
+    clock.now += 1000
+    service.startRun({ mode: 'practice' }, 'player-a')
+    // the oldest run is finished and not saved, so it outlasts the paused one
+    expect(service.getRun(finished.runId, 'player-a').runId).toBe(finished.runId)
+    expect(service.getRun(live.runId, 'player-a').runId).toBe(live.runId)
+    expectCliError(() => service.getRun(paused.runId, 'player-a'), 'CLI_RUN_NOT_FOUND')
   })
 
   it('never drops a live game when the store is full: it refuses the start with 503', () => {

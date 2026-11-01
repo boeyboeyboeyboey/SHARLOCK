@@ -72,7 +72,15 @@ beforeEach(() => {
     mocks.route.query = query
   })
   mocks.listMemberships.mockResolvedValue({
-    memberships: [{ cohortId: 'c1', cohortName: 'Blue', status: 'active', cohortStatus: 'active' }],
+    memberships: [
+      {
+        cohortId: 'c1',
+        cohortName: 'Blue',
+        status: 'active',
+        cohortStatus: 'active',
+        institutionStatus: 'active',
+      },
+    ],
   })
   mocks.getLeaderboardGames.mockResolvedValue({
     games: [{ gameId: 'sql-injection-arcade', rulesetVersion: 'v1', competitive: false }],
@@ -260,13 +268,37 @@ describe('LeaderboardPage', () => {
   it('tells a student whose request is pending to wait, not to join', async () => {
     mocks.listMemberships.mockResolvedValue({
       memberships: [
-        { cohortId: 'c1', cohortName: 'Blue', status: 'pending', cohortStatus: 'active' },
+        {
+          cohortId: 'c1',
+          cohortName: 'Blue',
+          status: 'pending',
+          cohortStatus: 'active',
+          institutionStatus: 'active',
+        },
       ],
     })
     const wrapper = mountPage()
     await flushPromises()
     expect(wrapper.text()).toContain('Your class request is waiting for approval.')
     expect(wrapper.text()).not.toContain('Join a class')
+    expect(mocks.getLeaderboardGames).not.toHaveBeenCalled()
+  })
+
+  it('does not offer an active membership in a deactivated institution', async () => {
+    mocks.listMemberships.mockResolvedValue({
+      memberships: [
+        {
+          cohortId: 'c1',
+          cohortName: 'Blue',
+          status: 'active',
+          cohortStatus: 'active',
+          institutionStatus: 'inactive',
+        },
+      ],
+    })
+    const wrapper = mountPage()
+    await flushPromises()
+    expect(wrapper.text()).toContain('Join a class to see its leaderboard.')
     expect(mocks.getLeaderboardGames).not.toHaveBeenCalled()
   })
 
@@ -422,8 +454,20 @@ describe('LeaderboardPage', () => {
   it('resets the game when the class changes', async () => {
     mocks.listMemberships.mockResolvedValue({
       memberships: [
-        { cohortId: 'c1', cohortName: 'Blue', status: 'active', cohortStatus: 'active' },
-        { cohortId: 'c2', cohortName: 'Red', status: 'active', cohortStatus: 'active' },
+        {
+          cohortId: 'c1',
+          cohortName: 'Blue',
+          status: 'active',
+          cohortStatus: 'active',
+          institutionStatus: 'active',
+        },
+        {
+          cohortId: 'c2',
+          cohortName: 'Red',
+          status: 'active',
+          cohortStatus: 'active',
+          institutionStatus: 'active',
+        },
       ],
     })
     mocks.route.query = { game: 'clearance-tower' }

@@ -33,7 +33,9 @@ export function createProgressService(database, { registry = createAttemptRegist
       topicOutcomes: attempt.topicOutcomes ?? [],
       state: attempt.state ?? null,
     }))
-    const games = savingGameIds.map((gameId) => summarizeGame(gameId, attempts))
+    const games = savingGameIds.map((gameId) =>
+      summarizeGame(gameId, attempts, registry.getCurrent(gameId)?.rulesetVersion),
+    )
     return {
       games: games.map((game) => ({ ...game, lastCompletedAt: publicTime(game.lastCompletedAt) })),
       savingGameIds,

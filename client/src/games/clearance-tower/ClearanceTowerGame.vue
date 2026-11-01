@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import AttemptContextChooser from '../../features/attempts/components/AttemptContextChooser.vue'
 import SavedAttemptResult from '../../features/attempts/components/SavedAttemptResult.vue'
 import HowToPlayDialog from '../../components/common/HowToPlayDialog.vue'
+import { useAuthStore } from '../../features/auth/store.js'
 import { useHowToPlay } from '../../composables/useHowToPlay.js'
 import { playSfx } from '../../composables/playSfx.js'
 import AccessMatrix from './components/AccessMatrix.vue'
@@ -19,7 +20,7 @@ import PredictionPanel from './components/PredictionPanel.vue'
 import RoleDesigner from './components/RoleDesigner.vue'
 import TowerView from './components/TowerView.vue'
 import { describeStep, starText } from './clearanceTower.js'
-import { HOW_TO_PLAY } from './howToPlay.js'
+import { howToPlayFor } from './howToPlay.js'
 import { useClearanceTower } from './composables/useClearanceTower.js'
 import { useDayPlayback } from './composables/useDayPlayback.js'
 import './clearance.css'
@@ -54,6 +55,8 @@ const {
 } = useClearanceTower()
 const initializing = ref(true)
 const { open: howToOpen, show: showHowTo } = useHowToPlay('clearance-tower')
+const howToPlay = computed(() => howToPlayFor(snapshot.value?.rulesetVersion))
+const auth = useAuthStore()
 
 const events = computed(() => result.value?.events ?? [])
 const {
@@ -165,7 +168,13 @@ onBeforeUnmount(() => {
       >
         Reload climb
       </button>
-      <RouterLink v-if="!retryable" class="clear-back" to="/login">Sign in</RouterLink>
+      <RouterLink
+        v-if="!retryable && !auth.user"
+        class="clear-back"
+        :to="{ path: '/login', query: { returnTo: route.fullPath } }"
+      >
+        Sign in
+      </RouterLink>
     </div>
     <p v-if="busy || initializing" role="status">Checking the climb with the server…</p>
 
@@ -356,7 +365,7 @@ onBeforeUnmount(() => {
         />
       </div>
     </div>
-    <HowToPlayDialog v-model:open="howToOpen" game-id="clearance-tower" v-bind="HOW_TO_PLAY">
+    <HowToPlayDialog v-model:open="howToOpen" game-id="clearance-tower" v-bind="howToPlay">
       <template #scene="scene">
         <HowToPlayScene
           :step="scene.step"

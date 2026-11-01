@@ -97,6 +97,17 @@ describe('useSqlInjection clock', () => {
     expect(completes()).toHaveLength(2)
   })
 
+  it('keeps its clock correction when a replayed retry answers with an old time', async () => {
+    const { game } = await loaded(snapshot())
+    const left = game.secondsLeft.value
+    await vi.advanceTimersByTimeAsync(60_000)
+    // the stored receipt still says the run has only just started
+    writeAttempt.mockResolvedValueOnce(snapshot({ serverNow: START }))
+    await game.submitInputs(['x'])
+    await flushPromises()
+    expect(game.secondsLeft.value).toBe(left - 60)
+  })
+
   it('stops the clock when the run completes and clears its timer on unmount', async () => {
     const { game, wrapper } = await loaded(snapshot({ status: 'completed' }))
     await vi.advanceTimersByTimeAsync(300)

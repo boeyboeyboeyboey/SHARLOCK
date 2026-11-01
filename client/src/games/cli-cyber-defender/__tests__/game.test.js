@@ -221,6 +221,45 @@ describe('cli defender game page', () => {
     })
   })
 
+  describe('the game leave dialog', () => {
+    it('holds the clock without spending a pause and restores it after two Backs', async () => {
+      game.current = fakeGame({ mode: 'timed' })
+      game.current.pause.mockImplementation(async (_note, { forLeave } = {}) => {
+        expect(forLeave).toBe(true)
+        game.current.paused.value = true
+        game.current.pauseSecondsLeft.value = 21
+        return true
+      })
+      const wrapper = mountGame()
+      history.replaceState({ current: '/' }, '')
+      const first = leaveGuard.current({ fullPath: '/' })
+      await nextTick()
+      const second = leaveGuard.current({ fullPath: '/' })
+      await expect(first).resolves.toBe(false)
+      await flushPromises()
+      expect(game.current.pause).toHaveBeenCalledTimes(1)
+      expect(wrapper.get('[data-testid="cli-leave-clock"]').text()).toContain('21 more seconds')
+
+      await buttonNamed(wrapper, 'Keep playing').trigger('click')
+      await expect(second).resolves.toBe(false)
+      expect(game.current.resume).toHaveBeenCalledTimes(1)
+      wrapper.unmount()
+    })
+
+    it('says when the time to decide has run out and the clock is running', async () => {
+      game.current = fakeGame({ mode: 'timed' })
+      const wrapper = mountGame()
+      history.replaceState({ current: '/' }, '')
+      void leaveGuard.current({ fullPath: '/' })
+      await flushPromises()
+      expect(wrapper.get('[data-testid="cli-leave-clock"]').text()).toContain(
+        'used up, so the clock is running',
+      )
+      await buttonNamed(wrapper, 'Keep playing').trigger('click')
+      wrapper.unmount()
+    })
+  })
+
   it('warns before a reload only while a game is running', async () => {
     game.current = fakeGame()
     const wrapper = mountGame()

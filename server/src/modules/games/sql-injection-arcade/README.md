@@ -54,7 +54,7 @@ Input strings are at most 120 characters. The old `test-payload` and `select-rep
 The query is built exactly as the vulnerable page would, by pasting the raw input into fixed text. The text is tokenised and the condition is evaluated in memory against synthetic rows.
 
 - Tokens: integers (12 digits), quoted strings (80 characters, `''` escape), words, `( ) , = < >`. `--` and `#` start a comment that drops the rest. At most 48 tokens. `;` stops with `STACKED_NOT_RUN`: stacked statements are never run, the message says so, and it spends a try but is not a slip, so the first-try bonus stays. Any other character (such as `*`) is `UNSUPPORTED`. A stray `%` or an unterminated string is a `SYNTAX_ERROR`.
-- Condition: `operand (= | < | > | LIKE) operand`, joined by `AND`/`OR` (AND binds tighter). An operand is a number, a string, `NULL` or a known column. Unknown columns are a `SYNTAX_ERROR`. `LIKE` treats `%` as its only wildcard and runs a non-backtracking matcher, because the player can type both sides.
+- Condition: `operand (= | < | > | LIKE) operand`, joined by `AND`/`OR` (AND binds tighter). An operand is a number, a string, `NULL` or a known column. Unknown columns are a `SYNTAX_ERROR`. `LIKE` treats `%` as any run and `_` as any one character, and retries only from the last `%`, so its work stays at subject length times pattern length because the player can type both sides. It folds case one character at a time like a case-insensitive regex, so `ß` never matches `SS`. A number compared with a string that holds a number compares as numbers, so `10 > '9'` holds. A trailing `;` followed only by space or a comment ends the statement; anything else after it stays `STACKED_NOT_RUN`. These stop wrongly refusing inputs and change no points or maximum, so `sql-3` is not bumped; a run already saved keeps its saved score. A blind probe of another column or letter answers `YES_OFF_TARGET` or `NO_OFF_TARGET` under `sql-3`, which says it is not evidence.
 - Login (quoted, two fields): `WHERE user = '<u>' AND pass = '<p>'`. A tautology matches the first row. The comment variant must match the named account, otherwise `WRONG_ACCOUNT`.
 - Numeric: `WHERE badge = <input>` with no quotes, so a quote only causes a syntax error.
 - UNION: `WHERE col LIKE '%<input>%'` then `UNION [ALL] SELECT <n items> FROM <table>`. Items are literals, `NULL` or columns of that table. Wrong count is `COLUMN_MISMATCH`, only literals is `NO_DATA`, the decoy table is `WRONG_TABLE`, the target table is `SUCCESS`.
@@ -76,6 +76,8 @@ Strict schema `{seed, generatorVersion, cases[]}` (at most 36 records, no Mixed 
 ## Verification
 
 Unit: `server/tests/unit/sql-injection-arcade/` (engine, generator, ruleset, legacy). Integration: `server/tests/integration/sql-injection-arcade/game.test.js` against the guarded disposable `_test` database. Exact commands and outcomes live in TASKS.md.
+
+**Known limit (Russell, 1 November 2026):** the 320 par cap stays, so capped class runs may tie and the earlier finisher ranks higher. There is no per-mode maximum.
 
 ## Retained sql-1 limitation
 

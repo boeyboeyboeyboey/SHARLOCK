@@ -146,6 +146,20 @@ describe('useClearanceTower', () => {
     expect(game.phase.value).toBe('day')
   })
 
+  it('stays on the case when a retried hint succeeds, keeping its draft', async () => {
+    const { exposed: game } = withSetup(useClearanceTower)
+    await game.load('climb-1')
+    game.openLevel('the-matrix')
+    game.showPhase('predict')
+    writeAttempt.mockRejectedValueOnce(new Error('Network lost'))
+    await game.takeHint()
+    expect(game.retryable.value).toBe(true)
+    writeAttempt.mockResolvedValueOnce(climb({ revision: 1 }))
+    await game.retry()
+    expect(game.phase.value).toBe('predict')
+    expect(game.result.value).toBeNull()
+  })
+
   it('reopens a submitted level as its stored day with the stored policy', async () => {
     const stored = { grants: [{ subject: 'director', object: 'ops', rights: ['r'] }] }
     readAttempt.mockResolvedValue(

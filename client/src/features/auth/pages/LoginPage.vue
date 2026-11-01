@@ -33,6 +33,13 @@ const passwordResetNotice = computed(() => route.query.passwordReset === '1')
 const fieldErrors = computed(() => auth.requestError?.fieldErrors || {})
 const errorMessage = computed(() => auth.requestError?.message || '')
 const verifying = computed(() => Boolean(auth.pendingVerification) && !signedIn.value)
+// only a game's own page, so a crafted link cannot send someone elsewhere after signing in
+const returnTo = computed(() => {
+  const value = route.query.returnTo
+  return typeof value === 'string' && /^\/games\/[a-z-]+(?:\?attempt=[\w-]+)?$/.test(value)
+    ? value
+    : null
+})
 
 async function continueAfterSignIn() {
   if (continuing.value) return
@@ -43,7 +50,9 @@ async function continueAfterSignIn() {
       signal: controller.signal,
       afterAccountAccess: true,
     })
-    if (!controller.signal.aborted) await router.replace(destination)
+    // a class invitation or onboarding still comes first
+    const next = destination === '/' && returnTo.value ? returnTo.value : destination
+    if (!controller.signal.aborted) await router.replace(next)
   } catch {
     if (!controller.signal.aborted) {
       continuationError.value = 'You are signed in. Class setup is unavailable. Try Continue again.'
@@ -90,6 +99,18 @@ async function resendCode() {
   pending.value = true
   try {
     await auth.resendVerification()
+  } catch {
+    // the store keeps only the safe message for the code screen
+  } finally {
+    pending.value = false
+  }
+}
+
+async function cancelCode() {
+  if (pending.value) return
+  pending.value = true
+  try {
+    await auth.cancelVerification()
   } catch {
     // the store keeps only the safe message for the code screen
   } finally {
@@ -149,7 +170,7 @@ async function resendCode() {
           :error="errorMessage"
           @submit="confirmCode"
           @resend="resendCode"
-          @cancel="auth.cancelVerification()"
+          @cancel="cancelCode"
         />
 
         <LoginForm

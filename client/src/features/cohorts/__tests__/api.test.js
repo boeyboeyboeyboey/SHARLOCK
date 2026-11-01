@@ -19,7 +19,10 @@ import {
 
 describe('cohort API', () => {
   it.each([
-    ['COHORT_ALREADY_IN_CLASS', "You're already in a class. Leave it before joining another."],
+    [
+      'COHORT_ALREADY_IN_CLASS',
+      "You're already in a class or waiting to join one. To change class, ask your instructor.",
+    ],
     ['COHORT_STALE_REQUEST', 'This class request changed. The list was refreshed; review it.'],
     ['COHORT_STALE_CODE', 'The invitation code changed. The panel was refreshed; review it.'],
   ])('explains %s in fixed words', (code, message) => {

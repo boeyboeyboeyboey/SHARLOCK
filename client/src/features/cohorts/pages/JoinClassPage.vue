@@ -220,8 +220,14 @@ onBeforeUnmount(() => {
       />
     </template>
     <div v-else-if="currentClass" class="cohort-notice" data-testid="already-in-class">
-      <p>You're already in {{ currentClass.cohortName ?? 'a class' }}.</p>
-      <p>Leave it first to join another.</p>
+      <template v-if="currentClass.status === 'pending'">
+        <p>You're waiting to join {{ currentClass.cohortName ?? 'a class' }}.</p>
+        <p>To join another, ask your instructor to decline this request first.</p>
+      </template>
+      <template v-else>
+        <p>You're already in {{ currentClass.cohortName ?? 'a class' }}.</p>
+        <p>To join another, ask your instructor to remove you from this class first.</p>
+      </template>
       <RouterLink class="btn btn-secondary" to="/classes">Your classes</RouterLink>
       <button
         v-if="onboarding"

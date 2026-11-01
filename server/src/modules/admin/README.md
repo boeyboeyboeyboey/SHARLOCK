@@ -61,3 +61,5 @@ Its default remains standalone. The runner sets the process-only `SHARLOCK_TEST_
 See the [audit contract](../audit/README.md) and [shared account contract](../auth/README.md). Audit dashboards, demo fixtures, general account recovery and policy editing remain future scopes.
 
 Admin lists (institutions, classes, instructors, accounts, pending administrators) are sorted newest first, so a record just created is on page 1.
+
+**One-class rule on reactivation:** reactivating a class or an institution is refused with `409 ADMIN_REACTIVATION_CONFLICT` when it would leave a student holding two live active or pending classes (agents.md section 5). The error gives only a count, `affectedStudents`, never who or which class. No membership changes automatically: the class being reactivated cannot be managed while off, so the students must be removed from the other class first. The check runs inside the transaction before any write, so no audit event or revision is spent.

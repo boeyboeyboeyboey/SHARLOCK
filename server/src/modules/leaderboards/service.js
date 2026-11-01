@@ -61,8 +61,19 @@ export function createLeaderboardService(
     playerId: { $in: [...students.keys()].map((id) => new Types.ObjectId(id)) },
   })
 
+  // the registry's current ruleset once it has a class attempt, so one late finish of an old run
+  // cannot flip the board back; otherwise the ruleset of the class's newest attempt
   async function latestRuleset(cohortId, students, gameId) {
     if (students.size === 0) return null
+    const current = registry.getCurrent(gameId)?.rulesetVersion
+    if (current) {
+      const onCurrent = await Attempt.exists({
+        ...classFilter(cohortId, students),
+        gameId,
+        rulesetVersion: current,
+      })
+      if (onCurrent) return current
+    }
     const newest = await Attempt.findOne(
       { ...classFilter(cohortId, students), gameId },
       { rulesetVersion: 1 },
@@ -85,7 +96,10 @@ export function createLeaderboardService(
       .lean()
     const latest = new Map()
     for (const attempt of attempts) {
-      if (!latest.has(attempt.gameId)) latest.set(attempt.gameId, attempt.rulesetVersion)
+      const current = registry.getCurrent(attempt.gameId)?.rulesetVersion
+      if (!latest.has(attempt.gameId) || attempt.rulesetVersion === current) {
+        latest.set(attempt.gameId, attempt.rulesetVersion)
+      }
     }
     const games = [...latest]
       .map(([gameId, rulesetVersion]) => ({

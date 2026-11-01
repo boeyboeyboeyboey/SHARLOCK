@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 
 const props = defineProps({
   levels: { type: Array, required: true },
@@ -11,17 +11,32 @@ const emit = defineEmits(['select', 'finish'])
 const submittedCount = computed(() => props.levels.filter((level) => level.submitted).length)
 const unplayedCount = computed(() => props.levels.length - submittedCount.value)
 const confirmingFinish = ref(false)
+const finishArmed = ref(false)
+// long enough that the second click of a double-click cannot be the confirmation
+const FINISH_ARM_MS = 800
+let armTimer = null
 
-// finishing closes the climb for good, so an unfinished climb needs a second press
+// finishing closes the climb for good, so an unfinished climb needs a separate second press
 function pressFinish() {
   if (props.pending) return
   if (unplayedCount.value > 0 && !confirmingFinish.value) {
     confirmingFinish.value = true
+    finishArmed.value = false
+    armTimer = setTimeout(() => (finishArmed.value = true), FINISH_ARM_MS)
     return
   }
-  confirmingFinish.value = false
+  if (confirmingFinish.value && !finishArmed.value) return
+  cancelFinish()
   emit('finish')
 }
+
+function cancelFinish() {
+  clearTimeout(armTimer)
+  confirmingFinish.value = false
+  finishArmed.value = false
+}
+
+onBeforeUnmount(() => clearTimeout(armTimer))
 
 const acts = computed(() => {
   const groups = []
@@ -71,9 +86,8 @@ const acts = computed(() => {
         type="button"
         class="clear-button is-primary"
         :disabled="!readyToComplete"
-        :aria-disabled="pending"
+        :aria-disabled="pending || (confirmingFinish && !finishArmed)"
         @click="pressFinish"
-        @blur="confirmingFinish = false"
       >
         {{
           confirmingFinish
@@ -81,9 +95,12 @@ const acts = computed(() => {
             : 'Finish climb'
         }}
       </button>
-      <p v-if="confirmingFinish" class="clear-warning" role="status">
-        The climb closes for good and the {{ unplayedCount }} cases you have not run score 0.
-      </p>
+      <template v-if="confirmingFinish">
+        <p class="clear-warning" role="status">
+          The climb closes for good and the {{ unplayedCount }} cases you have not run score 0.
+        </p>
+        <button type="button" class="clear-button" @click="cancelFinish">Keep climbing</button>
+      </template>
     </div>
   </section>
 </template>

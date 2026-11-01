@@ -432,24 +432,40 @@ describe('class leaderboard API', () => {
     })
   })
 
-  it('does not mix rulesets and defaults to the latest', async () => {
+  it('does not mix rulesets and defaults to the current one over a late old finish', async () => {
     const { cohortId, ann, bob } = await setupClass()
     currentTime += 1000
     await completeOne(ann, inClass(cohortId), true)
     currentTime += 1000
+    // the newest finish in the class is on another ruleset, as a late old climb would be
     const second = await completeOne(bob, inClass(cohortId), true)
-    await setAttempt(second, { rulesetVersion: 'fixture-2' })
+    await setAttempt(second, { rulesetVersion: 'fixture-old' })
 
     const latest = await board(ann, cohortId, q()).expect(200)
-    expect(latest.body.rulesetVersion).toBe('fixture-2')
-    expect(latest.body.rows.map((row) => row.username)).toEqual([bob.user.username])
-    const old = await board(ann, cohortId, q('&rulesetVersion=fixture-1')).expect(200)
-    expect(old.body.rows.map((row) => row.username)).toEqual([ann.user.username])
-    expect(old.body.me).toMatchObject({ username: ann.user.username })
+    expect(latest.body.rulesetVersion).toBe('fixture-1')
+    expect(latest.body.rows.map((row) => row.username)).toEqual([ann.user.username])
+    const old = await board(ann, cohortId, q('&rulesetVersion=fixture-old')).expect(200)
+    expect(old.body.rows.map((row) => row.username)).toEqual([bob.user.username])
     const listed = await games(ann, cohortId).expect(200)
     expect(listed.body.games).toEqual([
-      { gameId: syntheticGameId, rulesetVersion: 'fixture-2', competitive: false },
+      { gameId: syntheticGameId, rulesetVersion: 'fixture-1', competitive: true },
     ])
+  })
+
+  it('falls back to the newest ruleset while the current one has no finishes', async () => {
+    const { cohortId, ann, bob } = await setupClass()
+    currentTime += 1000
+    const first = await completeOne(ann, inClass(cohortId), true)
+    await setAttempt(first, { rulesetVersion: 'fixture-older' })
+    currentTime += 1000
+    const second = await completeOne(bob, inClass(cohortId), true)
+    await setAttempt(second, { rulesetVersion: 'fixture-old' })
+
+    const latest = await board(ann, cohortId, q()).expect(200)
+    expect(latest.body.rulesetVersion).toBe('fixture-old')
+    expect(latest.body.rows.map((row) => row.username)).toEqual([bob.user.username])
+    const listed = await games(ann, cohortId).expect(200)
+    expect(listed.body.games[0].rulesetVersion).toBe('fixture-old')
   })
 
   it('counts only competitive attempts in the best view of a competitive ruleset', async () => {

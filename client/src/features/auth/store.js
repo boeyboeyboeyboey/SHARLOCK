@@ -166,7 +166,8 @@ export const useAuthStore = defineStore('auth', () => {
     else if (hadIdentity) sessionEnd.value = 'expired'
   }
 
-  async function restoreSession({ force = false } = {}) {
+  // quiet is for background checks: a failed one says nothing to the person, so it raises no alert
+  async function restoreSession({ force = false, quiet = false } = {}) {
     if (logoutPending.value || mutationPending) throw accountActionBusy()
     if (!force && status.value === 'authenticated' && user.value) return user.value
     if (restoreRequest?.generation === generation) return restoreRequest.promise
@@ -174,7 +175,7 @@ export const useAuthStore = defineStore('auth', () => {
     const operation = generation
     const hadIdentity = status.value === 'authenticated' && Boolean(user.value)
     if (!hadIdentity) status.value = 'loading'
-    requestError.value = null
+    if (!quiet) requestError.value = null
 
     const request = { generation: operation }
     request.promise = (async () => {
@@ -207,7 +208,7 @@ export const useAuthStore = defineStore('auth', () => {
           noteSessionEnd(null, hadIdentity)
           return null
         }
-        requestError.value = safeError
+        if (!quiet) requestError.value = safeError
         if (!hadIdentity && !accountVerified) status.value = 'unknown'
         throw safeError
       } finally {
@@ -351,17 +352,27 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // ends the pending session too, otherwise a refresh would bring the code screen back
+  // the code screen stays until the server has ended the pending session, otherwise a refresh or
+  // a session check already on its way would bring it back
   async function cancelVerification() {
-    pendingVerification.value = null
-    requestError.value = null
-    const operation = generation
+    const operation = beginMutation()
     try {
-      await requestLogout(await getCsrf(operation))
-    } catch {
-      // the pending session expires by itself; the form is usable either way
+      try {
+        await requestLogout(await getCsrf(operation))
+      } catch (error) {
+        // a lapsed pending session makes the cached token stale: refetch once and retry
+        if (toSafeAuthError(error).code !== 'CSRF_INVALID') throw error
+        await requestLogout(await getCsrf(operation, { force: true }))
+      }
+      if (isCurrent(operation)) {
+        pendingVerification.value = null
+        csrfToken.value = null
+      }
+    } catch (error) {
+      throw storeMutationError(error, operation)
+    } finally {
+      mutationPending = false
     }
-    if (generation === operation) csrfToken.value = null
   }
 
   async function logout() {
@@ -445,6 +456,11 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  // changes whenever the identity may have changed, so a reply can be matched to its session
+  function sessionGeneration() {
+    return generation
+  }
+
   // the picker has already saved on the server, this only mirrors the equipped ids
   function setWardrobe(equipped) {
     if (!user.value || !equipped || typeof equipped !== 'object') return
@@ -467,6 +483,7 @@ export const useAuthStore = defineStore('auth', () => {
     cancelVerification,
     logout,
     invalidateSession,
+    sessionGeneration,
     setHowToPlayDismissed,
     setWardrobe,
   }

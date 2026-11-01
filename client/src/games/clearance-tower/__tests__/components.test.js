@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import AccessMatrix from '../components/AccessMatrix.vue'
 import DayControls from '../components/DayControls.vue'
@@ -257,25 +257,41 @@ describe('clearance tower components', () => {
     expect(wrapper.emitted('select')[0]).toEqual([labelLevel.id])
   })
 
-  it('asks for a second press before finishing with cases unplayed', async () => {
-    const wrapper = mount(LevelSelect, { props: { levels: onePlayed, readyToComplete: true } })
-    await buttonNamed(wrapper, 'Finish climb').trigger('click')
-    expect(wrapper.emitted('finish')).toBeUndefined()
-    expect(wrapper.get('[role="status"]').text()).toContain('1 cases you have not run score 0')
+  describe('confirming an unfinished climb', () => {
+    beforeEach(() => vi.useFakeTimers())
+    afterEach(() => vi.useRealTimers())
 
-    const confirm = buttonNamed(wrapper, 'Finish with 1 of 2 cases? Press again to save')
-    await confirm.trigger('click')
-    expect(wrapper.emitted('finish')).toHaveLength(1)
-    expect(buttonNamed(wrapper, 'Finish climb')).toBeDefined()
-  })
+    it('asks for a second press once the delay has passed', async () => {
+      const wrapper = mount(LevelSelect, { props: { levels: onePlayed, readyToComplete: true } })
+      await buttonNamed(wrapper, 'Finish climb').trigger('click')
+      expect(wrapper.emitted('finish')).toBeUndefined()
+      expect(wrapper.get('[role="status"]').text()).toContain('1 cases you have not run score 0')
 
-  it('drops the finish confirmation when focus leaves the button', async () => {
-    const wrapper = mount(LevelSelect, { props: { levels: onePlayed, readyToComplete: true } })
-    await buttonNamed(wrapper, 'Finish climb').trigger('click')
-    await buttonNamed(wrapper, 'Finish with').trigger('blur')
-    expect(buttonNamed(wrapper, 'Finish with')).toBeUndefined()
-    await buttonNamed(wrapper, 'Finish climb').trigger('click')
-    expect(wrapper.emitted('finish')).toBeUndefined()
+      await vi.advanceTimersByTimeAsync(800)
+      await buttonNamed(wrapper, 'Finish with 1 of 2 cases? Press again to save').trigger('click')
+      expect(wrapper.emitted('finish')).toHaveLength(1)
+      expect(buttonNamed(wrapper, 'Finish climb')).toBeDefined()
+    })
+
+    it('ignores the second click of a double-click', async () => {
+      const wrapper = mount(LevelSelect, { props: { levels: onePlayed, readyToComplete: true } })
+      await buttonNamed(wrapper, 'Finish climb').trigger('click')
+      await buttonNamed(wrapper, 'Finish with').trigger('click')
+      expect(wrapper.emitted('finish')).toBeUndefined()
+      expect(buttonNamed(wrapper, 'Finish with').attributes('aria-disabled')).toBe('true')
+    })
+
+    it('can be cancelled, and focus moving to Cancel keeps the question open', async () => {
+      const wrapper = mount(LevelSelect, { props: { levels: onePlayed, readyToComplete: true } })
+      await buttonNamed(wrapper, 'Finish climb').trigger('click')
+      await buttonNamed(wrapper, 'Finish with').trigger('blur')
+      await buttonNamed(wrapper, 'Keep climbing').trigger('click')
+      expect(buttonNamed(wrapper, 'Finish with')).toBeUndefined()
+      await vi.advanceTimersByTimeAsync(800)
+      await buttonNamed(wrapper, 'Finish climb').trigger('click')
+      expect(wrapper.emitted('finish')).toBeUndefined()
+      wrapper.unmount()
+    })
   })
 
   it('finishes on one press once every case has run, and never while a request is pending', async () => {

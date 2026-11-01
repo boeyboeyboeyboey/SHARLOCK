@@ -254,10 +254,13 @@ async function load() {
   }
   try {
     const memberships = (await listMemberships({ limit: 20 })).memberships ?? []
-    const active = memberships.find((item) => item.status === 'active')
+    // a deactivated class no longer counts, matching where the server places the student
+    const inLiveClass = ({ cohortStatus, institutionStatus }) =>
+      cohortStatus === 'active' && institutionStatus === 'active'
+    const active = memberships.find((item) => item.status === 'active' && inLiveClass(item))
     className.value = active?.cohortName ?? ''
     standing.value =
-      memberships.find((item) => item.status === 'pending') ??
+      memberships.find((item) => item.status === 'pending' && inLiveClass(item)) ??
       memberships.findLast((item) => item.status === 'removed') ??
       null
   } catch {

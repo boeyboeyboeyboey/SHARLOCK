@@ -475,7 +475,16 @@ describe('cli cyber defender http api', () => {
     const student = await createStudent()
     const start = await post(student, base, { mode: 'timed', context: personal }).expect(200)
     const url = `${base}/${start.body.runId}`
-    expect(start.body.pauseBudget).toEqual({ pausesLeft: 2, msLeft: 30000 })
+    expect(start.body.pauseBudget).toEqual({
+      pausesLeft: 2,
+      msLeft: 30000,
+      leaveHoldMsLeft: 30000,
+    })
+    await post(student, `${url}/pause`, { reason: 'stretch' }).expect(400)
+    const held = await post(student, `${url}/pause`, { reason: 'leave' }).expect(200)
+    expect(held.body.paused).toBe(true)
+    expect(held.body.pauseBudget.pausesLeft).toBe(2)
+    await post(student, `${url}/resume`, {}).expect(200)
     await post(student, `${url}/pause`, {}).expect(200)
     await post(student, `${url}/resume`, {}).expect(200)
     await post(student, `${url}/pause`, {}).expect(200)

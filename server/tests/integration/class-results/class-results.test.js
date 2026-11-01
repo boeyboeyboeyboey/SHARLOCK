@@ -259,12 +259,14 @@ describe('instructor class results API', () => {
       maxSummaryAttempts: 1,
     }).getSummary(actor, cohortId, { page: 1 })
     expect(fewAttempts.truncated).toBe(true)
+    expect(fewAttempts).toMatchObject({ truncatedAttempts: true, truncatedStudents: false })
 
     const fewStudents = await createClassResultsService(database, {
       registry,
       maxClassStudents: 1,
     }).getSummary(actor, cohortId, { page: 1 })
     expect(fewStudents.truncated).toBe(true)
+    expect(fewStudents).toMatchObject({ truncatedStudents: true })
     expect(fewStudents.activeStudents).toBe(1)
   })
 
@@ -377,6 +379,8 @@ describe('instructor class results API', () => {
         'students',
         'total',
         'truncated',
+        'truncatedAttempts',
+        'truncatedStudents',
       ].sort(),
     )
     expect(response.body.cohort).toEqual({

@@ -42,9 +42,12 @@ export function useSqlInjection() {
     }
   }
   const timer = setInterval(tick, 250)
-  watch(snapshot, (next) => {
+  watch(snapshot, (next, previous) => {
     const serverNow = next?.publicState?.serverNow
-    if (Number.isFinite(serverNow)) clockOffset = serverNow - Date.now()
+    // a replayed retry carries the time of its first answer, which can only read low, so within one
+    // run the highest offset seen is the true one
+    const known = next?.attemptId === previous?.attemptId ? clockOffset : -Infinity
+    if (Number.isFinite(serverNow)) clockOffset = Math.max(known, serverNow - Date.now())
     tick()
   })
   onBeforeUnmount(() => clearInterval(timer))

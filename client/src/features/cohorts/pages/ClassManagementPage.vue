@@ -222,6 +222,8 @@ async function loadSelected(nextPage = 1) {
     if (operation !== generation) return
     memberships.value = result.memberships || []
     total.value = result.total || 0
+    // a code replaced or revoked elsewhere no longer works, so it must not stay on screen
+    if (code.code?.id !== codeInfo.value?.id || code.code?.revokedAt) clearOneTimeCode()
     codeInfo.value = code.code
     codeRevision.value = code.revision || 0
   } catch (cause) {
@@ -250,7 +252,10 @@ async function changePage(nextPage) {
 
 // reloads before showing the message, because a reload clears the page's error
 async function reportAfterReload(failure) {
-  if (RELOAD_AFTER.has(failure.code)) await loadSelected(page.value)
+  if (RELOAD_AFTER.has(failure.code)) {
+    await loadSelected(page.value)
+    if (memberships.value.length === 0 && page.value > 1) await loadSelected(page.value - 1)
+  }
   error.value = failure.message
 }
 

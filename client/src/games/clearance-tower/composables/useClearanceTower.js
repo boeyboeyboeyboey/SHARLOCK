@@ -68,7 +68,11 @@ export function useClearanceTower() {
     },
   )
 
+  // what a retry would resend: only a submit moves on to the day, and only for its own case
+  let heldSubmitLevelId = null
+
   async function runDay() {
+    heldSubmitLevelId = levelId.value
     const ok = await attempt.mutate('submit-level', {
       levelId: levelId.value,
       policy: policy.value,
@@ -77,7 +81,10 @@ export function useClearanceTower() {
         verdict: predictions.value[prompt.id],
       })),
     })
-    if (ok) enterDay()
+    if (ok) {
+      heldSubmitLevelId = null
+      enterDay()
+    }
     return ok
   }
 
@@ -87,12 +94,16 @@ export function useClearanceTower() {
   }
 
   async function takeHint() {
+    heldSubmitLevelId = null
     return attempt.mutate('request-hint', { levelId: levelId.value })
   }
 
   async function retry() {
     const ok = await attempt.retry()
-    if (ok && phase.value === 'predict') enterDay()
+    if (!ok) return ok
+    const submittedLevelId = heldSubmitLevelId
+    heldSubmitLevelId = null
+    if (submittedLevelId && submittedLevelId === levelId.value) enterDay()
     return ok
   }
 

@@ -19,7 +19,7 @@ Only `status: completed` attempts are read. Completed class-context attempts sta
 
 ## Points
 
-Per game, the best attempt is the highest `score / maxScore` among attempts on the latest ruleset version the player completed; points = `round(100 * best)`, 0 with none. `totalPoints` is the sum; `maxPoints` is `100 * savingGameIds.length`. Raw scores from different games are never summed.
+Per game, the best attempt is the highest `score / maxScore` among attempts on the registry's current ruleset once the player has completed it, otherwise on the ruleset of their newest attempt; points = `round(100 * best)`, 0 with none. `totalPoints` is the sum; `maxPoints` is `100 * savingGameIds.length`. Raw scores from different games are never summed.
 
 ## Topic outcomes
 

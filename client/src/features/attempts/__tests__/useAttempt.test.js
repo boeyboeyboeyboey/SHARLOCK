@@ -152,6 +152,41 @@ describe('shared attempt requests', () => {
     expect(game.retryable.value).toBe(true)
   })
 
+  it('blames the server, not the connection, for a server fault', async () => {
+    const game = setup()
+    writeAttempt.mockRejectedValue({ status: 503 })
+    expect(await game.start({ kind: 'personal' })).toBe(false)
+    expect(game.error.value).toBe('Saved play had a problem on our side. Try again in a moment.')
+    expect(game.retryable.value).toBe(false)
+  })
+
+  it('offers a retry for a failed read, because reading again is safe', async () => {
+    const game = setup()
+    readAttempt.mockRejectedValueOnce({ status: 500 })
+    expect(await game.load('example-id')).toBe(false)
+    expect(game.error.value).toContain('on our side')
+    expect(game.retryable.value).toBe(true)
+    readAttempt.mockResolvedValueOnce(snapshot)
+    expect(await game.retry()).toBe(true)
+    expect(readAttempt).toHaveBeenCalledTimes(2)
+    expect(game.retryable.value).toBe(false)
+  })
+
+  it('does not offer a retry for a read that was refused', async () => {
+    const game = setup()
+    readAttempt.mockRejectedValueOnce({ status: 404 })
+    expect(await game.load('example-id')).toBe(false)
+    expect(game.retryable.value).toBe(false)
+  })
+
+  it('words an answer for another game separately and offers no retry', async () => {
+    const game = setup()
+    readAttempt.mockResolvedValueOnce({ ...snapshot, gameId: 'another-game' })
+    expect(await game.load('example-id')).toBe(false)
+    expect(game.error.value).toContain('unexpected answer')
+    expect(game.retryable.value).toBe(false)
+  })
+
   it('does not point a failed start at a retry that has nothing to send', async () => {
     const game = setup()
     writeAttempt.mockRejectedValue(new Error('Network lost'))

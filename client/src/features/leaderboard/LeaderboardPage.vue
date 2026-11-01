@@ -98,6 +98,9 @@ const meOffPage = computed(() => {
   return me && !board.value.rows.some((row) => row.isSelf) ? me : null
 })
 
+const inLiveClass = ({ cohortStatus, institutionStatus }) =>
+  cohortStatus === 'active' && institutionStatus === 'active'
+
 const cohortOption = ({ cohortId, cohortName, institutionName }) => ({
   cohortId,
   cohortName,
@@ -139,11 +142,9 @@ async function loadCohorts() {
       if (current !== cohortsGeneration) return
       const rows = result.memberships || []
       cohorts.value = rows
-        .filter((row) => row.status === 'active' && row.cohortStatus === 'active')
+        .filter((row) => row.status === 'active' && inLiveClass(row))
         .map(cohortOption)
-      pendingRequest.value = rows.some(
-        (row) => row.status === 'pending' && row.cohortStatus === 'active',
-      )
+      pendingRequest.value = rows.some((row) => row.status === 'pending' && inLiveClass(row))
     }
     cohortsLoaded.value = true
   } catch (error) {

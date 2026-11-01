@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import request from 'supertest'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Types } from 'mongoose'
 import { connectDatabase } from '../../../src/config/database.js'
 import { validateEnvironment } from '../../../src/config/env.js'
@@ -660,6 +660,32 @@ describe.skipIf(process.env.SHARLOCK_TEST_REPLICA_SET !== '1')('student password
       await database.db.collection('auth_sessions').countDocuments({ _id: syntheticSessionId }),
     ).toBe(0)
     await postReset(await newPublicAgent(), token).expect(400)
+  })
+
+  it('reports the ended sessions only after the reset commits', async () => {
+    const token = tokenFrom((await issueByAdmin()).resetUrl)
+    const before = await userModel(database).findById(student.user.id).lean()
+    const sessionId = `recovery-ended-${student.user.id}`
+    await database.db.collection('auth_sessions').insertOne({
+      _id: sessionId,
+      session: { userId: student.user.id, authVersion: before.authVersion },
+      expires: new Date(currentTime + 60000),
+    })
+    const onSessionsEnded = vi.fn()
+    const failing = service({
+      onSessionsEnded,
+      recordAuditEvent: async () => {
+        throw new Error('synthetic audit failure')
+      },
+    })
+    await expect(
+      failing.resetStudentPassword({ token, password: nextPassword }),
+    ).rejects.toBeDefined()
+    expect(onSessionsEnded).not.toHaveBeenCalled()
+
+    await service({ onSessionsEnded }).resetStudentPassword({ token, password: nextPassword })
+    expect(onSessionsEnded).toHaveBeenCalledOnce()
+    expect(onSessionsEnded.mock.calls[0][0]).toContain(sessionId)
   })
 
   it('expires reset links and rechecks active cohort and institution status at redemption', async () => {

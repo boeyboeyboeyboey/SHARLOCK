@@ -5,7 +5,7 @@ import { membershipModel } from '../../models/Membership.js'
 import { userModel } from '../../models/User.js'
 import { cohortModel } from '../../models/Cohort.js'
 import { createPermissionService } from '../../services/permissions.js'
-import { summarizeGame, summarizeTopics } from '../progress/points.js'
+import { preferredRuleset, summarizeGame, summarizeTopics } from '../progress/points.js'
 import { classUnavailable, parseRouteId } from './policy.js'
 
 export const STUDENT_PAGE_SIZE = 50
@@ -26,7 +26,12 @@ function byUsername(a, b) {
 }
 
 // pure aggregation: attempts are newest first, already limited to counted students and this class
-export function summarizeClass({ gameIds, students, attemptsNewestFirst }) {
+export function summarizeClass({
+  gameIds,
+  students,
+  attemptsNewestFirst,
+  currentRulesetOf = () => null,
+}) {
   const perStudent = new Map(students.map((student) => [student.id, []]))
   for (const attempt of attemptsNewestFirst) perStudent.get(attempt.playerId)?.push(attempt)
 
@@ -42,7 +47,7 @@ export function summarizeClass({ gameIds, students, attemptsNewestFirst }) {
         bestByStudent: new Map(),
       }
     }
-    const rulesetVersion = ofGame[0].rulesetVersion
+    const rulesetVersion = preferredRuleset(ofGame, currentRulesetOf(gameId))
     const bestByStudent = new Map()
     const topicTotals = new Map()
     for (const [studentId, attempts] of perStudent) {
@@ -188,6 +193,7 @@ export function createClassResultsService(
     const summary = summarizeClass({
       gameIds,
       students,
+      currentRulesetOf: (gameId) => registry.getCurrent(gameId)?.rulesetVersion,
       attemptsNewestFirst: attempts.map((attempt) => ({
         playerId: attempt.playerId.toString(),
         gameId: attempt.gameId,
@@ -203,6 +209,8 @@ export function createClassResultsService(
       cohort: { id: cohortId, name: cohort.name, term: cohort.term },
       activeStudents: students.length,
       truncated: roster.truncated || attemptRows.length > attempts.length,
+      truncatedStudents: roster.truncated,
+      truncatedAttempts: attemptRows.length > attempts.length,
       games: summary.games,
       students: summary.students.slice(start, start + STUDENT_PAGE_SIZE),
       page,

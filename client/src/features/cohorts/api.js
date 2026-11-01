@@ -4,7 +4,8 @@ import { requestCsrfToken } from '../auth/api.js'
 const SAFE_MESSAGES = Object.freeze({
   COHORT_INVALID_CODE: 'That class code is invalid, expired, or no longer active.',
   COHORT_CONFLICT: 'This class changed while you were viewing it. Try again.',
-  COHORT_ALREADY_IN_CLASS: "You're already in a class. Leave it before joining another.",
+  COHORT_ALREADY_IN_CLASS:
+    "You're already in a class or waiting to join one. To change class, ask your instructor.",
   COHORT_STALE_REQUEST: 'This class request changed. The list was refreshed; review it.',
   COHORT_STALE_CODE: 'The invitation code changed. The panel was refreshed; review it.',
   // only the join path answers with this code; it stays generic about why

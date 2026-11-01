@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { useAuthStore } from '../../../features/auth/store.js'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import ClearanceTowerGame from '../ClearanceTowerGame.vue'
+import { howToPlayFor } from '../howToPlay.js'
 import { listAttemptContexts, readAttempt, writeAttempt } from '../../../features/attempts/api.js'
 import {
   LEVELS,
@@ -138,6 +139,26 @@ describe('clearance tower game', () => {
 })
 
 describe('clearance tower recovery', () => {
+  it('offers Sign in only once signed out, and carries the climb to come back to', async () => {
+    readAttempt.mockResolvedValue(active)
+    const { wrapper } = await mountGame({ attempt: 'climb-1' })
+    await openDeskFor(wrapper, levels[0].title)
+    useAuthStore().user = null
+    writeAttempt.mockRejectedValueOnce(Object.assign(new Error('Sign in again.'), { status: 401 }))
+    await buttonNamed(wrapper, 'Hint').trigger('click')
+    await flushPromises()
+    const link = wrapper.get('[role="alert"] a[href^="/login"]')
+    expect(link.text()).toBe('Sign in')
+    expect(decodeURIComponent(link.attributes('href'))).toContain(
+      'returnTo=/games/clearance-tower?attempt=climb-1',
+    )
+  })
+
+  it('notes the older scoring in the guide for an older climb only', () => {
+    expect(howToPlayFor('clear-4').rules.join(' ')).not.toContain('older scoring')
+    expect(howToPlayFor('clear-3').rules.join(' ')).toContain('older scoring')
+  })
+
   it('offers Reload climb and Sign in after a non-retryable error, and reloads', async () => {
     readAttempt.mockResolvedValue(active)
     const { wrapper } = await mountGame({ attempt: 'climb-1' })
@@ -151,7 +172,7 @@ describe('clearance tower recovery', () => {
     const alert = wrapper.get('[role="alert"]')
     expect(alert.text()).toContain('This case changed in another tab.')
     expect(alert.text()).not.toContain('Retry same request')
-    expect(alert.find('a[href="/login"]').text()).toBe('Sign in')
+    expect(alert.find('a[href^="/login"]').exists()).toBe(false)
 
     readAttempt.mockClear()
     await buttonNamed(wrapper, 'Reload climb').trigger('click')

@@ -80,7 +80,7 @@ const presence = usePresence({
     latestPeers = peers
     hub?.setPeers(peers)
   },
-  checkSession: () => auth.restoreSession({ force: true }),
+  checkSession: () => auth.restoreSession({ force: true, quiet: true }),
   // 4401 or a refused socket: the session is gone server side (a newer sign-in wins), so show the login notice
   onSessionEnded: (reason) => endSessionFromPresence(auth, router, reason),
 })

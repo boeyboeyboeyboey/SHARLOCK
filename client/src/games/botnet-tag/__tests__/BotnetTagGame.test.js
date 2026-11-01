@@ -96,7 +96,14 @@ beforeEach(() => {
   arenaFactory.create.mockReset()
   listMemberships.mockReset()
   listMemberships.mockResolvedValue({
-    memberships: [{ status: 'active', cohortName: 'Class 1A' }],
+    memberships: [
+      {
+        status: 'active',
+        cohortName: 'Class 1A',
+        cohortStatus: 'active',
+        institutionStatus: 'active',
+      },
+    ],
   })
   listManagedCohorts.mockReset()
   listManagedCohorts.mockResolvedValue({ cohorts: [], total: 0 })
@@ -169,9 +176,49 @@ describe('botnet tag page', () => {
     expect(routerApi.push).toHaveBeenCalledWith('/')
   })
 
+  it('names the live class, not an active membership in a deactivated one', async () => {
+    listMemberships.mockResolvedValue({
+      memberships: [
+        {
+          status: 'active',
+          cohortName: 'Dead Class',
+          cohortStatus: 'inactive',
+          institutionStatus: 'active',
+        },
+        {
+          status: 'active',
+          cohortName: 'Closed School',
+          cohortStatus: 'active',
+          institutionStatus: 'inactive',
+        },
+        {
+          status: 'active',
+          cohortName: 'Class 1A',
+          cohortStatus: 'active',
+          institutionStatus: 'active',
+        },
+      ],
+    })
+    const wrapper = mountGame()
+    await flushPromises()
+    open(FakeSocket.all.at(-1))
+    await flushPromises()
+    expect(wrapper.text()).toContain('Class 1A')
+    expect(wrapper.text()).not.toContain('Dead Class')
+    expect(wrapper.text()).not.toContain('Closed School')
+    wrapper.unmount()
+  })
+
   it('tells each student without a class why', async () => {
     listMemberships.mockResolvedValue({
-      memberships: [{ status: 'pending', cohortName: 'Class 2B' }],
+      memberships: [
+        {
+          status: 'pending',
+          cohortName: 'Class 2B',
+          cohortStatus: 'active',
+          institutionStatus: 'active',
+        },
+      ],
     })
     const pending = mountGame()
     await flushPromises()

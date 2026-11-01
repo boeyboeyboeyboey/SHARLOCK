@@ -105,9 +105,14 @@ export function createAuthRouter(
     secret: authSettings.sessionSecret,
     mailer,
   })
+  const events = new EventEmitter()
+  const emitSessionsEnded = (sessionIds) => {
+    for (const sessionId of sessionIds) events.emit('session-ended', sessionId)
+  }
   const recoveryService = createRecoveryService(database, {
     now: authSettings.now,
     clientOrigin: authSettings.clientOrigin,
+    onSessionsEnded: emitSessionsEnded,
   })
   const rateLimits = createRateLimits({
     secret: authSettings.sessionSecret,
@@ -117,25 +122,43 @@ export function createAuthRouter(
   const csrf = createCsrfTools()
   const requireOrigin = requireExpectedOrigin(authSettings.clientOrigin)
   const router = Router()
-  const events = new EventEmitter()
   const sessionCollection = database.db.collection('auth_sessions')
 
   let lastLoginOrder = 0
 
-  // one active login per account: the newest wins, so two logins at once cannot end each other,
-  // and the order settles two in the same millisecond. an ended session stays briefly as an
-  // identity-free marker so its tab can be told why
+  // one active login per account: the newest wins, and the order settles two in the same
+  // millisecond. each login looks after saving, so of two racing logins at least the later saver
+  // sees the other; if that one is the newer, this login ends itself. an ended session stays
+  // briefly as an identity-free marker so its tab can be told why
   async function endOlderSessions(userId, request) {
     const { createdAt, loginOrder } = request.session
-    const filter = {
-      'session.userId': userId,
-      _id: { $ne: request.sessionID },
-      $or: [
-        { 'session.createdAt': { $lt: createdAt } },
-        { 'session.createdAt': createdAt, 'session.loginOrder': { $not: { $gte: loginOrder } } },
-      ],
-    }
-    const stale = await sessionCollection.find(filter, { projection: { _id: 1 } }).toArray()
+    const others = { 'session.userId': userId, _id: { $ne: request.sessionID } }
+    const stale = await sessionCollection
+      .find(
+        {
+          ...others,
+          $or: [
+            { 'session.createdAt': { $lt: createdAt } },
+            {
+              'session.createdAt': createdAt,
+              'session.loginOrder': { $not: { $gte: loginOrder } },
+            },
+          ],
+        },
+        { projection: { _id: 1 } },
+      )
+      .toArray()
+    const newer = await sessionCollection.findOne(
+      {
+        ...others,
+        $or: [
+          { 'session.createdAt': { $gt: createdAt } },
+          { 'session.createdAt': createdAt, 'session.loginOrder': { $gt: loginOrder } },
+        ],
+      },
+      { projection: { _id: 1 } },
+    )
+    if (newer) stale.push({ _id: request.sessionID })
     if (stale.length === 0) return
     const replacedAt = new Date(authSettings.now())
     const markerExpiry = new Date(replacedAt.getTime() + AUTH_IDLE_MS)
@@ -529,6 +552,7 @@ export function createAuthRouter(
     createActivationRouter(database, {
       now: authSettings.now,
       clientOrigin: authSettings.clientOrigin,
+      onSessionsEnded: emitSessionsEnded,
       requireMutation: [rateLimits.activation, requireOrigin, csrf.protect],
     }),
   )

@@ -7,6 +7,7 @@ import {
   MAX_HINT_TIER,
   MAX_LOOKUPS_PER_INCIDENT,
   MAX_MISTAKES_PER_INCIDENT,
+  LEAVE_HOLD_SECONDS,
   MAX_PAUSES_PER_RUN,
   MAX_SCORE,
   PAUSE_BUDGET_SECONDS,
@@ -18,6 +19,7 @@ import {
   hintUnavailable,
   incidentClosed,
   pauseUnavailable,
+  leaveHoldSpent,
   pausesSpent,
   runPaused,
   runFinished,
@@ -34,6 +36,7 @@ const MAX_RUNS_PER_PLAYER = 3
 const IDLE_MS = 10 * 60 * 1000
 const HOLD_MS = 60 * 60 * 1000
 const PAUSE_BUDGET_MS = PAUSE_BUDGET_SECONDS * 1000
+const LEAVE_HOLD_MS = LEAVE_HOLD_SECONDS * 1000
 
 function incidentId(index) {
   return `incident-${String(index + 1).padStart(2, '0')}`
@@ -238,12 +241,22 @@ export function createCliDefenderService({
   // the paused time that counts: past the budget the game clock runs again while the alert stays hidden
   function pausedSpan(run, wall) {
     if (run.pausedAt === null) return 0
-    return Math.min(wall - run.pausedAt, Math.max(0, PAUSE_BUDGET_MS - run.pausedTotal))
+    const left = run.heldForLeave
+      ? LEAVE_HOLD_MS - run.leaveHeldTotal
+      : PAUSE_BUDGET_MS - run.pausedTotal
+    return Math.min(wall - run.pausedAt, Math.max(0, left))
   }
 
   // game time skips paused spans, so every deadline freezes while a timed shift is paused
   function gameTime(run, wall) {
-    return wall - run.pausedTotal - pausedSpan(run, wall)
+    return wall - run.pausedTotal - run.leaveHeldTotal - pausedSpan(run, wall)
+  }
+
+  function endPause(run, wall) {
+    if (run.heldForLeave) run.leaveHeldTotal += pausedSpan(run, wall)
+    else run.pausedTotal += pausedSpan(run, wall)
+    run.pausedAt = null
+    run.heldForLeave = false
   }
 
   // lower is safer to drop; null marks a run someone may still be playing
@@ -274,9 +287,14 @@ export function createCliDefenderService({
   // one player only ever displaces their own runs; a full store drops idle runs, never a live game
   function makeRoom(owner, wall) {
     for (const [runId, run] of runs) if (isExpired(run, wall)) runs.delete(runId)
+    // a live run ranks last, then the least useful goes first; activity only breaks a tie
+    const keepRank = (run) => evictionRank(run, wall) ?? Infinity
     const own = [...runs.values()]
       .filter((run) => run.playerId === owner)
-      .sort((a, b) => a.lastActivityAt - b.lastActivityAt)
+      .sort((a, b) => {
+        const byRank = keepRank(a) - keepRank(b)
+        return byRank === 0 || Number.isNaN(byRank) ? a.lastActivityAt - b.lastActivityAt : byRank
+      })
     while (own.length >= MAX_RUNS_PER_PLAYER) runs.delete(own.shift().runId)
     if (runs.size < maxRuns) return
     const spare = leastUseful(wall)
@@ -294,9 +312,14 @@ export function createCliDefenderService({
 
   function pauseBudget(run, wall) {
     if (run.mode !== 'timed') return null
+    const span = pausedSpan(run, wall)
     return {
       pausesLeft: MAX_PAUSES_PER_RUN - run.pauseCount,
-      msLeft: Math.max(0, PAUSE_BUDGET_MS - run.pausedTotal - pausedSpan(run, wall)),
+      msLeft: Math.max(0, PAUSE_BUDGET_MS - run.pausedTotal - (run.heldForLeave ? 0 : span)),
+      leaveHoldMsLeft: Math.max(
+        0,
+        LEAVE_HOLD_MS - run.leaveHeldTotal - (run.heldForLeave ? span : 0),
+      ),
     }
   }
 
@@ -318,6 +341,7 @@ export function createCliDefenderService({
       status: runStatus(run, progress),
       serverNow: at,
       paused: run.pausedAt !== null,
+      heldForLeave: run.heldForLeave,
       pauseBudget: pauseBudget(run, now()),
       incidentCount: run.incidents.length,
       resolvedCount: resolved.length,
@@ -374,6 +398,8 @@ export function createCliDefenderService({
       pausedAt: null,
       pausedTotal: 0,
       pauseCount: 0,
+      heldForLeave: false,
+      leaveHeldTotal: 0,
       incidents: pickScenarios(scenarios, randomInt).map((scenario, index) => ({
         id: incidentId(index),
         scenario,
@@ -422,15 +448,20 @@ export function createCliDefenderService({
     }
   }
 
-  function pauseRun(runId, owner) {
+  function pauseRun(runId, owner, { forLeave = false } = {}) {
     const run = requireRun(runId, owner)
     const wall = now()
     if (run.mode !== 'timed' || run.completion) throw pauseUnavailable()
     if (run.pausedAt === null && !deriveProgress(run, gameTime(run, wall)).finished) {
-      if (run.pauseCount >= MAX_PAUSES_PER_RUN || run.pausedTotal >= PAUSE_BUDGET_MS)
-        throw pausesSpent()
+      if (forLeave) {
+        if (run.leaveHeldTotal >= LEAVE_HOLD_MS) throw leaveHoldSpent()
+        run.heldForLeave = true
+      } else {
+        if (run.pauseCount >= MAX_PAUSES_PER_RUN || run.pausedTotal >= PAUSE_BUDGET_MS)
+          throw pausesSpent()
+        run.pauseCount += 1
+      }
       run.pausedAt = wall
-      run.pauseCount += 1
       run.lastActivityAt = wall
     }
     return snapshot(run, gameTime(run, wall))
@@ -440,8 +471,7 @@ export function createCliDefenderService({
     const run = requireRun(runId, owner)
     const wall = now()
     if (run.pausedAt !== null) {
-      run.pausedTotal += pausedSpan(run, wall)
-      run.pausedAt = null
+      endPause(run, wall)
       run.lastActivityAt = wall
     }
     return snapshot(run, gameTime(run, wall))
@@ -502,10 +532,7 @@ export function createCliDefenderService({
       run.endedAt = at
     }
     run.lastActivityAt = wall
-    if (run.pausedAt !== null) {
-      run.pausedTotal += pausedSpan(run, wall)
-      run.pausedAt = null
-    }
+    if (run.pausedAt !== null) endPause(run, wall)
     const final = deriveProgress(run, at)
     const count = (outcome) => final.incidents.filter((item) => item.outcome === outcome).length
     // the saved attempt keeps all eight outcomes; the debrief only explains what the player reached

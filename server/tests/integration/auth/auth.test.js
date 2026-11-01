@@ -767,36 +767,79 @@ describe('account and Mongo session HTTP contract', () => {
     })
   })
 
-  it('leaves exactly the newest session when two sign-ins race', async () => {
-    const student = await registerTestStudent(app, {
-      email: 'racing@example.test',
-      username: 'Racing_User',
-    })
-    const signIn = async () => {
+  describe('two sign-ins racing', () => {
+    async function prepareSignIn(student) {
       const agent = request.agent(app)
       const csrf = await agent
         .get('/api/auth/csrf')
         .set('Origin', baseAuthOptions.clientOrigin)
         .expect(200)
-      return { agent, csrf: csrf.body.csrfToken }
+      return () =>
+        agent
+          .post('/api/auth/login')
+          .set('Origin', baseAuthOptions.clientOrigin)
+          .set('X-CSRF-Token', csrf.body.csrfToken)
+          .send({ identifier: student.email, password: student.password })
+          .expect(200)
+          .then(() => agent)
     }
-    const [one, two] = await Promise.all([signIn(), signIn()])
-    const post = ({ agent, csrf }) =>
-      agent
-        .post('/api/auth/login')
-        .set('Origin', baseAuthOptions.clientOrigin)
-        .set('X-CSRF-Token', csrf)
-        .send({ identifier: student.email, password: student.password })
-        .expect(200)
-    await Promise.all([post(one), post(two)])
 
-    const statuses = await Promise.all(
-      [one, two, { agent: student.agent }].map(async ({ agent }) => {
-        const response = await agent.get('/api/auth/me')
-        return response.status
-      }),
-    )
-    expect(statuses.filter((status) => status === 200)).toHaveLength(1)
+    // the newer login saved first, so it could not see the older one when it looked
+    it('ends the older login when it saves after the newer one looked', async () => {
+      const student = await registerTestStudent(app, {
+        email: 'racing@example.test',
+        username: 'Racing_User',
+      })
+      const signInOlder = await prepareSignIn(student)
+      const signInNewer = await prepareSignIn(student)
+      const start = currentTime
+      currentTime = start + 5_000
+      const newer = await signInNewer()
+      currentTime = start + 1_000
+      const older = await signInOlder()
+      currentTime = start + 6_000
+
+      await newer.get('/api/auth/me').expect(200)
+      const ended = await older.get('/api/auth/me').expect(401)
+      expect(ended.body.error.reason).toBe('session-replaced')
+      await student.agent.get('/api/auth/me').expect(401)
+    })
+
+    it('settles two logins in the same millisecond by their order', async () => {
+      const student = await registerTestStudent(app, {
+        email: 'racing-tie@example.test',
+        username: 'Racing_Tie',
+      })
+      const signInEarlier = await prepareSignIn(student)
+      const signInLater = await prepareSignIn(student)
+      const later = await signInLater()
+      await database.db
+        .collection('auth_sessions')
+        .updateOne(
+          { 'session.userId': student.user.id },
+          { $set: { 'session.loginOrder': Number.MAX_SAFE_INTEGER } },
+        )
+      const earlier = await signInEarlier()
+
+      await later.get('/api/auth/me').expect(200)
+      await earlier.get('/api/auth/me').expect(401)
+    })
+
+    it('leaves exactly one session however two simultaneous sign-ins interleave', async () => {
+      const student = await registerTestStudent(app, {
+        email: 'racing-both@example.test',
+        username: 'Racing_Both',
+      })
+      const [one, two] = await Promise.all([prepareSignIn(student), prepareSignIn(student)])
+      const agents = await Promise.all([one(), two()])
+      const statuses = await Promise.all(
+        [...agents, student.agent].map(async (agent) => {
+          const response = await agent.get('/api/auth/me')
+          return response.status
+        }),
+      )
+      expect(statuses.filter((status) => status === 200)).toHaveLength(1)
+    })
   })
 
   describe('the session probe', () => {

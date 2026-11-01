@@ -83,7 +83,7 @@ describe('join class page', () => {
         { cohortName: 'Old Class', status: 'removed' },
         {
           cohortName: 'Blue Class',
-          status: 'pending',
+          status: 'active',
           cohortStatus: 'active',
           institutionStatus: 'active',
         },
@@ -96,9 +96,35 @@ describe('join class page', () => {
 
     const notice = wrapper.get('[data-testid="already-in-class"]')
     expect(notice.text()).toContain("You're already in Blue Class.")
-    expect(notice.text()).toContain('Leave it first to join another.')
+    expect(notice.text()).toContain(
+      'To join another, ask your instructor to remove you from this class first.',
+    )
     expect(notice.get('a').attributes('href')).toBe('/classes')
     expect(wrapper.find('form').exists()).toBe(false)
+  })
+
+  it('tells a student with a pending request to ask their instructor to decline it', async () => {
+    mocks.listMemberships.mockResolvedValue({
+      memberships: [
+        {
+          status: 'pending',
+          cohortName: 'Blue Class',
+          cohortStatus: 'active',
+          institutionStatus: 'active',
+        },
+      ],
+    })
+    const wrapper = mount(JoinClassPage, {
+      global: { stubs: { RouterLink: { props: ['to'], template: '<a :href="to"><slot /></a>' } } },
+    })
+    await flushPromises()
+
+    const notice = wrapper.get('[data-testid="already-in-class"]')
+    expect(notice.text()).toContain("You're waiting to join Blue Class.")
+    expect(notice.text()).toContain(
+      'To join another, ask your instructor to decline this request first.',
+    )
+    expect(notice.text()).not.toContain('Leave')
   })
 
   it('switches to the already-in-a-class state when the server answers 409', async () => {

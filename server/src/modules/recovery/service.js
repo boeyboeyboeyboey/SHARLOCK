@@ -35,6 +35,7 @@ export function createRecoveryService(
     recordAuditEvent,
     consumeStudentIssueLimit = () => {},
     beforeRecoveryGuards = () => {},
+    onSessionsEnded = () => {},
   } = {},
 ) {
   const User = userModel(database)
@@ -58,6 +59,15 @@ export function createRecoveryService(
     writeConcern: { w: 'majority' },
     maxCommitTimeMS: 5000,
     timeoutMS: 10000,
+  }
+
+  // ids are returned so sockets can be closed after commit, not while it can still roll back
+  async function endUserSessions(userId, session) {
+    const sessions = database.db.collection('auth_sessions')
+    const filter = { 'session.userId': userId }
+    const found = await sessions.find(filter, { session, projection: { _id: 1 } }).toArray()
+    await sessions.deleteMany(filter, { session })
+    return found.map((doc) => doc._id)
   }
 
   async function withStudentTransaction(work) {
@@ -220,6 +230,7 @@ export function createRecoveryService(
 
   async function resetStudentPassword(input, { requestId = randomUUID() } = {}) {
     const parsed = parseStudentPasswordResetInput(input)
+    let endedSessions = []
     try {
       const hash = tokenHash(parsed.token)
       const candidate = await PasswordReset.findOne({
@@ -293,9 +304,7 @@ export function createRecoveryService(
           { $set: { revokedAt: occurredAt } },
           { session },
         )
-        await database.db
-          .collection('auth_sessions')
-          .deleteMany({ 'session.userId': eligibility.target._id.toString() }, { session })
+        endedSessions = await endUserSessions(eligibility.target._id.toString(), session)
         await recordStudentEvent('account.student.password_reset', eligibility, session, requestId)
       })
     } catch (error) {
@@ -306,6 +315,7 @@ export function createRecoveryService(
       parsed.password = undefined
       parsed.token = undefined
     }
+    if (endedSessions.length > 0) onSessionsEnded(endedSessions)
   }
 
   async function issueActivation({ userId, actorId, requestId }, { session } = {}) {
@@ -373,6 +383,7 @@ export function createRecoveryService(
     const hash = tokenHash(parsed.token)
     let session
     let cleanupFailed = false
+    let endedSessions = []
     try {
       await assertTransactionSupport(database)
       const candidate = await PasswordReset.findOne({
@@ -429,9 +440,7 @@ export function createRecoveryService(
             { $set: { revokedAt: occurredAt } },
             { session },
           )
-          await database.db
-            .collection('auth_sessions')
-            .deleteMany({ 'session.userId': userId }, { session })
+          endedSessions = await endUserSessions(userId, session)
           await writeAudit(
             {
               eventType: target.globalRoles.includes('admin')
@@ -467,6 +476,7 @@ export function createRecoveryService(
       }
     }
     if (cleanupFailed) throw new ActivationError('ACTIVATION_FAILED', 503)
+    if (endedSessions.length > 0) onSessionsEnded(endedSessions)
   }
 
   return Object.freeze({

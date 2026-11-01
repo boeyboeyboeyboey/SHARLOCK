@@ -211,7 +211,10 @@ export function createVerificationService(database, { now = Date.now, secret, ma
     if (!isPendingReference(userId, authVersion)) return null
     const user = await User.findById(userId).select('+emailVerification')
     if (!isPending(user, authVersion)) return null
-    return publicVerification(user.emailNormalized, user.emailVerification, 'recent', now())
+    // a failed send leaves lastSentAt at epoch 0 so it does not start the cooldown
+    const lastSent = new Date(user.emailVerification.lastSentAt).getTime()
+    const delivery = lastSent === 0 ? 'failed' : 'recent'
+    return publicVerification(user.emailNormalized, user.emailVerification, delivery, now())
   }
 
   async function verify({ userId, authVersion }, code) {

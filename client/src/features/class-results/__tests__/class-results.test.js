@@ -68,11 +68,25 @@ const attemptsResult = {
 }
 
 describe('class results limits', () => {
-  it('says when a summary could not read everything', async () => {
-    apiMocks.get.mockResolvedValue({ data: { ...results, truncated: true } })
+  it('blames old attempts only when the attempt bound was reached', async () => {
+    apiMocks.get.mockResolvedValue({
+      data: { ...results, truncated: true, truncatedAttempts: true },
+    })
     const wrapper = mount(ClassResults, { props: { cohortId: 'c1' } })
     await flushPromises()
     expect(wrapper.get('[role="status"]').text()).toContain('oldest attempts are not counted')
+    expect(wrapper.text()).not.toContain('some students are not counted')
+    wrapper.unmount()
+  })
+
+  it('says students are missing when the roster bound was reached', async () => {
+    apiMocks.get.mockResolvedValue({
+      data: { ...results, truncated: true, truncatedStudents: true },
+    })
+    const wrapper = mount(ClassResults, { props: { cohortId: 'c1' } })
+    await flushPromises()
+    expect(wrapper.get('[role="status"]').text()).toContain('some students are not counted')
+    expect(wrapper.text()).not.toContain('oldest attempts')
     wrapper.unmount()
   })
 

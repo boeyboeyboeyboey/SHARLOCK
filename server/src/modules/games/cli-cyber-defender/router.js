@@ -7,6 +7,7 @@ import {
   parseCommandBody,
   parseCompleteBody,
   parseEmptyBody,
+  parsePauseBody,
   parseHintBody,
   parseRunId,
   parseStart,
@@ -122,10 +123,13 @@ export function createCliDefenderRouter({
   route('post', `${base}/:runId/hint`, (request, response) =>
     game.hintRun(parseRunId(request.params.runId), parseHintBody(request.body), playerOf(response)),
   )
-  route('post', `${base}/:runId/pause`, (request, response) => {
-    parseEmptyBody(request.body)
-    return game.pauseRun(parseRunId(request.params.runId), playerOf(response))
-  })
+  route('post', `${base}/:runId/pause`, (request, response) =>
+    game.pauseRun(
+      parseRunId(request.params.runId),
+      playerOf(response),
+      parsePauseBody(request.body),
+    ),
+  )
   route('post', `${base}/:runId/resume`, (request, response) => {
     parseEmptyBody(request.body)
     return game.resumeRun(parseRunId(request.params.runId), playerOf(response))

@@ -99,11 +99,11 @@ const lastOpen = {
   explanation: null,
 }
 
-async function mountGame(first) {
+async function mountGame(first, dismissed = ['sql-injection-arcade']) {
   readAttempt.mockResolvedValue(first)
   const pinia = createPinia()
   setActivePinia(pinia)
-  useAuthStore().user = { howToPlayDismissed: ['sql-injection-arcade'] }
+  useAuthStore().user = { howToPlayDismissed: dismissed }
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
@@ -120,6 +120,14 @@ async function mountGame(first) {
   await flushPromises()
   return wrapper
 }
+
+describe('the guide and a resumed run', () => {
+  it('does not cover a resumed run for a player who never dismissed it', async () => {
+    const wrapper = await mountGame(snapshot(), [])
+    expect(wrapper.get('dialog.howto-dialog').attributes('open')).toBeUndefined()
+    wrapper.unmount()
+  })
+})
 
 const button = (wrapper, name) => wrapper.findAll('button').find((item) => item.text() === name)
 const lastBody = () => writeAttempt.mock.calls.at(-1)[1]

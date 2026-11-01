@@ -48,6 +48,22 @@ describe('admin workspace API', () => {
     expect(failure.message).toBe('Check the details you entered and try again.')
   })
 
+  it('says how many students block a reactivation and what to do', async () => {
+    mocks.requestCsrfToken.mockResolvedValue('csrf')
+    mocks.api.patch.mockRejectedValue({
+      response: {
+        status: 409,
+        data: { error: { code: 'ADMIN_REACTIVATION_CONFLICT', affectedStudents: 3 } },
+      },
+    })
+    const failure = await updateCohort('c1', {}).catch((error) => error)
+    expect(failure.code).toBe('ADMIN_REACTIVATION_CONFLICT')
+    expect(failure.status).toBe(409)
+    expect(failure.message).toBe(
+      '3 students here are already in another class. Remove them from that class first, then try again.',
+    )
+  })
+
   it.each([
     ['ADMIN_SLUG_TAKEN', 'That slug is already used by another institution.'],
     ['ADMIN_CLASS_EXISTS', 'That institution already has a class with this name and term.'],

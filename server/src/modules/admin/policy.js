@@ -16,6 +16,10 @@ const ADMIN_ERRORS = Object.freeze({
     status: 409,
     message: "Deactivate this institution's classes first.",
   },
+  ADMIN_REACTIVATION_CONFLICT: {
+    status: 409,
+    message: 'Some students here are already in another class. Remove them from it first.',
+  },
   ADMIN_STALE_ASSIGNMENTS: { status: 409, message: 'Refresh assignments before saving again.' },
   ADMIN_STALE_INSTITUTION: { status: 409, message: 'Refresh the institution before saving again.' },
   ADMIN_STALE_COHORT: { status: 409, message: 'Refresh the class before saving again.' },
@@ -63,6 +67,15 @@ export class AdminError extends Error {
     this.status = definition.status
     if (fieldErrors) this.fieldErrors = safeFieldErrors(fieldErrors)
   }
+}
+
+// a count only: which students and which other classes stay out of the error
+export function reactivationConflict(affectedStudents) {
+  const error = new AdminError('ADMIN_REACTIVATION_CONFLICT')
+  const who = affectedStudents === 1 ? '1 student here is' : `${affectedStudents} students here are`
+  error.message = `${who} already in another class. Remove them from that class first, then try again.`
+  error.affectedStudents = affectedStudents
+  return error
 }
 
 function safeFieldErrors(fieldErrors) {

@@ -278,7 +278,7 @@ describe('stacked statements', () => {
   it('stay an unsupported slip for an attempt still open under sql-2', () => {
     const run = toLogin()
     const c = caseOf(run)
-    const payload = { caseId: c.public.caseId, inputs: ["' OR 1=1; --", 'x'] }
+    const payload = { caseId: c.public.caseId, inputs: ["' OR 1=1; DROP TABLE Users; --", 'x'] }
     run.state = sqlPreviousRuleset.applyAction(run.state, { type: 'attempt', payload }, run.meta)
     expect(run.state.cases.at(-1)).toMatchObject({ tries: 1, slips: 1, last: 'UNSUPPORTED' })
   })
@@ -333,6 +333,20 @@ describe('hints, stages and validation', () => {
     })
     expect(wrongRun.state.cases.at(-1).outcome).toBe('failed')
   })
+  it('says a blind probe of another column or letter is not evidence', () => {
+    const run = start(personalContext)
+    for (let guard = 0; guard < 15 && caseOf(run).private.kind !== 'blind'; guard += 1)
+      solveCase(run)
+    const c = caseOf(run)
+    const { hiddenCol, known } = c.private.model
+    const input = `${known}' AND SUBSTRING(${hiddenCol},2,1) = 'A`
+    send(run, { type: 'attempt', payload: { caseId: c.public.caseId, inputs: [input] } })
+    const view = ruleset.serializePublicState(run.state, run.meta)
+    expect(run.state.cases.at(-1).last).toMatch(/^(YES|NO)_OFF_TARGET$/)
+    expect(view.last.message).toContain('not evidence')
+    expect(view.last.message).not.toContain(c.private.model.hiddenValue)
+  })
+
   it('a blind answer needs a probe of the first letter of the hidden column', () => {
     const toBlind = () => {
       const run = start(personalContext)

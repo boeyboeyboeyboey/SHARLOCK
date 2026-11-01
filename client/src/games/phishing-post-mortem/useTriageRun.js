@@ -83,7 +83,10 @@ export function useTriageRun({ now = Date.now } = {}) {
       if (!sameAttempt) previousEmail.value = null
       else if (before && (!after || after.roundId !== before.roundId)) previousEmail.value = before
       const serverNow = next?.publicState?.serverNow
-      if (Number.isFinite(serverNow)) clockOffset = serverNow - now()
+      // a replayed retry carries the time of its first answer, which can only read low, so within
+      // one run the highest offset seen is the true one
+      const known = sameAttempt ? clockOffset : -Infinity
+      if (Number.isFinite(serverNow)) clockOffset = Math.max(known, serverNow - now())
       syncTicker()
     },
     { flush: 'sync' },

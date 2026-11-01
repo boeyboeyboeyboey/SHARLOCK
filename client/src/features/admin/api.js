@@ -23,6 +23,8 @@ const SAFE_MESSAGES = Object.freeze({
   ADMIN_ACCOUNT_EXISTS: 'That email or username already has an account.',
   ADMIN_INSTITUTION_HAS_CLASSES: "Deactivate this institution's classes first.",
   ADMIN_NOT_FOUND: 'The selected account or class is unavailable. Refresh the list and try again.',
+  ADMIN_REACTIVATION_CONFLICT:
+    'Some students here are already in another class. Remove them from that class first, then try again.',
   ADMIN_STALE_ASSIGNMENTS: 'Assignments changed elsewhere. Reload them before saving again.',
   ADMIN_STALE_INSTITUTION:
     'This institution changed elsewhere. Reload the list and review your changes.',
@@ -50,6 +52,12 @@ export class AdminApiError extends Error {
   }
 }
 
+function reactivationMessage(count) {
+  if (!Number.isSafeInteger(count) || count < 1) return ''
+  const who = count === 1 ? '1 student here is' : `${count} students here are`
+  return `${who} already in another class. Remove them from that class first, then try again.`
+}
+
 function toSafeAdminError(error) {
   if (error instanceof AdminApiError) return error
 
@@ -59,7 +67,9 @@ function toSafeAdminError(error) {
     typeof responseCode === 'string' && Object.hasOwn(SAFE_MESSAGES, responseCode)
       ? responseCode
       : 'REQUEST_FAILED'
+  const affectedStudents = error?.response?.data?.error?.affectedStudents
   const message =
+    (code === 'ADMIN_REACTIVATION_CONFLICT' && reactivationMessage(affectedStudents)) ||
     SAFE_MESSAGES[code] ||
     (status === 429
       ? 'Too many requests. Wait a moment and try again.'

@@ -255,6 +255,19 @@ describe('email verification', () => {
     })
   })
 
+  it('reports a failed send after a refresh instead of claiming a code went out', async () => {
+    const { agent } = await startRegistration()
+    await database.db
+      .collection('users')
+      .updateOne(
+        { emailNormalized: registration.email },
+        { $set: { 'emailVerification.lastSentAt': new Date(0) } },
+      )
+    const probe = await agent.get('/api/auth/session').expect(200)
+    expect(probe.body.verification.delivery).toBe('failed')
+    expect(probe.body.verification.resendInSeconds).toBe(0)
+  })
+
   it('offers no pending state to a browser that never registered, or to one that cancelled', async () => {
     const stranger = await request(app).get('/api/auth/session').expect(200)
     expect(stranger.body).toEqual({ user: null })

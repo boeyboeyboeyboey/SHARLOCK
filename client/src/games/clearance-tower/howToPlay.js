@@ -33,3 +33,17 @@ export const HOW_TO_PLAY = Object.freeze({
     { keys: 'Escape', action: 'close this guide' },
   ],
 })
+
+const CURRENT_RULESET = 'clear-4'
+
+// a climb keeps the ruleset it started under, so its guide says so instead of promising these rules
+export function howToPlayFor(rulesetVersion) {
+  if (!rulesetVersion || rulesetVersion === CURRENT_RULESET) return HOW_TO_PLAY
+  return {
+    ...HOW_TO_PLAY,
+    rules: [
+      ...HOW_TO_PLAY.rules,
+      'This climb started under older scoring and keeps it, so a case may score differently from the rules above.',
+    ],
+  }
+}

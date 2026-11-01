@@ -393,6 +393,9 @@ describe('admin workspace', () => {
     expect(wrapper.get('.admin-workspace__edit-form').find('input[name="slug"]').exists()).toBe(
       false,
     )
+    await wrapper.setProps({
+      institutions: [{ ...institution, revision: institution.revision + 9 }],
+    })
     await wrapper
       .get('#admin-institution-edit-name-111111111111111111111111')
       .setValue('Updated Academy')
@@ -414,6 +417,7 @@ describe('admin workspace', () => {
     expect(
       wrapper.get('.admin-workspace__edit-form').find('#admin-cohort-institution').exists(),
     ).toBe(false)
+    await wrapper.setProps({ cohorts: [{ ...cohort, revision: cohort.revision + 9 }] })
     await wrapper.get('#admin-cohort-edit-name-222222222222222222222222').setValue('Green Class')
     await wrapper.get('#admin-cohort-edit-term-222222222222222222222222').setValue('2026 Term 4')
     await wrapper.get('#admin-cohort-edit-status-222222222222222222222222').setValue('inactive')
@@ -974,6 +978,34 @@ describe('admin workspace', () => {
     await wrapper.findAll('tbody button')[2].trigger('click')
     expect(wrapper.emitted('reissue-activation')[0][0]).toBe(disabledInstructor.id)
     expect(mocks.updateAdminUser).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
+  it('never enables an account when a disable confirm outlived a reload', async () => {
+    const student = {
+      id: 'student-id',
+      username: 'Casey_Student',
+      avatarId: 'mint',
+      globalRoles: ['student'],
+      accountStatus: 'active',
+      revision: 4,
+    }
+    mocks.listAdminUsers.mockResolvedValue({ users: [student], page: 1, total: 1 })
+    const wrapper = mount(AccountStatusPanel)
+    await flushPromises()
+    await wrapper.get('tbody button').trigger('click')
+    expect(wrapper.text()).toContain('Yes, disable')
+
+    // another administrator disabled it, and this list reloads
+    mocks.listAdminUsers.mockResolvedValue({
+      users: [{ ...student, accountStatus: 'disabled', revision: 5 }],
+      page: 1,
+      total: 1,
+    })
+    await clickNamed(wrapper, 'Refresh accounts')
+    await flushPromises()
+    expect(wrapper.text()).not.toContain('Yes, disable')
+    expect(mocks.updateAdminUser).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 

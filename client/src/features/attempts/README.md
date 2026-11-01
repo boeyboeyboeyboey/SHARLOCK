@@ -9,6 +9,7 @@
 - `useAttempt(gameId)` owns the snapshot, pending mutation, busy/error and retry state
 - Mutations keep the original action ID, revision and payload until acknowledged
 - A network failure blocks new mutations until the same request is retried
+- A failed start or read words a server fault (5xx) separately from a lost connection; a failed read offers a retry because reading again is safe, a failed start does not because it would open a second attempt
 - `SavedAttemptResult` renders a labelled confirmed score ("Score: 10 / 100") and emits `replay`
 - Attempt IDs are carried in the activity URL; no auth tokens or game input enter local storage
 - Scope and review evidence: [GAME-01-B / G-SQL](../../../../TASKS.md#g-sql-saved-practice)

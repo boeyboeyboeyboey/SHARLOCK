@@ -119,7 +119,7 @@ function alreadyInClass(staffFacing = false) {
     'COHORT_ALREADY_IN_CLASS',
     staffFacing
       ? 'This student is already in another class.'
-      : "You're already in a class. Leave it before joining another.",
+      : "You're already in a class or waiting to join one. To change class, ask your instructor.",
   )
 }
 

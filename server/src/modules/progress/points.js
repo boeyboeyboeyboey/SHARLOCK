@@ -4,8 +4,17 @@ function ratio(attempt) {
   return attempt.maxScore > 0 ? attempt.score / attempt.maxScore : 0
 }
 
-// best attempt is compared only within the latest ruleset the player completed
-export function summarizeGame(gameId, attemptsOldestFirst) {
+// the registry's current ruleset once it has an attempt, so one late finish of an old run cannot
+// flip the choice back; otherwise the ruleset of the newest attempt. rulesets are never mixed
+export function preferredRuleset(attemptsNewestFirst, currentRulesetVersion) {
+  if (attemptsNewestFirst.some((attempt) => attempt.rulesetVersion === currentRulesetVersion)) {
+    return currentRulesetVersion
+  }
+  return attemptsNewestFirst[0]?.rulesetVersion ?? null
+}
+
+// best attempt is compared only within the preferred ruleset of what the player completed
+export function summarizeGame(gameId, attemptsOldestFirst, currentRulesetVersion = null) {
   const attempts = attemptsOldestFirst.filter((attempt) => attempt.gameId === gameId)
   if (attempts.length === 0) {
     return {
@@ -19,11 +28,11 @@ export function summarizeGame(gameId, attemptsOldestFirst) {
     }
   }
   const latest = attempts[attempts.length - 1]
-  let best = latest
-  for (const attempt of attempts) {
-    if (attempt.rulesetVersion === latest.rulesetVersion && ratio(attempt) > ratio(best)) {
-      best = attempt
-    }
+  const rulesetVersion = preferredRuleset(attempts.toReversed(), currentRulesetVersion)
+  const inRuleset = attempts.filter((attempt) => attempt.rulesetVersion === rulesetVersion)
+  let best = inRuleset[inRuleset.length - 1]
+  for (const attempt of inRuleset) {
+    if (ratio(attempt) > ratio(best)) best = attempt
   }
   return {
     gameId,

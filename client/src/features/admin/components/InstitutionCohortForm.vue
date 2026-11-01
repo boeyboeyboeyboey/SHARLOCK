@@ -80,13 +80,23 @@ function createCohort() {
 
 function editInstitution(institution) {
   institutionEditId.value = institution.id
-  institutionDraft.value = { name: institution.name, status: institution.status }
+  // the revision read when the edit opened, so a change made elsewhere meanwhile is refused
+  institutionDraft.value = {
+    name: institution.name,
+    status: institution.status,
+    expectedRevision: institution.revision ?? 0,
+  }
   cohortEditId.value = ''
 }
 
 function editCohort(cohort) {
   cohortEditId.value = cohort.id
-  cohortDraft.value = { name: cohort.name, term: cohort.term, status: cohort.status }
+  cohortDraft.value = {
+    name: cohort.name,
+    term: cohort.term,
+    status: cohort.status,
+    expectedRevision: cohort.revision ?? 0,
+  }
   institutionEditId.value = ''
 }
 
@@ -106,7 +116,7 @@ function saveInstitution(institution) {
     id: institution.id,
     name: institutionDraft.value.name,
     status: institutionDraft.value.status,
-    expectedRevision: institution.revision ?? 0,
+    expectedRevision: institutionDraft.value.expectedRevision,
   })
 }
 
@@ -123,7 +133,7 @@ function saveCohort(cohort) {
     name: cohortDraft.value.name,
     term: cohortDraft.value.term,
     status: cohortDraft.value.status,
-    expectedRevision: cohort.revision ?? 0,
+    expectedRevision: cohortDraft.value.expectedRevision,
   })
 }
 

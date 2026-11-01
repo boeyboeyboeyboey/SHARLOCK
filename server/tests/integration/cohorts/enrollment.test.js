@@ -639,7 +639,8 @@ describe.skipIf(process.env.SHARLOCK_TEST_REPLICA_SET !== '1')('one class per st
     const blocked = await join(student, siblingTeacherCode).expect(409)
     expect(blocked.body.error).toMatchObject({
       code: 'COHORT_ALREADY_IN_CLASS',
-      message: "You're already in a class. Leave it before joining another.",
+      message:
+        "You're already in a class or waiting to join one. To change class, ask your instructor.",
     })
     expect(await membershipModel(database).countDocuments({ userId: student.user.id })).toBe(1)
     expect((await join(student, firstCode).expect(200)).body).toEqual(pending.body)

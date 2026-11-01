@@ -31,6 +31,8 @@ This module adds no routes. `attempts/production-registry.js` registers `triageR
 - **Errors:** shared attempt shape `{ error: { code, message }, requestId }`: `PHISH_INVALID_REQUEST` (400), `PHISH_INVALID_ACTION` (400), `PHISH_UNKNOWN_SELECTION` (400, part not in this email), `PHISH_STALE_ROUND` (409), `PHISH_RUN_OVER` (409), plus the shared `ATTEMPT_*` codes.
 - **Ranking:** class-context standard-mode runs are `competitive`, so the leaderboard shows them as "Timed runs". Personal practice is not ranked. Strong runs tie at 1,000 on the Best board, because a saved score cannot pass the maximum. Rulesets never mix, so once a class completes a `phish-4` run its board shows `phish-4` only.
 
+**Known limit (Russell, 1 November 2026):** the 1,000 par cap stays, so capped class runs may tie and the earlier finisher ranks higher. There is no per-mode maximum.
+
 ## phish-2 (legacy, not current)
 
 `ruleset.js`, `policy.js`, `service.js` and `cases/` hold the inbox investigation: a random authored case of twenty emails, one `submit-verdict` action `{ selectedEmailId, evidenceIds }`, 100 points (60 for Patient Zero, 20 per correct clue), `competitive: false`. New attempts no longer use it. Keep these files while old results or unfinished `phish-2` runs may exist; the client shows such results as a score summary only. `server/tests/unit/phishing-post-mortem/case-integrity.test.js` still guards the case files.

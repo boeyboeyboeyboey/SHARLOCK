@@ -12,6 +12,7 @@ import { membershipModel } from '../../models/Membership.js'
 import { passwordResetModel } from '../recovery/model.js'
 import {
   AdminError,
+  reactivationConflict,
   parseAdminListQuery,
   parseAdminObjectId,
   assertEmptyAdminQuery,
@@ -585,6 +586,52 @@ export function createAdminService(
     )
   }
 
+  // a reactivated class counts again for the one-class rule, so a student who joined another class
+  // while it was off would hold two. this refuses and counts them; it never changes a membership
+  async function assertReactivationKeepsOneClass(revivedCohortIds, session) {
+    if (!revivedCohortIds.length) return
+    const held = { $in: ['active', 'pending'] }
+    const studentIds = await Membership.distinct('userId', {
+      cohortId: { $in: revivedCohortIds },
+      status: held,
+    }).session(session)
+    if (!studentIds.length) return
+    const holdings = await Membership.find({ userId: { $in: studentIds }, status: held })
+      .select('userId cohortId')
+      .session(session)
+      .lean()
+    const revived = new Set(revivedCohortIds.map(idString))
+    const otherIds = [
+      ...new Set(
+        holdings.map(({ cohortId }) => idString(cohortId)).filter((id) => !revived.has(id)),
+      ),
+    ]
+    const otherCohorts = await Cohort.find({ _id: { $in: otherIds }, status: 'active' })
+      .select('institutionId')
+      .session(session)
+      .lean()
+    const liveInstitutions = await Institution.find({
+      _id: { $in: otherCohorts.map((cohort) => cohort.institutionId) },
+      status: 'active',
+    })
+      .select('_id')
+      .session(session)
+      .lean()
+    const liveInstitutionIds = new Set(liveInstitutions.map(({ _id }) => idString(_id)))
+    const live = new Set(revived)
+    for (const cohort of otherCohorts) {
+      if (liveInstitutionIds.has(idString(cohort.institutionId))) live.add(idString(cohort._id))
+    }
+    const liveClassesPerStudent = new Map()
+    for (const { userId, cohortId } of holdings) {
+      if (!live.has(idString(cohortId))) continue
+      const student = idString(userId)
+      liveClassesPerStudent.set(student, (liveClassesPerStudent.get(student) ?? 0) + 1)
+    }
+    const affected = [...liveClassesPerStudent.values()].filter((count) => count > 1).length
+    if (affected > 0) throw reactivationConflict(affected)
+  }
+
   async function updateInstitution(actor, institutionId, input, query = {}, { requestId } = {}) {
     const currentActor = await requireAdmin(actor, 'admin:classes:manage')
     assertEmptyAdminQuery(query)
@@ -611,6 +658,16 @@ export function createAdminService(
         if (activeCohort) throw new AdminError('ADMIN_INSTITUTION_HAS_CLASSES')
       }
       const changesStatus = current.status !== status
+      if (changesStatus && status === 'active') {
+        const liveAgain = await Cohort.find({ institutionId: current._id, status: 'active' })
+          .select('_id')
+          .session(session)
+          .lean()
+        await assertReactivationKeepsOneClass(
+          liveAgain.map((cohort) => cohort._id),
+          session,
+        )
+      }
       const nextAdminRevision = nextRevision(revision)
       const expectedRecoveryRevision = current.recoveryRevision ?? 0
       const filter = revisionConditions(
@@ -671,6 +728,9 @@ export function createAdminService(
       if (!parent) throw new AdminError('ADMIN_NOT_FOUND')
       if (changesStatus && status === 'active' && parent.status !== 'active') {
         throw new AdminError('ADMIN_NOT_FOUND')
+      }
+      if (changesStatus && status === 'active') {
+        await assertReactivationKeepsOneClass([current._id], session)
       }
       if (changesStatus && parent.status === 'active') {
         const parentGuard = await Institution.updateOne(

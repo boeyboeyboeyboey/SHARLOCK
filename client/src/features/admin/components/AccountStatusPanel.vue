@@ -83,6 +83,8 @@ async function loadUsers(nextPage = page.value) {
     })
     if (!isCurrentListRequest(controller)) return
     users.value = Array.isArray(response?.users) ? response.users : []
+    // a confirm opened against the old row must not act on the new one
+    confirmingDisableId.value = ''
     page.value =
       Number.isSafeInteger(response?.page) && response.page > 0 ? response.page : page.value
     total.value = Number.isSafeInteger(response?.total) && response.total >= 0 ? response.total : 0
@@ -216,13 +218,12 @@ function chooseStatusAction(user) {
   }
   statusMessage.value = ''
   if (user.accountStatus === 'active') confirmingDisableId.value = user.id
-  else changeStatus(user)
+  else changeStatus(user, 'active')
 }
 
-async function changeStatus(user) {
+async function changeStatus(user, accountStatus) {
   if (!canManage(user) || pendingUsers.value[user.id]) return
   confirmingDisableId.value = ''
-  const accountStatus = user.accountStatus === 'active' ? 'disabled' : 'active'
 
   const controller = new AbortController()
   mutationControllers.set(user.id, controller)
@@ -386,7 +387,7 @@ onBeforeUnmount(() => {
                 v-if="confirmingDisableId === user.id"
                 :message="disableMessage(user)"
                 confirm-label="Yes, disable"
-                @confirm="changeStatus(user)"
+                @confirm="changeStatus(user, 'disabled')"
                 @cancel="confirmingDisableId = ''"
               />
               <p v-if="rowError(user)" class="admin-workspace__alert" role="alert">

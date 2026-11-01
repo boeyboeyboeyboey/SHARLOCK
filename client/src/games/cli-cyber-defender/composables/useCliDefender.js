@@ -98,7 +98,10 @@ export function useCliDefender({ now = () => Date.now(), tickMs = 100, onEvent =
     clockNow.value = receivedAt
     snapshot.value = next
     paused.value = Boolean(next.paused)
-    pauseEndsAt.value = paused.value ? receivedAt + (next.pauseBudget?.msLeft ?? 0) : null
+    const pauseMsLeft = next.heldForLeave
+      ? next.pauseBudget?.leaveHoldMsLeft
+      : next.pauseBudget?.msLeft
+    pauseEndsAt.value = paused.value ? receivedAt + (pauseMsLeft ?? 0) : null
     for (const item of next.history) {
       if (announced.has(item.incidentId)) continue
       announced.add(item.incidentId)
@@ -394,16 +397,25 @@ export function useCliDefender({ now = () => Date.now(), tickMs = 100, onEvent =
   let pausing = Promise.resolve()
 
   // switching away freezes the server clock; the player resumes explicitly when back
-  async function pause(note = 'Game paused while you were away. The clock is stopped.') {
+  async function pause(
+    note = 'Game paused while you were away. The clock is stopped.',
+    { forLeave = false } = {},
+  ) {
     if (mode.value !== 'timed' || phase.value !== 'running' || paused.value) return false
-    if (!canPause.value) return false
+    // a leave dialog has its own fixed total, so holding the clock for it spends no pause
+    const msLeft = forLeave ? pauseBudget.value?.leaveHoldMsLeft : pauseBudget.value?.msLeft
+    if (!msLeft || (!forLeave && !canPause.value)) return false
     frozenRemaining.value = remainingMs.value
     paused.value = true
-    pauseEndsAt.value = now() + pauseBudget.value.msLeft
+    pauseEndsAt.value = now() + msLeft
     print('info', note)
     pausing = (async () => {
       try {
-        const data = await pauseRun(snapshot.value.runId, controller?.signal)
+        const data = await pauseRun(
+          snapshot.value.runId,
+          controller?.signal,
+          forLeave ? { reason: 'leave' } : {},
+        )
         if (!disposed && phase.value === 'running') apply(data)
       } catch (requestError) {
         // the resume request resynchronises with the server, unless the server refused the pause

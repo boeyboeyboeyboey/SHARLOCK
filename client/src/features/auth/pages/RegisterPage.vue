@@ -84,6 +84,18 @@ async function resendCode() {
     pending.value = false
   }
 }
+
+async function cancelCode() {
+  if (pending.value) return
+  pending.value = true
+  try {
+    await auth.cancelVerification()
+  } catch {
+    // the store keeps only the safe message for the code screen
+  } finally {
+    pending.value = false
+  }
+}
 </script>
 
 <template>
@@ -120,7 +132,7 @@ async function resendCode() {
           :error="errorMessage"
           @submit="confirmCode"
           @resend="resendCode"
-          @cancel="auth.cancelVerification()"
+          @cancel="cancelCode"
         />
 
         <RegisterForm

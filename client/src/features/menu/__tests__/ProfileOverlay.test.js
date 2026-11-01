@@ -42,6 +42,20 @@ describe('ProfileOverlay', () => {
     second.wrapper.unmount()
   })
 
+  it('reports a failed session check while signed in, and leaves it to the page otherwise', async () => {
+    const { wrapper } = await mountAt('/profile')
+    const auth = useAuthStore()
+    auth.user = { id: 'u1' }
+    auth.status = 'authenticated'
+    auth.requestError = { message: 'Could not reach Sharlock.' }
+    await flushPromises()
+    expect(document.body.textContent).toContain('Could not reach Sharlock.')
+    auth.status = 'unknown'
+    await flushPromises()
+    expect(document.body.textContent).not.toContain('Could not reach Sharlock.')
+    wrapper.unmount()
+  })
+
   it('changes tab on a click and on the arrow keys', async () => {
     const { wrapper, router } = await mountAt('/profile')
     await wrapper.get('[data-testid="profile-tab-progress"]').trigger('click')

@@ -3,6 +3,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { createPinia } from 'pinia'
 import InteriorLayout from '../InteriorLayout.vue'
+import { ref } from 'vue'
 import { useInteriorLeave } from '../useInteriorLeave.js'
 
 const Game = { template: '<p>game content</p><a href="#">x</a>' }
@@ -212,6 +213,43 @@ describe('holding a game while the leave dialog is open', () => {
       .trigger('click')
     await flushPromises()
     expect(onClose).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+    delete Game.setup
+  })
+
+  it('adds a registered game note to the dialog', async () => {
+    Game.setup = () => {
+      useInteriorLeave({ note: ref('The clock is held.') })
+    }
+    const wrapper = await mountAt('/games/cli-cyber-defender')
+    await wrapper.get('[data-testid="exit-game"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain("An unfinished round won't be saved. The clock is held.")
+    wrapper.unmount()
+    delete Game.setup
+  })
+
+  it('releases the game and asks again when the navigation fails', async () => {
+    const onClose = vi.fn()
+    Game.setup = () => {
+      useInteriorLeave({ onClose })
+    }
+    const wrapper = await mountAt('/games/cli-cyber-defender')
+    const router = wrapper.vm.$router
+    const removeGuard = router.beforeEach(() => false)
+    await wrapper.get('[data-testid="exit-game"]').trigger('click')
+    await flushPromises()
+    const leaveNamed = () =>
+      wrapper.findAll('button').find((button) => button.text() === 'Leave game')
+    await leaveNamed().trigger('click')
+    await flushPromises()
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(wrapper.find('[data-testid="interior"]').exists()).toBe(true)
+    removeGuard()
+
+    await wrapper.get('[data-testid="exit-game"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Leave the game?')
     wrapper.unmount()
     delete Game.setup
   })

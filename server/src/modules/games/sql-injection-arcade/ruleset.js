@@ -50,6 +50,8 @@ const LAST_CODES = [
   'WIDENED',
   'YES',
   'NO',
+  'YES_OFF_TARGET',
+  'NO_OFF_TARGET',
   'STORED',
   'TAKEN',
   'OWN_ACCOUNT',
@@ -168,6 +170,7 @@ function runAttempt(rec, c, inputs, rules) {
     else if (result.sub) {
       const counts = rules.strictLetterProbe ? result.firstLetterProbe : true
       if (counts && rec.trueSeen && rec.falseSeen) rec.probed = true
+      if (!counts) rec.last = `${code}_OFF_TARGET`
     } else if (result.injected && result.code === 'YES') rec.trueSeen = true
     else if (result.injected && result.code === 'NO' && result.startsKnown) rec.falseSeen = true
     settleTries(rec)

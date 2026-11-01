@@ -97,6 +97,10 @@ describe('instructor class management', () => {
     await press(wrapper, 'Generate code')
     await flushPromises()
     expect(wrapper.text()).toContain('ABCD-EFGH-JKLM-PQRS')
+    mocks.getEnrollmentCode.mockResolvedValue({
+      code: { id: 'code-a', expiresAt: '2099-01-01T00:00:00.000Z', revokedAt: null },
+      revision: 1,
+    })
 
     await press(wrapper, 'Active')
     await flushPromises()
@@ -110,6 +114,85 @@ describe('instructor class management', () => {
 
     await press(wrapper, 'Close and clear code')
     expect(wrapper.text()).not.toContain('ABCD-EFGH-JKLM-PQRS')
+    wrapper.unmount()
+  })
+
+  it('clears a shown code when a reload finds it replaced or revoked elsewhere', async () => {
+    const wrapper = mount(ClassManagementPage)
+    await flushPromises()
+    await press(wrapper, 'Generate code')
+    await flushPromises()
+    expect(wrapper.text()).toContain('ABCD-EFGH-JKLM-PQRS')
+
+    const shownCode = { id: 'code-a', expiresAt: '2099-01-01T00:00:00.000Z', revokedAt: null }
+    mocks.getEnrollmentCode.mockResolvedValue({ code: shownCode, revision: 1 })
+    await press(wrapper, 'Active')
+    await flushPromises()
+    expect(wrapper.text()).toContain('ABCD-EFGH-JKLM-PQRS')
+
+    mocks.getEnrollmentCode.mockResolvedValue({
+      code: { ...shownCode, id: 'code-b' },
+      revision: 2,
+    })
+    await press(wrapper, 'Requests')
+    await flushPromises()
+    expect(wrapper.text()).not.toContain('ABCD-EFGH-JKLM-PQRS')
+    wrapper.unmount()
+  })
+
+  it('clears a shown code when a reload finds it revoked', async () => {
+    const wrapper = mount(ClassManagementPage)
+    await flushPromises()
+    await press(wrapper, 'Generate code')
+    await flushPromises()
+    mocks.getEnrollmentCode.mockResolvedValue({
+      code: {
+        id: 'code-a',
+        expiresAt: '2099-01-01T00:00:00.000Z',
+        revokedAt: '2026-11-01T00:00:00.000Z',
+      },
+      revision: 2,
+    })
+    await press(wrapper, 'Active')
+    await flushPromises()
+    expect(wrapper.text()).not.toContain('ABCD-EFGH-JKLM-PQRS')
+    wrapper.unmount()
+  })
+
+  it('steps back from an empty last page after a stale decision reloads the list', async () => {
+    mocks.listCohortMemberships.mockImplementation(async (_cohort, { page }) =>
+      page === 1
+        ? {
+            memberships: Array(20)
+              .fill(activeStudent)
+              .map((row, i) => ({ ...row, id: `m-${i}` })),
+            total: 21,
+          }
+        : { memberships: page === 2 ? [activeStudent] : [], total: 21 },
+    )
+    const wrapper = mount(ClassManagementPage)
+    await flushPromises()
+    await press(wrapper, 'Active')
+    await flushPromises()
+    await press(wrapper, 'Next')
+    await flushPromises()
+    mocks.listCohortMemberships.mockImplementation(async (_cohort, { page }) =>
+      page === 1
+        ? { memberships: [{ ...activeStudent, id: 'm-0' }], total: 20 }
+        : { memberships: [], total: 20 },
+    )
+    mocks.updateMembership.mockRejectedValueOnce({
+      code: 'COHORT_STALE_REQUEST',
+      message: 'This class request changed.',
+    })
+    await wrapper.get(`[aria-label="Remove ${activeStudent.username}"]`).trigger('click')
+    await press(wrapper, 'Yes, remove')
+    await flushPromises()
+    expect(mocks.listCohortMemberships).toHaveBeenLastCalledWith(
+      'class-a',
+      expect.objectContaining({ page: 1 }),
+    )
+    expect(wrapper.text()).toContain('This class request changed.')
     wrapper.unmount()
   })
 

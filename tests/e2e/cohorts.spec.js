@@ -120,7 +120,9 @@ test('learner follows a class link and gets access after instructor approval', a
     await studentPage.goto('/join-class')
     const alreadyIn = studentPage.getByTestId('already-in-class')
     await expect(alreadyIn).toContainText("You're already in Synthetic Blue Class.")
-    await expect(alreadyIn).toContainText('Leave it first to join another.')
+    await expect(alreadyIn).toContainText(
+      'To join another, ask your instructor to remove you from this class first.',
+    )
     await expect(studentPage.getByRole('button', { name: 'Join class' })).toHaveCount(0)
     await alreadyIn.getByRole('link', { name: 'Your classes' }).click()
     await expect(studentPage).toHaveURL(/\/classes$/)

@@ -90,9 +90,18 @@ let settleRouteLeave = null
 
 // a timed clock stops while the player decides, and restarts if they stay
 async function askToLeave() {
+  if (confirmingLeave.value) return
   confirmingLeave.value = true
-  pausedForLeave = await pause('Game paused while you decide whether to leave.')
+  pausedForLeave = await pause('Game paused while you decide whether to leave.', { forLeave: true })
 }
+
+// what the clock is doing behind either leave dialog; the hold has a fixed total for the whole game
+const leaveClockNote = computed(() => {
+  if (mode.value !== 'timed' || phase.value !== 'running') return ''
+  if (!paused.value) return 'Your time to decide is used up, so the clock is running.'
+  const seconds = pauseSecondsLeft.value ?? 0
+  return `The clock is held while you decide, for ${seconds} more second${seconds === 1 ? '' : 's'}.`
+})
 
 function stay() {
   confirmingLeave.value = false
@@ -110,11 +119,14 @@ function leave() {
   settleRouteLeave = null
 }
 
-// the shared top bar's leave dialog holds the clock the same way, from the same pause budget
+// the shared top bar's leave dialog holds the clock the same way, from the same fixed total
 let pausedForSharedLeave = false
 useInteriorLeave({
+  note: leaveClockNote,
   onOpen: async () => {
-    pausedForSharedLeave = await pause('Game paused while you decide whether to leave.')
+    pausedForSharedLeave = await pause('Game paused while you decide whether to leave.', {
+      forLeave: true,
+    })
   },
   onClose: () => {
     if (pausedForSharedLeave) resume()
@@ -127,6 +139,8 @@ useInteriorLeave({
 onBeforeRouteLeave((to) => {
   if (!inGame.value || globalThis.history?.state?.current !== to.fullPath) return true
   return new Promise((resolve) => {
+    // a second back while the dialog is open replaces the first, which stays on this page
+    settleRouteLeave?.(false)
     settleRouteLeave = resolve
     askToLeave()
   })
@@ -342,6 +356,7 @@ watch(
       @closed="onLeaveDialogClosed"
     >
       <p>Points from this game won't be saved.</p>
+      <p v-if="leaveClockNote" data-testid="cli-leave-clock">{{ leaveClockNote }}</p>
     </ConfirmDialog>
     <HowToPlayDialog v-model:open="howToOpen" game-id="cli-cyber-defender" v-bind="HOW_TO_PLAY">
       <template #scene="scene">

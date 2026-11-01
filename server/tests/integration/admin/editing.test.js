@@ -269,6 +269,127 @@ describe.skipIf(process.env.SHARLOCK_TEST_REPLICA_SET !== '1')(
       },
     )
 
+    describe('reactivating when a student has since joined another class', () => {
+      async function deactivated(institutionId) {
+        const cohort = await createCohort(institutionId)
+        const off = await patchCohort(cohort.id, {
+          status: 'inactive',
+          expectedRevision: cohort.revision,
+        }).expect(200)
+        return off.body.cohort ?? off.body
+      }
+
+      const hold = (cohortId, status = 'active') =>
+        membershipModel(database).create({
+          userId: new Types.ObjectId(student.user.id),
+          cohortId: new Types.ObjectId(cohortId),
+          status,
+          ...(status === 'active' && {
+            decision: 'approved',
+            approvedAt: new Date(),
+            approvedBy: new Types.ObjectId(admin.user.id),
+          }),
+        })
+
+      it(
+        'refuses a class with a count, changes nothing and writes no audit event',
+        async () => {
+          const institution = await createInstitution()
+          const old = await deactivated(institution.id)
+          const current = await createCohort(institution.id)
+          const oldMembership = await hold(old.id)
+          const currentMembership = await hold(current.id, 'pending')
+          const audits = () =>
+            database.db
+              .collection('audit_events')
+              .countDocuments({ eventType: 'admin.cohort.reactivate' })
+          const auditsBefore = await audits()
+
+          const refused = await patchCohort(old.id, {
+            status: 'active',
+            expectedRevision: old.revision,
+          }).expect(409)
+          expect(refused.body.error).toEqual({
+            code: 'ADMIN_REACTIVATION_CONFLICT',
+            message:
+              '1 student here is already in another class. Remove them from that class first, then try again.',
+            affectedStudents: 1,
+          })
+          expect(JSON.stringify(refused.body)).not.toContain(student.user.id)
+          expect(JSON.stringify(refused.body)).not.toContain(current.id)
+
+          const stored = await cohortModel(database).findById(old.id).lean()
+          expect(stored.status).toBe('inactive')
+          expect(stored.adminRevision ?? 0).toBe(old.revision)
+          expect(await audits()).toBe(auditsBefore)
+          expect((await membershipModel(database).findById(oldMembership._id).lean()).status).toBe(
+            'active',
+          )
+          expect(
+            (await membershipModel(database).findById(currentMembership._id).lean()).status,
+          ).toBe('pending')
+
+          // the same stale check and revision still work once the student is out of the other class
+          await membershipModel(database).updateOne(
+            { _id: currentMembership._id },
+            { $set: { status: 'removed' } },
+          )
+          await patchCohort(old.id, { status: 'active', expectedRevision: old.revision }).expect(200)
+          expect(await audits()).toBe(auditsBefore + 1)
+        },
+      )
+
+      it(
+        'ignores a removed membership and another class that is itself off',
+        async () => {
+          const institution = await createInstitution()
+          const old = await deactivated(institution.id)
+          const removedFrom = await createCohort(institution.id)
+          const alsoOff = await deactivated(institution.id)
+          await hold(old.id)
+          await hold(removedFrom.id, 'removed')
+          await hold(alsoOff.id)
+          await patchCohort(old.id, { status: 'active', expectedRevision: old.revision }).expect(200)
+        },
+      )
+
+      it(
+        'refuses an institution whose live classes would give a student two',
+        async () => {
+          const institution = await createInstitution()
+          const cohort = await createCohort(institution.id)
+          const other = await createCohort((await createInstitution()).id)
+          await hold(cohort.id)
+          await hold(other.id)
+          // reached only through older records: the api keeps classes off under an off institution
+          await institutionModel(database).updateOne(
+            { _id: new Types.ObjectId(institution.id) },
+            { $set: { status: 'inactive' } },
+          )
+          const refused = await patchInstitution(institution.id, {
+            status: 'active',
+            expectedRevision: institution.revision,
+          }).expect(409)
+          expect(refused.body.error).toMatchObject({
+            code: 'ADMIN_REACTIVATION_CONFLICT',
+            affectedStudents: 1,
+          })
+          const stored = await institutionModel(database).findById(institution.id).lean()
+          expect(stored.status).toBe('inactive')
+          expect(stored.adminRevision ?? 0).toBe(institution.revision)
+
+          await membershipModel(database).deleteMany({
+            userId: new Types.ObjectId(student.user.id),
+            cohortId: new Types.ObjectId(other.id),
+          })
+          await patchInstitution(institution.id, {
+            status: 'active',
+            expectedRevision: institution.revision,
+          }).expect(200)
+        },
+      )
+    })
+
     it(
       'preserves class history and enforces parent and reactivation rules',
       async () => {

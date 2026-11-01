@@ -11,7 +11,7 @@ Paths are relative to `/api`. Both need an active cookie session (401), send `Ca
 | GET `/cohorts/:cohortId/leaderboard/games`                               | `{ games: [{ gameId, rulesetVersion, competitive }] }` sorted by `gameId`                       |
 | GET `/cohorts/:cohortId/leaderboard?gameId=&rulesetVersion=&view=&page=` | `{ gameId, rulesetVersion, competitive, view, rows, page, pageSize: 25, total, me, truncated }` |
 
-`gameId` is required and must be a registered game or have completed class attempts. `rulesetVersion` defaults to the ruleset of the newest completed attempt in the class (null with empty `rows` if none). `view` is `best` (default) or `all-time`. `page` defaults to 1 (max 10000). The games endpoint accepts no query keys and lists each game with at least one counted attempt, using the ruleset of its newest one.
+`gameId` is required and must be a registered game or have completed class attempts. `rulesetVersion` defaults to the registry's current ruleset once the class has a completed attempt on it, otherwise the ruleset of the newest completed attempt in the class (null with empty `rows` if none), so one late finish of an old run cannot flip the board back. `view` is `best` (default) or `all-time`. `page` defaults to 1 (max 10000). The games endpoint accepts no query keys and lists each game with at least one counted attempt, using the ruleset of its newest one.
 
 Row shapes (`isSelf` marks the caller; `me` is the caller's row on any page, or null if unranked):
 

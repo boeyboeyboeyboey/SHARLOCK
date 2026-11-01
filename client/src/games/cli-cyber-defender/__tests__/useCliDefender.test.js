@@ -250,6 +250,36 @@ describe('cli defender composable', () => {
     expect(game.error.value).toBe('Too many requests. Wait a moment.')
   })
 
+  it('holds the clock for a leave dialog from its own total, with no pauses left', async () => {
+    startRun.mockResolvedValue(
+      snapshot({ pauseBudget: { pausesLeft: 0, msLeft: 0, leaveHoldMsLeft: 12_000 } }),
+    )
+    pauseRun.mockResolvedValue(
+      snapshot({
+        paused: true,
+        heldForLeave: true,
+        pauseBudget: { pausesLeft: 0, msLeft: 0, leaveHoldMsLeft: 12_000 },
+      }),
+    )
+    const { game } = harness({ now: 50_000 })
+    await game.start('timed')
+    expect(await game.pause('Deciding.')).toBe(false)
+    expect(await game.pause('Deciding.', { forLeave: true })).toBe(true)
+    await flushPromises()
+    expect(pauseRun).toHaveBeenCalledWith(RUN, expect.any(AbortSignal), { reason: 'leave' })
+    expect(game.pauseSecondsLeft.value).toBe(12)
+  })
+
+  it('does not hold the clock once that total is used up', async () => {
+    startRun.mockResolvedValue(
+      snapshot({ pauseBudget: { pausesLeft: 2, msLeft: 30_000, leaveHoldMsLeft: 0 } }),
+    )
+    const { game } = harness({ now: 50_000 })
+    await game.start('timed')
+    expect(await game.pause('Deciding.', { forLeave: true })).toBe(false)
+    expect(pauseRun).not.toHaveBeenCalled()
+  })
+
   it('auto-pauses a timed shift when the tab is hidden and resumes on request', async () => {
     const clock = { now: 50_000 }
     startRun.mockResolvedValue(snapshot())
@@ -267,7 +297,7 @@ describe('cli defender composable', () => {
     vi.advanceTimersByTime(100)
     setHidden(true)
     await flushPromises()
-    expect(pauseRun).toHaveBeenCalledWith(RUN, expect.any(AbortSignal))
+    expect(pauseRun).toHaveBeenCalledWith(RUN, expect.any(AbortSignal), {})
     expect(game.paused.value).toBe(true)
     expect(game.remainingMs.value).toBe(5000)
     // no resync or countdown while paused, as long as pause time is left

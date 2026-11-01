@@ -228,7 +228,8 @@ describe('auth store', () => {
     expect(authRequests.requestResendVerification).toHaveBeenCalledWith('pending-token')
     expect(auth.pendingVerification).toEqual(later)
 
-    auth.cancelVerification()
+    authRequests.requestLogout.mockResolvedValue()
+    await auth.cancelVerification()
     expect(auth.pendingVerification).toBeNull()
     await expect(auth.resendVerification()).resolves.toBeNull()
   })
@@ -504,6 +505,68 @@ describe('auth store', () => {
     expect(auth.pendingVerification).toBeNull()
     expect(authRequests.requestLogout).toHaveBeenCalledWith('pending-token')
     expect(auth.csrfToken).toBeNull()
+  })
+
+  describe('cancelling a pending sign-up', () => {
+    async function pendingSignUp() {
+      authRequests.requestCsrfToken.mockResolvedValue('anonymous-token')
+      authRequests.requestRegistration.mockResolvedValue({
+        verification,
+        csrfToken: 'pending-token',
+      })
+      const auth = useAuthStore()
+      await auth.register({
+        email: account.email,
+        username: account.username,
+        password: 'Correct-Horse-🔒-2026',
+        avatarId: account.avatarId,
+      })
+      return auth
+    }
+
+    it('keeps the code screen and reports it when the sign-up could not be ended', async () => {
+      const auth = await pendingSignUp()
+      authRequests.requestLogout.mockRejectedValue(new Error('offline'))
+      await expect(auth.cancelVerification()).rejects.toBeDefined()
+      expect(auth.pendingVerification).toEqual(verification)
+      expect(auth.requestError?.message).toBeTruthy()
+    })
+
+    it('retries once with a fresh token when the pending session lapsed', async () => {
+      const auth = await pendingSignUp()
+      authRequests.requestLogout
+        .mockRejectedValueOnce(rejectedAuth('CSRF_INVALID', 403))
+        .mockResolvedValueOnce()
+      authRequests.requestCsrfToken.mockResolvedValue('fresh-token')
+      await auth.cancelVerification()
+      expect(authRequests.requestLogout).toHaveBeenLastCalledWith('fresh-token')
+      expect(auth.pendingVerification).toBeNull()
+    })
+
+    it('does not let a session check already in flight bring the code screen back', async () => {
+      const auth = await pendingSignUp()
+      let answer
+      authRequests.requestSession.mockReturnValue(new Promise((resolve) => (answer = resolve)))
+      const restoring = auth.restoreSession({ force: true }).catch(() => null)
+      authRequests.requestLogout.mockResolvedValue()
+      await auth.cancelVerification()
+      answer({ user: null, verification })
+      await restoring
+      expect(auth.pendingVerification).toBeNull()
+    })
+  })
+
+  describe('session checks that must not raise an alert', () => {
+    it('leaves requestError alone when a quiet check cannot reach the server', async () => {
+      const auth = useAuthStore()
+      authRequests.requestSession.mockResolvedValueOnce({ user: account })
+      authRequests.requestCsrfToken.mockResolvedValue('token')
+      await auth.restoreSession()
+      authRequests.requestSession.mockRejectedValueOnce(new Error('offline'))
+      await expect(auth.restoreSession({ force: true, quiet: true })).rejects.toBeDefined()
+      expect(auth.requestError).toBeNull()
+      expect(auth.status).toBe('authenticated')
+    })
   })
 
   it('says how long to wait when the server gives a retry time', () => {
