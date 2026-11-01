@@ -1,4 +1,11 @@
 import { expect, test } from './fixtures/admin.js'
+import { forceTown2d, newTown2dContext } from './fixtures/town.js'
+
+test.skip(
+  process.env.SHARLOCK_TEST_REPLICA_SET !== '1',
+  'This journey needs transactions; run with --replica-set.',
+)
+test.beforeEach(({ page }) => forceTown2d(page))
 
 async function csrf(request, baseURL) {
   const origin = new URL(baseURL).origin
@@ -78,7 +85,7 @@ test('learner follows a class link and gets access after instructor approval', a
     `Instructor invitation link metadata is invalid: ${JSON.stringify(linkChecks)}`,
   ).toBe(true)
 
-  const studentContext = await browser.newContext({
+  const studentContext = await newTown2dContext(browser, {
     storageState: { cookies: [], origins: [] },
     viewport: testInfo.project.use.viewport,
     isMobile: testInfo.project.use.isMobile,

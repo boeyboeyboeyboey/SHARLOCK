@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures/auth.js'
+import { testWithOwnStudent as test, expect } from './fixtures/auth.js'
 import { playSqlRun } from './fixtures/sql.js'
 
 test.setTimeout(300_000)

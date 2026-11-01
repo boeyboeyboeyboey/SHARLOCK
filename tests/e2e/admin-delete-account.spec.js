@@ -5,6 +5,11 @@ import { createAuthService } from '../../server/src/modules/auth/service.js'
 import { parseRegistrationInput } from '../../server/src/modules/auth/policy.js'
 import { expect, test } from './fixtures/admin.js'
 
+test.skip(
+  process.env.SHARLOCK_TEST_REPLICA_SET !== '1',
+  'This journey needs transactions; run with --replica-set.',
+)
+
 async function createStudent() {
   const testUri = process.env.TEST_MONGODB_URI
   assertSafeTestDatabaseUri(testUri)

@@ -266,8 +266,7 @@ async function createInstitutionEntry(input) {
     if (disposed) return
     institutionForm.value?.resetInstitutionForm()
     selectedInstitutionId.value = ''
-    const lastPage = Math.floor(institutionTotal.value / PAGE_SIZE) + 1
-    await loadInstitutions(created?.id ? lastPage : 1)
+    await loadInstitutions(1)
     if (created?.id && institutions.value.some(({ id }) => id === created.id)) {
       selectedInstitutionId.value = created.id
     }

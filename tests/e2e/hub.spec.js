@@ -1,9 +1,6 @@
 import { test, expect } from './fixtures/auth.js'
 import { gameCatalog } from '../../client/src/data/gameCatalog.js'
 
-const startShot =
-  '/private/tmp/claude-501/-Users-boey-Documents-SMU-2-1-wad2-group-proj-IS216-GROUP7-SHARLOCK/096f058d-3b1d-428a-b555-066dffafadfc/scratchpad/hub-a-start.png'
-
 // the software renderer builds the wharf slowly
 test.setTimeout(240000)
 const slow = { timeout: 120000 }
@@ -109,7 +106,6 @@ test('lists every game, walks, and enters a game route', async ({ page }) => {
   for (const game of gameCatalog) {
     await expect(page.getByTestId(`dest-${game.id}`)).toHaveAccessibleName(game.name)
   }
-  await page.screenshot({ path: startShot })
 
   // keyboard walking works while nothing is paused
   const before = await position(page)

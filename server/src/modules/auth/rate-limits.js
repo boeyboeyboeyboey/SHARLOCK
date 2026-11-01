@@ -36,7 +36,7 @@ function requestLimiter({ windowMs, limit, message, keyGenerator, skipSuccessful
   return { middleware, store }
 }
 
-export function createRateLimits({ secret, now = Date.now } = {}) {
+export function createRateLimits({ secret, now = Date.now, overrides = {} } = {}) {
   if (typeof secret !== 'string' || !/^[a-fA-F0-9]{64,}$/.test(secret)) {
     throw new TypeError('A validated session secret is required for auth rate limits.')
   }
@@ -65,7 +65,7 @@ export function createRateLimits({ secret, now = Date.now } = {}) {
   })
   const activation = requestLimiter({
     windowMs: FIFTEEN_MINUTES,
-    limit: 10,
+    limit: overrides.activation ?? 10,
     message: 'Too many activation attempts. Please try again later.',
   })
   const classInvitation = requestLimiter({
@@ -87,7 +87,7 @@ export function createRateLimits({ secret, now = Date.now } = {}) {
   })
   const passwordReset = requestLimiter({
     windowMs: FIFTEEN_MINUTES,
-    limit: 10,
+    limit: overrides.passwordReset ?? 10,
     message: 'Too many password reset attempts. Please try again later.',
   })
   const recoveryStudents = new MemoryStore()

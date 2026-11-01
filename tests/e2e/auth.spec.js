@@ -1,10 +1,13 @@
 import { test, expect } from '@playwright/test'
 import { readVerificationCode } from './fixtures/mail.js'
+import { forceTown2d, newTown2dContext } from './fixtures/town.js'
+
+test.beforeEach(({ page }) => forceTown2d(page))
 
 const PASSWORD = 'Correct-Horse-🔒-2026'
 
 test.skip(
-  !process.env.SHARLOCK_TEST_REPLICA_SET,
+  process.env.SHARLOCK_TEST_REPLICA_SET !== '1',
   'The account journey includes transactional onboarding; run with --replica-set.',
 )
 
@@ -230,7 +233,7 @@ test('signs in with a mixed-case username instead of the email', async ({
   await page.getByRole('button', { name: 'Skip and explore Sharlock' }).click()
   await expect(page).toHaveURL('/')
 
-  const freshContext = await browser.newContext({
+  const freshContext = await newTown2dContext(browser, {
     storageState: { cookies: [], origins: [] },
     viewport: testInfo.project.use.viewport,
     isMobile: testInfo.project.use.isMobile,

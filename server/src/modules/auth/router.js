@@ -94,7 +94,11 @@ function pendingVerificationUserId(request) {
   return userId
 }
 
-export function createAuthRouter(database, settings, { mailer = createConsoleMailer() } = {}) {
+export function createAuthRouter(
+  database,
+  settings,
+  { mailer = createConsoleMailer(), rateLimitOverrides } = {},
+) {
   const sessionRuntime = createAuthSessionMiddleware(database, settings)
   const authSettings = sessionRuntime.settings
   const authService = createAuthService(database, { now: authSettings.now })
@@ -107,7 +111,11 @@ export function createAuthRouter(database, settings, { mailer = createConsoleMai
     now: authSettings.now,
     clientOrigin: authSettings.clientOrigin,
   })
-  const rateLimits = createRateLimits({ secret: authSettings.sessionSecret, now: authSettings.now })
+  const rateLimits = createRateLimits({
+    secret: authSettings.sessionSecret,
+    now: authSettings.now,
+    overrides: rateLimitOverrides,
+  })
   const csrf = createCsrfTools()
   const requireOrigin = requireExpectedOrigin(authSettings.clientOrigin)
   const router = Router()

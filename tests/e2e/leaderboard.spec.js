@@ -10,6 +10,7 @@ import { instructorAssignmentModel } from '../../server/src/models/InstructorAss
 import { hashPassword } from '../../server/src/modules/auth/password.js'
 import { HOW_TO_PLAY_GAME_IDS } from '../../server/src/modules/profile/how-to-play.js'
 import { playSqlRun } from './fixtures/sql.js'
+import { signInContext } from './fixtures/sign-in.js'
 
 function identity(role, suffix) {
   return {
@@ -79,17 +80,8 @@ async function seedClass(suffix) {
 }
 
 async function signedInPage(browser, baseURL, who) {
-  const origin = new URL(baseURL).origin
   const context = await browser.newContext()
-  const csrf = await context.request.get(new URL('/api/auth/csrf', baseURL).href, {
-    headers: { Origin: origin },
-  })
-  const { csrfToken } = await csrf.json()
-  const login = await context.request.post(new URL('/api/auth/login', baseURL).href, {
-    headers: { Origin: origin, 'X-CSRF-Token': csrfToken },
-    data: { email: who.email, password: who.password },
-  })
-  if (!login.ok()) throw new Error('Could not authenticate the leaderboard E2E session.')
+  await signInContext(context, baseURL, who)
   const page = await context.newPage()
   await page.addInitScript(() => localStorage.setItem('sharlock.townMode', '2d'))
   await page.route(/fonts\.(googleapis|gstatic)\.com/, (route) =>

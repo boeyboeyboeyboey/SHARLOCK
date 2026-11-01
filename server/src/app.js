@@ -30,6 +30,7 @@ export function createApp(
     audit = {},
     cohorts = {},
     attempts = {},
+    authRateLimits,
     progress = {},
     news = {},
     socialEngineering = {},
@@ -48,7 +49,10 @@ export function createApp(
     next()
   })
   app.use(express.json({ limit: '16kb' }))
-  const authRuntime = createAuthRouter(database, auth, mail.mailer ? { mailer: mail.mailer } : {})
+  const authRuntime = createAuthRouter(database, auth, {
+    ...(mail.mailer && { mailer: mail.mailer }),
+    rateLimitOverrides: authRateLimits,
+  })
   app.use('/api/auth', authRuntime.router)
   // websocket presence is attached to the http server by server.js through app.locals.presence
   const presence = createPresenceService(database, {

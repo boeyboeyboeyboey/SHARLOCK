@@ -25,6 +25,8 @@ const E2E_ATTEMPT_LIMITS = Object.freeze({
   readIp: 20000,
 })
 
+const E2E_AUTH_LIMITS = Object.freeze({ activation: 1000, passwordReset: 1000 })
+
 let database
 let server
 let app
@@ -109,6 +111,8 @@ try {
       clientOrigin: config.clientOrigin,
       sessionSecret: config.sessionSecret,
     },
+    // every browser test shares one loopback address, so only the e2e server lifts these
+    ...(config.nodeEnv === 'test' && { authRateLimits: E2E_AUTH_LIMITS }),
     ...(testOutbox && { mail: { mailer: createFileMailer(testOutbox) } }),
     news: {
       apiKey: config.nodeEnv === 'test' ? undefined : config.guardianApiKey,

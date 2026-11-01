@@ -401,7 +401,8 @@ test.describe('the Times on a phone', () => {
 
     // wider lines fit most headlines on one line, the shortest target case
     for (const link of await times.getByRole('heading', { level: 2 }).getByRole('link').all()) {
-      expect((await link.boundingBox()).height).toBeGreaterThanOrEqual(44)
+      // a sub-pixel layout can report 43.9999 for a 44 px target
+      expect(Math.round((await link.boundingBox()).height)).toBeGreaterThanOrEqual(44)
     }
   })
 })

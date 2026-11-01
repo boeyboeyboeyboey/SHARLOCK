@@ -203,12 +203,13 @@ export function createAdminService(
     return result
   }
 
+  // every admin list is newest first, so a record the admin just created is on page 1
   async function listInstitutions(actor, query) {
     await requireAdmin(actor, 'admin:classes:manage')
     const { page, limit } = parseAdminListQuery(query)
     const skip = (page - 1) * limit
     const [institutions, total] = await Promise.all([
-      Institution.find({}).sort({ _id: 1 }).skip(skip).limit(limit).lean(),
+      Institution.find({}).sort({ _id: -1 }).skip(skip).limit(limit).lean(),
       Institution.countDocuments({}),
     ])
     return { institutions: institutions.map(institutionDto), page, total }
@@ -238,7 +239,7 @@ export function createAdminService(
     const [users, total] = await Promise.all([
       User.find(filter)
         .select('_id username avatarId globalRoles accountStatus authVersion')
-        .sort({ _id: 1 })
+        .sort({ _id: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
@@ -456,7 +457,7 @@ export function createAdminService(
     const filter = institutionId ? { institutionId: objectId(institutionId) } : {}
     const skip = (page - 1) * limit
     const [cohorts, total] = await Promise.all([
-      Cohort.find(filter).sort({ _id: 1 }).skip(skip).limit(limit).lean(),
+      Cohort.find(filter).sort({ _id: -1 }).skip(skip).limit(limit).lean(),
       Cohort.countDocuments(filter),
     ])
     const institutionIds = [...new Set(cohorts.map(({ institutionId: id }) => idString(id)))]
@@ -656,7 +657,7 @@ export function createAdminService(
     const [instructors, total] = await Promise.all([
       User.find(filter)
         .select('_id emailNormalized username avatarId accountStatus instructorAssignmentRevision')
-        .sort({ _id: 1 })
+        .sort({ _id: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
@@ -858,7 +859,7 @@ export function createAdminService(
     const [rows, total] = await Promise.all([
       User.find(filter)
         .select('_id emailNormalized username createdAt')
-        .sort({ _id: 1 })
+        .sort({ _id: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),

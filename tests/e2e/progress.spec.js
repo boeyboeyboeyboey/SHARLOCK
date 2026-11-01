@@ -7,6 +7,7 @@ import { parseRegistrationInput } from '../../server/src/modules/auth/policy.js'
 import { userModel } from '../../server/src/models/User.js'
 import { HOW_TO_PLAY_GAME_IDS } from '../../server/src/modules/profile/how-to-play.js'
 import { playSqlRun } from './fixtures/sql.js'
+import { signInContext } from './fixtures/sign-in.js'
 
 const gameNames = [
   'CLI Cyber Defender',
@@ -23,7 +24,6 @@ async function signedInContext(browser, baseURL, label) {
   if (process.env.NODE_ENV !== 'test' || !testUri)
     throw new Error('Progress E2E requires the guarded test database.')
   assertSafeTestDatabaseUri(testUri)
-  const origin = new URL(baseURL).origin
   const suffix = randomBytes(4).toString('hex')
   const email = `progress-${label}-${suffix}@example.test`
   const password = `${randomBytes(24).toString('base64url')}A!`
@@ -45,15 +45,7 @@ async function signedInContext(browser, baseURL, label) {
     await database.close()
   }
   const context = await browser.newContext()
-  const csrf = await context.request.get(new URL('/api/auth/csrf', baseURL).href, {
-    headers: { Origin: origin },
-  })
-  const { csrfToken } = await csrf.json()
-  const login = await context.request.post(new URL('/api/auth/login', baseURL).href, {
-    headers: { Origin: origin, 'X-CSRF-Token': csrfToken },
-    data: { email, password },
-  })
-  if (!login.ok()) throw new Error('Could not authenticate the progress E2E session.')
+  await signInContext(context, baseURL, { email, password })
   return context
 }
 

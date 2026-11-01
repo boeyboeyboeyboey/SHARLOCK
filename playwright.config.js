@@ -11,7 +11,7 @@ const mobileUse = {
   hasTouch: true,
 }
 const desktopUse = { browserName: 'chromium', viewport: { width: 1440, height: 900 } }
-const hubSpecs = /[\\/]hub(-auto)?\.spec\.js$/
+const hubSpecs = /[\\/](hub[\w-]*|lore-intro|wardrobe|botnet-tag)\.spec\.js$/
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -24,7 +24,7 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
-  // hub specs run software WebGL, so they get their own projects with one worker each
+  // these specs render Babylon in software WebGL, so they get their own projects with one worker each
   projects: [
     {
       name: 'mobile-chromium',

@@ -3,8 +3,6 @@ import { test, expect } from './fixtures/auth.js'
 // no hub override here: headless chromium renders in software, so the device checks must pick the 2D map
 test.setTimeout(240000)
 const slow = { timeout: 120000 }
-const shots =
-  '/private/tmp/claude-501/-Users-boey-Documents-SMU-2-1-wad2-group-proj-IS216-GROUP7-SHARLOCK/096f058d-3b1d-428a-b555-066dffafadfc/scratchpad'
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('sharlock.hubWatchManual', '1'))
@@ -39,7 +37,6 @@ test('picks the 2D town automatically and remembers a dismissed notice', async (
     '/about#graphics',
   )
   expect(await stored(page, 'sharlock.townMode')).toBeNull()
-  await page.screenshot({ path: `${shots}/hub02-notice.png` })
 
   await page.getByTestId('town-mode-notice-close').click()
   await expect(notice).toHaveCount(0)
@@ -59,7 +56,6 @@ test('asks before trying 3D and persists a confirmed choice', async ({ page }) =
   await expect(warning).toBeVisible()
   await expect(warning).toContainText('This device may struggle to run the 3D town')
   await expect(page.getByTestId('hub-3d-cancel')).toBeFocused()
-  await page.screenshot({ path: `${shots}/hub02-warning.png` })
   await page.keyboard.press('Escape')
   await expect(warning).toHaveCount(0)
   await expect(page.getByRole('region', { name: 'Interactive town map' })).toBeVisible()

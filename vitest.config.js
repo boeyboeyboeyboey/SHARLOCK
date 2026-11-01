@@ -22,6 +22,8 @@ export default defineConfig({
           environment: 'node',
           include: ['server/tests/integration/**/*.test.js'],
           setupFiles: ['server/tests/integration/setup-database.js'],
+          // several files wipe whole collections, so files must never run side by side
+          fileParallelism: false,
           testTimeout: 20000,
           hookTimeout: 30000,
         },

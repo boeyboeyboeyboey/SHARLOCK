@@ -1,6 +1,13 @@
 import { randomBytes } from 'node:crypto'
 import { expect, test } from './fixtures/admin.js'
 import { readVerificationCode } from './fixtures/mail.js'
+import { forceTown2d, newTown2dContext } from './fixtures/town.js'
+
+test.skip(
+  process.env.SHARLOCK_TEST_REPLICA_SET !== '1',
+  'This journey needs transactions; run with --replica-set.',
+)
+test.beforeEach(({ page }) => forceTown2d(page))
 
 test.use({ trace: 'off', screenshot: 'off', video: 'off' })
 
@@ -165,11 +172,11 @@ test('admin recovery revokes sessions and requires normal sign-in', async ({
   let loginContext
 
   try {
-    oldSessionContext = await browser.newContext(isolatedContextOptions(testInfo))
+    oldSessionContext = await newTown2dContext(browser, isolatedContextOptions(testInfo))
     const registrationPage = await oldSessionContext.newPage()
     await createStudentThroughRegistration(registrationPage, student)
 
-    gateContext = await browser.newContext(isolatedContextOptions(testInfo))
+    gateContext = await newTown2dContext(browser, isolatedContextOptions(testInfo))
     const gatePage = await gateContext.newPage()
     await signInWithUi(gatePage, student)
 
@@ -207,7 +214,7 @@ test('admin recovery revokes sessions and requires normal sign-in', async ({
     }))
     expect(pageBoundary).toEqual({ recoveryControls: 0, hasHorizontalOverflow: false })
 
-    queryContext = await browser.newContext(isolatedContextOptions(testInfo))
+    queryContext = await newTown2dContext(browser, isolatedContextOptions(testInfo))
     const queryPage = await queryContext.newPage()
     await queryPage.goto('/about')
     const queryEvents = []
@@ -238,7 +245,7 @@ test('admin recovery revokes sessions and requires normal sign-in', async ({
       ),
     ).toBe(true)
 
-    replacedContext = await browser.newContext(isolatedContextOptions(testInfo))
+    replacedContext = await newTown2dContext(browser, isolatedContextOptions(testInfo))
     const replacedPage = await replacedContext.newPage()
     const replacedEvents = []
     const replacedResponses = []
@@ -339,7 +346,7 @@ test('admin recovery revokes sessions and requires normal sign-in', async ({
       ),
     ).toBe(true)
 
-    reuseContext = await browser.newContext(isolatedContextOptions(testInfo))
+    reuseContext = await newTown2dContext(browser, isolatedContextOptions(testInfo))
     const reusePage = await reuseContext.newPage()
     const reuseEvents = []
     const reuseResponses = []
@@ -373,7 +380,7 @@ test('admin recovery revokes sessions and requires normal sign-in', async ({
     })
     expect(staleSessionResponse.status()).toBe(401)
 
-    loginContext = await browser.newContext(isolatedContextOptions(testInfo))
+    loginContext = await newTown2dContext(browser, isolatedContextOptions(testInfo))
     const loginPage = await loginContext.newPage()
     await loginPage.goto('/login')
     await loginPage.getByLabel('Email or username').fill(student.email)
@@ -454,7 +461,7 @@ test('instructors issue links; admin-only roles have no roster recovery control'
     await page.getByRole('button', { name: 'Close', exact: true }).click()
     await expect(page.getByLabel('Activation link', { exact: true })).toHaveCount(0)
 
-    instructorContext = await browser.newContext(isolated)
+    instructorContext = await newTown2dContext(browser, isolated)
     const instructorPage = await instructorContext.newPage()
     await instructorPage.goto(activationUrl)
     await expect(
@@ -498,7 +505,7 @@ test('instructors issue links; admin-only roles have no roster recovery control'
     await instructorPage.getByRole('button', { name: 'Close and clear code' }).click()
     await expect(instructorPage.getByLabel('Invitation link')).toHaveCount(0)
 
-    studentContext = await browser.newContext(isolated)
+    studentContext = await newTown2dContext(browser, isolated)
     const studentPage = await studentContext.newPage()
     await studentPage.goto(invitationUrl)
     await studentPage.getByRole('button', { name: 'Sign in' }).click()

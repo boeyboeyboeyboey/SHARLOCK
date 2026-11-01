@@ -1,10 +1,10 @@
 import { test, expect } from './fixtures/auth.js'
+import { forceTown2d } from './fixtures/town.js'
 
 // fitted pages must not scroll at a laptop-height window; long pages (About, Instructor, Admin, Progress) are not listed
 test.use({ viewport: { width: 1280, height: 720 } })
 test.skip(({ isMobile }) => isMobile, 'the fit target is desktop width')
-// one worker logs in once; parallel workers hit the login rate limit in the shared auth fixture
-test.describe.configure({ mode: 'serial' })
+test.beforeEach(({ page }) => forceTown2d(page))
 
 const SIGNED_IN = [
   ['Town map', '/'],
@@ -12,7 +12,7 @@ const SIGNED_IN = [
   ['Detective profile', '/profile'],
   ['Your classes', '/classes'],
   ['SQL Injection Arcade briefing', '/games/sql-injection-arcade'],
-  ['Regex preview', '/games/regex-defender'],
+  ['Clearance Tower briefing', '/games/clearance-tower'],
   ['CLI Cyber Defender briefing', '/games/cli-cyber-defender'],
   ['Phishing Post-Mortem briefing', '/games/phishing-post-mortem'],
   ['Social Engineering briefing', '/games/social-engineering-simulator'],
@@ -24,7 +24,7 @@ const SIGNED_OUT = [
 ]
 
 async function expectFits(page) {
-  await page.waitForLoadState('networkidle')
+  await expect(page.getByRole('heading').or(page.getByTestId('town-player')).first()).toBeVisible()
   await page.evaluate(() => document.fonts.ready)
   const size = await page.evaluate(() => ({
     scrollHeight: document.documentElement.scrollHeight,
@@ -57,7 +57,7 @@ test.describe('signed out', () => {
 test('the profile and classes overlays stay inside the window', async ({ page }) => {
   for (const route of ['/profile', '/classes']) {
     await page.goto(route)
-    await page.waitForLoadState('networkidle')
+    await expect(page.getByTestId('menu-overlay')).toBeVisible()
     const box = await page.getByTestId('menu-overlay').evaluate((el) => {
       const rect = el.getBoundingClientRect()
       return {

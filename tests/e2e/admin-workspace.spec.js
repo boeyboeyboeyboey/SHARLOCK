@@ -1,18 +1,13 @@
 import { randomBytes } from 'node:crypto'
 import { expect, test } from './fixtures/admin.js'
+import { signInContext } from './fixtures/sign-in.js'
+import { forceTown2d, newTown2dContext } from './fixtures/town.js'
 
-async function signIn(context, origin, identity) {
-  const csrfResponse = await context.request.get(`${origin}/api/auth/csrf`, {
-    headers: { Origin: origin },
-  })
-  expect(csrfResponse.ok()).toBe(true)
-  const { csrfToken } = await csrfResponse.json()
-  const response = await context.request.post(`${origin}/api/auth/login`, {
-    headers: { Origin: origin, 'X-CSRF-Token': csrfToken },
-    data: { email: identity.email, password: identity.password },
-  })
-  expect(response.ok()).toBe(true)
-}
+test.skip(
+  process.env.SHARLOCK_TEST_REPLICA_SET !== '1',
+  'This journey needs transactions; run with --replica-set.',
+)
+test.beforeEach(({ page }) => forceTown2d(page))
 
 async function openTab(page, name) {
   await page.getByRole('tab', { name, exact: true }).click()
@@ -195,7 +190,7 @@ test('admin manages institutions, assignments, audit history, and account access
     await expect(page.getByRole('dialog')).toHaveCount(0)
     await expect(page.getByText(activationUrl, { exact: true })).toHaveCount(0)
 
-    activationContext = await browser.newContext(isolatedContext)
+    activationContext = await newTown2dContext(browser, isolatedContext)
     const activationPage = await activationContext.newPage()
     await activationPage.goto(activationUrl)
     await expect(
@@ -356,8 +351,8 @@ test('admin manages institutions, assignments, audit history, and account access
         .first(),
     ).toBeVisible()
 
-    studentContext = await browser.newContext(isolatedContext)
-    await signIn(studentContext, origin, studentIdentity)
+    studentContext = await newTown2dContext(browser, isolatedContext)
+    await signInContext(studentContext, origin, studentIdentity)
     const oldStudentSession = await studentContext.request.get(`${origin}/api/auth/me`, {
       headers: { Origin: origin },
     })
@@ -393,8 +388,8 @@ test('admin manages institutions, assignments, audit history, and account access
       studentIdentity.username,
     )
     await changeAccountStatus(page, disabledStudentRow, 'Enable account')
-    freshStudentContext = await browser.newContext(isolatedContext)
-    await signIn(freshStudentContext, origin, studentIdentity)
+    freshStudentContext = await newTown2dContext(browser, isolatedContext)
+    await signInContext(freshStudentContext, origin, studentIdentity)
     const freshStudentSession = await freshStudentContext.request.get(`${origin}/api/auth/me`, {
       headers: { Origin: origin },
     })
@@ -516,7 +511,7 @@ test('admin reissues a pending administrator link and the activated account leav
   await page.getByRole('button', { name: 'Close', exact: true }).click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
 
-  const activationContext = await browser.newContext(isolatedContextOptions(testInfo))
+  const activationContext = await newTown2dContext(browser, isolatedContextOptions(testInfo))
   try {
     const activationPage = await activationContext.newPage()
     await activationPage.goto(reissuedUrl)
@@ -564,7 +559,7 @@ test('admin cancels a pending administrator and its activation link stops workin
   await pending.getByRole('button', { name: `Cancel ${username}` }).click()
   await expect(pending.getByRole('button', { name: `Cancel ${username}` })).toHaveCount(0)
 
-  const activationContext = await browser.newContext(isolatedContextOptions(testInfo))
+  const activationContext = await newTown2dContext(browser, isolatedContextOptions(testInfo))
   try {
     const activationPage = await activationContext.newPage()
     await activationPage.goto(activationUrl)
