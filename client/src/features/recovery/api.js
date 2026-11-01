@@ -15,6 +15,7 @@ const SAFE_MESSAGES = Object.freeze({
   CSRF_INVALID: 'The security check expired. Review and try again.',
   ORIGIN_FORBIDDEN: 'This request could not be verified. Refresh and try again.',
   RATE_LIMITED: 'Too many requests. Wait a moment and try again.',
+  PASSWORD_SERVICE_BUSY: 'Sharlock is busy right now. Try again in a moment.',
 })
 
 export class RecoveryApiError extends Error {

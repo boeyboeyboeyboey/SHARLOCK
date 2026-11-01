@@ -167,9 +167,20 @@
   overflow-wrap: anywhere;
 }
 
+/* no aside on this page, so the card takes the centre instead of leaving the right half empty */
+.auth-page.recovery-page {
+  grid-template-columns: minmax(0, 640px);
+  justify-content: center;
+}
+
 @media (max-width: 575.98px) {
   .recovery-lookup__row {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* the hard shadow would spill past the panel edge at phone widths */
+  .recovery-input {
+    box-shadow: none;
   }
 
   .recovery-lookup__row .recovery-button,

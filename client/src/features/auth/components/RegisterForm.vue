@@ -44,10 +44,6 @@ const problems = computed(() => {
     })
   } catch (error) {
     Object.assign(found, error.fieldErrors)
-    // the shared rule text is exact but technical; the form words it plainly
-    if (found.password) {
-      found.password = found.password.replace('well-formed Unicode characters', 'characters')
-    }
   }
   if (password.value !== passwordConfirmation.value) {
     found.passwordConfirmation = 'Passwords must match.'
@@ -264,7 +260,6 @@ defineExpose({ clearSecrets })
         <button
           class="auth-password-toggle"
           type="button"
-          tabindex="-1"
           :aria-pressed="showPassword"
           :aria-label="showPassword ? 'Hide password' : 'Show password'"
           title="Show or hide (Alt+S in the field)"
@@ -303,7 +298,6 @@ defineExpose({ clearSecrets })
         <button
           class="auth-password-toggle"
           type="button"
-          tabindex="-1"
           :aria-pressed="showConfirmation"
           :aria-label="showConfirmation ? 'Hide confirmation' : 'Show confirmation'"
           title="Show or hide (Alt+S in the field)"

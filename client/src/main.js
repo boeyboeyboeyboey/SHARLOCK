@@ -7,7 +7,11 @@ import App from './App.vue'
 import router from './router/index.js'
 import { api } from './services/api.js'
 import { useAuthStore } from './features/auth/store.js'
-import { createAccountGuard, installBrowserAccountAccess } from './features/auth/guards.js'
+import {
+  createAccountGuard,
+  installBrowserAccountAccess,
+  installSessionReturnCheck,
+} from './features/auth/guards.js'
 import { installPageWipes } from './features/auth/pixel-wipe.js'
 import {
   captureInvitationCodeFromLocation,
@@ -26,18 +30,30 @@ router.afterEach((to) => {
   if (!['/join-class', '/login', '/register'].includes(to.path)) clearPendingInvitation()
 })
 installPageWipes(router)
+const checkSession = () => auth.restoreSession({ force: true })
+// a sign-out in progress has its own outcome, so its 401 is not an expiry
+const isSignedIn = () => auth.status === 'authenticated' && !auth.logoutPending
+function onExpired({ replaced = false } = {}) {
+  const reason = replaced || auth.sessionEnd === 'elsewhere' ? 'elsewhere' : 'expired'
+  clearPendingInvitation()
+  auth.invalidateSession(reason)
+  if (router.currentRoute.value.meta.requiresAccount) {
+    void router.replace({ path: '/login', query: { reason } }).catch(() => {})
+  }
+}
 const removeAccountAccess = installBrowserAccountAccess(api, {
-  checkSession: () => auth.restoreSession({ force: true }),
-  onExpired: () => {
-    clearPendingInvitation()
-    auth.invalidateSession()
-    if (router.currentRoute.value.meta.requiresAccount) {
-      void router.replace({ path: '/login', query: { reason: 'expired' } }).catch(() => {})
-    }
-  },
+  checkSession,
+  onExpired,
+  isSignedIn,
 })
+const removeReturnCheck = installSessionReturnCheck({ checkSession, onExpired, isSignedIn })
 if (!['/activate-account', '/join-class'].includes(window.location.pathname)) {
   void auth.restoreSession().catch(() => {})
 }
 app.use(router).mount('#app')
-if (import.meta.hot) import.meta.hot.dispose(removeAccountAccess)
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    removeAccountAccess()
+    removeReturnCheck()
+  })
+}

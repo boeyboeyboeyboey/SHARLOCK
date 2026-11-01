@@ -40,6 +40,28 @@ describe('failed login rate limits', () => {
     retry.release()
   })
 
+  it('caps guesses against one account across many addresses', () => {
+    const limits = makeLimits(() => 1000)
+    for (let address = 1; address <= 25; address += 1) {
+      limits.reserveFailedLogin('learner@example.test', `10.0.0.${address}`).fail()
+    }
+    expect(() => limits.reserveFailedLogin('learner@example.test', '10.0.1.1')).toThrow(
+      expect.objectContaining({ code: 'RATE_LIMITED', status: 429 }),
+    )
+    expect(() => limits.reserveFailedLogin('other@example.test', '10.0.1.1')).not.toThrow()
+  })
+
+  it('counts addresses inside one ipv6 /56 as a single budget', () => {
+    const limits = makeLimits(() => 1000)
+    for (let host = 1; host <= 5; host += 1) {
+      limits.reserveFailedLogin('learner@example.test', `2001:db8:0:1${host}::${host}`).fail()
+    }
+    expect(() => limits.reserveFailedLogin('learner@example.test', '2001:db8:0:ff::1')).toThrow(
+      expect.objectContaining({ code: 'RATE_LIMITED' }),
+    )
+    expect(() => limits.reserveFailedLogin('learner@example.test', '2001:db8:1::1')).not.toThrow()
+  })
+
   it('reserves concurrent failure slots and releases successful attempts', () => {
     const limits = makeLimits(Date.now)
     const reservations = Array.from({ length: 5 }, () =>

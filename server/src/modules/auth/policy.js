@@ -100,17 +100,38 @@ function normalizeEmail(value, fieldErrors) {
   return normalized
 }
 
-function parsePassword(value, fieldErrors, registration) {
-  const lengthMessage = 'Use 12 to 128 well-formed Unicode characters.'
+const NEW_PASSWORD_LENGTH_MESSAGE = 'Use at least 12 characters.'
+const NEW_PASSWORD_LIMIT_MESSAGE = 'That password is too long.'
+const NEW_PASSWORD_UPPERCASE_MESSAGE = 'Include at least one uppercase letter.'
+const NEW_PASSWORD_SYMBOL_MESSAGE = 'Include at least one punctuation or symbol character.'
+const LOGIN_PASSWORD_MESSAGE = 'Enter your password.'
+const MAX_PASSWORD_CODE_POINTS = 128
+
+// sign-in has no length rule to reveal; the upper bound only keeps the hash work bounded
+function parseLoginPassword(value, fieldErrors) {
+  const characters = typeof value === 'string' ? Array.from(value) : []
+  const wellFormed = characters.every((character) => {
+    const point = character.codePointAt(0)
+    return point < 0xd800 || point > 0xdfff
+  })
+  if (!characters.length || !wellFormed || characters.length > MAX_PASSWORD_CODE_POINTS) {
+    addFieldError(fieldErrors, 'password', LOGIN_PASSWORD_MESSAGE)
+    return undefined
+  }
+  return value
+}
+
+function parseNewPassword(value, fieldErrors) {
   if (typeof value !== 'string') {
-    const messages = [lengthMessage]
-    if (registration) {
-      messages.push(
-        'Include at least one uppercase letter.',
-        'Include at least one punctuation or symbol character.',
-      )
-    }
-    addFieldError(fieldErrors, 'password', messages.join(' '))
+    addFieldError(
+      fieldErrors,
+      'password',
+      [
+        NEW_PASSWORD_LENGTH_MESSAGE,
+        NEW_PASSWORD_UPPERCASE_MESSAGE,
+        NEW_PASSWORD_SYMBOL_MESSAGE,
+      ].join(' '),
+    )
     return undefined
   }
 
@@ -126,10 +147,10 @@ function parsePassword(value, fieldErrors, registration) {
     codePoints += 1
   }
   const passwordMessages = []
-  if (!wellFormed || codePoints < 12 || codePoints > 128) passwordMessages.push(lengthMessage)
-  if (registration && !hasUppercase) passwordMessages.push('Include at least one uppercase letter.')
-  if (registration && !hasPunctuationOrSymbol)
-    passwordMessages.push('Include at least one punctuation or symbol character.')
+  if (!wellFormed || codePoints < 12) passwordMessages.push(NEW_PASSWORD_LENGTH_MESSAGE)
+  if (codePoints > MAX_PASSWORD_CODE_POINTS) passwordMessages.push(NEW_PASSWORD_LIMIT_MESSAGE)
+  if (!hasUppercase) passwordMessages.push(NEW_PASSWORD_UPPERCASE_MESSAGE)
+  if (!hasPunctuationOrSymbol) passwordMessages.push(NEW_PASSWORD_SYMBOL_MESSAGE)
   if (passwordMessages.length) {
     addFieldError(fieldErrors, 'password', passwordMessages.join(' '))
     return undefined
@@ -143,7 +164,7 @@ function throwIfInvalid(fieldErrors) {
 
 export function parseNewPasswordInput(value) {
   const fieldErrors = Object.create(null)
-  const password = parsePassword(value, fieldErrors, true)
+  const password = parseNewPassword(value, fieldErrors)
   throwIfInvalid(fieldErrors)
   return password
 }
@@ -178,7 +199,7 @@ export function normalizeUsername(value) {
 function parseBody(body, expectedFields, registration) {
   const { fieldErrors, values } = exactInput(body, expectedFields)
   const emailNormalized = normalizeEmail(values.email, fieldErrors)
-  const password = parsePassword(values.password, fieldErrors, registration)
+  const password = parseNewPassword(values.password, fieldErrors)
   let username
   let avatarId
 
@@ -240,7 +261,7 @@ export function parseLoginInput(body) {
   const { fieldErrors, values } = exactInput(body, expectedFields)
   const field = expectedFields[0]
   const identifier = normalizeLoginIdentifier(values[field], fieldErrors, field)
-  const password = parsePassword(values.password, fieldErrors, false)
+  const password = parseLoginPassword(values.password, fieldErrors)
   throwIfInvalid(fieldErrors)
   return { identifier, password }
 }

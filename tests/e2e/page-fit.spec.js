@@ -18,11 +18,6 @@ const SIGNED_IN = [
   ['Social Engineering briefing', '/games/social-engineering-simulator'],
 ]
 
-const SIGNED_OUT = [
-  ['Sign in', '/login'],
-  ['Create account', '/register'],
-]
-
 async function expectFits(page) {
   await expect(page.getByRole('heading').or(page.getByTestId('town-player')).first()).toBeVisible()
   await page.evaluate(() => document.fonts.ready)
@@ -46,12 +41,27 @@ for (const [name, route] of SIGNED_IN) {
 test.describe('signed out', () => {
   test.use({ storageState: { cookies: [], origins: [] } })
 
-  for (const [name, route] of SIGNED_OUT) {
-    test(`fits the window: ${name}`, async ({ page }) => {
-      await page.goto(route)
-      await expectFits(page)
-    })
-  }
+  // these forms grow with an error banner, so they scroll with the page instead of clipping a card
+  test('sign-in shows its button without scrolling and no inner scroller', async ({ page }) => {
+    await page.goto('/login')
+    await expect(page.getByRole('button', { name: 'Sign in' })).toBeInViewport({ ratio: 1 })
+    const card = page.locator('.auth-card')
+    expect(await card.evaluate((element) => getComputedStyle(element).overflowY)).toBe('visible')
+    const width = await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)
+    expect(width, 'page width').toBe(true)
+  })
+
+  test('create account keeps the whole form in one page scroll', async ({ page }) => {
+    await page.goto('/register')
+    const card = page.locator('.auth-card')
+    await expect(card).toBeVisible()
+    expect(await card.evaluate((element) => getComputedStyle(element).overflowY)).toBe('visible')
+    const width = await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)
+    expect(width, 'page width').toBe(true)
+    const submit = page.getByRole('button', { name: 'Create account' })
+    await submit.scrollIntoViewIfNeeded()
+    await expect(submit).toBeInViewport({ ratio: 1 })
+  })
 })
 
 test('the profile and classes overlays stay inside the window', async ({ page }) => {

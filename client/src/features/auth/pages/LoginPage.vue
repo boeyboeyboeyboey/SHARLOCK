@@ -5,7 +5,6 @@ import PixelIcon from '../../../components/town/PixelIcon.vue'
 import { useAuthStore } from '../store.js'
 import LoginForm from '../components/LoginForm.vue'
 import VerifyEmailPanel from '../components/VerifyEmailPanel.vue'
-import SessionNotice from '../components/SessionNotice.vue'
 import { resolveEnrollmentDestination } from '../../cohorts/journey.js'
 import '../auth.css'
 
@@ -90,14 +89,6 @@ async function resendCode() {
     pending.value = false
   }
 }
-
-async function checkSession() {
-  try {
-    await auth.restoreSession({ force: true })
-  } catch {
-    // the store exposes only a safe recovery message
-  }
-}
 </script>
 
 <template>
@@ -110,21 +101,23 @@ async function checkSession() {
       <h1 id="login-title" tabindex="-1">
         {{ verifying ? 'Confirm your email' : 'Sign in to Sharlock' }}
       </h1>
+      <p v-if="!signedIn && !verifying" class="auth-intro">
+        Sharlock is a game-based way to learn cybersecurity: investigate phishing, SQL injection,
+        social engineering and more.
+      </p>
 
       <p v-if="passwordResetNotice" class="auth-field-hint" role="status">
         Your password was updated. Sign in with your new password.
       </p>
 
       <p v-if="elsewhereNotice" class="auth-field-hint" role="status">
-        You were signed out because your account signed in somewhere else. If that wasn't you, reset your password.
+        You were signed out because your account signed in somewhere else. If that wasn't you, ask
+        your instructor or school administrator to send you a password reset link.
       </p>
 
-      <SessionNotice
-        v-if="expiredNotice"
-        message="Your session ended. Sign in again to continue. Your unfinished action was not repeated."
-        :pending="pending"
-        @retry="checkSession"
-      />
+      <p v-if="expiredNotice" class="auth-field-hint" role="status">
+        Your session has ended. Sign in again to continue. Your unfinished action was not repeated.
+      </p>
 
       <!-- the signed-in view stays outside the transition: signing in navigates away at once, and
            an out-in transition holding a not-yet-mounted view crashes when its page is unmounted -->
@@ -159,6 +152,9 @@ async function checkSession() {
         />
       </Transition>
 
+      <p v-if="!signedIn && !verifying" class="auth-field-hint">
+        Forgot your password? Ask your instructor or school administrator to send you a reset link.
+      </p>
       <p v-if="!signedIn && !verifying" class="auth-switch">
         New to Sharlock?
         <RouterLink to="/register">Create a student account</RouterLink>
@@ -170,7 +166,7 @@ async function checkSession() {
     <aside class="auth-aside">
       <PixelIcon name="lock" :size="30" aria-hidden="true" />
       <RouterLink to="/about" class="auth-aside__link">
-        Meet Sharlock <PixelIcon name="arrow" :size="16" aria-hidden="true" />
+        What is Sharlock? <PixelIcon name="arrow" :size="16" aria-hidden="true" />
       </RouterLink>
     </aside>
   </section>

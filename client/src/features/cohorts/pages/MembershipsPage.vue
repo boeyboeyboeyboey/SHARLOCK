@@ -77,7 +77,6 @@ onBeforeUnmount(() => {
     <p class="cohort-intro">Enter your instructor's invitation code to join a class.</p>
     <p v-if="notice" class="cohort-notice" role="status">{{ notice }}</p>
     <JoinCohortForm :pending="joining" :error="error" @submit="submitCode" />
-    <p v-if="error && !joining" class="cohort-alert" role="alert">{{ error }}</p>
     <MembershipList
       :memberships="memberships"
       :page="page"

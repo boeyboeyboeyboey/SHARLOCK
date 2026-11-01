@@ -24,12 +24,12 @@ test('loads Vue and checks Express/MongoDB through the Vite proxy', async ({ pag
 })
 
 test('recovers from a failed API request using retry', async ({ page }) => {
-  await page.route('**/api/auth/me', (route) => route.abort())
+  await page.route('**/api/auth/session', (route) => route.abort())
   await page.goto('/about')
   const overlay = page.getByRole('dialog')
   const retry = overlay.getByRole('button', { name: 'Try again', exact: true })
   await expect(overlay.getByRole('alert')).toBeVisible()
-  await page.unroute('**/api/auth/me')
+  await page.unroute('**/api/auth/session')
   await retry.click()
   await expect(retry).toBeHidden()
   await expect(

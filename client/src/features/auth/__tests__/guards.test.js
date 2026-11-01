@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import axios from 'axios'
-import { createAccountGuard, installBrowserAccountAccess } from '../guards.js'
+import axios, { AxiosError } from 'axios'
+import {
+  createAccountGuard,
+  installBrowserAccountAccess,
+  installSessionReturnCheck,
+} from '../guards.js'
 
 const disposals = []
 afterEach(() => disposals.splice(0).forEach((dispose) => dispose()))
@@ -29,7 +33,155 @@ function clientWithAccess(checkSession) {
   return { client, adapter, onExpired }
 }
 
+// answers each request from a table of path to [status, body]
+function clientWithResponses(table, { signedIn = true } = {}) {
+  const adapter = vi.fn(async (config) => {
+    const [status, data] = table[config.url] ?? [200, {}]
+    const response = { config, status, statusText: '', headers: {}, data }
+    if (status < 400) return response
+    throw new AxiosError('failed', 'ERR_BAD_REQUEST', config, undefined, response)
+  })
+  const client = axios.create({ baseURL: '/api', adapter })
+  const onExpired = vi.fn()
+  disposals.push(
+    installBrowserAccountAccess(client, {
+      checkSession: vi.fn().mockResolvedValue({ id: 'student' }),
+      onExpired,
+      isSignedIn: () => signedIn,
+      getOrigin: () => 'http://localhost:5173',
+    }),
+  )
+  return { client, onExpired }
+}
+
+const ended = (reason) => [
+  401,
+  { error: { code: 'AUTHENTICATION_REQUIRED', message: 'Sign in.', ...(reason && { reason }) } },
+]
+
+describe('session end from any feature', () => {
+  it('treats a 401 on a signed-in request as expiry and still rejects the caller', async () => {
+    const { client, onExpired } = clientWithResponses({ '/cohorts/managed': ended() })
+    await expect(client.get('/cohorts/managed')).rejects.toMatchObject({
+      response: { status: 401 },
+    })
+    expect(onExpired).toHaveBeenCalledExactlyOnceWith({ replaced: false })
+  })
+
+  it.each(['/attempts/a1/actions', '/me/profile', '/me/wardrobe', '/leaderboards'])(
+    'covers %s, not only news and games',
+    async (path) => {
+      const { client, onExpired } = clientWithResponses({ [path]: ended() })
+      await expect(client.post(path, {})).rejects.toBeDefined()
+      expect(onExpired).toHaveBeenCalledOnce()
+    },
+  )
+
+  it('passes on the reason when a newer sign-in replaced the session', async () => {
+    const { client, onExpired } = clientWithResponses({
+      '/cohorts/managed': ended('session-replaced'),
+    })
+    await expect(client.get('/cohorts/managed')).rejects.toBeDefined()
+    expect(onExpired).toHaveBeenCalledExactlyOnceWith({ replaced: true })
+  })
+
+  it('reads the reason from a security token reply, which replaces the marker', async () => {
+    const { client, onExpired } = clientWithResponses({
+      '/auth/csrf': [200, { csrfToken: 'x', sessionEnded: 'replaced' }],
+    })
+    await expect(client.get('/auth/csrf')).resolves.toMatchObject({ status: 200 })
+    expect(onExpired).toHaveBeenCalledExactlyOnceWith({ replaced: true })
+  })
+
+  it('ignores a wrong password, whose 401 is not about a session', async () => {
+    const { client, onExpired } = clientWithResponses({
+      '/auth/login': [401, { error: { code: 'INVALID_CREDENTIALS' } }],
+    })
+    await expect(client.post('/auth/login', {})).rejects.toBeDefined()
+    expect(onExpired).not.toHaveBeenCalled()
+  })
+
+  it('stays quiet for a signed-out caller, so public pages cannot loop', async () => {
+    const { client, onExpired } = clientWithResponses(
+      {
+        '/me/enrollment': ended(),
+        '/auth/csrf': [200, { csrfToken: 'x', sessionEnded: 'replaced' }],
+      },
+      { signedIn: false },
+    )
+    await expect(client.get('/me/enrollment')).rejects.toBeDefined()
+    await client.get('/auth/csrf')
+    expect(onExpired).not.toHaveBeenCalled()
+  })
+})
+
+describe('checking the session when the person returns to a tab', () => {
+  function returningTab({ visibilityState = 'visible', signedIn = true, check } = {}) {
+    const target = new EventTarget()
+    target.document = Object.assign(new EventTarget(), { visibilityState })
+    const checkSession = check ?? vi.fn().mockResolvedValue(null)
+    const onExpired = vi.fn()
+    let time = 0
+    const stop = installSessionReturnCheck({
+      checkSession,
+      onExpired,
+      isSignedIn: () => signedIn,
+      target,
+      now: () => time,
+    })
+    disposals.push(stop)
+    return { target, checkSession, onExpired, stop, advance: (ms) => (time += ms) }
+  }
+
+  it('ends the session when the server no longer has it', async () => {
+    const { target, onExpired } = returningTab()
+    target.dispatchEvent(new Event('focus'))
+    await vi.waitFor(() => expect(onExpired).toHaveBeenCalledOnce())
+  })
+
+  it('checks once for a burst of focus and visibility events', async () => {
+    const { target, checkSession, advance } = returningTab()
+    target.dispatchEvent(new Event('focus'))
+    target.document.dispatchEvent(new Event('visibilitychange'))
+    expect(checkSession).toHaveBeenCalledOnce()
+    advance(5000)
+    target.dispatchEvent(new Event('focus'))
+    expect(checkSession).toHaveBeenCalledTimes(2)
+  })
+
+  it('does nothing while hidden or signed out, and says nothing when the server is unreachable', async () => {
+    const hidden = returningTab({ visibilityState: 'hidden' })
+    hidden.target.document.dispatchEvent(new Event('visibilitychange'))
+    expect(hidden.checkSession).not.toHaveBeenCalled()
+
+    const anonymous = returningTab({ signedIn: false })
+    anonymous.target.dispatchEvent(new Event('focus'))
+    expect(anonymous.checkSession).not.toHaveBeenCalled()
+
+    const offline = returningTab({ check: vi.fn().mockRejectedValue(new Error('offline')) })
+    offline.target.dispatchEvent(new Event('focus'))
+    await vi.waitFor(() => expect(offline.checkSession).toHaveBeenCalledOnce())
+    expect(offline.onExpired).not.toHaveBeenCalled()
+  })
+
+  it('removes its listeners on disposal', () => {
+    const { target, checkSession, stop } = returningTab()
+    stop()
+    target.dispatchEvent(new Event('focus'))
+    expect(checkSession).not.toHaveBeenCalled()
+  })
+})
+
 describe('account navigation', () => {
+  it('sends a replaced session to sign-in with the elsewhere reason', async () => {
+    const auth = { ...account('authenticated'), sessionEnd: 'elsewhere' }
+    const guard = createAccountGuard(auth)
+    await expect(guard({ meta: { requiresAccount: true } })).resolves.toEqual({
+      path: '/login',
+      query: { reason: 'elsewhere' },
+    })
+  })
+
   it('waits for restoration before permitting protected content', async () => {
     const auth = account()
     let finish

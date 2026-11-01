@@ -766,10 +766,6 @@ describe('admin workspace', () => {
     await wrapper.get('.recovery-lookup').trigger('submit')
     await flushPromises()
     expect(recoveryMocks.lookupStudent).toHaveBeenCalledWith(target.email, expect.any(AbortSignal))
-    await wrapper
-      .findAll('button')
-      .find((button) => button.text() === 'Select student')
-      .trigger('click')
     const checkbox = wrapper.get('input[type="checkbox"]')
     expect(wrapper.get('.recovery-issue-form button[type="submit"]').element.disabled).toBe(true)
     await checkbox.setValue(true)

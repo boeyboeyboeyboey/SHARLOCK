@@ -60,7 +60,7 @@ export function parseVerificationInput(body) {
   return { code }
 }
 
-// Builds the next stored state. The hourly send counter carries over while its window is open.
+// the hourly send counter carries over while its window is open
 export function nextVerificationState({ secret, userId, code, previous, currentTime }) {
   const windowOpen =
     previous?.sendWindowStartedAt &&
@@ -75,7 +75,7 @@ export function nextVerificationState({ secret, userId, code, previous, currentT
   }
 }
 
-// Reports why another send is not allowed right now, or null when it is.
+// milliseconds until another send is allowed, or null when it is allowed now
 export function resendBlock(state, currentTime) {
   if (!state) return null
   const sinceLast = currentTime - new Date(state.lastSentAt).getTime()
@@ -87,13 +87,14 @@ export function resendBlock(state, currentTime) {
   return null
 }
 
-export function publicVerification(email, state, delivery) {
+export function publicVerification(email, state, delivery, currentTime) {
+  const resendAt = new Date(state.lastSentAt).getTime() + RESEND_COOLDOWN_MS
   return {
     email,
     delivery,
     expiresAt: new Date(state.expiresAt).toISOString(),
-    resendAvailableAt: new Date(
-      new Date(state.lastSentAt).getTime() + RESEND_COOLDOWN_MS,
-    ).toISOString(),
+    resendAvailableAt: new Date(resendAt).toISOString(),
+    // relative, so a device with a wrong clock still counts down correctly
+    resendInSeconds: Math.max(0, Math.ceil((resendAt - currentTime) / 1000)),
   }
 }

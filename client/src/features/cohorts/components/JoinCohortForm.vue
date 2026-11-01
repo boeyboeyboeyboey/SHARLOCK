@@ -17,7 +17,7 @@ function submit() {
 <template>
   <form class="cohort-form" novalidate @submit.prevent="submit">
     <div v-if="error || fieldError" class="cohort-alert" role="alert">
-      {{ error || fieldError }}
+      {{ fieldError || error }}
     </div>
     <label for="cohort-code">Class invitation code</label>
     <input
@@ -27,7 +27,7 @@ function submit() {
       autocapitalize="characters"
       maxlength="19"
       :disabled="pending"
-      :aria-invalid="Boolean(fieldError)"
+      :aria-invalid="Boolean(fieldError || error)"
       aria-describedby="cohort-code-help"
     />
     <small id="cohort-code-help"

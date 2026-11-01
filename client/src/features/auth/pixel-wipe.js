@@ -2,7 +2,7 @@ import { reactive } from 'vue'
 import { gameCatalog } from '../../data/gameCatalog.js'
 
 // 8-bit screen wipes played when someone arrives on one of the main tabs from a different page:
-// town, profile, progress, classes, the leaderboard or About, and when opening a game. Each tab has
+// town, profile, classes, the leaderboard or About, and when opening a game. Each tab has
 // its own pattern, colour, emoji and label so moving between them feels different, and each game
 // gets a pair of pixel doors that close, hold, then swing open onto the game. `PixelWipe.vue` (mounted once in App.vue)
 // draws it; this module sequences it: blocks cover the screen, the route changes underneath, the
@@ -72,13 +72,6 @@ export const WIPE_SECTIONS = Object.freeze({
     color: 'var(--text-main)',
     emoji: '🔍',
     label: 'Opening your detective desk…',
-  },
-  progress: {
-    kind: 'blocks',
-    pattern: 'bars',
-    color: 'var(--border-strong)',
-    emoji: '📊',
-    label: 'Checking your progress…',
   },
   classes: {
     kind: 'blocks',
@@ -200,8 +193,6 @@ export function sectionOf(route) {
   switch (route.path) {
     case '/profile':
       return 'profile'
-    case '/progress':
-      return 'progress'
     case '/classes':
       return 'classes'
     case '/leaderboard':
@@ -219,6 +210,8 @@ export function sectionOf(route) {
     case '/admin':
       return 'admin'
     default:
+      // any other overlay opens over the town, so it counts as town and plays no wipe on close
+      if (route.meta?.overlay) return 'town'
       // any game page (the newspaper dialog is part of town and was matched above)
       return route.path.startsWith('/games/')
         ? `game:${route.path.slice('/games/'.length).split('/')[0]}`

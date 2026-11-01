@@ -103,11 +103,16 @@ describe('send state', () => {
 
   it('exposes only the public fields', () => {
     const state = nextVerificationState({ secret, userId, code: '111111', currentTime: start })
-    expect(publicVerification('a@example.test', state, 'sent')).toEqual({
+    expect(publicVerification('a@example.test', state, 'sent', start + 10_000)).toEqual({
       email: 'a@example.test',
       delivery: 'sent',
       expiresAt: new Date(start + CODE_TTL_MS).toISOString(),
       resendAvailableAt: new Date(start + RESEND_COOLDOWN_MS).toISOString(),
+      resendInSeconds: 20,
     })
+    expect(
+      publicVerification('a@example.test', state, 'sent', start + RESEND_COOLDOWN_MS + 1)
+        .resendInSeconds,
+    ).toBe(0)
   })
 })

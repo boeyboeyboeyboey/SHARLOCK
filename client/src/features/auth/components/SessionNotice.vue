@@ -1,5 +1,6 @@
 <script setup>
 import PixelIcon from '../../../components/town/PixelIcon.vue'
+import '../session-notice.css'
 
 defineProps({
   message: { type: String, default: '' },

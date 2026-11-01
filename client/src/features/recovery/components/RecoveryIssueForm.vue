@@ -32,8 +32,8 @@ defineExpose({ focusSubmitButton })
 <template>
   <form class="recovery-issue-form" @submit.prevent="submit">
     <p class="recovery-issue-form__target">
-      Prepare a private reset link for <strong>{{ eligibleStudent?.username }}</strong>
-      <span v-if="eligibleStudent?.email">({{ eligibleStudent.email }})</span>.
+      Prepare a private reset link for <strong>{{ eligibleStudent?.username }}</strong
+      >{{ ' ' }}<span v-if="eligibleStudent?.email">({{ eligibleStudent.email }})</span>.
     </p>
     <label class="recovery-issue-form__check">
       <input v-model="identityVerified" type="checkbox" :disabled="pending" />
@@ -42,7 +42,7 @@ defineExpose({ focusSubmitButton })
     <p v-if="error" class="recovery-alert" role="alert">{{ error }}</p>
     <button
       ref="submitButton"
-      class="btn btn-primary recovery-button"
+      class="btn btn-primary recovery-button admin-workspace__button"
       type="submit"
       :disabled="pending || !eligibleStudent || !identityVerified"
     >

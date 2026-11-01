@@ -3,8 +3,7 @@ import { avatarPresets } from '../modules/auth/avatars.js'
 import { HOW_TO_PLAY_GAME_IDS } from '../modules/profile/how-to-play.js'
 import { DEFAULT_WARDROBE, WARDROBE_ITEM_IDS_BY_SLOT } from '../modules/wardrobe/catalog.js'
 
-// present only while an email address awaits verification. Accounts without it, including every
-// account created before verification existed, count as verified.
+// present only while an email address awaits verification; accounts without it count as verified
 const emailVerificationSchema = new Schema(
   {
     codeHash: { type: String, required: true },

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 
 const mocks = vi.hoisted(() => ({
-  requestCurrentUser: vi.fn(),
+  requestSession: vi.fn(),
   requestCsrfToken: vi.fn(),
   setHowToPlayDismissed: vi.fn(),
 }))
@@ -11,7 +11,7 @@ vi.mock('../api.js', async () => {
   const actual = await vi.importActual('../api.js')
   return {
     ...actual,
-    requestCurrentUser: mocks.requestCurrentUser,
+    requestSession: mocks.requestSession,
     requestCsrfToken: mocks.requestCsrfToken,
   }
 })
@@ -29,7 +29,7 @@ const baseUser = {
 
 async function signedIn(extra = {}) {
   mocks.requestCsrfToken.mockResolvedValue('t')
-  mocks.requestCurrentUser.mockResolvedValue({ ...baseUser, ...extra })
+  mocks.requestSession.mockResolvedValue({ user: { ...baseUser, ...extra } })
   const auth = useAuthStore()
   await auth.restoreSession()
   return auth
@@ -52,7 +52,7 @@ describe('how to play dismissal in the auth store', () => {
 
     setActivePinia(createPinia())
     const bad = useAuthStore()
-    mocks.requestCurrentUser.mockResolvedValue({ ...baseUser, howToPlayDismissed: [1] })
+    mocks.requestSession.mockResolvedValue({ user: { ...baseUser, howToPlayDismissed: [1] } })
     await expect(bad.restoreSession()).rejects.toThrow()
     expect(bad.status).not.toBe('authenticated')
   })

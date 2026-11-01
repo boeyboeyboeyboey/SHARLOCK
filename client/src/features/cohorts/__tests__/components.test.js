@@ -15,6 +15,17 @@ describe('cohort components', () => {
     expect(wrapper.emitted('submit')[0]).toEqual(['ABCDEFGHJKLMPQRS'])
   })
 
+  it('marks the field invalid and shows one message when the server refuses a code', async () => {
+    const wrapper = mount(JoinCohortForm, { props: { error: 'That class code is not valid.' } })
+    expect(wrapper.get('#cohort-code').attributes('aria-invalid')).toBe('true')
+    expect(wrapper.findAll('[role="alert"]')).toHaveLength(1)
+    expect(wrapper.get('[role="alert"]').text()).toBe('That class code is not valid.')
+
+    await wrapper.get('form').trigger('submit')
+    expect(wrapper.findAll('[role="alert"]')).toHaveLength(1)
+    expect(wrapper.get('[role="alert"]').text()).toBe('Enter the 16-character class code.')
+  })
+
   it('keeps membership statuses explicit and offers paging for long lists', async () => {
     const wrapper = mount(MembershipList, {
       props: {

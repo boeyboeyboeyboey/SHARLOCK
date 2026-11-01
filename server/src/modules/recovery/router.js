@@ -17,7 +17,7 @@ export function createActivationRouter(database, { requireMutation, ...settings 
   router.post('/activate-account', ...requireMutation, async (request, response, next) => {
     try {
       parseEmptyQuery(request.query)
-      await service.activateAccount(request.body)
+      await service.activateAccount(request.body, { requestId: response.locals.requestId })
       response.status(204).end()
     } catch (error) {
       next(error)
@@ -139,6 +139,7 @@ export function createRecoveryRouter(
             request.params.cohortId,
             request.params.studentId,
             request.body,
+            { requestId: response.locals.requestId },
           ),
         )
       } catch (error) {
@@ -160,6 +161,7 @@ export function createRecoveryRouter(
             response.locals.authUser,
             request.params.userId,
             request.body,
+            { requestId: response.locals.requestId },
           ),
         )
       } catch (error) {

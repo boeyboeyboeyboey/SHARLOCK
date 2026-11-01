@@ -1,0 +1,35 @@
+.auth-session-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.9rem;
+  border: 2px solid var(--border-strong);
+  background: var(--alert-warning);
+  box-shadow: 2px 2px 0 var(--border-strong);
+  font-size: 0.95rem;
+}
+
+.auth-session-notice__content {
+  display: grid;
+  justify-items: start;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.auth-session-notice p {
+  margin: 0;
+}
+
+.auth-page .auth-session-notice {
+  margin-bottom: 1.25rem;
+}
+
+.auth-form .auth-session-notice {
+  margin: 0;
+}
+
+.auth-session-notice a {
+  font-weight: 700;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}

@@ -42,6 +42,7 @@ Applies to shared pages, the hub and every game (including games' own design fre
 - The interface explains itself through layout, grouping, icons, key badges and visible states. If a control or screen needs a long sentence to make sense, redesign it instead of adding the sentence.
 - Keep short titles and labels, and everything needed for access or correctness: form labels, `aria-*` text, errors and validation, empty states, confirmations for destructive actions.
 - Teach a game through its How to play preview (animated scene), not paragraphs on the play screen.
+- The sign-in page keeps one sentence saying what Sharlock is, because a first-time visitor lands there before seeing anything else (REVFIX-01, C-008).
 
 ### Phone touch targets (FIX-04, Boey, 1 November 2026)
 
@@ -180,7 +181,7 @@ Boey explicitly skipped Task 3 (UI-06) on 17 September 2026. Retain the existing
 
 ## Fit-to-window layout
 
-Added at Eric's request on 14 October 2026 after scrolling made the town and games hard to read on a laptop-height window. The town and every state of the playable games (briefing, play, debrief) fit one window without page scroll; the target is **1280 × 720** and the rule applies from **768px wide and 600px tall**. Below those sizes pages scroll normally. Long prose pages (About, Profile) are not fitted.
+Added at Eric's request on 14 October 2026 after scrolling made the town and games hard to read on a laptop-height window. The town and every state of the playable games (briefing, play, debrief) fit one window without page scroll; the target is **1280 × 720** and the rule applies from **768px wide and 600px tall**. Below those sizes pages scroll normally. Long prose pages (About, Profile) and the sign-in and registration forms are not fitted: those forms grow with an error banner, so they scroll with the page rather than clipping a card (REVFIX-01, C-027).
 
 - **Shared sizing token.** `--shell-chrome` in `client/src/assets/styles/main.css` is the height taken by the header, main padding and footer (236px by default). `.portal-main:has(.case-preview, .is-fitted)` trims the padding and sets it to 176px; the town shell sets 140px in `town.css`. A fitted page sizes itself with `height: calc(100dvh - var(--shell-chrome))` and a `min-height` so it never collapses.
 - **Game opt-in.** A game root adds an `is-fitted` class and keeps every rule scoped under its own root class in its own stylesheet, as the game-isolation rules above require. Social Engineering and CLI Cyber Defender use it. The Phishing triage run (PHISH-01) no longer does; its single-column card scrolls with the page.

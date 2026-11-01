@@ -1,8 +1,10 @@
 <script setup>
 import { avatarPresets } from '../avatars.js'
+import '../avatar-picker.css'
 
 defineProps({
   selected: { type: String, default: 'mint' },
+  heading: { type: String, default: 'Choose your capybara' },
   disabled: { type: Boolean, default: false },
 })
 defineEmits(['update:selected'])
@@ -10,8 +12,7 @@ defineEmits(['update:selected'])
 
 <template>
   <fieldset class="auth-avatar-picker" :disabled="disabled">
-    <legend>Choose your capybara</legend>
-    <p class="auth-field-hint">Pick one portrait. You can recognize your account by this avatar.</p>
+    <legend>{{ heading }}</legend>
     <div class="auth-avatar-picker__grid">
       <label
         v-for="preset in avatarPresets"

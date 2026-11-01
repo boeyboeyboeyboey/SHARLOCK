@@ -12,8 +12,8 @@ const emit = defineEmits(['submit', 'resend', 'cancel'])
 
 const digits = ref(Array.from({ length: CODE_LENGTH }, () => ''))
 const inputs = ref([])
-const summary = ref(null)
 const shaking = ref(false)
+const resent = ref(false)
 const now = ref(Date.now())
 let timer = null
 
@@ -33,9 +33,9 @@ const deliveryNote = computed(() => {
     return 'We could not send the code. Use Resend code to try again.'
   }
   if (props.verification.delivery === 'recent') {
-    return 'A code was sent a moment ago. Use that one, or resend once the timer ends.'
+    return 'A code was already sent. Use that one, or resend once the timer ends.'
   }
-  return ''
+  return resent.value ? 'A new code was sent. The old one no longer works.' : ''
 })
 // this project does not send real email: the server prints the code to its own terminal
 const showDevHint = import.meta.env.DEV
@@ -100,6 +100,7 @@ function submit() {
 function resend() {
   if (secondsLeft.value > 0 || props.pending) return
   clearCode()
+  resent.value = false
   emit('resend')
   focusBox(0)
 }
@@ -113,14 +114,15 @@ watch(
     shaking.value = false
     nextTick(() => {
       shaking.value = true
-      summary.value?.focus()
     })
+    focusBox(0)
   },
 )
 watch(
   () => props.verification.resendAvailableAt,
   () => {
     now.value = Date.now()
+    resent.value = props.verification.delivery === 'sent'
   },
 )
 
@@ -140,21 +142,14 @@ onBeforeUnmount(() => {
   <form class="auth-form auth-verify" novalidate @submit.prevent="submit">
     <p id="verify-intro" class="auth-verify__intro">
       Enter the 6-digit code for <strong>{{ verification.email }}</strong
-      >.
+      >. Codes expire after 10 minutes.
     </p>
     <p v-if="showDevHint" class="auth-field-hint">
       Project demo: no email is sent. Find the code in the server terminal.
     </p>
     <p v-if="deliveryNote" class="auth-field-hint" role="status">{{ deliveryNote }}</p>
 
-    <div
-      v-if="error"
-      ref="summary"
-      class="auth-error-summary"
-      role="alert"
-      tabindex="-1"
-      aria-labelledby="verify-error-title"
-    >
+    <div v-if="error" class="auth-error-summary" role="alert" aria-labelledby="verify-error-title">
       <strong id="verify-error-title">That didn't work.</strong>
       <p>{{ error }}</p>
     </div>

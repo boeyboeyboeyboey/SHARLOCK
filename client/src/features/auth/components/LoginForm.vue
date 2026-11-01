@@ -104,7 +104,6 @@ defineExpose({ clearSecrets })
         <button
           class="auth-password-toggle"
           type="button"
-          tabindex="-1"
           :aria-pressed="showPassword"
           :aria-label="showPassword ? 'Hide password' : 'Show password'"
           title="Show or hide (Alt+S in the field)"

@@ -17,6 +17,8 @@ const feet = (page) =>
 
 // holds a key until the feet are within reach of the target on that axis
 async function hold(page, key, axis, sign, target) {
+  // a key pressed before the walker mounts is never seen, and down does not repeat
+  await expect(page.getByTestId('town-player')).toBeVisible()
   await page.keyboard.down(key)
   await expect
     .poll(async () => sign * ((await feet(page))[axis] - target), { timeout: 20_000 })

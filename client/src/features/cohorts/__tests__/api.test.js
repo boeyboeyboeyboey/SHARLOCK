@@ -9,6 +9,7 @@ vi.mock('../../auth/api.js', () => ({ requestCsrfToken: mocks.requestCsrfToken }
 
 import {
   issueValidatedEnrollmentCode,
+  safeError,
   issueEnrollmentCode,
   joinClass,
   listMemberships,
@@ -90,6 +91,16 @@ describe('cohort API', () => {
     await expect(issueValidatedEnrollmentCode('class-id', 1)).resolves.toMatchObject({ rawCode })
     await expect(issueValidatedEnrollmentCode('class-id', 1)).rejects.toMatchObject({
       code: 'COHORT_CODE_UNAVAILABLE',
+      message: 'A class code could not be issued. Refresh and try again.',
     })
+  })
+
+  it('words a code the join path refused for the student who typed it', () => {
+    const refused = safeError({
+      response: { status: 404, data: { error: { code: 'COHORT_CODE_UNAVAILABLE' } } },
+    })
+    expect(refused.message).toBe(
+      "That class code isn't valid or has expired. Check it with your instructor.",
+    )
   })
 })

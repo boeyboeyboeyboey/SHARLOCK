@@ -505,6 +505,91 @@ describe.skipIf(process.env.SHARLOCK_TEST_REPLICA_SET !== '1')('student password
       .expect(429)
   })
 
+  it('refuses a student whose membership is only pending, without charging the student quota', async () => {
+    const pendingStudent = await createPureStudent('pending')
+    await addStudentToCohort(pendingStudent.user.id, 'pending')
+    const charged = []
+
+    await expect(
+      service({ consumeStudentIssueLimit: (id) => charged.push(id) }).issueInstructorStudentReset(
+        instructorActor(),
+        cohortId.toString(),
+        pendingStudent.user.id,
+        resetPayload,
+      ),
+    ).rejects.toMatchObject({ code: 'RECOVERY_UNAVAILABLE', status: 400 })
+    expect(charged).toEqual([])
+  })
+
+  it('refuses a class the instructor is not assigned to, and a student of another class', async () => {
+    const otherCohort = await cohortModel(database).create({
+      institutionId,
+      name: 'Another Cohort',
+      term: '2026',
+      status: 'active',
+    })
+    const otherStudent = await createPureStudent('other')
+    await membershipModel(database).create({
+      userId: new Types.ObjectId(otherStudent.user.id),
+      cohortId: otherCohort._id,
+      status: 'active',
+    })
+
+    // the unassigned class, with its own student
+    await expect(
+      service().issueInstructorStudentReset(
+        instructorActor(),
+        otherCohort._id.toString(),
+        otherStudent.user.id,
+        resetPayload,
+      ),
+    ).rejects.toMatchObject({ code: 'RECOVERY_UNAVAILABLE', status: 400 })
+    // the instructor's own class id cannot reach a student of another class
+    await expect(
+      service().issueInstructorStudentReset(
+        instructorActor(),
+        cohortId.toString(),
+        otherStudent.user.id,
+        resetPayload,
+      ),
+    ).rejects.toMatchObject({ code: 'RECOVERY_UNAVAILABLE', status: 400 })
+    // and the unassigned class id cannot reach the instructor's own student
+    await expect(
+      service().issueInstructorStudentReset(
+        instructorActor(),
+        otherCohort._id.toString(),
+        student.user.id,
+        resetPayload,
+      ),
+    ).rejects.toMatchObject({ code: 'RECOVERY_UNAVAILABLE', status: 400 })
+  })
+
+  it('stores the http request id on each audit row, so it can be matched to a response', async () => {
+    const issue = await admin.agent
+      .post(`/api/admin/users/${student.user.id}/recovery`)
+      .set('Origin', authOptions.clientOrigin)
+      .set('X-CSRF-Token', admin.csrfToken)
+      .send(resetPayload)
+      .expect(200)
+    const issued = await database.db
+      .collection('audit_events')
+      .findOne({
+        eventType: 'admin.student.recovery.issue',
+        targetId: new Types.ObjectId(student.user.id),
+      })
+    expect(issued.requestId).toBe(issue.headers['x-request-id'])
+
+    const visitor = await newPublicAgent()
+    const redeem = await postReset(visitor, tokenFrom(issue.body.resetUrl)).expect(204)
+    const redeemed = await database.db
+      .collection('audit_events')
+      .findOne({
+        eventType: 'account.student.password_reset',
+        targetId: new Types.ObjectId(student.user.id),
+      })
+    expect(redeemed.requestId).toBe(redeem.headers['x-request-id'])
+  })
+
   it('rejects recovery requests without CSRF, with a foreign origin, or with extra fields', async () => {
     await admin.agent
       .post(`/api/admin/users/${student.user.id}/recovery`)

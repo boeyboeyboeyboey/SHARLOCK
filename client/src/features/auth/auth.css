@@ -52,13 +52,6 @@
   box-shadow: 2px 2px 0 var(--border-strong);
 }
 
-.auth-eyebrow {
-  margin: 0 0 0.6rem;
-  font-size: 0.9rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-}
-
 .auth-card h1 {
   max-width: 18ch;
   margin: 0 6rem 0.6rem 0;
@@ -220,8 +213,7 @@
 }
 
 .auth-switch a,
-.auth-aside__link,
-.auth-session-notice a {
+.auth-aside__link {
   font-weight: 700;
   text-decoration-thickness: 2px;
   text-underline-offset: 3px;
@@ -251,99 +243,6 @@
   min-height: 44px;
   align-items: center;
   gap: 0.5rem;
-}
-
-.auth-avatar-picker {
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-
-.auth-avatar-picker legend {
-  margin-bottom: 0.3rem;
-}
-
-.auth-avatar-picker__grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.75rem;
-  margin-top: 0.75rem;
-}
-
-.auth-avatar-choice {
-  position: relative;
-  display: grid;
-  min-width: 0;
-  min-height: 116px;
-  justify-items: center;
-  align-content: center;
-  gap: 0.4rem;
-  padding: 0.5rem;
-  border: 2px solid var(--border-strong);
-  background: var(--surface);
-  box-shadow: var(--shadow-pixel);
-  text-align: center;
-  cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 700;
-}
-
-.auth-avatar-choice.is-selected {
-  background: var(--accent-primary);
-  box-shadow: 3px 3px 0 var(--border-strong);
-}
-
-.auth-avatar-choice img {
-  display: block;
-  width: 64px;
-  height: 64px;
-  object-fit: contain;
-  image-rendering: pixelated;
-}
-
-.auth-avatar-choice__input {
-  position: absolute;
-  top: 0.4rem;
-  left: 0.4rem;
-  width: 18px;
-  height: 18px;
-  accent-color: var(--border-strong);
-}
-
-.auth-avatar-choice__input:focus-visible {
-  outline: 3px solid var(--text-main);
-  outline-offset: 3px;
-}
-
-.auth-session-notice {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  padding: 0.9rem;
-  border: 2px solid var(--border-strong);
-  background: var(--alert-warning);
-  box-shadow: 2px 2px 0 var(--border-strong);
-  font-size: 0.95rem;
-}
-
-.auth-session-notice__content {
-  display: grid;
-  justify-items: start;
-  gap: 0.5rem;
-  min-width: 0;
-}
-
-.auth-session-notice p {
-  margin: 0;
-}
-
-.auth-page .auth-session-notice {
-  margin-bottom: 1.25rem;
-}
-
-.auth-form .auth-session-notice {
-  margin: 0;
 }
 
 .auth-form--register .auth-submit {
@@ -381,36 +280,16 @@
   .auth-aside {
     margin-top: 0;
   }
-
-  .auth-avatar-picker__grid {
-    gap: 0.5rem;
-  }
-
-  .auth-avatar-choice {
-    min-height: 104px;
-    padding: 0.45rem 0.25rem;
-    font-size: 0.82rem;
-  }
-
-  .auth-avatar-choice img {
-    width: 56px;
-    height: 56px;
-  }
 }
 
-/* laptop-height windows: the page fills what is left under the shell (--shell-chrome) and the card
-   scrolls inside itself when its content (register form, error banner) is taller */
+/* laptop-height windows: tighter spacing; a taller form scrolls with the page, as it does below 992px */
 @media (min-width: 992px) and (min-height: 600px) {
   .auth-page {
-    height: calc(100dvh - var(--shell-chrome));
-    margin: 0 auto;
-    align-items: center;
+    margin: 0 auto 2.5rem;
   }
 
   .auth-card {
-    max-height: 100%;
     padding: 1.3rem 2.1rem;
-    overflow-y: auto;
   }
 
   .auth-card h1 {

@@ -29,7 +29,8 @@ function createTestRouter({ signedOut = false, laterGuard, hold = 0 } = {}) {
         children: [{ path: '/games/threat-briefing', name: 'news', component: page }],
       },
       { path: '/profile', component: page },
-      { path: '/progress', component: page },
+      { path: '/settings', component: page, meta: { overlay: true } },
+      { path: '/discoveries', component: page, meta: { overlay: true } },
       { path: '/classes', component: page },
       { path: '/leaderboard', component: page },
       { path: '/games/clearance-tower', component: page },
@@ -120,7 +121,6 @@ describe('sectionOf', () => {
     expect(await sectionAt('/')).toBe('town')
     expect(await sectionAt('/games/threat-briefing')).toBe('town')
     expect(await sectionAt('/profile')).toBe('profile')
-    expect(await sectionAt('/progress')).toBe('progress')
     expect(await sectionAt('/classes')).toBe('classes')
     expect(await sectionAt('/leaderboard')).toBe('leaderboard')
     expect(await sectionAt('/about')).toBe('about')
@@ -197,10 +197,19 @@ describe('installPageWipes', () => {
     const router = createTestRouter()
     await router.push('/')
     expect((await observe(() => router.push('/profile'))).sections).toEqual(['profile'])
-    expect((await observe(() => router.push('/progress'))).sections).toEqual(['progress'])
     expect((await observe(() => router.push('/leaderboard'))).sections).toEqual(['leaderboard'])
     expect((await observe(() => router.push('/'))).sections).toEqual(['town'])
   })
+
+  it.each(['/settings', '/discoveries'])(
+    'plays no wipe opening or closing %s over the town',
+    async (path) => {
+      const router = createTestRouter()
+      await router.push('/')
+      expect((await observe(() => router.push(path))).sections).toEqual([])
+      expect((await observe(() => router.push('/'))).sections).toEqual([])
+    },
+  )
 
   it('plays the doors when a game is the destination and the town wipe on the way back', async () => {
     const router = createTestRouter()

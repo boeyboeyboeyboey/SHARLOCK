@@ -2,7 +2,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { userModel } from '../../models/User.js'
 import { assertTransactionSupport } from '../admin/bootstrap.js'
 import { createAuditService } from '../audit/service.js'
-import { hashPassword } from '../auth/password.js'
+import { hashPassword, PasswordBusyError } from '../auth/password.js'
 import { AuthError } from '../auth/policy.js'
 import { createPermissionService } from '../../services/permissions.js'
 import { createStudentRecoveryGuards } from './guards.js'
@@ -104,7 +104,8 @@ export function createRecoveryService(
     return eligibility
   }
 
-  async function recordStudentEvent(eventType, eligibility, session) {
+  // an http caller passes its own request id so an audit row can be matched to the response
+  async function recordStudentEvent(eventType, eligibility, session, requestId) {
     await writeAudit(
       {
         eventType,
@@ -113,13 +114,13 @@ export function createRecoveryService(
         targetId: eligibility.target._id.toString(),
         scopeCohortId: eligibility.scopeCohortId?.toString() ?? null,
         outcome: 'success',
-        requestId: randomUUID(),
+        requestId,
       },
       { session },
     )
   }
 
-  async function issueStudentReset(input) {
+  async function issueStudentReset(input, requestId = randomUUID()) {
     let admission
     return withStudentTransaction(async (session) => {
       const eligibility = await recoveryEligibility('issue', input, session)
@@ -160,6 +161,7 @@ export function createRecoveryService(
         input.scopeCohortId ? 'cohort.student.recovery.issue' : 'admin.student.recovery.issue',
         eligibility,
         session,
+        requestId,
       )
       return {
         resetUrl: `${clientOrigin}/reset-password#token=${token}`,
@@ -190,7 +192,13 @@ export function createRecoveryService(
     }
   }
 
-  async function issueInstructorStudentReset(actor, cohortId, studentId, input) {
+  async function issueInstructorStudentReset(
+    actor,
+    cohortId,
+    studentId,
+    input,
+    { requestId } = {},
+  ) {
     parseStudentRecoveryIssue(input)
     const issuerId = recoveryObjectId(actor?.id)
     const scopeCohortId = recoveryObjectId(cohortId)
@@ -199,18 +207,18 @@ export function createRecoveryService(
     if (current.globalRoles.includes('admin') || !current.globalRoles.includes('instructor')) {
       throw new StudentRecoveryError('RECOVERY_FORBIDDEN', 403)
     }
-    return issueStudentReset({ issuerId, targetId, scopeCohortId })
+    return issueStudentReset({ issuerId, targetId, scopeCohortId }, requestId)
   }
 
-  async function issueAdminStudentReset(actor, studentId, input) {
+  async function issueAdminStudentReset(actor, studentId, input, { requestId } = {}) {
     parseStudentRecoveryIssue(input)
     const issuerId = recoveryObjectId(actor?.id)
     const targetId = recoveryObjectId(studentId)
     await permissions.requireCapability(actor, 'admin:recovery:manage')
-    return issueStudentReset({ issuerId, targetId, scopeCohortId: null })
+    return issueStudentReset({ issuerId, targetId, scopeCohortId: null }, requestId)
   }
 
-  async function resetStudentPassword(input) {
+  async function resetStudentPassword(input, { requestId = randomUUID() } = {}) {
     const parsed = parseStudentPasswordResetInput(input)
     try {
       const hash = tokenHash(parsed.token)
@@ -288,10 +296,11 @@ export function createRecoveryService(
         await database.db
           .collection('auth_sessions')
           .deleteMany({ 'session.userId': eligibility.target._id.toString() }, { session })
-        await recordStudentEvent('account.student.password_reset', eligibility, session)
+        await recordStudentEvent('account.student.password_reset', eligibility, session, requestId)
       })
     } catch (error) {
-      if (error instanceof StudentRecoveryError) throw error
+      // a full password queue is temporary and the token is unspent, so the student can retry
+      if (error instanceof StudentRecoveryError || error instanceof PasswordBusyError) throw error
       throw new StudentRecoveryError('RECOVERY_FAILED', 503)
     } finally {
       parsed.password = undefined
@@ -359,7 +368,7 @@ export function createRecoveryService(
     }
   }
 
-  async function activateAccount(input) {
+  async function activateAccount(input, { requestId = randomUUID() } = {}) {
     const parsed = parseActivationInput(input)
     const hash = tokenHash(parsed.token)
     let session
@@ -433,7 +442,7 @@ export function createRecoveryService(
               targetId: userId,
               scopeCohortId: null,
               outcome: 'success',
-              requestId: randomUUID(),
+              requestId,
             },
             { session },
           )
@@ -446,7 +455,7 @@ export function createRecoveryService(
         },
       )
     } catch (error) {
-      if (error instanceof ActivationError) throw error
+      if (error instanceof ActivationError || error instanceof PasswordBusyError) throw error
       throw new ActivationError('ACTIVATION_FAILED', 503)
     } finally {
       parsed.password = undefined

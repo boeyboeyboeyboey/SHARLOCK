@@ -213,6 +213,8 @@ Before the first `test:integration` or `test:e2e` run, allow for these: it downl
 
 ### Using the app
 
+**Accounts.** Forgot your password? There is no self-service reset: ask your instructor or school administrator, who can send a one-time link. An account signs in on one device at a time, so a newer sign-in signs the older tab out and that tab says so. Refreshing during sign-up returns to the code screen; **Use a different email** starts again.
+
 Games open a **How to play** guide on your first visit. Tick "Don't show again" to hide it (saved to your account) and use the game's **How to play** button to reopen it. All five scored games have one (HOW-01, HOW-02).
 
 `/` shows the 3D town hub (Babylon.js; WebGPU when available, otherwise WebGL2). Sharlock walks between buildings and each building opens a game. Details for developers are in the [hub module README](client/src/features/hub/README.md).
@@ -285,7 +287,7 @@ Student
 
 G-SQL fills the game area with a blue SQL arcade console: a class run is timed (180 s, 3 lives) and a personal run is untimed practice with hints. Each case shows the vulnerable query; break it with a login bypass, UNION, blind probes or a second-order username, then choose the right fix every four cases and read the saved result (SQL-02). The case URL restores your own attempt after reload; Play again starts a new one. See the [G-SQL handoff record](TASKS.md#g-sql-saved-practice) and [module known limits](client/src/games/sql-injection-arcade/README.md#known-limits-and-handoff) for verification and remaining recovery/teaching limitations.
 
-Learning progress (`/progress`, signed in): your points (best score per saving game), a card for every activity, topic outcomes, derived badges in the trophy case and a filterable history of completed attempts. All five scored activities save results; The daily briefing is not scored and shows "Not a scored activity". See the [module README](client/src/features/progress/README.md). Assigned instructors and administrators can open `/instructor?class=<id>&view=results` for the Results view of a class: per-game summary, per-student table and paginated attempts (completed class attempts only; see [class-results README](client/src/features/class-results/README.md)).
+Learning progress (Menu > Profile & progress > Progress, or `/progress`, signed in): your points (best score per saving game), a card for every activity, topic outcomes, derived badges in the trophy case and a filterable history of completed attempts. All five scored activities save results; The daily briefing is not scored and shows "Not a scored activity". See the [module README](client/src/features/progress/README.md). Assigned instructors and administrators can open `/instructor?class=<id>&view=results` for the Results view of a class: per-game summary, per-student table and paginated attempts (completed class attempts only; see [class-results README](client/src/features/class-results/README.md)).
 
 Game owners: keep your row and your module README current (see [agents.md §10](agents.md#10-documentation-maintenance)).
 

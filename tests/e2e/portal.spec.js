@@ -234,12 +234,15 @@ test('opens the profile from the menu and handles focus and dismissal', async ({
   await expect(menu).toBeHidden()
   await expect(page).toHaveURL(/\/profile$/)
   await expect(page.getByRole('heading', { name: 'Profile & progress' })).toBeFocused()
+  // the profile tab points to the badges instead of showing an empty copy of them
+  await expect(page.getByText('No badges yet')).toBeHidden()
+  await page.getByRole('link', { name: 'Progress tab' }).click()
+  await expect(page).toHaveURL(/\/profile\?tab=progress$/)
   await expect(page.getByRole('heading', { name: 'Your trophy case' })).toBeVisible()
-  await expect(page.getByText('No badges yet')).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(page).toHaveURL(/\/$/)
   await expect(opener).toBeFocused()
-  await page.goto('/profile')
+  await page.goto('/profile?tab=progress')
   await expect(page.getByRole('heading', { name: 'Your trophy case' })).toBeVisible()
 })
 

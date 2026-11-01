@@ -115,7 +115,7 @@ async function signInWithUi(page, identity) {
 async function selectAdminStudent(page, identity) {
   await page.getByLabel('Student email').fill(identity.email)
   await page.getByRole('button', { name: 'Find student' }).click()
-  await page.getByRole('button', { name: 'Select student' }).click()
+  // one exact match selects itself, so the confirmation appears straight away
   await page.getByLabel(identityCheckLabel).check()
 }
 

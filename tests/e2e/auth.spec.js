@@ -162,13 +162,11 @@ test('registers, restores, signs out, signs in, and stops a protected action aft
   await expect(guide).toBeVisible()
   await guide.getByRole('button', { name: 'Start playing' }).click()
   await expect(guide).toBeHidden()
-  await page.route('**/api/auth/me', (route) =>
+  await page.route('**/api/auth/session', (route) =>
     route.fulfill({
-      status: 401,
+      status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({
-        error: { code: 'AUTHENTICATION_REQUIRED', message: 'Sign in to continue.' },
-      }),
+      body: JSON.stringify({ user: null }),
     }),
   )
   await page.getByRole('button', { name: 'Start the run' }).click()

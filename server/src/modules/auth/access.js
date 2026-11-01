@@ -5,6 +5,19 @@ import {
   setSessionCookieLifetime,
 } from './session.js'
 
+// the replaced marker lets a signed-out tab say a newer sign-in ended it
+export function signedOutBody(request, response, now) {
+  const replaced = request.session?.replacedAt && !sessionIsExpired(request.session, now)
+  return {
+    error: {
+      code: 'AUTHENTICATION_REQUIRED',
+      message: 'Sign in to continue.',
+      ...(replaced && { reason: 'session-replaced' }),
+    },
+    requestId: response.locals.requestId,
+  }
+}
+
 export async function loadSessionActor(request, authService) {
   if (!request.session?.userId) return null
   return authService.findActiveSessionUser(request.session.userId, request.session.authVersion)
@@ -25,12 +38,13 @@ export function createProtectedSessionAccess(sessionRuntime, authService) {
     async (request, response, next) => {
       const user = await loadSessionActor(request, authService)
       if (!user || sessionIsExpired(request.session, settings.now)) {
-        await destroySession(request)
-        clearSessionCookie(response, settings.secureCookie)
-        response.status(401).json({
-          error: { code: 'AUTHENTICATION_REQUIRED', message: 'Sign in to continue.' },
-          requestId: response.locals.requestId,
-        })
+        const body = signedOutBody(request, response, settings.now)
+        // a replaced marker stays until it expires, so parallel requests all get the same reason
+        if (!body.error.reason) {
+          await destroySession(request)
+          clearSessionCookie(response, settings.secureCookie)
+        }
+        response.status(401).json(body)
         return
       }
       response.locals.authUser = user

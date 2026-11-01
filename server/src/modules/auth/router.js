@@ -14,7 +14,7 @@ import { createAuthService } from './service.js'
 import { createVerificationService } from './verification-service.js'
 import { notPendingError, parseVerificationInput } from './verification.js'
 import { createConsoleMailer } from './mailer.js'
-import { createProtectedSessionAccess, loadSessionActor } from './access.js'
+import { createProtectedSessionAccess, loadSessionActor, signedOutBody } from './access.js'
 import { createActivationRouter } from '../recovery/router.js'
 import { createRecoveryService } from '../recovery/service.js'
 import { parseStudentPasswordResetInput, StudentRecoveryError } from '../recovery/policy.js'
@@ -25,6 +25,7 @@ import {
   pendingInvitationValues,
 } from '../cohorts/invitation-session.js'
 import {
+  AUTH_IDLE_MS,
   clearSessionCookie,
   createAnonymousSessionValues,
   createAuthenticatedSessionValues,
@@ -36,13 +37,6 @@ import {
   sessionIsExpired,
   setSessionCookieLifetime,
 } from './session.js'
-
-function sendUnauthorized(request, response) {
-  response.status(401).json({
-    error: { code: 'AUTHENTICATION_REQUIRED', message: 'Sign in to continue.' },
-    requestId: response.locals.requestId,
-  })
-}
 
 function sendUser(response, user, csrfToken) {
   response.status(200).json({ user, csrfToken })
@@ -73,13 +67,15 @@ function requestError(error, _request, response, next) {
   })
 }
 
-// the account is created unverified and the browser holds only an anonymous session that
-// remembers which account is waiting for its code. No authenticated session exists until the
-// code is confirmed.
-async function startPendingVerificationSession(request, response, csrf, authSettings, userId) {
+// no authenticated session exists until the code is confirmed
+async function startPendingVerificationSession(request, csrf, authSettings, pending) {
   const invitation = pendingInvitationValues(request, authSettings.now)
   await rotateSession(request, {
-    ...createPendingVerificationSessionValues(userId, authSettings.now),
+    ...createPendingVerificationSessionValues(
+      pending.userId,
+      pending.authVersion,
+      authSettings.now,
+    ),
     ...invitation,
   })
   const csrfToken = csrf.generateToken(request, true)
@@ -88,10 +84,12 @@ async function startPendingVerificationSession(request, response, csrf, authSett
   return csrfToken
 }
 
-function pendingVerificationUserId(request) {
+const isSessionProbe = (request) => request.method === 'GET' && request.path === '/session'
+
+function pendingVerificationOf(request) {
   const userId = request.session?.pendingVerificationUserId
   if (request.session?.userId || typeof userId !== 'string') throw notPendingError()
-  return userId
+  return { userId, authVersion: request.session.pendingVerificationAuthVersion }
 }
 
 export function createAuthRouter(
@@ -122,12 +120,39 @@ export function createAuthRouter(
   const events = new EventEmitter()
   const sessionCollection = database.db.collection('auth_sessions')
 
-  // one active login per account: the newest sign-in wins, older sessions end and their sockets close
-  async function endOtherSessions(userId, currentSessionId) {
-    const filter = { 'session.userId': userId, _id: { $ne: currentSessionId } }
+  let lastLoginOrder = 0
+
+  // one active login per account: the newest wins, so two logins at once cannot end each other,
+  // and the order settles two in the same millisecond. an ended session stays briefly as an
+  // identity-free marker so its tab can be told why
+  async function endOlderSessions(userId, request) {
+    const { createdAt, loginOrder } = request.session
+    const filter = {
+      'session.userId': userId,
+      _id: { $ne: request.sessionID },
+      $or: [
+        { 'session.createdAt': { $lt: createdAt } },
+        { 'session.createdAt': createdAt, 'session.loginOrder': { $not: { $gte: loginOrder } } },
+      ],
+    }
     const stale = await sessionCollection.find(filter, { projection: { _id: 1 } }).toArray()
     if (stale.length === 0) return
-    await sessionCollection.deleteMany({ _id: { $in: stale.map((doc) => doc._id) } })
+    const replacedAt = new Date(authSettings.now())
+    const markerExpiry = new Date(replacedAt.getTime() + AUTH_IDLE_MS)
+    await sessionCollection.updateMany(
+      { _id: { $in: stale.map((doc) => doc._id) } },
+      {
+        $set: {
+          'session.userId': null,
+          'session.authVersion': null,
+          'session.replacedAt': replacedAt,
+          'session.lastSeenAt': replacedAt,
+          'session.absoluteExpiresAt': markerExpiry,
+          expires: markerExpiry,
+        },
+        $unset: { 'session.csrfToken': '', 'session.classInvitation': '' },
+      },
+    )
     for (const doc of stale) events.emit('session-ended', doc._id, 'replaced')
   }
 
@@ -150,18 +175,23 @@ export function createAuthRouter(
         if (!user) {
           await destroySession(request)
           clearSessionCookie(response, authSettings.secureCookie)
-          sendUnauthorized(request, response)
+          if (isSessionProbe(request)) {
+            request.sessionStore.generate(request)
+            next()
+            return
+          }
+          response.status(401).json(signedOutBody(request, response, authSettings.now))
           return
         }
         if (expired) {
           await destroySession(request)
           clearSessionCookie(response, authSettings.secureCookie)
-          if (request.method === 'GET' && request.path === '/csrf') {
+          if (isSessionProbe(request) || (request.method === 'GET' && request.path === '/csrf')) {
             request.sessionStore.generate(request)
             next()
             return
           }
-          sendUnauthorized(request, response)
+          response.status(401).json(signedOutBody(request, response, authSettings.now))
           return
         }
         response.locals.authUser = user
@@ -206,11 +236,12 @@ export function createAuthRouter(
       parseEmptyQuery(request.query)
       const mustCreateSession = sessionIsExpired(request.session, authSettings.now)
       if (mustCreateSession || !request.session.csrfToken) {
+        const replaced = !mustCreateSession && Boolean(request.session.replacedAt)
         await rotateSession(request, createAnonymousSessionValues(authSettings.now))
         const csrfToken = csrf.generateToken(request, true)
         setSessionCookieLifetime(request, authSettings.now)
         await saveSession(request)
-        response.json({ csrfToken })
+        response.json({ csrfToken, ...(replaced && { sessionEnded: 'replaced' }) })
         return
       }
 
@@ -232,10 +263,9 @@ export function createAuthRouter(
         const pending = await verificationService.registerPending(input)
         const csrfToken = await startPendingVerificationSession(
           request,
-          response,
           csrf,
           authSettings,
-          pending.userId,
+          pending,
         )
         response.status(202).json({ verification: pending.verification, csrfToken })
       } catch (error) {
@@ -263,13 +293,12 @@ export function createAuthRouter(
         const account = await authService.login(input, loginAccount)
         failureSlot.succeed()
         if (account.pendingVerification) {
-          const verification = await verificationService.issueForLogin(account.userId)
+          const verification = await verificationService.issueForLogin(account)
           const csrfToken = await startPendingVerificationSession(
             request,
-            response,
             csrf,
             authSettings,
-            account.userId,
+            account,
           )
           response.status(202).json({ verification, csrfToken })
           return
@@ -282,11 +311,12 @@ export function createAuthRouter(
             authSettings.now,
           ),
           ...invitation,
+          loginOrder: ++lastLoginOrder,
         })
         const csrfToken = csrf.generateToken(request, true)
         setSessionCookieLifetime(request, authSettings.now)
         await saveSession(request)
-        await endOtherSessions(account.userId, request.sessionID)
+        await endOlderSessions(account.userId, request)
         sendUser(response, account.user, csrfToken)
       } catch (error) {
         if (failureSlot) {
@@ -307,8 +337,7 @@ export function createAuthRouter(
       try {
         parseEmptyQuery(request.query)
         const { code } = parseVerificationInput(request.body)
-        const userId = pendingVerificationUserId(request)
-        const account = await verificationService.verify(userId, code)
+        const account = await verificationService.verify(pendingVerificationOf(request), code)
         const invitation = pendingInvitationValues(request, authSettings.now)
         await rotateSession(request, {
           ...createAuthenticatedSessionValues(
@@ -337,13 +366,42 @@ export function createAuthRouter(
       try {
         parseEmptyQuery(request.query)
         parseEmptyInput(request.body)
-        const verification = await verificationService.resend(pendingVerificationUserId(request))
+        const verification = await verificationService.resend(pendingVerificationOf(request))
         response.status(202).json({ verification })
       } catch (error) {
         next(error)
       }
     },
   )
+
+  // the session probe: anyone may ask, so being signed out is an answer rather than a 401
+  router.get('/session', async (request, response, next) => {
+    try {
+      parseEmptyQuery(request.query)
+      if (response.locals.authUser) {
+        response.json({ user: response.locals.authUser })
+        return
+      }
+      const sessionData = request.session
+      if (sessionIsExpired(sessionData, authSettings.now)) {
+        await destroySession(request)
+        clearSessionCookie(response, authSettings.secureCookie)
+        response.json({ user: null })
+        return
+      }
+      if (sessionData.replacedAt) {
+        response.json({ user: null, sessionEnded: 'replaced' })
+        return
+      }
+      const verification =
+        typeof sessionData.pendingVerificationUserId === 'string'
+          ? await verificationService.describePending(pendingVerificationOf(request))
+          : null
+      response.json({ user: null, ...(verification && { verification }) })
+    } catch (error) {
+      next(error)
+    }
+  })
 
   router.get('/me', async (request, response, next) => {
     try {
@@ -354,13 +412,13 @@ export function createAuthRouter(
           await destroySession(request)
           clearSessionCookie(response, authSettings.secureCookie)
         }
-        sendUnauthorized(request, response)
+        response.status(401).json(signedOutBody(request, response, authSettings.now))
         return
       }
       if (sessionIsExpired(sessionData, authSettings.now)) {
         await destroySession(request)
         clearSessionCookie(response, authSettings.secureCookie)
-        sendUnauthorized(request, response)
+        response.status(401).json(signedOutBody(request, response, authSettings.now))
         return
       }
 
@@ -368,7 +426,7 @@ export function createAuthRouter(
       if (!user) {
         await destroySession(request)
         clearSessionCookie(response, authSettings.secureCookie)
-        sendUnauthorized(request, response)
+        response.status(401).json(signedOutBody(request, response, authSettings.now))
         return
       }
 
@@ -409,7 +467,9 @@ export function createAuthRouter(
     async (request, response, next) => {
       try {
         if (request.session?.userId) throw new StudentRecoveryError()
-        await recoveryService.resetStudentPassword(request.body)
+        await recoveryService.resetStudentPassword(request.body, {
+          requestId: response.locals.requestId,
+        })
         response.status(204).end()
       } catch (error) {
         if (error instanceof StudentRecoveryError) {

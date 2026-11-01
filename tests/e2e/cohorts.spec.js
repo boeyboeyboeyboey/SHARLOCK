@@ -100,7 +100,9 @@ test('learner follows a class link and gets access after instructor approval', a
       if (path === '/api/auth/csrf' || path === '/api/auth/class-invitation') {
         invitationCaptureResponses.push({ path, status: response.status() })
       }
-      if (['/api/auth/me', '/api/me/enrollment', '/api/cohorts/join-requests'].includes(path)) {
+      if (
+        ['/api/auth/session', '/api/me/enrollment', '/api/cohorts/join-requests'].includes(path)
+      ) {
         journeyResponses.push(
           response.json().then(
             (body) => ({
