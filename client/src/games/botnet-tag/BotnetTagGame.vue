@@ -3,7 +3,6 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import HowToPlayDialog from '../../components/common/HowToPlayDialog.vue'
 import PixelIcon from '../../components/town/PixelIcon.vue'
-import { useGameAudio } from '../../composables/useGameAudio.js'
 import { useHowToPlay } from '../../composables/useHowToPlay.js'
 import { listManagedCohorts, listMemberships } from '../../features/cohorts/api.js'
 import { useAuthStore } from '../../features/auth/store.js'
@@ -13,6 +12,7 @@ import { readGraphics } from '../../features/hub/graphics.js'
 import ImmersiveControls from '../../features/menu/ImmersiveControls.vue'
 import { useSignOut } from '../../features/menu/townControls.js'
 import { cueView, deriveCues, freshEvents } from './audio/soundCues.js'
+import { useRoundMusic } from './audio/useRoundMusic.js'
 import { useTagSound } from './audio/useTagSound.js'
 import HowToPlayScene from './components/HowToPlayScene.vue'
 import NeedsThreeD from './components/NeedsThreeD.vue'
@@ -160,8 +160,8 @@ watch(
   },
 )
 
-// round music uses the shared mute; a missing track stays silent
-const music = useGameAudio(() => (capable ? 'botnet-tag' : ''))
+// round music uses the shared mute and switches to the final track for the last 30 s; a missing track stays silent
+const music = useRoundMusic(capable, () => ({ phase: state.phase, msLeft: msLeft.value }))
 const sound = useTagSound()
 const { open: howToOpen, show: showHowTo } = useHowToPlay('botnet-tag')
 const seenEvents = new Set()
