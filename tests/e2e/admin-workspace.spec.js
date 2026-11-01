@@ -18,14 +18,20 @@ async function openTab(page, name) {
   )
 }
 
-// newest first, so institutions other specs create can push this one onto a later page
+// newest first, so institutions other specs create can push this one onto another page. a list
+// reload hides its row for a moment, so this sweeps the pages both ways instead of only forwards
 async function editInstitution(page, name) {
   const edit = page.getByRole('button', { name: `Edit ${name}`, exact: true })
   const next = page.getByRole('button', { name: 'Next', exact: true }).first()
+  const previous = page.getByRole('button', { name: 'Previous', exact: true }).first()
+  let step = next
   await expect(async () => {
-    if (!(await edit.isVisible())) await next.click({ timeout: 2000 })
+    if (!(await edit.isVisible())) {
+      if (await step.isDisabled()) step = step === next ? previous : next
+      await step.click({ timeout: 2000 })
+    }
     await expect(edit).toBeVisible({ timeout: 2000 })
-  }).toPass({ timeout: 15_000 })
+  }).toPass({ timeout: 30_000 })
   await edit.click()
 }
 
