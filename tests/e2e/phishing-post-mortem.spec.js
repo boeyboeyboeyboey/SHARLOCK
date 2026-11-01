@@ -354,12 +354,13 @@ for (const size of [
           await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
           await expect(clock).toBeInViewport()
           await expect(trustButton(page)).toBeInViewport()
-          const before = await page.getByRole('article').getByRole('heading').textContent()
           const responded = page.waitForResponse((response) => ACTIONS.test(response.url()))
           await trustButton(page).click()
           const body = await (await responded).json()
           if (!body.publicState.current) break
-          await expect(page.getByRole('article').getByRole('heading')).not.toHaveText(before)
+          await expect(page.getByRole('article').getByRole('heading')).toHaveText(
+            body.publicState.current.subject,
+          )
           await expect.poll(emailTop).toBeGreaterThanOrEqual(await clockBottom())
         }
       } finally {

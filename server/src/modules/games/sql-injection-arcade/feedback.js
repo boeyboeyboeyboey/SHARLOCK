@@ -4,6 +4,8 @@ const COMMON = {
     'The database reported a syntax error: the query it received was malformed, often an unbalanced quote or a missing piece. It still counts as a try.',
   UNSUPPORTED:
     'This trainer does not model that syntax, so nothing was evaluated. It still counts as a try.',
+  STACKED_NOT_RUN:
+    'Stacked statements (;) are never run in this trainer, which is how a real database driver usually behaves too. Try the injection without the second statement. It still counts as a try, but not as a slip.',
   NO_BREAKOUT: 'The input stayed inside its quotes, so the database treated it as plain data.',
   NO_MATCH: 'The query ran but matched no rows.',
   NORMAL: 'That is how the page is meant to work. No injection happened.',

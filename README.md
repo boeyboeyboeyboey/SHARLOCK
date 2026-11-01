@@ -555,6 +555,8 @@ The screen never authenticates the player as a real administrator.
 
 **Acceptance:** Test the example payload, false equalities, payload text contained entirely within a string, malformed quoting, unsupported syntax, retry deduplication and repair scoring. Prove the simulation never grants real privileges or executes a query.
 
+**REVFIX-01 stage 6 update (1 November 2026):** ruleset `sql-3` caps a saved score at 320, the par every flawless practice run reaches, treats `;` as a taught `STACKED_NOT_RUN` that keeps the bonus, and needs a probe of the hidden column's first letter before a blind answer; `sql-2` stays registered with its old rules and 1,130 maximum.
+
 **SQL-02 update (29 October 2026, Review; supersedes the loop, scoring, parser and state above for new attempts):** ruleset `sql-2` replaces the single login puzzle with a run of seeded, server-generated Customs House cases: login bypass (quoted `OR`, comment cut-off, unquoted numeric field), UNION column matching, boolean-blind probing with a yes/no answer, second-order (a stored username fires in a later unsafe update) and a repair choice after every four cases. Class runs are timed (180 s, 3 lives, ranked); personal runs are untimed practice of 12 cases with server-recorded hints that mark a case assisted. Each case allows 3 tries (6 probes plus an answer for blind); points are 10/20/30 by tier, +10 first try when not assisted, 10 per correct repair. The bounded teaching parser (`engine.js`) models the fictional tables in memory and never executes SQL. `sql-1` stays registered (`current: false`) so earlier results still read. See the SQL-02 record in TASKS.md and the server module README.
 
 ### G-CLEAR — Clearance Tower

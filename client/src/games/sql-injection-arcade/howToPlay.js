@@ -19,10 +19,10 @@ export const HOW_TO_PLAY = Object.freeze({
     },
   ],
   learn:
-    'Quote breakout, comments, unquoted numbers, UNION, boolean blind, second-order injection and parameterized queries (CS440 12a-web-security-partII.pptx, slides 16–24).',
+    'Quote breakout, comments, stacked statements and parameterized queries come from CS440 12a-web-security-partII.pptx, slides 16–24. Unquoted numbers, UNION, boolean blind and second-order injection are team extensions beyond that deck.',
   rules: [
     'Class context: a ranked 180 second run with 3 lives. Personal context: untimed practice of 12 cases and 3 repairs, with hints.',
-    'A case scores 10, 20 or 30 points by tier, plus 10 for solving it with no slip and no hint. A correct repair scores 10.',
+    'A case scores 10, 20 or 30 points by tier, plus 10 for solving it with no slip and no hint. A correct repair scores 10. A run saves up to 320 points, the par a flawless practice run always reaches.',
     'No real SQL runs and no real account is touched. Never enter a real password.',
     'Class runs reach the class leaderboard; personal practice does not.',
   ],

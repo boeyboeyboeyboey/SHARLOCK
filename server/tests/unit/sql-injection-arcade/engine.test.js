@@ -68,7 +68,9 @@ describe('t1 login variants', () => {
     ["' OR 1=2 --", '', 'NO_MATCH'],
     ['guest', 'pw', 'NO_BREAKOUT'],
     ["'", '', 'SYNTAX_ERROR'],
-    ["' OR 1=1;", '', 'UNSUPPORTED'],
+    ["' OR 1=1;", '', 'STACKED_NOT_RUN'],
+    // the lecture's own payload (12a-web-security-partII.pptx, slide 20)
+    ["' OR '1'='1'; DROP TABLE Users; --", '', 'STACKED_NOT_RUN'],
     ["' OR 1=1 UNION SELECT 1 --", '', 'SYNTAX_ERROR'],
     ['x'.repeat(2), "' OR " + '1=1 OR '.repeat(10) + '1=1--', 'UNSUPPORTED'],
   ])('tautology %j %j is %s', (user, pass, expected) =>
@@ -112,7 +114,7 @@ describe('t2 union', () => {
     expect(code(run("zz' UNION SELECT username, secret FROM officers--"))).toBe('SYNTAX_ERROR')
     expect(code(run("zz' UNION SELECT username, passcode FROM officers"))).toBe('SYNTAX_ERROR')
     expect(code(run("zz' UNION SELECT * FROM officers--"))).toBe('UNSUPPORTED')
-    expect(code(run("zz'; DROP TABLE officers--"))).toBe('UNSUPPORTED')
+    expect(code(run("zz'; DROP TABLE officers--"))).toBe('STACKED_NOT_RUN')
     expect(code(run("zz' UNION SELECT username, passcode FROM officers WHERE 1=1--"))).toBe(
       'UNSUPPORTED',
     )
@@ -151,7 +153,7 @@ describe('t3 second order', () => {
     expect(code(runChange(users, "' OR 1=1--"))).toBe('TOO_BROAD')
     expect(code(runChange(users, "ghost'--"))).toBe('NO_MATCH')
     expect(code(runChange(users, "admin'--"))).toBe('WRONG_ACCOUNT')
-    expect(code(runChange(users, "x'; DROP TABLE officers--"))).toBe('UNSUPPORTED')
+    expect(code(runChange(users, "x'; DROP TABLE officers--"))).toBe('STACKED_NOT_RUN')
   })
   it('refuses a name that is already taken', () => {
     expect(isTaken(users, 'CLERK')).toBe(true)

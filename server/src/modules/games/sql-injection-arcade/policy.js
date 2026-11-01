@@ -1,5 +1,9 @@
 export const GAME_ID = 'sql-injection-arcade'
-export const RULESET_VERSION = 'sql-2'
+export const RULESET_VERSION = 'sql-3'
+export const LEGACY_RULESET_VERSION = 'sql-2'
+// the lowest score of a flawless practice run, whatever the seed: 3 cases at 20, 4 at 20, 5 at 30
+// and 3 repairs at 10; luckier seeds could reach 410, but the maximum must be reachable by everyone
+export const PAR_SCORE = 320
 export const TIMED_SECONDS = 180
 export const MAX_LIVES = 3
 export const PRACTICE_CASES = 12
@@ -49,7 +53,8 @@ export function maxTimedActions() {
   return total
 }
 
-// upper bound for a full timed run: every case solved first try at the highest tier then possible
+// the sql-2 maximum, kept for saved results: 36 slots in 180 seconds, every case at its highest
+// tier and solved first try, which no run reaches
 export function maxTimedScore() {
   let total = 0
   for (let index = 0; index < TIMED_SLOT_CAP; index += 1)

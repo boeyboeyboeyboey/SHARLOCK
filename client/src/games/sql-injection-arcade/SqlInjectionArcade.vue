@@ -15,6 +15,7 @@ import HowToPlayScene from './components/HowToPlayScene.vue'
 import HowToPlayDialog from '../../components/common/HowToPlayDialog.vue'
 import { useHowToPlay } from '../../composables/useHowToPlay.js'
 import { playSfx } from '../../composables/playSfx.js'
+import { useAuthStore } from '../../features/auth/store.js'
 import { HOW_TO_PLAY } from './howToPlay.js'
 import { useSqlInjection } from './useSqlInjection.js'
 import './sql.css'
@@ -22,6 +23,7 @@ import './sql.css'
 const { open: howToOpen, show: showHowTo } = useHowToPlay('sql-injection-arcade')
 const route = useRoute()
 const router = useRouter()
+const auth = useAuthStore()
 const game = useSqlInjection()
 const { snapshot, busy, error, retryable, state, current, last, timed, secondsLeft } = game
 const initializing = ref(true)
@@ -34,6 +36,12 @@ const takesOneField = computed(() => ['login-numeric', 'union', 'blind'].include
 const showForm = computed(() => current.value && !game.reviewing.value)
 const canHint = computed(() => !timed.value && showForm.value && kind.value !== 'repair')
 const feedback = computed(() => snapshot.value?.feedback ?? {})
+const livesRanOut = computed(
+  () => timed.value && feedback.value.verdictCode === 'SQL_RUN_LIVES_OUT',
+)
+const reachedPar = computed(
+  () => snapshot.value?.maxScore > 0 && snapshot.value.score >= snapshot.value.maxScore,
+)
 
 async function start(context) {
   if (await game.start(context))
@@ -86,7 +94,7 @@ onMounted(async () => {
 })
 </script>
 <template>
-  <div class="sql-game is-fitted">
+  <div class="sql-game is-fitted" data-testid="sql-game">
     <header class="sql-header">
       <RouterLink to="/" class="text-link">← Back to town</RouterLink>
       <h1 tabindex="-1">SQL Injection Arcade</h1>
@@ -104,7 +112,7 @@ onMounted(async () => {
       >
         Reload case
       </button>
-      <RouterLink v-if="!retryable" to="/login" class="text-link">Sign in</RouterLink>
+      <RouterLink v-if="!retryable && !auth.user" to="/login" class="text-link">Sign in</RouterLink>
     </div>
     <p v-if="busy || initializing" role="status">Checking the case with the server…</p>
     <div v-if="!snapshot && !initializing" class="sql-scroll sql-briefing">
@@ -117,12 +125,9 @@ onMounted(async () => {
         <p>
           Solved {{ feedback.casesSolved }}, failed {{ feedback.casesFailed }}, repairs correct
           {{ feedback.repairsCorrect }}, assisted {{ feedback.assistedCases }}.
-          {{
-            feedback.verdictCode === 'SQL_RUN_LIVES_OUT'
-              ? 'The run ended when your lives ran out.'
-              : 'The run reached its end.'
-          }}
+          {{ livesRanOut ? 'The run ended when your lives ran out.' : 'The run reached its end.' }}
         </p>
+        <p v-if="reachedPar">Par reached: the most one run can save.</p>
         <RunReview :review="state.review" />
         <p>
           The reliable repair is always to bind input as parameters. The simulation changed no real

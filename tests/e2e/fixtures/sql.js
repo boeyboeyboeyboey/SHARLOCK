@@ -24,6 +24,25 @@ export async function readSeed(attemptId) {
   }
 }
 
+export async function expireDeadline(attemptId) {
+  const testUri = process.env.TEST_MONGODB_URI
+  if (process.env.NODE_ENV !== 'test' || !testUri)
+    throw new Error('SQL E2E requires the guarded test database.')
+  assertSafeTestDatabaseUri(testUri)
+  const database = await connectDatabase(testUri)
+  try {
+    const past = Date.now() - 1000
+    await database.db
+      .collection('game_attempts')
+      .updateOne(
+        { _id: new database.base.Types.ObjectId(attemptId) },
+        { $set: { startedAt: new Date(past - 180000), deadlineAt: new Date(past) } },
+      )
+  } finally {
+    await database.close()
+  }
+}
+
 export const attemptIdOf = (page) => new URL(page.url()).searchParams.get('attempt')
 
 export async function openRun(page, contextOption = 'personal') {
@@ -65,7 +84,7 @@ export async function waitForCase(page, c) {
 
 // plays one server action through the real controls
 export async function playStep(page, c, step) {
-  const inputs = page.locator('.sql-case-form input[type="text"], .sql-case-form input:not([type])')
+  const inputs = page.getByRole('region', { name: 'Case actions' }).getByRole('textbox')
   const { type, payload } = step
   if (type === 'attempt') {
     for (const [position, value] of payload.inputs.entries()) await inputs.nth(position).fill(value)
@@ -74,8 +93,12 @@ export async function playStep(page, c, step) {
     await inputs.first().fill(payload.inputs[0])
     await press(page, 'Register')
   } else if (type === 'change-password') await press(page, 'Change password')
-  else if (type === 'answer') await press(page, payload.value === 'yes' ? 'Yes' : 'No')
-  else if (type === 'hint') await press(page, 'Show a hint')
+  else if (type === 'answer') {
+    await page
+      .getByRole('button', { name: payload.value === 'yes' ? 'Yes' : 'No', exact: true })
+      .click()
+    await press(page, 'Confirm answer')
+  } else if (type === 'hint') await press(page, 'Show a hint')
   else if (type === 'choose-fix') {
     const option = c.public.options.find((item) => item.id === payload.optionId)
     await page.getByRole('radio', { name: option.text }).check()

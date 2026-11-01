@@ -7,10 +7,12 @@ import { GENERATOR_VERSION } from './generator/index.js'
 import {
   GAME_ID,
   KIND_TIER,
+  LEGACY_RULESET_VERSION,
   MAX_LIVES,
   MAX_NAME,
   MAX_PROBES,
   MAX_TRIES,
+  PAR_SCORE,
   PRACTICE_CASES,
   PRACTICE_SLOTS,
   RULESET_VERSION,
@@ -41,6 +43,7 @@ const LAST_CODES = [
   'WRONG_ACCOUNT',
   'SYNTAX_ERROR',
   'UNSUPPORTED',
+  'STACKED_NOT_RUN',
   'COLUMN_MISMATCH',
   'NO_DATA',
   'WRONG_TABLE',
@@ -136,18 +139,35 @@ function settleTries(rec) {
   rec.outcome = 'failed'
 }
 
-function runAttempt(rec, c, inputs) {
+// sql-3 teaches stacked statements and asks for evidence before a blind answer; attempts saved
+// or open under sql-2 keep the rules they started with
+const CURRENT_RULES = Object.freeze({ stackedIsTeaching: true, strictLetterProbe: true })
+const LEGACY_RULES = Object.freeze({ stackedIsTeaching: false, strictLetterProbe: false })
+
+function outcomeCode(code, rules) {
+  return code === 'STACKED_NOT_RUN' && !rules.stackedIsTeaching ? 'UNSUPPORTED' : code
+}
+
+// a stacked statement is a recognised idea that was refused, so it does not cost the bonus
+function noteMiss(rec, code) {
+  if (code !== 'STACKED_NOT_RUN') rec.slips += 1
+}
+
+function runAttempt(rec, c, inputs, rules) {
   const { kind, model } = c.private
   const needed = kind === 'login-tautology' || kind === 'login-comment' ? 2 : 1
   if (inputs.length !== needed) fail('SQL_INVALID_ACTION', `This case takes ${needed} field(s).`)
   if (kind === 'blind') {
     if (rec.tries >= MAX_PROBES) fail('SQL_NO_PROBES', 'No probes are left. Give your answer.', 409)
     const result = runBlind(model, inputs)
+    const code = outcomeCode(result.code, rules)
     rec.tries += 1
-    rec.last = result.code
-    if (result.code === 'SYNTAX_ERROR' || result.code === 'UNSUPPORTED') rec.slips += 1
+    rec.last = code
+    if (code === 'SYNTAX_ERROR' || code === 'UNSUPPORTED') rec.slips += 1
+    else if (code === 'STACKED_NOT_RUN') noteMiss(rec, code)
     else if (result.sub) {
-      if (rec.trueSeen && rec.falseSeen) rec.probed = true
+      const counts = rules.strictLetterProbe ? result.firstLetterProbe : true
+      if (counts && rec.trueSeen && rec.falseSeen) rec.probed = true
     } else if (result.injected && result.code === 'YES') rec.trueSeen = true
     else if (result.injected && result.code === 'NO' && result.startsKnown) rec.falseSeen = true
     settleTries(rec)
@@ -159,16 +179,17 @@ function runAttempt(rec, c, inputs) {
       : kind === 'login-numeric'
         ? runNumeric(model, inputs)
         : runLogin(model, inputs, kind)
+  const code = outcomeCode(result.code, rules)
   rec.tries += 1
-  rec.last = result.code
-  if (result.code === 'SUCCESS') solve(rec)
+  rec.last = code
+  if (code === 'SUCCESS') solve(rec)
   else {
-    rec.slips += 1
+    noteMiss(rec, code)
     settleTries(rec)
   }
 }
 
-function applyTo(rec, c, action, metadata) {
+function applyTo(rec, c, action, metadata, rules) {
   const { type, payload } = action
   const { kind } = c.private
   const wrong = () => fail('SQL_WRONG_ACTION', 'That action does not fit this case.', 409)
@@ -179,7 +200,7 @@ function applyTo(rec, c, action, metadata) {
     rec.assisted = true
   } else if (type === 'attempt') {
     if (kind === 'repair' || kind === 'second-order') wrong()
-    runAttempt(rec, c, payload.inputs)
+    runAttempt(rec, c, payload.inputs, rules)
   } else if (type === 'register') {
     if (kind !== 'second-order') wrong()
     if (rec.stored !== '') fail('SQL_WRONG_ACTION', 'Change the password first.', 409)
@@ -198,12 +219,13 @@ function applyTo(rec, c, action, metadata) {
     if (kind !== 'second-order') wrong()
     if (rec.stored === '') fail('SQL_WRONG_ACTION', 'Register a username first.', 409)
     const result = runChange(c.private.model, rec.stored)
+    const code = outcomeCode(result.code, rules)
     rec.stored = ''
     rec.tries += 1
-    rec.last = result.code
-    if (result.code === 'SUCCESS') solve(rec)
+    rec.last = code
+    if (code === 'SUCCESS') solve(rec)
     else {
-      rec.slips += 1
+      noteMiss(rec, code)
       settleTries(rec)
     }
   } else if (type === 'answer') {
@@ -294,16 +316,22 @@ function buildReview(state) {
 }
 
 // randomSeed is a test-only seam, never reachable from a request
-export function createSqlRuleset({ randomSeed = () => randomBytes(16).toString('hex') } = {}) {
+export function createSqlRuleset({
+  randomSeed = () => randomBytes(16).toString('hex'),
+  rulesetVersion = RULESET_VERSION,
+  current = true,
+  maxScore = PAR_SCORE,
+  rules = CURRENT_RULES,
+} = {}) {
   return {
     id: GAME_ID,
-    rulesetVersion: RULESET_VERSION,
+    rulesetVersion,
     learningObjective:
       'Recognise how pasted-together SQL lets input become code (quote breakout, comments, unquoted numbers, UNION, boolean blind and second-order injection) and choose bound parameters as the real fix.',
     topicTags: [...SQL_TOPICS],
-    maxScore: maxTimedScore(),
+    maxScore,
     maxActions: maxTimedActions(),
-    current: true,
+    current,
     competitive: true,
     serverRecorded: false,
     stateSchema,
@@ -331,7 +359,7 @@ export function createSqlRuleset({ randomSeed = () => randomBytes(16).toString('
         fail('SQL_STALE_CASE', 'That case is no longer the current one.', 409)
       const cases = state.cases.map((rec) => ({ ...rec }))
       const rec = cases[index] ?? (cases[index] = blankRecord(c.private.kind))
-      applyTo(rec, c, action, metadata)
+      applyTo(rec, c, action, metadata, rules)
       return { ...state, cases }
     },
     canComplete(state, metadata) {
@@ -347,7 +375,9 @@ export function createSqlRuleset({ randomSeed = () => randomBytes(16).toString('
         maxLives: timed ? MAX_LIVES : null,
         lives: timed ? livesLeft(state.cases) : null,
         casesClosed: totals.closed,
-        score: totals.score,
+        // the browser uses this to correct its countdown for a skewed device clock
+        serverNow: new Date(metadata.now).getTime(),
+        score: Math.min(totals.score, maxScore),
         solved: totals.solved,
         failed: totals.failed,
         current: playable ? currentView(state) : null,
@@ -356,7 +386,7 @@ export function createSqlRuleset({ randomSeed = () => randomBytes(16).toString('
       if (metadata.status === 'completed') view.review = buildReview(state)
       return view
     },
-    summarize(state) {
+    summarize(state, metadata) {
       const totals = tally(state.cases)
       const byTopic = topicBreakdown(state.cases)
       const topicOutcomes = [...byTopic].map(([topic, { solved, total }]) => ({
@@ -371,10 +401,12 @@ export function createSqlRuleset({ randomSeed = () => randomBytes(16).toString('
           achieved: totals.repairsRight === repairs,
           feedbackCode: totals.repairsRight === repairs ? 'SQL_TOPIC_MET' : 'SQL_TOPIC_MISSED',
         })
+      // practice has no lives, so three failed cases there are not a lost run
+      const livesOut = metadata?.mode === 'standard' && totals.failed >= MAX_LIVES
       return {
-        score: Math.min(totals.score, maxTimedScore()),
+        score: Math.min(totals.score, maxScore),
         feedback: {
-          verdictCode: totals.failed >= MAX_LIVES ? 'SQL_RUN_LIVES_OUT' : 'SQL_RUN_FINISHED',
+          verdictCode: livesOut ? 'SQL_RUN_LIVES_OUT' : 'SQL_RUN_FINISHED',
           casesSolved: totals.solved,
           casesFailed: totals.failed,
           repairsCorrect: totals.repairsRight,
@@ -387,3 +419,10 @@ export function createSqlRuleset({ randomSeed = () => randomBytes(16).toString('
 }
 
 export const sqlRuleset = createSqlRuleset()
+
+export const sqlPreviousRuleset = createSqlRuleset({
+  rulesetVersion: LEGACY_RULESET_VERSION,
+  current: false,
+  maxScore: maxTimedScore(),
+  rules: LEGACY_RULES,
+})

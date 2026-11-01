@@ -22,6 +22,12 @@ const baseCase = {
 }
 
 describe('RunHud', () => {
+  it('says no case is open instead of printing null', () => {
+    const wrapper = mount(RunHud, { props: { number: null, score: 0 } })
+    expect(wrapper.text()).toContain('No open case')
+    expect(wrapper.text()).not.toContain('null')
+  })
+
   it('shows the clock, lives and tries in a timed run', () => {
     const wrapper = mount(RunHud, {
       props: {
@@ -109,8 +115,17 @@ describe('BlindAnswer and RepairSelector', () => {
   it('emits the chosen answer', async () => {
     const wrapper = mount(BlindAnswer, { props: { question: 'Is it after M?' } })
     expect(wrapper.text()).toContain('Is it after M?')
-    await wrapper.findAll('button')[1].trigger('click')
-    expect(wrapper.emitted('answer')).toEqual([['no']])
+    const named = (name) => wrapper.findAll('button').find((item) => item.text() === name)
+    await named('No').trigger('click')
+    // one tap only chooses, so a mistaken tap cannot close the case
+    expect(wrapper.emitted('answer')).toBeUndefined()
+    expect(wrapper.text()).toContain('You are answering No.')
+    await named('Change answer').trigger('click')
+    expect(wrapper.text()).not.toContain('You are answering')
+    await named('Yes').trigger('click')
+    await named('Confirm answer').trigger('click')
+    expect(wrapper.emitted('answer')).toEqual([['yes']])
+    expect(named('Yes')).toBeDefined()
   })
 
   it('emits the selected repair option id', async () => {

@@ -2,6 +2,8 @@ import { test, expect } from './fixtures/auth.js'
 import { seedClass, signedInPage } from './fixtures/class.js'
 import { jumpToBuilding } from './fixtures/town.js'
 import {
+  expireDeadline,
+  attemptIdOf,
   failSteps,
   finishRun,
   generateCase,
@@ -16,7 +18,8 @@ import {
 // classic scrollbars take layout space, as on windows and linux desktops
 test.use({ launchOptions: { ignoreDefaultArgs: ['--hide-scrollbars'] } })
 
-const firstInput = (page) => page.locator('.sql-case-form input').first()
+const firstInput = (page) =>
+  page.getByRole('region', { name: 'Case actions' }).getByRole('textbox').first()
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('sharlock.townMode', '2d'))
@@ -81,7 +84,7 @@ test('plays a practice run with a wrong try, a hint, replay and a saved review',
     .first()
     .click()
   await expect(page).toHaveURL(/\/$/)
-  expect(await page.locator('.sql-game').count()).toBe(0)
+  await expect(page.getByTestId('sql-game')).toHaveCount(0)
   await page.goto('/join-class')
   expect(
     await page
@@ -138,6 +141,82 @@ test('a class run is timed, spends lives on failed cases and saves', async ({
   }
 })
 
+test('a class run that reaches its deadline completes itself and saves', async ({
+  browser,
+  baseURL,
+}) => {
+  const seeded = await seedClass(Math.random().toString(16).slice(2, 10))
+  const session = await signedInPage(browser, baseURL, seeded.studentA)
+  const { page } = session
+  try {
+    await openRun(page, seeded.classId)
+    await expireDeadline(attemptIdOf(page))
+    await page.reload()
+    await expect(page.getByText('Result saved to your account.', { exact: true })).toBeVisible()
+    await expect(page.getByText('The run reached its end.')).toBeVisible()
+    await expect(page.getByText('Case null')).toHaveCount(0)
+  } finally {
+    await session.context.close()
+  }
+})
+
+test('the lecture payload teaches instead of reading as unsupported, and keeps the bonus', async ({
+  page,
+}) => {
+  const seed = await openRun(page)
+  for (let index = 0; index < 15; index += 1) {
+    const c = generateCase({ seed, index })
+    if (c.private.kind !== 'login-tautology') {
+      await playCase(page, c, solutionFor(c))
+      await page.getByRole('button', { name: 'Next case' }).click()
+      continue
+    }
+    await waitForCase(page, c)
+    await playStep(page, c, {
+      type: 'attempt',
+      payload: { caseId: c.public.caseId, inputs: ["' OR '1'='1'; DROP TABLE Users; --", 'x'] },
+    })
+    const result = page.getByTestId('sql-result')
+    await expect(result).toContainText('never run')
+    await expect(result).toBeFocused()
+    // focus that moves after every action can be seen
+    const outline = await result.evaluate((element) => getComputedStyle(element).outlineStyle)
+    expect(outline).toBe('solid')
+    await playStep(page, c, solutionFor(c)[0])
+    await expect(result).toContainText('Solved: +20 points')
+    return
+  }
+  test.skip(true, 'this seed drew no tautology case')
+})
+
+test('a blind answer asks for a second press before it is sent', async ({ page }) => {
+  const seed = await openRun(page)
+  for (let index = 0; index < 15; index += 1) {
+    const c = generateCase({ seed, index })
+    if (c.private.kind !== 'blind') {
+      await playCase(page, c, solutionFor(c))
+      await page.getByRole('button', { name: 'Next case' }).click()
+      continue
+    }
+    const steps = solutionFor(c)
+    await playCase(page, c, steps.slice(0, 3))
+    let answers = 0
+    page.on('request', (request) => {
+      if (request.method() === 'POST' && /\/actions$/.test(request.url())) answers += 1
+    })
+    await page.getByRole('button', { name: 'Yes', exact: true }).click()
+    await expect(page.getByText('You are answering Yes.')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Confirm answer' })).toBeFocused()
+    expect(answers).toBe(0)
+    await page.getByRole('button', { name: 'Change answer' }).click()
+    await expect(page.getByRole('button', { name: 'Yes', exact: true })).toBeFocused()
+    await playStep(page, c, steps[3])
+    await expect(page.getByTestId('sql-result')).toContainText('Solved')
+    return
+  }
+  test.skip(true, 'this seed drew no blind case')
+})
+
 test('reflows with keyboard access at required widths and fits the laptop viewport', async ({
   page,
 }, testInfo) => {
@@ -159,7 +238,7 @@ test('reflows with keyboard access at required widths and fits the laptop viewpo
     }
     const inspector = await page.getByTestId('sql-inspector-row').boundingBox()
     const tests = await page.getByTestId('sql-test-row').boundingBox()
-    const gameFrame = await page.locator('.sql-game').boundingBox()
+    const gameFrame = await page.getByTestId('sql-game').boundingBox()
     const workspace = await page.getByTestId('interior-desk').boundingBox()
     expect(Math.abs(gameFrame.x - workspace.x)).toBeLessThanOrEqual(1)
     expect(Math.abs(gameFrame.width - workspace.width)).toBeLessThanOrEqual(1)
@@ -237,7 +316,7 @@ test('recovers lost action and completion responses without spending another try
       await route.abort('failed')
     } else await route.continue()
   })
-  const inputs = page.locator('.sql-case-form input')
+  const inputs = page.getByRole('region', { name: 'Case actions' }).getByRole('textbox')
   const step = junkAction(first)
   for (const [position, value] of step.payload.inputs.entries())
     await inputs.nth(position).fill(value)

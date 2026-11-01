@@ -16,6 +16,7 @@ const props = defineProps({
 
 const caseLabel = computed(() => {
   if (props.repair) return 'Repair'
+  if (props.number === null) return 'No open case'
   if (props.totalCases) return `Case ${props.number} of ${props.totalCases}`
   return `Case ${props.number}`
 })

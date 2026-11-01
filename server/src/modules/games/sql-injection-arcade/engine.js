@@ -1,4 +1,4 @@
-// bounded teaching parser for sql-2: it never runs SQL and never touches a database.
+// bounded teaching parser for sql-2 and sql-3: it never runs SQL and never touches a database.
 // each case builds a query string from fixed text plus the player's raw input, the string is
 // tokenised under an allowlist and the resulting condition is evaluated in memory against a
 // fictional table made of synthetic rows. anything outside the grammar stops with a code.
@@ -30,6 +30,7 @@ export class SqlStop extends Error {
 
 const syntax = (detail) => new SqlStop('SYNTAX_ERROR', detail)
 const unsupported = (detail) => new SqlStop('UNSUPPORTED', detail)
+const stacked = () => new SqlStop('STACKED_NOT_RUN', 'stacked statement')
 
 export function tokenise(text) {
   const tokens = []
@@ -76,7 +77,8 @@ export function tokenise(text) {
     } else if (PUNCTUATION.has(rest[0])) {
       tokens.push({ t: 'p', v: rest[0] })
       cursor += 1
-    } else if (rest[0] === '%') throw syntax('leftover pattern')
+    } else if (rest[0] === ';') throw stacked()
+    else if (rest[0] === '%') throw syntax('leftover pattern')
     else throw unsupported('character')
     if (tokens.length > MAX_TOKENS) throw unsupported('length')
   }
@@ -181,8 +183,11 @@ function matches(groups, row) {
   )
 }
 
-const usesSubstring = (groups) =>
-  groups.flat().some((atom) => atom.left.k === 'sub' || atom.right.k === 'sub')
+const substringsIn = (groups) =>
+  groups
+    .flat()
+    .flatMap((atom) => [atom.left, atom.right])
+    .filter((side) => side.k === 'sub')
 
 // indexes of the rows whose condition holds, for a tail that must be one complete condition
 function runWhere(tail, rows, allowSubstring = false) {
@@ -192,7 +197,7 @@ function runWhere(tail, rows, allowSubstring = false) {
   checkColumns(groups, Object.keys(rows[0]))
   return {
     matched: rows.flatMap((row, index) => (matches(groups, row) ? [index] : [])),
-    sub: usesSubstring(groups),
+    subs: substringsIn(groups),
   }
 }
 
@@ -292,11 +297,13 @@ export function runBlind(model, inputs) {
       [model.col]: crate,
       [model.hiddenCol]: model.hiddenValue,
     }))
-    const { matched, sub } = runWhere(`${model.col} = '${input}'`, rows, true)
+    const { matched, subs } = runWhere(`${model.col} = '${input}'`, rows, true)
     return {
       code: matched.length ? 'YES' : 'NO',
       injected: quoted(inputs),
-      sub,
+      sub: subs.length > 0,
+      // the question asks about the first letter of the hidden column, so only that is evidence
+      firstLetterProbe: subs.some((side) => side.col === model.hiddenCol && side.at === 1),
       startsKnown: input.toUpperCase().startsWith(model.known.toUpperCase()),
     }
   })

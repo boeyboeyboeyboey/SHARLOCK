@@ -9,11 +9,12 @@ import { triageLegacyRuleset, triageRuleset } from '../games/phishing-post-morte
 import { socialEngineeringRuleset } from '../games/social-engineering-simulator/ruleset.js'
 import { socialEngineeringShiftRuleset } from '../games/social-engineering-simulator/shiftRuleset.js'
 import { sqlLegacyRuleset } from '../games/sql-injection-arcade/legacy.js'
-import { sqlRuleset } from '../games/sql-injection-arcade/ruleset.js'
+import { sqlPreviousRuleset, sqlRuleset } from '../games/sql-injection-arcade/ruleset.js'
 
 export function createProductionAttemptRegistry() {
   return createAttemptRegistry([
     sqlLegacyRuleset,
+    sqlPreviousRuleset,
     sqlRuleset,
     clearanceLegacyRuleset,
     clearanceHintsRuleset,
