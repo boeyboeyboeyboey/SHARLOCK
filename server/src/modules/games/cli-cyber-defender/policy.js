@@ -10,6 +10,8 @@ export const TOTAL_STEPS = INCIDENT_COUNT + TWO_STEP_INCIDENTS
 export const MAX_LOOKUPS_PER_INCIDENT = 6
 export const MAX_MISTAKES_PER_INCIDENT = 3
 export const MAX_HINT_TIER = 2
+export const MAX_PAUSES_PER_RUN = 2
+export const PAUSE_BUDGET_SECONDS = 30
 export const TIME_PENALTY_SECONDS = 5
 export const MIN_PENALISED_WINDOW_SECONDS = 5
 export const POINTS_PER_STEP = 100
@@ -152,6 +154,22 @@ export function pauseUnavailable() {
     'CLI_PAUSE_UNAVAILABLE',
     'Only a timed game that is still running can be paused.',
     409,
+  )
+}
+
+export function pausesSpent() {
+  return new CliError(
+    'CLI_PAUSE_UNAVAILABLE',
+    'This game has used all its pauses, so the clock keeps running.',
+    409,
+  )
+}
+
+export function terminalFull() {
+  return new CliError(
+    'CLI_UNAVAILABLE',
+    'The terminal is full right now. Try again in a few minutes.',
+    503,
   )
 }
 

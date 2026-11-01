@@ -15,6 +15,8 @@ import {
 
 const MAX_LINES = 200
 const MAX_HISTORY = 50
+const SYNC_RETRY_MIN_MS = 1000
+const SYNC_RETRY_MAX_MS = 10_000
 
 // phase: briefing | starting | running | finishing | debrief; a timed run can also be paused
 // onEvent receives 'alert', 'ok', 'fail' or 'miss' so the screen can add sound and effects
@@ -32,6 +34,7 @@ export function useCliDefender({ now = () => Date.now(), tickMs = 100, onEvent =
   const paused = ref(false)
   const resuming = ref(false)
   const frozenRemaining = ref(null)
+  const pauseEndsAt = ref(null)
   const lastReview = ref(null)
   const hinting = ref(false)
   const saving = ref(false)
@@ -48,6 +51,8 @@ export function useCliDefender({ now = () => Date.now(), tickMs = 100, onEvent =
   let timer
   let penaltyTimer
   let syncing = false
+  let nextSyncAt = 0
+  let syncRetryMs = SYNC_RETRY_MIN_MS
   let disposed = false
 
   const current = computed(() => snapshot.value?.current ?? null)
@@ -58,6 +63,15 @@ export function useCliDefender({ now = () => Date.now(), tickMs = 100, onEvent =
     return Math.max(0, closesAt - (clockNow.value + offset))
   })
   const canSubmit = computed(() => phase.value === 'running' && !pending.value && !paused.value)
+  const pauseBudget = computed(() => snapshot.value?.pauseBudget ?? null)
+  const canPause = computed(() => {
+    const budget = pauseBudget.value
+    return Boolean(budget) && budget.pausesLeft > 0 && budget.msLeft > 0
+  })
+  const pauseSecondsLeft = computed(() => {
+    if (!paused.value || pauseEndsAt.value === null) return null
+    return Math.ceil(Math.max(0, pauseEndsAt.value - clockNow.value) / 1000)
+  })
 
   function print(kind, text) {
     lineId += 1
@@ -84,6 +98,7 @@ export function useCliDefender({ now = () => Date.now(), tickMs = 100, onEvent =
     clockNow.value = receivedAt
     snapshot.value = next
     paused.value = Boolean(next.paused)
+    pauseEndsAt.value = paused.value ? receivedAt + (next.pauseBudget?.msLeft ?? 0) : null
     for (const item of next.history) {
       if (announced.has(item.incidentId)) continue
       announced.add(item.incidentId)
@@ -107,7 +122,23 @@ export function useCliDefender({ now = () => Date.now(), tickMs = 100, onEvent =
 
   function tick() {
     clockNow.value = now()
-    if (phase.value === 'running' && !paused.value && remainingMs.value === 0 && !syncing) sync()
+    if (phase.value !== 'running') return
+    if (paused.value) {
+      if (pauseEndsAt.value !== null && clockNow.value >= pauseEndsAt.value) resumeOutOfTime()
+      return
+    }
+    if (remainingMs.value === 0 && !syncing && clockNow.value >= nextSyncAt) sync()
+  }
+
+  function resumeOutOfTime() {
+    if (resuming.value) return
+    print('info', 'Pause time used up. The clock is running again.')
+    resume()
+  }
+
+  // a run that is gone or a signed-out player never comes back on its own, so stop asking
+  function isFinalFailure(requestError) {
+    return [401, 404].includes(requestError?.response?.status)
   }
 
   async function sync() {
@@ -115,10 +146,15 @@ export function useCliDefender({ now = () => Date.now(), tickMs = 100, onEvent =
     syncing = true
     try {
       const data = await fetchRun(snapshot.value.runId, controller?.signal)
+      nextSyncAt = 0
+      syncRetryMs = SYNC_RETRY_MIN_MS
       if (!disposed && phase.value === 'running') apply(data)
     } catch (requestError) {
       if (disposed || controller?.signal.aborted) return
       error.value = errorMessage(requestError, 'Lost contact with the terminal. Retrying.')
+      if (isFinalFailure(requestError)) stopTimer()
+      nextSyncAt = now() + syncRetryMs
+      syncRetryMs = Math.min(syncRetryMs * 2, SYNC_RETRY_MAX_MS)
     } finally {
       syncing = false
     }
@@ -136,6 +172,9 @@ export function useCliDefender({ now = () => Date.now(), tickMs = 100, onEvent =
     paused.value = false
     resuming.value = false
     frozenRemaining.value = null
+    pauseEndsAt.value = null
+    nextSyncAt = 0
+    syncRetryMs = SYNC_RETRY_MIN_MS
     lastReview.value = null
     hinting.value = false
     penalty.value = null
@@ -357,15 +396,22 @@ export function useCliDefender({ now = () => Date.now(), tickMs = 100, onEvent =
   // switching away freezes the server clock; the player resumes explicitly when back
   async function pause(note = 'Game paused while you were away. The clock is stopped.') {
     if (mode.value !== 'timed' || phase.value !== 'running' || paused.value) return false
+    if (!canPause.value) return false
     frozenRemaining.value = remainingMs.value
     paused.value = true
+    pauseEndsAt.value = now() + pauseBudget.value.msLeft
     print('info', note)
     pausing = (async () => {
       try {
         const data = await pauseRun(snapshot.value.runId, controller?.signal)
         if (!disposed && phase.value === 'running') apply(data)
-      } catch {
-        // the resume request resynchronises with the server either way
+      } catch (requestError) {
+        // the resume request resynchronises with the server, unless the server refused the pause
+        if (!disposed && errorCode(requestError) === 'CLI_PAUSE_UNAVAILABLE') {
+          paused.value = false
+          pauseEndsAt.value = null
+          await sync()
+        }
       }
     })()
     // report the local pause at once so a quick "keep playing" still resumes; resume awaits the request
@@ -386,6 +432,8 @@ export function useCliDefender({ now = () => Date.now(), tickMs = 100, onEvent =
     } catch (requestError) {
       if (disposed || controller?.signal.aborted) return
       error.value = errorMessage(requestError, 'The game could not be resumed. Try again.')
+      if (isFinalFailure(requestError)) stopTimer()
+      else if (pauseEndsAt.value !== null) pauseEndsAt.value = now() + SYNC_RETRY_MAX_MS
     } finally {
       if (!disposed) resuming.value = false
     }
@@ -429,6 +477,9 @@ export function useCliDefender({ now = () => Date.now(), tickMs = 100, onEvent =
     canSubmit,
     paused,
     resuming,
+    canPause,
+    pauseBudget,
+    pauseSecondsLeft,
     lastReview,
     hinting,
     saving,

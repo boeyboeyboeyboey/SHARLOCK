@@ -22,8 +22,10 @@ watch(
   async () => {
     await nextTick()
     if (output.value) output.value.scrollTop = output.value.scrollHeight
-    // keep the prompt on screen while the player is typing, however long the log gets
-    if (input.value && document.activeElement === input.value)
+    // keep the prompt on screen while the player is typing, however long the log gets; a phone
+    // scrolls as one page and shows the new alert instead
+    const scrollsAsPage = globalThis.matchMedia?.('(max-width: 575.98px)').matches
+    if (!scrollsAsPage && input.value && document.activeElement === input.value)
       input.value.scrollIntoView({ block: 'nearest' })
   },
 )
@@ -48,7 +50,11 @@ function onSubmit() {
   emit('submit-command', props.modelValue)
 }
 
-defineExpose({ focus: () => input.value?.focus() })
+defineExpose({
+  focus: () => input.value?.focus(),
+  // keeps focus inside the game without raising a phone's on-screen keyboard
+  focusLog: () => output.value?.focus({ preventScroll: true }),
+})
 </script>
 
 <template>

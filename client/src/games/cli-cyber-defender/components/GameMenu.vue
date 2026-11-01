@@ -4,6 +4,7 @@ import CliIcon from './CliIcon.vue'
 
 defineProps({
   canPause: { type: Boolean, default: false },
+  pauseNote: { type: String, default: '' },
   paused: { type: Boolean, default: false },
   canEnd: { type: Boolean, default: false },
   soundOn: { type: Boolean, default: false },
@@ -73,7 +74,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onOutside))
       aria-controls="cli-game-menu"
       @click="toggle"
     >
-      <CliIcon name="menu" :size="18" />Menu
+      <CliIcon name="menu" :size="18" />Options
     </button>
     <ul
       v-show="open"
@@ -81,7 +82,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onOutside))
       ref="list"
       class="cli-menu-list"
       role="menu"
-      aria-label="Game menu"
+      aria-label="Game options"
     >
       <li role="none">
         <button
@@ -108,6 +109,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onOutside))
           <CliIcon :name="paused ? 'play' : 'pause'" :size="16" />{{ paused ? 'Resume' : 'Pause' }}
         </button>
       </li>
+      <li v-if="pauseNote" role="none" class="cli-menu-note">{{ pauseNote }}</li>
       <li v-if="canEnd" role="none">
         <button type="button" role="menuitem" class="cli-menu-item" @click="choose('end')">
           <CliIcon name="stop" :size="16" />End practice
@@ -120,7 +122,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onOutside))
           class="cli-menu-item cli-menu-danger"
           @click="choose('leave')"
         >
-          <CliIcon name="cross" :size="16" />Leave game
+          <CliIcon name="cross" :size="16" />Quit to briefing
         </button>
       </li>
     </ul>

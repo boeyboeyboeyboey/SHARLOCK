@@ -2,7 +2,11 @@
 import { onMounted, ref } from 'vue'
 import CliIcon from './CliIcon.vue'
 
-defineProps({ pending: { type: Boolean, default: false } })
+defineProps({
+  pending: { type: Boolean, default: false },
+  secondsLeft: { type: Number, default: null },
+  pausesLeft: { type: Number, default: null },
+})
 const emit = defineEmits(['resume'])
 
 const button = ref(null)
@@ -16,6 +20,10 @@ onMounted(() => button.value?.focus())
       <CliIcon name="pause" :size="22" /> Game paused
     </h2>
     <p>Too quick for you? Take a breather. Security Analysts don't get breaks though!</p>
+    <p v-if="secondsLeft !== null" data-testid="cli-pause-left">
+      Pause time left: {{ secondsLeft }} s. The clock starts again when it runs out.
+      <template v-if="pausesLeft !== null"> Pauses left in this game: {{ pausesLeft }}.</template>
+    </p>
     <div class="d-flex flex-wrap gap-3 mt-3">
       <button
         ref="button"

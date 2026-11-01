@@ -17,6 +17,16 @@ test.beforeEach(async ({ page }) => {
 const commandInput = (page) => page.getByRole('textbox', { name: 'Command', exact: true })
 const banner = (page) => page.getByRole('region', { name: 'Current incident' })
 const hud = (page) => page.getByLabel('Game status')
+const outcomes = (page, outcome) =>
+  page.locator(`[data-testid="cli-debrief-outcome"][data-outcome="${outcome}"]`)
+const testInfoOf = () => test.info()
+
+// on a touch screen the prompt stays unfocused, so no keyboard rises over the alert
+async function expectPromptFocus(page, testInfo) {
+  if (testInfo.project.name === 'mobile-chromium')
+    await expect(commandInput(page)).not.toBeFocused()
+  else await expect(commandInput(page)).toBeFocused()
+}
 
 async function scenarioOnScreen(page) {
   const title = (await banner(page).getByRole('heading').textContent()).trim()
@@ -66,9 +76,9 @@ async function run(page, command) {
 }
 
 async function useMenu(page, item) {
-  await page.getByRole('button', { name: 'Menu', exact: true }).click()
+  await page.getByRole('button', { name: 'Options', exact: true }).click()
   await page
-    .getByRole('menu', { name: 'Game menu' })
+    .getByRole('menu', { name: 'Game options' })
     .getByRole(/^Sound/.test(item) ? 'menuitemcheckbox' : 'menuitem', { name: item })
     .click()
 }
@@ -92,7 +102,8 @@ async function startShift(page, mode, classId) {
       .getByRole('button', { name: 'Start', exact: true })
       .click()
   }
-  await expect(commandInput(page)).toBeFocused()
+  await expect(commandInput(page)).toBeVisible()
+  await expectPromptFocus(page, testInfoOf())
 }
 
 test('asks before a timed shift and starts nothing on cancel', async ({ page }) => {
@@ -119,19 +130,22 @@ test('asks before a timed shift and starts nothing on cancel', async ({ page }) 
 test('swaps back to town for a game menu that confirms before leaving', async ({ page }) => {
   await startShift(page, 'practice')
   await expect(page.getByRole('link', { name: 'Back to town' })).toHaveCount(0)
-  const menuButton = page.getByRole('button', { name: 'Menu', exact: true })
-  const menu = page.getByRole('menu', { name: 'Game menu' })
+  const menuButton = page.getByRole('button', { name: 'Options', exact: true })
+  const menu = page.getByRole('menu', { name: 'Game options' })
   const leave = page.getByRole('dialog', { name: 'Leave this game?' })
   await menuButton.click()
   await expect(menuButton).toHaveAttribute('aria-expanded', 'true')
   await expect(menu.getByRole('menuitem', { name: 'Pause' })).toHaveCount(0)
-  await menu.getByRole('menuitem', { name: 'Leave game' }).click()
+  await menu.getByRole('menuitem', { name: 'Quit to briefing' }).click()
   await expect(leave).toContainText("won't be saved")
+  // enter on the opening focus must not throw the run away
+  await expect(leave.getByRole('button', { name: 'Keep playing' })).toBeFocused()
   await leave.getByRole('button', { name: 'Keep playing' }).click()
   await expect(leave).toBeHidden()
   await expect(commandInput(page)).toBeVisible()
+  await expectPromptFocus(page, testInfoOf())
   await menuButton.click()
-  await menu.getByRole('menuitem', { name: 'Leave game' }).click()
+  await menu.getByRole('menuitem', { name: 'Quit to briefing' }).click()
   await leave.getByRole('button', { name: 'Leave game' }).click()
   await expect(page.getByRole('heading', { name: 'Shift briefing' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Back to town' })).toBeVisible()
@@ -139,14 +153,14 @@ test('swaps back to town for a game menu that confirms before leaving', async ({
 
 test('pauses and resumes a timed game from the menu with the keyboard', async ({ page }) => {
   await startShift(page, 'timed')
-  const menuButton = page.getByRole('button', { name: 'Menu', exact: true })
-  const menu = page.getByRole('menu', { name: 'Game menu' })
+  const menuButton = page.getByRole('button', { name: 'Options', exact: true })
+  const menu = page.getByRole('menu', { name: 'Game options' })
   await menuButton.click()
   await expect(menu.getByRole('menuitemcheckbox', { name: 'Sound off' })).toBeFocused()
   await page.keyboard.press('ArrowDown')
   await expect(menu.getByRole('menuitem', { name: 'Pause' })).toBeFocused()
   await page.keyboard.press('ArrowDown')
-  await expect(menu.getByRole('menuitem', { name: 'Leave game' })).toBeFocused()
+  await expect(menu.getByRole('menuitem', { name: 'Quit to briefing' })).toBeFocused()
   await page.keyboard.press('ArrowDown')
   await expect(menu.getByRole('menuitemcheckbox', { name: 'Sound off' })).toBeFocused()
   await page.keyboard.press('Escape')
@@ -156,22 +170,23 @@ test('pauses and resumes a timed game from the menu with the keyboard', async ({
   await menu.getByRole('menuitem', { name: 'Pause' }).click()
   await expect(page.getByRole('heading', { name: 'Game paused' })).toBeVisible()
   await expect(banner(page)).toHaveCount(0)
+  await expect(page.getByTestId('cli-pause-left')).toContainText('Pauses left in this game: 1')
   await menuButton.click()
   await menu.getByRole('menuitem', { name: 'Resume' }).click()
-  await expect(commandInput(page)).toBeFocused()
+  await expectPromptFocus(page, testInfoOf())
   await expect(page.getByRole('log', { name: 'Terminal output' })).toContainText('Game resumed.')
 })
 
 test('pauses a timed game while deciding to leave and resumes on stay', async ({ page }) => {
   await startShift(page, 'timed')
-  await page.getByRole('button', { name: 'Menu', exact: true }).click()
-  await page.getByRole('menuitem', { name: 'Leave game' }).click()
+  await page.getByRole('button', { name: 'Options', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Quit to briefing' }).click()
   const leave = page.getByRole('dialog', { name: 'Leave this game?' })
   await expect(leave).toBeVisible()
-  await expect(page.locator('.cli-paused')).toHaveCount(1)
+  await expect(page.getByTestId('cli-pause-left')).toHaveCount(1)
   await leave.getByRole('button', { name: 'Keep playing' }).click()
-  await expect(page.locator('.cli-paused')).toHaveCount(0)
-  await expect(commandInput(page)).toBeFocused()
+  await expect(page.getByTestId('cli-pause-left')).toHaveCount(0)
+  await expectPromptFocus(page, testInfoOf())
   await expect(page.getByRole('log', { name: 'Terminal output' })).toContainText('Game resumed.')
 })
 
@@ -186,12 +201,14 @@ test('animates a briefing demo that never spoils a real shift', async ({ page })
   }
   await page.goto('/games/cli-cyber-defender')
   await chooseContext(page)
-  const demo = page.locator('.cli-demo-window')
+  const demo = page.getByTestId('cli-demo-window')
+  // the loop pauses off-screen, and on a phone the start controls now sit above it
+  await demo.scrollIntoViewIfNeeded()
   await expect(demo).toContainText(DEMO_SCENES[0].alert)
-  await expect(demo.locator('.cli-demo-found')).toContainText(DEMO_SCENES[0].found, {
+  await expect(demo.getByTestId('cli-demo-found')).toContainText(DEMO_SCENES[0].found, {
     timeout: 8000,
   })
-  await expect(demo.locator('.cli-demo-ok')).toContainText(DEMO_SCENES[0].result, {
+  await expect(demo.getByTestId('cli-demo-ok')).toContainText(DEMO_SCENES[0].result, {
     timeout: 10_000,
   })
   await expect(demo).toContainText(DEMO_SCENES[1].alert, { timeout: 10_000 })
@@ -207,7 +224,7 @@ test('plays a perfect practice shift to 2,700 and replays', async ({ page }) => 
   const debrief = page.getByRole('heading', { name: 'Shift debrief' })
   await expect(debrief).toBeFocused()
   await expect(page.getByText('2,700 / 2,700 points')).toBeVisible()
-  await expect(page.locator('.cli-outcome-correct')).toHaveCount(8)
+  await expect(outcomes(page, 'correct')).toHaveCount(8)
   await expect(page.getByText('Result saved to your account.')).toBeVisible()
   await expect(page.getByRole('link', { name: 'Back to town' })).toHaveCount(1)
   await expect(page.getByTestId('cli-next-run')).toHaveText(
@@ -218,12 +235,12 @@ test('plays a perfect practice shift to 2,700 and replays', async ({ page }) => 
   await expect(page.getByTestId('cli-next-run')).toHaveText('Next run: Personal practice · Timed')
   await page.getByRole('button', { name: 'Play again' }).click()
   await expect(page.getByRole('dialog', { name: 'Ready to play?' })).toHaveCount(0)
-  await expect(commandInput(page)).toBeFocused()
+  await expectPromptFocus(page, testInfoOf())
   await expect(hud(page)).not.toContainText('untimed')
   await expect(hud(page).getByText(/^\d+\.\ds$/)).toBeVisible()
   await expect(hud(page)).toContainText('1 / 8')
   await expect(hud(page)).toContainText('0')
-  await expect(page.locator('.cli-flash')).toHaveCount(0)
+  await expect(page.getByTestId('cli-flash')).toHaveCount(0)
 })
 
 test('keeps the incident open on a typo, closes it on a wrong target', async ({ page }) => {
@@ -242,11 +259,13 @@ test('keeps the incident open on a typo, closes it on a wrong target', async ({ 
   await expect(terminal).toContainText('local, never sent')
   await useMenu(page, 'End practice')
   await expect(page.getByText('100 / 2,700 points')).toBeVisible()
-  await expect(page.locator('.cli-outcome-wrong')).toHaveCount(1)
+  await expect(outcomes(page, 'wrong')).toHaveCount(1)
   // only the reached incidents are reviewed: two settled and the one on screen, unanswered
   await expect(page.getByText('Practice ended after challenge 3 of 8.')).toBeVisible()
-  await expect(page.locator('.cli-debrief-item')).toHaveCount(3)
+  await expect(page.getByTestId('cli-debrief-item')).toHaveCount(3)
   await expect(page.getByText('NOT ANSWERED')).toHaveCount(1)
+  // an early end is still saved
+  await expect(page.getByText('Result saved to your account.')).toBeVisible()
 })
 
 test('scores a timed incident against the server window', async ({ page }) => {
@@ -322,7 +341,7 @@ test('keeps a two-step incident open after the first action', async ({ page }) =
 test('cuts five seconds and cues it in a timed game only', async ({ page }) => {
   await startShift(page, 'timed')
   await run(page, 'isolate host not-the-right-host')
-  await expect(hud(page).locator('.cli-penalty-cue')).toContainText('-5 s')
+  await expect(hud(page).getByTestId('cli-penalty-cue')).toContainText('-5 s')
   await expect(page.getByRole('log', { name: 'Terminal output' })).toContainText(
     '[-5 s] 5 seconds were cut from the clock.',
   )
@@ -351,7 +370,7 @@ test('auto-pauses a timed shift when the tab is hidden', async ({ page }) => {
   await expect(commandInput(page)).toHaveCount(0)
   await expect(hud(page)).toContainText('1 / 8')
   await resume.click()
-  await expect(commandInput(page)).toBeFocused()
+  await expectPromptFocus(page, testInfoOf())
   await expect(page.getByRole('log', { name: 'Terminal output' })).toContainText('Challenge 1 of 8')
   await expect(page.getByRole('log', { name: 'Terminal output' })).toContainText('Game resumed.')
   await run(page, command)
@@ -375,10 +394,16 @@ test('lets touch users insert command templates and recall history', async ({ pa
   if (testInfo.project.name === 'mobile-chromium') await template.tap()
   else await template.click()
   await expect(commandInput(page)).toHaveValue(`${verb} ${noun} `)
-  await expect(commandInput(page)).toBeFocused()
+  await expectPromptFocus(page, testInfo)
+  const challenge = Number(/(\d) \/ 8/.exec(await hud(page).textContent())[1])
+  // a player taps the input to type; the caret goes after the template
+  await commandInput(page).evaluate((input) => {
+    input.focus()
+    input.setSelectionRange(input.value.length, input.value.length)
+  })
   await commandInput(page).pressSequentially(target)
   await page.getByRole('button', { name: 'Run', exact: true }).click()
-  await expect(hud(page)).toContainText('2 / 8')
+  await expect(hud(page)).toContainText(`${challenge + 1} / 8`)
   await commandInput(page).press('ArrowUp')
   await expect(commandInput(page)).toHaveValue(command)
 })
@@ -396,7 +421,7 @@ test('taps an alert name to complete a command and explains the outcome', async 
     .first()
     .click()
   await expect(commandInput(page)).toHaveValue(command)
-  await expect(commandInput(page)).toBeFocused()
+  await expectPromptFocus(page, testInfo)
   await commandInput(page).press('Enter')
   // a two-step incident would need its second action before the review shows
   const log = page.getByRole('log', { name: 'Terminal output' })
@@ -413,10 +438,10 @@ test('taps an alert name to complete a command and explains the outcome', async 
 test('gives two practice hint tiers per incident and marks it in the debrief', async ({ page }) => {
   await startShift(page, 'practice')
   await page.getByRole('button', { name: 'Hint', exact: true }).click()
-  await expect(banner(page).locator('.cli-hint-line')).toHaveCount(1)
-  await expect(banner(page).locator('.cli-hint-line')).toContainText('hint')
+  await expect(banner(page).getByTestId('cli-hint-line')).toHaveCount(1)
+  await expect(banner(page).getByTestId('cli-hint-line')).toContainText('hint')
   await page.getByRole('button', { name: 'Hint 2', exact: true }).click()
-  await expect(banner(page).locator('.cli-hint-concept')).toBeVisible()
+  await expect(banner(page).getByTestId('cli-hint-concept')).toBeVisible()
   await expect(page.getByRole('button', { name: 'No more hints for this incident' })).toBeDisabled()
   await useMenu(page, 'End practice')
   await expect(page.getByText('hint used')).toHaveCount(1)
@@ -426,7 +451,7 @@ test('offers no hint in a timed game and keeps sound off until asked', async ({ 
   await startShift(page, 'timed')
   await expect(page.getByRole('button', { name: 'Hint', exact: true })).toHaveCount(0)
   await expect(page.getByText('Practice', { exact: true })).toHaveCount(0)
-  const menuButton = page.getByRole('button', { name: 'Menu', exact: true })
+  const menuButton = page.getByRole('button', { name: 'Options', exact: true })
   const sound = page.getByRole('menuitemcheckbox', { name: /^Sound (on|off)$/ })
   await menuButton.click()
   await expect(sound).toHaveText('Sound off')
@@ -484,7 +509,7 @@ test('drops the flash and shake effects for reduced motion', async ({ page }) =>
   await startShift(page, 'practice')
   await run(page, 'isolate host not-the-right-host')
   await expect(page.getByRole('log', { name: 'Terminal output' })).toContainText('[FAIL]')
-  await expect(page.locator('.cli-flash')).toBeHidden()
+  await expect(page.getByTestId('cli-flash')).toBeHidden()
   const animation = await page
     .locator('.cli-line')
     .first()
@@ -513,6 +538,7 @@ test('keeps the command prompt in place as the log fills up', async ({ page }, t
 test('keeps the alert, prompt and command buttons on screen after several incidents', async ({
   page,
 }, testInfo) => {
+  test.skip(testInfo.project.name === 'mobile-chromium', 'a phone scrolls as one page instead')
   await startShift(page, 'practice')
   for (let incident = 0; incident < 3; incident += 1) await solve(page)
   for (let attempt = 1; attempt < 10; attempt += 1) await run(page, `blok ip 192.0.2.${attempt}`)
@@ -521,7 +547,12 @@ test('keeps the alert, prompt and command buttons on screen after several incide
   // the project's own size, plus a stacked laptop width and a short laptop window on desktop
   const sizes =
     testInfo.project.name === 'desktop-chromium'
-      ? [null, { width: 1024, height: 768 }, { width: 1366, height: 650 }]
+      ? [
+          null,
+          { width: 1200, height: 800 },
+          { width: 1024, height: 768 },
+          { width: 1366, height: 650 },
+        ]
       : [null]
   for (const size of sizes) {
     if (size) await page.setViewportSize(size)
@@ -557,7 +588,7 @@ test('fits the command template buttons at every width', async ({ page }) => {
 
 test('keeps the console size while a timed game is paused', async ({ page }) => {
   await startShift(page, 'timed')
-  const stage = page.locator('.cli-stage')
+  const stage = page.getByTestId('cli-stage')
   const before = await stage.boundingBox()
   await useMenu(page, 'Pause')
   await expect(page.getByRole('heading', { name: 'Game paused' })).toBeVisible()
@@ -603,6 +634,134 @@ test('fits every supported width without page overflow', async ({ page }) => {
   }
   await page.setViewportSize({ width: 667, height: 375 })
   await expect(page.getByRole('button', { name: 'Run', exact: true })).toBeVisible()
+})
+
+test.describe('on a phone', () => {
+  test.use({ viewport: { width: 375, height: 667 } })
+
+  test('the briefing shows Start game and Practice without scrolling', async ({ page }) => {
+    await page.goto('/games/cli-cyber-defender')
+    await chooseContext(page)
+    await expect(page.getByRole('button', { name: 'Start game' })).toBeInViewport()
+    await expect(page.getByRole('button', { name: 'Practice (no timer)' })).toBeInViewport()
+  })
+
+  test('the alert is read whole by scrolling the page, with every name tappable', async ({
+    page,
+  }, testInfo) => {
+    await startShift(page, 'practice')
+    await page.screenshot({
+      path: testInfo.outputPath('cli-phone-375x667.png'),
+      animations: 'disabled',
+    })
+    for (let incident = 0; incident < 8; incident += 1) {
+      const names = banner(page).getByRole('button', { name: /^Use .* as the target$/ })
+      for (const name of await names.all()) {
+        await name.scrollIntoViewIfNeeded()
+        await expect(name, 'each name can be seen').toBeInViewport()
+        // the top element at its centre is the name itself, not something drawn over it
+        const hit = await name.evaluate((element) => {
+          const box = element.getBoundingClientRect()
+          const top = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)
+          return element.contains(top)
+        })
+        expect(hit, 'each name can be tapped').toBe(true)
+      }
+      const logHeight = await page
+        .getByRole('log', { name: 'Terminal output' })
+        .evaluate((element) => element.clientHeight)
+      expect(logHeight, 'the log shows more than two lines').toBeGreaterThan(140)
+      // the alert box no longer scrolls inside itself
+      const inner = await banner(page).evaluate((element) => {
+        const column = element.closest('[class*="alert-col"]')
+        return column.scrollHeight - column.clientHeight
+      })
+      expect(inner).toBeLessThanOrEqual(1)
+      if (incident < 7) {
+        await solve(page)
+        await expect(banner(page).getByRole('heading')).toBeInViewport()
+        await expect(hud(page).getByText(`${incident + 2} / 8`)).toBeInViewport()
+      }
+    }
+  })
+
+  test('the timed clock stays on screen while the page scrolls', async ({ page }) => {
+    await startShift(page, 'timed')
+    await page.getByRole('button', { name: 'Run', exact: true }).scrollIntoViewIfNeeded()
+    await expect(hud(page).getByText(/^\d+\.\ds$/)).toBeInViewport()
+  })
+})
+
+test('the debrief prints each command of a multi-step incident on its own line', async ({
+  page,
+}) => {
+  await startShift(page, 'practice')
+  await advanceTo(page, (scenario) => scenario.steps.length === 2)
+  const [first, second] = await stepsFor(page)
+  await run(page, first)
+  await run(page, second)
+  await useMenu(page, 'End practice')
+  const item = page.getByTestId('cli-debrief-item').filter({ hasText: second }).first()
+  if (!(await item.locator('details').getAttribute('open'))) await item.locator('summary').click()
+  const correct = item.getByRole('definition').filter({ hasText: second }).last()
+  const lines = correct.getByRole('listitem')
+  await expect(lines).toHaveCount(2)
+  const [top, bottom] = await lines.evaluateAll((elements) =>
+    elements.map((element) => element.getBoundingClientRect().top),
+  )
+  expect(bottom).toBeGreaterThan(top)
+})
+
+test('browser back from a running game asks before leaving', async ({ page }) => {
+  await page.goto('/about')
+  // an in-app move, so back stays inside the router instead of reloading the page
+  await page.evaluate(async () => {
+    const router = document.querySelector('#app').__vue_app__.config.globalProperties.$router
+    await router.isReady()
+    await router.push('/games/cli-cyber-defender')
+  })
+  await chooseContext(page)
+  await page.getByRole('button', { name: 'Practice (no timer)' }).click()
+  await expect(commandInput(page)).toBeVisible()
+  await page.goBack()
+  const leave = page.getByRole('dialog', { name: 'Leave this game?' })
+  await expect(leave).toBeVisible()
+  await leave.getByRole('button', { name: 'Keep playing' }).click()
+  await expect(leave).toBeHidden()
+  await expect(page).toHaveURL('/games/cli-cyber-defender')
+  await expect(commandInput(page)).toBeVisible()
+  await page.goBack()
+  await page
+    .getByRole('dialog', { name: 'Leave this game?' })
+    .getByRole('button', { name: 'Leave game' })
+    .click()
+  await expect(page).toHaveURL('/about')
+})
+
+test('a reload during a game warns first', async ({ page }) => {
+  await startShift(page, 'practice')
+  // a gesture is what lets the browser raise the warning
+  await commandInput(page).fill('help')
+  await commandInput(page).press('Enter')
+  const warned = new Promise((resolve) => {
+    page.once('dialog', async (dialog) => {
+      resolve(dialog.type())
+      await dialog.accept()
+    })
+  })
+  await page.reload()
+  expect(await warned).toBe('beforeunload')
+})
+
+test('the top bar exit asks once, not twice', async ({ page }) => {
+  await startShift(page, 'practice')
+  await page.getByTestId('exit-game').click()
+  await page
+    .getByRole('dialog', { name: 'Leave the game?' })
+    .getByRole('button', { name: 'Leave game' })
+    .click()
+  await expect(page).toHaveURL('/')
+  await expect(page.getByRole('dialog', { name: 'Leave this game?' })).toHaveCount(0)
 })
 
 test('a class student saves a timed shift and appears on the timed leaderboard', async ({

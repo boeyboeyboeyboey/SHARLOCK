@@ -1,6 +1,6 @@
 // private answer data: only the alert reaches the browser before the incident closes
 // tier orders a shift from easy to hard; keyLine is the evidence a practice hint highlights and
-// hintLookup is the lookup a tier 1 practice hint points to and hintConcept is the tier 2 concept note; entities lists every tappable name in the alert
+// hintLookup is the lookup a tier 1 practice hint points to and never ends with an answer's target; hintConcept is the tier 2 concept note and never gives a verdict; entities lists every tappable name in the alert
 // steps is the ordered list of containment commands; a decoy has no steps and is answered with dismiss
 // lookups maps a normalised lookup command to the lines it prints; nothing here touches a real system
 // addresses use the rfc 5737 documentation ranges and internal 10.x lab space; names are fictional
@@ -25,7 +25,7 @@ export const SCENARIOS = [
     id: 'ssh-brute-force',
     tier: 1,
     keyLine: 1,
-    hintLookup: 'whois 203.0.113.45',
+    hintLookup: 'logs lab-gw',
     hintConcept:
       'Brute force means one source guessing passwords again and again. A network block on the offending address deals with it.',
     entities: ['lab-gw', '203.0.113.45', '198.51.100.9', '192.0.2.77'],
@@ -136,7 +136,7 @@ export const SCENARIOS = [
     keyLine: 1,
     hintLookup: 'whois 192.0.2.50',
     hintConcept:
-      'Scans that match an approved change ticket are expected activity. When nothing is wrong, the dismiss family closes the alert instead of containing anything.',
+      'A scan is expected when it matches an approved change ticket and its time window. Check who owns the address before deciding whether anything needs containing.',
     decoy: true,
     entities: ['file-srv', '192.0.2.50'],
     concepts: { attack: 'Reconnaissance', cia: ['Confidentiality'] },
@@ -168,7 +168,7 @@ export const SCENARIOS = [
     keyLine: 0,
     hintLookup: 'logs hr-portal',
     hintConcept:
-      'Many failures from one shared gateway address are ordinary morning sign-ins, not an attack. This is a false alarm, so the dismiss family fits.',
+      'Many failures from one address can be an attack or a shared gateway at a busy time. Compare who owns the address and whether those users then signed in.',
     decoy: true,
     entities: ['hr-portal', '203.0.113.12'],
     concepts: { attack: 'Brute force', cia: ['Confidentiality'] },
@@ -198,7 +198,7 @@ export const SCENARIOS = [
     id: 'password-spray',
     tier: 2,
     keyLine: 2,
-    hintLookup: 'whois 203.0.113.77',
+    hintLookup: 'logs trainee-03',
     hintConcept:
       'Password spraying tries one password against many accounts to dodge lockouts. The accounts are not breached, so deal with the source address using a block.',
     entities: ['203.0.113.77', '198.51.100.140', '192.0.2.99', 'trainee-03', 'ops-lee'],
@@ -228,7 +228,7 @@ export const SCENARIOS = [
     id: 'impossible-travel',
     tier: 2,
     keyLine: 1,
-    hintLookup: 'logs sales-ana',
+    hintLookup: 'whois 198.51.100.70',
     hintConcept:
       'A sign-in from somewhere the person could not have reached suggests a stolen credential. Stopping a compromised account is the disable family.',
     entities: ['sales-ana', 'sales-ben', 'sales-cho', '198.51.100.70'],
@@ -261,7 +261,7 @@ export const SCENARIOS = [
     id: 'mail-forwarding-rule',
     tier: 2,
     keyLine: 1,
-    hintLookup: 'logs fin-sam',
+    hintLookup: 'logs mail-gw',
     hintConcept:
       'A hidden rule that copies and deletes mail is a sign of a hijacked mailbox. The account is the problem, so use the disable family.',
     entities: ['fin-sam', 'fin-ola', 'hr-kim', 'mail-gw'],
@@ -294,7 +294,7 @@ export const SCENARIOS = [
     id: 'cryptominer',
     tier: 2,
     keyLine: 1,
-    hintLookup: 'logs build-runner-1',
+    hintLookup: 'logs build-runner-2',
     hintConcept:
       'A cryptominer abuses a machine to mine coins and talks to a mining pool. A compromised host is contained by cutting it off the network, the isolate family.',
     entities: ['build-runner-1', 'build-runner-2', 'test-vm-3', '198.51.100.210'],
@@ -328,7 +328,7 @@ export const SCENARIOS = [
     keyLine: 1,
     hintLookup: 'logs backup-srv',
     hintConcept:
-      'Large uploads that match the registered nightly backup are normal. Check the pattern and use the dismiss family if it all fits.',
+      'A large upload can be theft or a registered backup. Compare the schedule and the destination with what is on record before deciding.',
     decoy: true,
     entities: ['backup-srv', '203.0.113.200'],
     concepts: { attack: 'Data exfiltration', cia: ['Confidentiality'] },
@@ -360,7 +360,7 @@ export const SCENARIOS = [
     keyLine: 1,
     hintLookup: 'logs it-helpdesk',
     hintConcept:
-      'A new privileged account backed by a ticket and MFA is planned work, not persistence by an attacker. This is a dismiss case.',
+      'A new privileged account can be attacker persistence or planned work. Look for a ticket, an expiry date and MFA before deciding.',
     decoy: true,
     entities: ['it-helpdesk', 'admin-tmp'],
     concepts: { attack: 'Privilege escalation', cia: ['Integrity'] },
@@ -392,7 +392,7 @@ export const SCENARIOS = [
     keyLine: 1,
     hintLookup: 'logs exec-nia',
     hintConcept:
-      'A new location alone is not an attack when the trip, device and MFA all check out. Nothing needs containing, so dismiss.',
+      'A new location alone does not prove an attack. Weigh the trip, the device and the MFA result before deciding whether anything needs containing.',
     decoy: true,
     entities: ['exec-nia', '198.51.100.120'],
     concepts: { attack: 'Account takeover', cia: ['Confidentiality'] },
@@ -422,7 +422,7 @@ export const SCENARIOS = [
     id: 'lateral-movement',
     tier: 3,
     keyLine: 0,
-    hintLookup: 'logs kiosk-04',
+    hintLookup: 'logs print-srv',
     hintConcept:
       'Lateral movement is an attacker hopping between machines with a stolen service credential. Contain it in two steps: isolate the host and disable the credential.',
     entities: ['kiosk-04', 'print-srv', 'hr-laptop-2', 'svc-print', 'hr-ana'],
@@ -457,7 +457,7 @@ export const SCENARIOS = [
     id: 'ransomware-encryption',
     tier: 3,
     keyLine: 0,
-    hintLookup: 'logs fin-ws-07',
+    hintLookup: 'logs file-srv',
     hintConcept:
       'Ransomware encrypts files and sends a copy of them to the attacker. Contain it in two steps: isolate the host, then block the receiving address.',
     entities: ['fin-ws-07', 'fin-ws-08', 'file-srv', '203.0.113.99', '198.51.100.45'],
@@ -494,7 +494,7 @@ export const SCENARIOS = [
     id: 'c2-beacon',
     tier: 3,
     keyLine: 1,
-    hintLookup: 'logs dev-box-09',
+    hintLookup: 'logs dev-box-10',
     hintConcept:
       'A beacon is regular check-in traffic to an attacker command server, which means remote control. Contain it in two steps: isolate the host and disable the user whose tokens it exposes.',
     entities: ['dev-box-09', 'dev-box-10', 'dev-kim', 'dev-raj'],

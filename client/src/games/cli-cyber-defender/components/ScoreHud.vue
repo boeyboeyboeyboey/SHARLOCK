@@ -86,11 +86,17 @@ const timeLabel = computed(() =>
           <span class="cli-stat-label">Streak</span>
           <span class="cli-stat-row">
             <span class="cli-stat-value">{{ streak }}</span>
-            <span :class="['cli-streak-meter', { 'is-max': streak >= 3 }]" aria-hidden="true">
+            <span
+              :class="['cli-streak-meter', { 'is-max': streak >= 3 }]"
+              data-testid="cli-streak-meter"
+              :data-full="streak >= 3"
+              aria-hidden="true"
+            >
               <span
                 v-for="step in 3"
                 :key="step"
                 :class="['cli-streak-pip', { 'is-on': streak >= step }]"
+                :data-testid="streak >= step ? 'cli-streak-on' : 'cli-streak-off'"
               ></span>
             </span>
             <span class="cli-hud-sub">next &times;{{ multiplier }}</span>
@@ -110,7 +116,12 @@ const timeLabel = computed(() =>
             aria-hidden="true"
             >{{ timeLabel }}</span
           >
-          <span v-if="penalty" :key="penalty.key" class="cli-penalty-cue" aria-hidden="true"
+          <span
+            v-if="penalty"
+            :key="penalty.key"
+            class="cli-penalty-cue"
+            data-testid="cli-penalty-cue"
+            aria-hidden="true"
             >-{{ penalty.seconds }} s</span
           >
           <span class="visually-hidden" role="status">{{

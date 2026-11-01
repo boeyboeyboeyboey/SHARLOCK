@@ -868,6 +868,22 @@
   margin: 0;
 }
 
+.cli-command-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cli-command-list code {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.cli-command-list.is-steps {
+  padding-left: 1.5rem;
+  list-style: decimal;
+}
+
 .cli-incident-why {
   margin: 0 0 0.4rem;
   color: var(--game-green-dim);
@@ -2095,11 +2111,54 @@
   }
 }
 
-/* phone portrait: the alert is the case to solve, so it gets more of the console and full-size
-   tap targets for its names */
+/* phone portrait: one screen is too small for an alert and a terminal, so the page scrolls
+   normally and only the terminal log scrolls inside itself; the status bar stays pinned so the
+   clock never leaves the screen */
 @media (max-width: 575.98px) {
+  .cli-game.is-playing {
+    display: block;
+    height: auto;
+    min-height: 0;
+  }
+
+  .cli-game.is-playing .cli-console.d-grid {
+    grid-template-rows: auto auto;
+  }
+
+  .cli-game.is-playing .cli-hud {
+    position: sticky;
+    top: var(--header-height, 0px);
+    z-index: 2;
+    background: var(--game-panel);
+  }
+
+  .cli-game.is-playing .cli-stage {
+    overflow: visible;
+  }
+
+  .cli-game.is-playing .cli-stage > .row {
+    height: auto;
+  }
+
   .cli-game.is-playing .cli-alert-col {
-    max-height: 45%;
+    max-height: none;
+    overflow: visible;
+    /* clears the shared bar and the two-row status bar when a new alert scrolls into view */
+    scroll-margin-top: calc(var(--header-height, 0px) + 5.5rem);
+  }
+
+  .cli-game.is-playing .cli-terminal-col {
+    max-height: none;
+  }
+
+  .cli-game.is-playing .cli-banner-foot {
+    position: static;
+  }
+
+  .cli-game.is-playing .cli-output {
+    flex: none;
+    height: 10rem;
+    min-height: 10rem;
   }
 
   .cli-game .cli-entity {
