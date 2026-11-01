@@ -18,6 +18,25 @@ import {
 } from '../api.js'
 
 describe('cohort API', () => {
+  it.each([
+    ['COHORT_ALREADY_IN_CLASS', "You're already in a class. Leave it before joining another."],
+    ['COHORT_STALE_REQUEST', 'This class request changed. The list was refreshed; review it.'],
+    ['COHORT_STALE_CODE', 'The invitation code changed. The panel was refreshed; review it.'],
+  ])('explains %s in fixed words', (code, message) => {
+    const failure = safeError({
+      response: { status: 409, data: { error: { code, message: 'server text' } } },
+    })
+    expect(failure).toMatchObject({ code, message })
+  })
+
+  it('leaves an ended session to the shared handler, with no sentence of its own', () => {
+    const failure = safeError({
+      response: { status: 401, data: { error: { code: 'AUTHENTICATION_REQUIRED' } } },
+    })
+    expect(failure.status).toBe(401)
+    expect(failure.message).not.toMatch(/session/i)
+  })
+
   beforeEach(() => vi.clearAllMocks())
 
   it('uses bounded own-membership paging and exact student join payloads', async () => {
@@ -49,7 +68,7 @@ describe('cohort API', () => {
     await updateMembership('class-id', 'member-id', 'active', 7)
     await expect(issueEnrollmentCode('class-id', 4)).rejects.toMatchObject({
       name: 'CohortApiError',
-      message: 'This class changed while you were viewing it. Refresh and try again.',
+      message: 'This class changed while you were viewing it. Try again.',
     })
     await revokeEnrollmentCode('class-id', 'code-id', 8)
     expect(mocks.requestCsrfToken).toHaveBeenCalledTimes(3)
@@ -90,8 +109,8 @@ describe('cohort API', () => {
       })
     await expect(issueValidatedEnrollmentCode('class-id', 1)).resolves.toMatchObject({ rawCode })
     await expect(issueValidatedEnrollmentCode('class-id', 1)).rejects.toMatchObject({
-      code: 'COHORT_CODE_UNAVAILABLE',
-      message: 'A class code could not be issued. Refresh and try again.',
+      code: 'COHORT_CODE_NOT_SHOWN',
+      message: 'A new code was made but could not be shown. Use Replace code to issue another.',
     })
   })
 

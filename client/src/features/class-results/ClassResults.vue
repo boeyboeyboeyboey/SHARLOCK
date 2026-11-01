@@ -143,6 +143,10 @@ async function closeStudent() {
       </button>
     </div>
     <template v-else-if="results">
+      <p v-if="results.truncated" class="preview-notice" role="status">
+        This class has more activity than one summary can read, so its oldest attempts are not
+        counted here.
+      </p>
       <ResultsSummary :games="results.games" :active-students="results.activeStudents" />
       <StudentAttempts
         v-if="selected"

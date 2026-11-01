@@ -103,12 +103,15 @@ function conflict(code = 'COHORT_CONFLICT', message = 'Refresh and try again.') 
   return new CohortError(code, message, 409)
 }
 
-function unavailable() {
-  return new CohortError(
+// the router logs causeName, because the 503 itself deliberately says nothing about the failure
+function unavailable(cause) {
+  const error = new CohortError(
     'COHORT_UNAVAILABLE',
     'This change could not be completed. Try again later.',
     503,
   )
+  error.causeName = cause?.name
+  return error
 }
 
 function alreadyInClass(staffFacing = false) {
@@ -177,8 +180,8 @@ export function createCohortService(
   async function withTransaction(work) {
     try {
       await assertTransactionSupport(database)
-    } catch {
-      throw unavailable()
+    } catch (error) {
+      throw unavailable(error)
     }
     let session
     let result
@@ -190,20 +193,37 @@ export function createCohortService(
       if (error?.code === 11000 || error?.code === 112 || error?.codeName === 'WriteConflict') {
         throw conflict()
       }
-      throw unavailable()
+      throw unavailable(error)
     } finally {
       await session?.endSession().catch(() => {})
     }
     return result
   }
 
+  // only a live class counts: a deactivated class or institution must not trap its students
   async function assertNoOtherClass(userId, cohortId, session, staffFacing = false) {
-    const other = await Membership.exists({
+    const others = await Membership.find({
       userId,
       cohortId: { $ne: cohortId },
       status: { $in: ['active', 'pending'] },
+    })
+      .select('cohortId')
+      .session(session)
+      .lean()
+    if (!others.length) return
+    const liveCohorts = await Cohort.find({
+      _id: { $in: others.map((other) => other.cohortId) },
+      status: 'active',
+    })
+      .select('institutionId')
+      .session(session)
+      .lean()
+    if (!liveCohorts.length) return
+    const liveInstitution = await Institution.exists({
+      _id: { $in: liveCohorts.map((cohort) => cohort.institutionId) },
+      status: 'active',
     }).session(session)
-    if (other) throw alreadyInClass(staffFacing)
+    if (liveInstitution) throw alreadyInClass(staffFacing)
   }
 
   async function currentActor(actor, session) {
@@ -214,7 +234,7 @@ export function createCohortService(
       throw new CohortError('AUTHENTICATION_REQUIRED', 'Sign in to continue.', 401)
     }
     let query = User.findOne({ _id: id, accountStatus: 'active' }).select(
-      '_id globalRoles classOnboardingCompletedAt',
+      '_id globalRoles classOnboardingCompletedAt +recoveryRevision',
     )
     if (session) query = query.session(session)
     const user = await query.lean()
@@ -246,7 +266,7 @@ export function createCohortService(
     return { current, cohort }
   }
 
-  async function record(actorId, eventType, targetId, scopeCohortId, session) {
+  async function record(actorId, eventType, targetId, scopeCohortId, session, requestId) {
     await auditWriter(
       {
         eventType,
@@ -255,7 +275,7 @@ export function createCohortService(
         targetId: idString(targetId),
         scopeCohortId: idString(scopeCohortId),
         outcome: 'success',
-        requestId: randomUUID(),
+        requestId: requestId ?? randomUUID(),
       },
       { session },
     )
@@ -311,13 +331,18 @@ export function createCohortService(
   async function getEnrollment(actor, query = {}) {
     assertEmptyQuery(query)
     const current = await currentActor(actor)
+    const isStudent = current.globalRoles.includes('student')
+    // a student already in a class has no onboarding left to do, however they got there
+    const hasClass =
+      isStudent &&
+      !current.classOnboardingCompletedAt &&
+      Boolean(await Membership.exists({ userId: current._id, status: 'active' }))
     return {
-      onboardingCompleted:
-        !current.globalRoles.includes('student') || Boolean(current.classOnboardingCompletedAt),
+      onboardingCompleted: !isStudent || Boolean(current.classOnboardingCompletedAt) || hasClass,
     }
   }
 
-  async function completeOnboarding(actor, input, query = {}) {
+  async function completeOnboarding(actor, input, query = {}, { requestId } = {}) {
     assertEmptyQuery(query)
     parseOnboardingInput(input)
     return withTransaction(async (session) => {
@@ -335,13 +360,20 @@ export function createCohortService(
           { $set: { classOnboardingCompletedAt: occurredAt } },
           { session },
         )
-        await record(current._id, 'cohort.onboarding.complete', current._id, null, session)
+        await record(
+          current._id,
+          'cohort.onboarding.complete',
+          current._id,
+          null,
+          session,
+          requestId,
+        )
       }
       return { completed: true }
     })
   }
 
-  async function join(actor, input, { invitationHash = null, query = {} } = {}) {
+  async function join(actor, input, { invitationHash = null, query = {}, requestId } = {}) {
     assertEmptyQuery(query)
     const parsed = parseEnrollmentInput(input, { invitationHash })
     await permissions.resolveActor(actor)
@@ -363,13 +395,15 @@ export function createCohortService(
         .lean()
       const institution =
         cohort &&
-          (await Institution.findOne({ _id: cohort.institutionId, status: 'active' })
-            .select('_id name +recoveryRevision')
+        (await Institution.findOne({ _id: cohort.institutionId, status: 'active' })
+          .select('_id name +recoveryRevision')
           .session(session)
           .lean())
       if (!cohort || !institution)
         throw new CohortError('COHORT_CODE_UNAVAILABLE', 'This class code is unavailable.', 404)
       await acquireActiveClassGuards(Cohort, Institution, cohort, institution, session)
+      // joins to two institutions write no shared document, so this write makes them collide
+      await acquireRecoveryRevision(User, current, { accountStatus: 'active' }, session)
       await assertNoOtherClass(current._id, cohort._id, session)
       const claimed = await EnrollmentCode.updateOne(
         {
@@ -418,7 +452,14 @@ export function createCohortService(
         )
       }
       if (requested) {
-        await record(current._id, 'cohort.membership.request', membership._id, cohort._id, session)
+        await record(
+          current._id,
+          'cohort.membership.request',
+          membership._id,
+          cohort._id,
+          session,
+          requestId,
+        )
       }
       if (!current.classOnboardingCompletedAt) {
         await User.updateOne(
@@ -426,7 +467,14 @@ export function createCohortService(
           { $set: { classOnboardingCompletedAt: timestamp } },
           { session },
         )
-        await record(current._id, 'cohort.onboarding.complete', current._id, null, session)
+        await record(
+          current._id,
+          'cohort.onboarding.complete',
+          current._id,
+          null,
+          session,
+          requestId,
+        )
       }
       const row = membership.toObject ? membership.toObject() : membership
       return {
@@ -537,7 +585,14 @@ export function createCohortService(
     }
   }
 
-  async function decideMembership(actor, cohortId, membershipId, input, query = {}) {
+  async function decideMembership(
+    actor,
+    cohortId,
+    membershipId,
+    input,
+    query = {},
+    { requestId } = {},
+  ) {
     assertEmptyQuery(query)
     const parsedCohortId = parseObjectId(cohortId)
     const parsedMembershipId = parseObjectId(membershipId)
@@ -554,14 +609,19 @@ export function createCohortService(
       if (revision !== parsed.expectedRevision)
         throw conflict('COHORT_STALE_REQUEST', 'Refresh the membership request before deciding.')
       if (parsed.status === 'active') {
-        const eligibleStudent = await User.exists({
+        const eligibleStudent = await User.findOne({
           _id: membership.userId,
           accountStatus: 'active',
           globalRoles: 'student',
-        }).session(session)
+        })
+          .select('_id +recoveryRevision')
+          .session(session)
+          .lean()
         if (!eligibleStudent) throw notFound()
-        if (membership.status === 'pending')
+        if (membership.status === 'pending') {
+          await acquireRecoveryRevision(User, eligibleStudent, { accountStatus: 'active' }, session)
           await assertNoOtherClass(membership.userId, parsedCohortId, session, true)
+        }
       }
       let decision
       if (membership.status === 'pending' && parsed.status === 'active') decision = 'approved'
@@ -596,7 +656,7 @@ export function createCohortService(
         removed: 'cohort.membership.remove',
       }
       const event = eventByDecision[decision]
-      await record(current._id, event, changed._id, parsedCohortId, session)
+      await record(current._id, event, changed._id, parsedCohortId, session, requestId)
       return {
         membership: {
           id: idString(changed._id),
@@ -625,7 +685,7 @@ export function createCohortService(
     return { code: codeDto(code), revision }
   }
 
-  async function issueCode(actor, cohortId, input, query = {}) {
+  async function issueCode(actor, cohortId, input, query = {}, { requestId } = {}) {
     assertEmptyQuery(query)
     const parsedCohortId = parseObjectId(cohortId)
     const parsed = parseCodeRevisionInput(input)
@@ -682,7 +742,7 @@ export function createCohortService(
           throw error
         }
       }
-      await record(current._id, 'cohort.code.issue', code._id, parsedCohortId, session)
+      await record(current._id, 'cohort.code.issue', code._id, parsedCohortId, session, requestId)
       return code
     })
     const metadata = codeDto(result)
@@ -696,7 +756,7 @@ export function createCohortService(
     }
   }
 
-  async function revokeCode(actor, cohortId, codeId, input, query = {}) {
+  async function revokeCode(actor, cohortId, codeId, input, query = {}, { requestId } = {}) {
     assertEmptyQuery(query)
     const parsedCohortId = parseObjectId(cohortId)
     const parsedCodeId = parseObjectId(codeId)
@@ -725,7 +785,14 @@ export function createCohortService(
       ).lean()
       if (!changed)
         throw conflict('COHORT_STALE_CODE', 'Refresh the class code before revoking it.')
-      await record(current._id, 'cohort.code.revoke', changed._id, parsedCohortId, session)
+      await record(
+        current._id,
+        'cohort.code.revoke',
+        changed._id,
+        parsedCohortId,
+        session,
+        requestId,
+      )
       return { code: codeDto(changed), revision: changed.revision }
     })
   }

@@ -52,7 +52,9 @@
   gap: 0.25rem 1rem;
 }
 
+/* positioned so visually hidden cell text scrolls with the table rather than widening the page */
 .class-results .class-results__scroll {
+  position: relative;
   max-width: 100%;
   overflow-x: auto;
 }
@@ -63,11 +65,35 @@
   background: var(--surface);
 }
 
+/* the shared body rule lets text break anywhere, which squeezes table columns to one letter */
 .class-results th,
 .class-results td {
-  padding: 0.5rem 0.75rem;
+  padding: 0.5rem 0.6rem;
   border: 2px solid var(--border-strong);
+  overflow-wrap: normal;
   text-align: left;
+  white-space: nowrap;
+}
+
+.class-results thead th {
+  min-width: 5.5rem;
+  white-space: normal;
+}
+
+.class-results thead th:first-child {
+  min-width: 9rem;
+}
+
+/* at desktop width names wrap at their own hyphens so every column fits; below it the table scrolls */
+@media (min-width: 992px) {
+  .class-results tbody th {
+    white-space: normal;
+  }
+}
+
+.class-results .class-results__wrap {
+  min-width: 12rem;
+  white-space: normal;
 }
 
 .class-results .class-results__student,
@@ -91,7 +117,6 @@
   font-weight: 700;
   text-decoration: underline;
   text-align: left;
-  overflow-wrap: anywhere;
 }
 
 .class-results .class-results__student-button:focus-visible,

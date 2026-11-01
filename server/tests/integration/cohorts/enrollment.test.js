@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import request from 'supertest'
 import { Types } from 'mongoose'
 import { connectDatabase } from '../../../src/config/database.js'
@@ -10,6 +10,8 @@ import { instructorAssignmentModel } from '../../../src/models/InstructorAssignm
 import { institutionModel } from '../../../src/models/Institution.js'
 import { membershipModel } from '../../../src/models/Membership.js'
 import { userModel } from '../../../src/models/User.js'
+import { createAdminService } from '../../../src/modules/admin/service.js'
+import { auditEventModel } from '../../../src/modules/audit/model.js'
 import { enrollmentCodeModel } from '../../../src/modules/cohorts/enrollment-code-model.js'
 import { createCohortService } from '../../../src/modules/cohorts/service.js'
 import { hashEnrollmentCode } from '../../../src/modules/cohorts/policy.js'
@@ -418,7 +420,20 @@ describe.skipIf(process.env.SHARLOCK_TEST_REPLICA_SET !== '1')('cohort enrollmen
         .send({ code: issued.body.rawCode }),
       requestCode(teacher.agent, teacher.csrfToken, issued.body.revision),
     ])
-    expect(competing.map(({ status }) => status).sort()).toEqual([200, 201])
+    // either write may commit first: a join after the rotation no longer finds the old code
+    const [joined, rotated] = competing
+    expect(rotated.status).toBe(201)
+    expect([200, 404]).toContain(joined.status)
+    const live = await enrollmentCodeModel(database).findOne({ cohortId: cohort._id }).lean()
+    expect(live.codeHash).toBe(hashEnrollmentCode(rotated.body.rawCode))
+    if (joined.status === 404) {
+      await student.agent
+        .post('/api/cohorts/join-requests')
+        .set('Origin', origin)
+        .set('X-CSRF-Token', student.csrfToken)
+        .send({ code: rotated.body.rawCode })
+        .expect(200)
+    }
     const membership = await membershipModel(database)
       .findOne({ userId: new Types.ObjectId(student.user.id), cohortId: cohort._id })
       .lean()
@@ -493,6 +508,7 @@ describe.skipIf(process.env.SHARLOCK_TEST_REPLICA_SET !== '1')('cohort enrollmen
       .set('X-CSRF-Token', student.csrfToken)
       .send({ code: 'INVALID' })
       .expect(429)
+      .then((limited) => expect(Number(limited.headers['retry-after'])).toBeGreaterThan(60))
 
     const failing = createCohortService(database, {
       recordAuditEvent: async () => {
@@ -676,5 +692,273 @@ describe.skipIf(process.env.SHARLOCK_TEST_REPLICA_SET !== '1')('one class per st
     ])
     const listed = await student.agent.get('/api/me/memberships').expect(200)
     expect(listed.body.memberships.filter(({ status }) => status === 'active')).toHaveLength(2)
+  })
+
+  async function createOtherInstitutionClass() {
+    const suffix = randomUUID().replaceAll('-', '').slice(0, 10)
+    const school = await institutionModel(database).create({
+      name: `Other School ${suffix}`,
+      slug: `other-${suffix}`,
+      status: 'active',
+    })
+    owned.institutions.add(school._id.toString())
+    const other = await cohortModel(database).create({
+      institutionId: school._id,
+      name: `Other Class ${suffix}`,
+      term: '2026 T2',
+      status: 'active',
+    })
+    owned.cohorts.add(other._id.toString())
+    await instructorAssignmentModel(database).create({
+      userId: new Types.ObjectId(teacher.user.id),
+      cohortId: other._id,
+      status: 'active',
+    })
+    const issued = await teacher.agent
+      .post(`/api/cohorts/${other._id}/enrollment-codes`)
+      .set('Origin', origin)
+      .set('X-CSRF-Token', teacher.csrfToken)
+      .send({ expectedRevision: 0 })
+      .expect(201)
+    return { school, other, code: issued.body.rawCode }
+  }
+
+  it('frees a student whose class was deactivated, and only that class', async () => {
+    await createSibling()
+    const firstCode = (await requestCode().expect(201)).body.rawCode
+    const held = await join(student, firstCode).expect(200)
+    await decide(cohort._id, held.body.membership.id, 'active', 0).expect(200)
+    await join(student, siblingTeacherCode).expect(409)
+
+    await createAdminService(database).updateCohort(
+      { id: administrator.user.id },
+      cohort._id.toString(),
+      { status: 'inactive', expectedRevision: 0 },
+    )
+    const next = await join(student, siblingTeacherCode).expect(200)
+    expect(next.body.membership).toMatchObject({ status: 'pending' })
+    const kept = await membershipModel(database).findById(held.body.membership.id).lean()
+    expect(kept.status).toBe('active')
+
+    // the replacement is live, so it still counts
+    const { code } = await createOtherInstitutionClass()
+    await join(student, code).expect(409)
+  })
+
+  it('frees a student whose institution was deactivated', async () => {
+    const { school, other } = await createOtherInstitutionClass()
+    const userId = new Types.ObjectId(student.user.id)
+    await membershipModel(database).create({
+      userId,
+      cohortId: other._id,
+      status: 'active',
+      requestedAt: new Date(currentTime),
+    })
+    const firstCode = (await requestCode().expect(201)).body.rawCode
+    await join(student, firstCode).expect(409)
+    await institutionModel(database).updateOne(
+      { _id: school._id },
+      { $set: { status: 'inactive' } },
+    )
+    await join(student, firstCode).expect(200)
+  })
+
+  it('lets one of two simultaneous joins to different institutions through', async () => {
+    const firstCode = (await requestCode().expect(201)).body.rawCode
+    const { code } = await createOtherInstitutionClass()
+    const outcomes = await Promise.all([join(student, firstCode), join(student, code)])
+    expect(outcomes.map(({ status }) => status).sort()).toEqual([200, 409])
+    expect(
+      await membershipModel(database).countDocuments({
+        userId: new Types.ObjectId(student.user.id),
+        status: { $in: ['active', 'pending'] },
+      }),
+    ).toBe(1)
+  })
+
+  it('refuses approval while another live request exists, then allows it once that one is gone', async () => {
+    const { other } = await createOtherInstitutionClass()
+    const userId = new Types.ObjectId(student.user.id)
+    const [here, there] = await membershipModel(database).create([
+      { userId, cohortId: cohort._id, status: 'pending', requestedAt: new Date(currentTime) },
+      { userId, cohortId: other._id, status: 'pending', requestedAt: new Date(currentTime) },
+    ])
+    await decide(cohort._id, here._id, 'active', 0).expect(409)
+    await decide(other._id, there._id, 'removed', 0).expect(200)
+    await decide(cohort._id, here._id, 'active', 0).expect(200)
+  })
+
+  it('does not send a student who is already in a class back to onboarding', async () => {
+    const userId = new Types.ObjectId(student.user.id)
+    await userModel(database).updateOne(
+      { _id: userId },
+      { $set: { classOnboardingCompletedAt: null } },
+    )
+    const before = await student.agent.get('/api/me/enrollment').expect(200)
+    expect(before.body.onboardingCompleted).toBe(false)
+    await membershipModel(database).create({
+      userId,
+      cohortId: cohort._id,
+      status: 'active',
+      requestedAt: new Date(currentTime),
+    })
+    const after = await student.agent.get('/api/me/enrollment').expect(200)
+    expect(after.body.onboardingCompleted).toBe(true)
+  })
+
+  it('counts only failed joins against a shared address', async () => {
+    const code = (await requestCode().expect(201)).body.rawCode
+    const remaining = (response) => /remaining=(\d+)/.exec(response.headers.ratelimit)?.[1]
+    const classmate = await registerRole()
+    const first = await join(student, code).expect(200)
+    const second = await join(classmate, code).expect(200)
+    expect(remaining(second)).toBe(remaining(first))
+    const failed = await join(classmate, 'INVALID').expect(400)
+    expect(Number(remaining(failed))).toBe(Number(remaining(second)))
+    const afterFailure = await join(classmate, code).expect(200)
+    expect(Number(remaining(afterFailure))).toBe(Number(remaining(second)) - 1)
+  })
+})
+
+describe.skipIf(process.env.SHARLOCK_TEST_REPLICA_SET !== '1')('class staff authorization', () => {
+  let foreignTeacher
+  let foreignCohort
+  let foreignCodeId
+
+  beforeEach(async () => {
+    foreignTeacher = await registerRole('instructor')
+    foreignCohort = await cohortModel(database).create({
+      institutionId: institution._id,
+      name: `Foreign ${randomUUID().slice(0, 8)}`,
+      term: '2026 T2',
+      status: 'active',
+    })
+    owned.cohorts.add(foreignCohort._id.toString())
+    await instructorAssignmentModel(database).create({
+      userId: new Types.ObjectId(foreignTeacher.user.id),
+      cohortId: foreignCohort._id,
+      status: 'active',
+    })
+    const issued = await foreignTeacher.agent
+      .post(`/api/cohorts/${foreignCohort._id}/enrollment-codes`)
+      .set('Origin', origin)
+      .set('X-CSRF-Token', foreignTeacher.csrfToken)
+      .send({ expectedRevision: 0 })
+      .expect(201)
+    foreignCodeId = issued.body.code.id
+  })
+
+  it.each([
+    ['an unassigned instructor', () => unassignedTeacher, 404],
+    ['a student', () => student, 404],
+    ["another class's instructor", () => foreignTeacher, 404],
+  ])('refuses %s every staff route on a class', async (_label, actor, expected) => {
+    const account = actor()
+    const issued = await requestCode().expect(201)
+    const membership = await membershipModel(database).create({
+      userId: new Types.ObjectId(student.user.id),
+      cohortId: cohort._id,
+      status: 'pending',
+      requestedAt: new Date(currentTime),
+    })
+    const write = (method, path) =>
+      account.agent[method](path).set('Origin', origin).set('X-CSRF-Token', account.csrfToken)
+
+    await write('patch', `/api/cohorts/${cohort._id}/memberships/${membership._id}`)
+      .send({ status: 'active', expectedRevision: 0 })
+      .expect(expected)
+    await account.agent
+      .get(`/api/cohorts/${cohort._id}/memberships`)
+      .set('Origin', origin)
+      .expect(expected)
+    await account.agent
+      .get(`/api/cohorts/${cohort._id}/enrollment-codes`)
+      .set('Origin', origin)
+      .expect(expected)
+    await write('post', `/api/cohorts/${cohort._id}/enrollment-codes`)
+      .send({ expectedRevision: issued.body.revision })
+      .expect(expected)
+    await write('delete', `/api/cohorts/${cohort._id}/enrollment-codes/${issued.body.code.id}`)
+      .send({ expectedRevision: issued.body.revision })
+      .expect(expected)
+    const unchanged = await membershipModel(database).findById(membership._id).lean()
+    expect(unchanged.status).toBe('pending')
+  })
+
+  it("refuses revoking a sibling class's code through this class", async () => {
+    await requestCode().expect(201)
+    await teacher.agent
+      .delete(`/api/cohorts/${cohort._id}/enrollment-codes/${foreignCodeId}`)
+      .set('Origin', origin)
+      .set('X-CSRF-Token', teacher.csrfToken)
+      .send({ expectedRevision: 1 })
+      .expect(404)
+    const code = await enrollmentCodeModel(database).findById(foreignCodeId).lean()
+    expect(code.revokedAt).toBeNull()
+  })
+
+  it('lists managed classes per role and hides inactive ones', async () => {
+    await student.agent.get('/api/cohorts/managed').set('Origin', origin).expect(403)
+    await request(app).get('/api/cohorts/managed').set('Origin', origin).expect(401)
+
+    const own = await teacher.agent.get('/api/cohorts/managed').set('Origin', origin).expect(200)
+    expect(own.body.cohorts.map(({ cohortId }) => cohortId)).toEqual([cohort._id.toString()])
+    const none = await unassignedTeacher.agent
+      .get('/api/cohorts/managed')
+      .set('Origin', origin)
+      .expect(200)
+    expect(none.body).toMatchObject({ cohorts: [], total: 0 })
+
+    const paged = await administrator.agent
+      .get('/api/cohorts/managed')
+      .query({ limit: '1', page: '1' })
+      .set('Origin', origin)
+      .expect(200)
+    expect(paged.body.cohorts).toHaveLength(1)
+    expect(paged.body.total).toBeGreaterThanOrEqual(2)
+
+    await cohortModel(database).updateOne({ _id: cohort._id }, { $set: { status: 'inactive' } })
+    const afterwards = await teacher.agent
+      .get('/api/cohorts/managed')
+      .set('Origin', origin)
+      .expect(200)
+    expect(afterwards.body).toMatchObject({ cohorts: [], total: 0 })
+  })
+
+  it('stores the response request id on the audit row of a staff change', async () => {
+    const issued = await requestCode().expect(201)
+    const stored = await auditEventModel(database)
+      .findOne({ eventType: 'cohort.code.issue', scopeCohortId: cohort._id })
+      .lean()
+    expect(stored.requestId).toBe(issued.headers['x-request-id'])
+  })
+
+  it('logs one line with the request id when a change fails unexpectedly', async () => {
+    const issued = await requestCode().expect(201)
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const blocked = vi
+      .spyOn(enrollmentCodeModel(database), 'findOneAndUpdate')
+      .mockImplementation(() => {
+        throw new TypeError('private detail')
+      })
+    try {
+      const failed = await requestCode(
+        teacher.agent,
+        teacher.csrfToken,
+        issued.body.revision,
+      ).expect(503)
+      const lines = logged.mock.calls.map(([line]) => line)
+      expect(lines).toContain(
+        JSON.stringify({
+          event: 'request_failed',
+          requestId: failed.headers['x-request-id'],
+          errorName: 'TypeError',
+        }),
+      )
+      expect(JSON.stringify(failed.body)).not.toContain('private detail')
+    } finally {
+      blocked.mockRestore()
+      logged.mockRestore()
+    }
   })
 })

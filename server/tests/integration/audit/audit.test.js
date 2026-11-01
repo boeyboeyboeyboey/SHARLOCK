@@ -105,6 +105,22 @@ describe('administrator audit event HTTP contract', () => {
     expect(response.body.requestId).toBe(response.headers['x-request-id'])
   })
 
+  it('adds current names for the administrator without storing them on the row', async () => {
+    const admin = await createAccount('admin')
+    const target = await createAccount()
+    await writeEvent(target.user.id, 'success', baseTime - 500)
+    const listed = await admin.agent
+      .get('/api/admin/audit-events')
+      .query({ page: '1', limit: '1' })
+      .expect(200)
+    expect(listed.body.events[0].targetName).toBe(target.user.username)
+    const stored = await auditEventModel(database)
+      .findOne({ requestId: listed.body.events[0].requestId })
+      .lean()
+    expect(JSON.stringify(stored)).not.toContain(target.user.username)
+    await auditEventModel(database).deleteOne({ _id: stored._id })
+  })
+
   it('filters, sorts, paginates and serializes only unexpired public event fields', async () => {
     const admin = await createAccount('admin')
     const older = await createAccount()
@@ -134,16 +150,22 @@ describe('administrator audit event HTTP contract', () => {
       outcome: 'success',
       occurredAt: new Date(baseTime - 1000).toISOString(),
       requestId: expect.any(String),
+      actorName: null,
+      targetName: newer.user.username,
+      cohortName: null,
     })
     expect(Object.keys(firstPage.body.events[0]).sort()).toEqual([
       'actorId',
       'actorKind',
+      'actorName',
+      'cohortName',
       'eventType',
       'occurredAt',
       'outcome',
       'requestId',
       'scopeCohortId',
       'targetId',
+      'targetName',
     ])
 
     const secondPage = await admin.agent

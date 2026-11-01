@@ -6,6 +6,7 @@ defineProps({
   selected: { type: String, default: 'mint' },
   heading: { type: String, default: 'Choose your capybara' },
   disabled: { type: Boolean, default: false },
+  idPrefix: { type: String, default: 'auth-avatar' },
 })
 defineEmits(['update:selected'])
 </script>
@@ -19,10 +20,10 @@ defineEmits(['update:selected'])
         :key="preset.id"
         class="auth-avatar-choice"
         :class="{ 'is-selected': selected === preset.id }"
-        :for="`auth-avatar-${preset.id}`"
+        :for="`${idPrefix}-${preset.id}`"
       >
         <input
-          :id="`auth-avatar-${preset.id}`"
+          :id="`${idPrefix}-${preset.id}`"
           class="auth-avatar-choice__input"
           type="radio"
           name="avatarId"

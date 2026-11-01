@@ -8,7 +8,7 @@ Paths are relative to `/api`. Both need an active cookie session (401), send `Ca
 
 | Method/path                                                         | Success body                                                                                                                      |
 | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| GET `/cohorts/:cohortId/results?page=`                              | `{ cohort, activeStudents, games, students, page, pageSize: 50, total }`                                                          |
+| GET `/cohorts/:cohortId/results?page=`                              | `{ cohort, activeStudents, truncated, games, students, page, pageSize: 50, total }`                                               |
 | GET `/cohorts/:cohortId/students/:studentId/attempts?gameId=&page=` | `{ student, attempts: [{ id, gameId, rulesetVersion, score, maxScore, completedAt, topicOutcomes }], page, pageSize: 10, total }` |
 
 `games` has one entry per production-registered game, even with no attempts (`rulesetVersion` and `averageBestPercent` null, `topics` empty). `students` is sorted by username, case-insensitive. A student's `games` lists only games attempted on the class's current ruleset; `bestPercent` is null only if the score is not computable (max score 0).
@@ -25,6 +25,6 @@ Paths are relative to `/api`. Both need an active cookie session (401), send `Ca
 
 ## Bounds
 
-The summary reads at most the newest 5000 counted attempts (`MAX_SUMMARY_ATTEMPTS`) and 2000 roster members (`MAX_CLASS_STUDENTS`), using the `{ 'context.cohortId', status, completedAt }` index. Reads are lean with explicit projections and allowlisted output; email, player ids, ruleset keys, state, feedback, snapshots and receipts are never returned.
+The summary reads at most the newest 5000 counted attempts (`MAX_SUMMARY_ATTEMPTS`) and 2000 roster members (`MAX_CLASS_STUDENTS`, in a fixed order), using the `{ 'context.cohortId', status, completedAt }` index. When either bound is reached the summary's `truncated` is true and the page says so; older attempts then do not count towards best scores. An unexpected failure returns the fixed 503 and logs one line with the request id and error name. Reads are lean with explicit projections and allowlisted output; email, player ids, ruleset keys, state, feedback, snapshots and receipts are never returned.
 
 Tests: `server/tests/unit/class-results/` and `server/tests/integration/class-results/` (needs the disposable replica-set runner).

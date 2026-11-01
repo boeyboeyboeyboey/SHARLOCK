@@ -309,7 +309,7 @@ describe.skipIf(process.env.SHARLOCK_TEST_REPLICA_SET !== '1')(
 
         await patchInstitution(institution.id, { status: 'inactive', expectedRevision: 0 })
           .expect(409)
-          .then(({ body }) => expect(body.error.code).toBe('ADMIN_CONFLICT'))
+          .then(({ body }) => expect(body.error.code).toBe('ADMIN_INSTITUTION_HAS_CLASSES'))
         await patchCohort(cohort.id, { status: 'inactive', expectedRevision: 0 }).expect(200)
 
         const membership = await membershipModel(database)

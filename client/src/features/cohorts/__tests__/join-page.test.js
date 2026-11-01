@@ -81,7 +81,12 @@ describe('join class page', () => {
     mocks.listMemberships.mockResolvedValue({
       memberships: [
         { cohortName: 'Old Class', status: 'removed' },
-        { cohortName: 'Blue Class', status: 'pending' },
+        {
+          cohortName: 'Blue Class',
+          status: 'pending',
+          cohortStatus: 'active',
+          institutionStatus: 'active',
+        },
       ],
     })
     const wrapper = mount(JoinClassPage, {
@@ -108,11 +113,76 @@ describe('join class page', () => {
 
     mocks.joinClass.mockRejectedValue({ code: 'COHORT_ALREADY_IN_CLASS', message: 'busy' })
     mocks.listMemberships.mockResolvedValue({
-      memberships: [{ cohortName: 'Green Class', status: 'active' }],
+      memberships: [
+        {
+          cohortName: 'Green Class',
+          status: 'active',
+          cohortStatus: 'active',
+          institutionStatus: 'active',
+        },
+      ],
     })
     wrapper.findComponent(JoinCohortForm).vm.$emit('submit', 'ABCDEFGHJKLMNPQR')
     await flushPromises()
 
     expect(wrapper.get('[data-testid="already-in-class"]').text()).toContain('Green Class')
+  })
+
+  it('offers the form to a student whose only class was deactivated', async () => {
+    mocks.route.query = {}
+    mocks.getEnrollment.mockResolvedValue({ hasInvitation: false })
+    mocks.listMemberships.mockResolvedValue({
+      memberships: [
+        {
+          cohortName: 'Old Class',
+          status: 'active',
+          cohortStatus: 'inactive',
+          institutionStatus: 'active',
+        },
+      ],
+    })
+    const wrapper = mount(JoinClassPage)
+    await flushPromises()
+    expect(wrapper.find('[data-testid="already-in-class"]').exists()).toBe(false)
+    expect(wrapper.findComponent(JoinCohortForm).exists()).toBe(true)
+  })
+
+  it('brings the code form back when a held invitation is refused', async () => {
+    mocks.route.query = {}
+    mocks.getEnrollment.mockResolvedValue({ hasInvitation: true })
+    mocks.listMemberships.mockResolvedValue({ memberships: [] })
+    mocks.clearClassInvitation.mockResolvedValue()
+    mocks.joinClass.mockRejectedValue({ code: 'COHORT_CODE_UNAVAILABLE', message: 'refused' })
+    const wrapper = mount(JoinClassPage)
+    await flushPromises()
+    expect(wrapper.findComponent(JoinCohortForm).exists()).toBe(false)
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Send class request')
+      .trigger('click')
+    await flushPromises()
+    expect(wrapper.get('[role="alert"]').text()).toBe('refused')
+    expect(wrapper.findComponent(JoinCohortForm).exists()).toBe(true)
+    expect(mocks.clearClassInvitation).toHaveBeenCalled()
+  })
+
+  it('keeps a held invitation through a temporary failure and offers another code', async () => {
+    mocks.route.query = {}
+    mocks.getEnrollment.mockResolvedValue({ hasInvitation: true })
+    mocks.listMemberships.mockResolvedValue({ memberships: [] })
+    mocks.clearClassInvitation.mockResolvedValue()
+    mocks.joinClass.mockRejectedValue({ code: 'COHORT_UNAVAILABLE', message: 'try later' })
+    const wrapper = mount(JoinClassPage)
+    await flushPromises()
+    const named = (label) => wrapper.findAll('button').find((button) => button.text() === label)
+    await named('Send class request').trigger('click')
+    await flushPromises()
+    expect(named('Send class request')).toBeTruthy()
+    expect(mocks.clearClassInvitation).not.toHaveBeenCalled()
+
+    await named('Use a different code').trigger('click')
+    await flushPromises()
+    expect(wrapper.findComponent(JoinCohortForm).exists()).toBe(true)
+    expect(mocks.clearClassInvitation).toHaveBeenCalled()
   })
 })

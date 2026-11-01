@@ -1,23 +1,18 @@
 <script setup>
 import { onBeforeUnmount, onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
 import JoinCohortForm from '../components/JoinCohortForm.vue'
 import MembershipList from '../components/MembershipList.vue'
 import { joinClass, listMemberships, safeError } from '../api.js'
 import '../cohorts.css'
 
-const route = useRoute()
 const memberships = ref([])
 const page = ref(1)
 const total = ref(0)
 const loading = ref(false)
 const joining = ref(false)
 const error = ref('')
-const notice = ref(
-  route.query.joined === 'pending'
-    ? 'Your request was sent. Class access begins after staff approval.'
-    : '',
-)
+const loadError = ref('')
+const notice = ref('')
 let generation = 0
 const controllers = new Set()
 function requestController() {
@@ -31,7 +26,7 @@ async function loadMemberships(nextPage = page.value) {
   const controller = requestController()
   page.value = nextPage
   loading.value = true
-  error.value = ''
+  loadError.value = ''
   try {
     const result = await listMemberships({ page: nextPage, limit: 20, signal: controller.signal })
     if (operation !== generation) return
@@ -39,7 +34,7 @@ async function loadMemberships(nextPage = page.value) {
     total.value = result.total || 0
   } catch (cause) {
     if (!controller.signal.aborted && operation === generation)
-      error.value = safeError(cause).message
+      loadError.value = safeError(cause).message
   } finally {
     controllers.delete(controller)
     if (operation === generation) loading.value = false
@@ -72,12 +67,18 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="cohort-page" aria-labelledby="classes-title">
-    <h1 id="classes-title" tabindex="-1">Your classes</h1>
+  <div class="cohort-page">
     <p class="cohort-intro">Enter your instructor's invitation code to join a class.</p>
     <p v-if="notice" class="cohort-notice" role="status">{{ notice }}</p>
     <JoinCohortForm :pending="joining" :error="error" @submit="submitCode" />
+    <div v-if="loadError" class="cohort-alert" role="alert">
+      <p>{{ loadError }}</p>
+      <button class="btn btn-secondary" type="button" @click="loadMemberships(page)">
+        Try again
+      </button>
+    </div>
     <MembershipList
+      v-else
       :memberships="memberships"
       :page="page"
       :total="total"

@@ -37,6 +37,19 @@ describe('DeleteAccountDialog', () => {
     vi.clearAllMocks()
   })
 
+  it('hands a stale revision back to the panel rather than offering a retry that cannot work', async () => {
+    mocks.deleteAdminUser.mockRejectedValueOnce(
+      Object.assign(new mocks.AdminApiError('changed elsewhere'), { code: 'ADMIN_STALE_ACCOUNT' }),
+    )
+    const wrapper = mountDialog()
+    await fill(wrapper)
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(wrapper.emitted('stale')).toHaveLength(1)
+    expect(wrapper.get('#delete-account-password').element.value).toBe('')
+    wrapper.unmount()
+  })
+
   it('warns about irreversibility and explains anonymisation', () => {
     const wrapper = mountDialog()
     expect(wrapper.text()).toContain('This cannot be undone')

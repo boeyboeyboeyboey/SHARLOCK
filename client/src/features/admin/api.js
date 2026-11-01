@@ -1,9 +1,27 @@
 import { api } from '../../services/api.js'
 import { requestCsrfToken } from '../auth/api.js'
 
+// the forms show these beside the field they belong to
+const FORM_FIELDS = [
+  'confirmUsername',
+  'password',
+  'reasonCategory',
+  'reasonNote',
+  'email',
+  'username',
+  'name',
+  'slug',
+  'term',
+]
+
 const SAFE_MESSAGES = Object.freeze({
-  ADMIN_INVALID_REQUEST: 'Check the highlighted details and try again.',
+  ADMIN_INVALID_REQUEST: 'Check the details you entered and try again.',
   ADMIN_CONFLICT: 'This change conflicts with existing records. Review the details and try again.',
+  ADMIN_NO_CHANGE: 'Nothing was changed, because the details are the same as before.',
+  ADMIN_SLUG_TAKEN: 'That slug is already used by another institution.',
+  ADMIN_CLASS_EXISTS: 'That institution already has a class with this name and term.',
+  ADMIN_ACCOUNT_EXISTS: 'That email or username already has an account.',
+  ADMIN_INSTITUTION_HAS_CLASSES: "Deactivate this institution's classes first.",
   ADMIN_NOT_FOUND: 'The selected account or class is unavailable. Refresh the list and try again.',
   ADMIN_STALE_ASSIGNMENTS: 'Assignments changed elsewhere. Reload them before saving again.',
   ADMIN_STALE_INSTITUTION:
@@ -16,7 +34,6 @@ const SAFE_MESSAGES = Object.freeze({
   ADMIN_PASSWORD_INVALID: 'Check your password and try again.',
   ADMIN_FORBIDDEN: 'You do not have permission to manage this workspace.',
   ADMIN_UNAVAILABLE: 'The workspace could not complete that change. Try again later.',
-  AUTHENTICATION_REQUIRED: 'Your session ended. Sign in again to continue.',
   CAPABILITY_FORBIDDEN: 'You do not have permission to manage this workspace.',
   FORBIDDEN: 'You do not have permission to manage this workspace.',
   CSRF_INVALID: 'The security check expired. Review the form and try again.',
@@ -54,7 +71,7 @@ function toSafeAdminError(error) {
   const rawFields = error?.response?.data?.error?.fieldErrors
   const fieldErrors = {}
   if (rawFields && typeof rawFields === 'object') {
-    for (const field of ['confirmUsername', 'password', 'reasonCategory', 'reasonNote']) {
+    for (const field of FORM_FIELDS) {
       if (typeof rawFields[field] === 'string') fieldErrors[field] = rawFields[field].slice(0, 200)
     }
   }
@@ -110,10 +127,11 @@ function validateActivationResult(result) {
       expiresAt: result.expiresAt,
     }
   } catch {
+    // the server has already committed by now, so the change stands and only the link is lost
     throw new AdminApiError({
-      code: 'ADMIN_UNAVAILABLE',
+      code: 'ADMIN_LINK_NOT_SHOWN',
       status: 0,
-      message: SAFE_MESSAGES.ADMIN_UNAVAILABLE,
+      message: 'The change was saved, but its link could not be shown. Reissue the link.',
     })
   }
 }
@@ -134,11 +152,19 @@ export function listPendingAdministrators(options) {
   return requestList('/admin/administrators/pending', options)
 }
 
-export async function listAdminUsers({ page = 1, limit = 25, role, accountStatus, signal } = {}) {
+export async function listAdminUsers({
+  page = 1,
+  limit = 25,
+  role,
+  accountStatus,
+  search,
+  signal,
+} = {}) {
   try {
     const params = { page, limit }
     if (role) params.role = role
     if (accountStatus) params.accountStatus = accountStatus
+    if (search) params.search = search
     const response = await api.get('/admin/users', { params, signal })
     return response.data
   } catch (error) {
@@ -222,6 +248,15 @@ export function cancelPendingAdministrator(userId, signal) {
   return requestMutation(
     'post',
     `/admin/administrators/${encodeURIComponent(userId)}/delete`,
+    undefined,
+    signal,
+  )
+}
+
+export function cancelPendingInstructor(userId, signal) {
+  return requestMutation(
+    'post',
+    `/admin/instructors/${encodeURIComponent(userId)}/delete`,
     undefined,
     signal,
   )

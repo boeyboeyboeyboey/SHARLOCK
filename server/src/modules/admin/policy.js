@@ -8,6 +8,14 @@ const ADMIN_ERRORS = Object.freeze({
   ADMIN_NOT_FOUND: { status: 404, message: 'This account or class is unavailable.' },
   ADMIN_PASSWORD_INVALID: { status: 403, message: 'Check your password and try again.' },
   ADMIN_CONFLICT: { status: 409, message: 'This change conflicts with existing records.' },
+  ADMIN_NO_CHANGE: { status: 409, message: 'Nothing was changed.' },
+  ADMIN_SLUG_TAKEN: { status: 409, message: 'That slug is already used.' },
+  ADMIN_CLASS_EXISTS: { status: 409, message: 'That class already exists in this institution.' },
+  ADMIN_ACCOUNT_EXISTS: { status: 409, message: 'That email or username already has an account.' },
+  ADMIN_INSTITUTION_HAS_CLASSES: {
+    status: 409,
+    message: "Deactivate this institution's classes first.",
+  },
   ADMIN_STALE_ASSIGNMENTS: { status: 409, message: 'Refresh assignments before saving again.' },
   ADMIN_STALE_INSTITUTION: { status: 409, message: 'Refresh the institution before saving again.' },
   ADMIN_STALE_COHORT: { status: 409, message: 'Refresh the class before saving again.' },
@@ -41,6 +49,7 @@ const ERROR_FIELDS = new Set([
   'status',
   'accountStatus',
   'role',
+  'search',
   'page',
   'limit',
 ])
@@ -106,7 +115,7 @@ export function parseAdminListQuery(query, { institution = false, users = false 
   const fields = institution
     ? ['page', 'limit', 'institutionId']
     : users
-      ? ['page', 'limit', 'role', 'accountStatus']
+      ? ['page', 'limit', 'role', 'accountStatus', 'search']
       : ['page', 'limit']
   if (Reflect.ownKeys(query).some((key) => typeof key !== 'string' || !fields.includes(key)))
     invalid()
@@ -126,6 +135,13 @@ export function parseAdminListQuery(query, { institution = false, users = false 
       invalid({ accountStatus: 'Choose an account status.' })
     }
     result.accountStatus = query.accountStatus
+  }
+  if (Object.hasOwn(query, 'search')) {
+    if (typeof query.search !== 'string' || query.search.length > 254) {
+      invalid({ search: 'Enter a shorter search.' })
+    }
+    const search = query.search.trim().toLowerCase()
+    if (search) result.search = search
   }
   return result
 }

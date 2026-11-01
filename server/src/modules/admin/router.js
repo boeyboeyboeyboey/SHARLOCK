@@ -32,9 +32,9 @@ function createWriteLimiter({ windowMs, limit, message }) {
     ipv6Subnet: 56,
     standardHeaders: 'draft-7',
     legacyHeaders: false,
+    // the library has already set Retry-After from the real window when this runs
     handler(_request, response) {
       response.set('Cache-Control', 'no-store')
-      response.set('Retry-After', '60')
       response.status(429).json({
         error: { code: 'RATE_LIMITED', message },
         requestId: response.locals.requestId,
@@ -44,8 +44,20 @@ function createWriteLimiter({ windowMs, limit, message }) {
   return { middleware, store }
 }
 
+const requestContext = (response) => ({ requestId: response.locals.requestId })
+
 function sendAdminError(error, _request, response, next) {
   if (error instanceof AdminError) {
+    if (error.status === 503) {
+      // same single line as the shared handler: the id and error name, never a message or stack
+      console.error(
+        JSON.stringify({
+          event: 'request_failed',
+          requestId: response.locals.requestId,
+          errorName: error.causeName,
+        }),
+      )
+    }
     response.status(error.status).json({
       error: {
         code: error.code,
@@ -71,7 +83,15 @@ function sendAdminError(error, _request, response, next) {
 
 export function createAdminRouter(
   database,
-  { requireSession, requireMutation, now, clientOrigin, recordAuditEvent, activationService } = {},
+  {
+    requireSession,
+    requireMutation,
+    now,
+    clientOrigin,
+    recordAuditEvent,
+    activationService,
+    limits = {},
+  } = {},
 ) {
   const sessionMiddleware = requireMiddlewareArray(requireSession, 'session')
   const mutationMiddleware = requireMiddlewareArray(requireMutation, 'mutation')
@@ -84,12 +104,12 @@ export function createAdminRouter(
   const router = Router()
   const ordinaryWrites = createWriteLimiter({
     windowMs: 15 * 60 * 1000,
-    limit: 60,
+    limit: limits.ordinaryWrites ?? 60,
     message: 'Too many changes. Please try again later.',
   })
   const activationWrites = createWriteLimiter({
     windowMs: 60 * 60 * 1000,
-    limit: 20,
+    limit: limits.activationWrites ?? 20,
     message: 'Too many instructor account requests. Please try again later.',
   })
 
@@ -114,6 +134,7 @@ export function createAdminRouter(
             request.params.userId,
             request.body,
             request.query,
+            requestContext(response),
           ),
         )
       } catch (error) {
@@ -135,6 +156,7 @@ export function createAdminRouter(
             request.params.userId,
             request.body,
             request.query,
+            requestContext(response),
           ),
         )
       } catch (error) {
@@ -161,7 +183,12 @@ export function createAdminRouter(
         response
           .status(201)
           .json(
-            await service.createInstitution(response.locals.authUser, request.body, request.query),
+            await service.createInstitution(
+              response.locals.authUser,
+              request.body,
+              request.query,
+              requestContext(response),
+            ),
           )
       } catch (error) {
         next(error)
@@ -182,6 +209,7 @@ export function createAdminRouter(
             request.params.institutionId,
             request.body,
             request.query,
+            requestContext(response),
           ),
         )
       } catch (error) {
@@ -207,7 +235,14 @@ export function createAdminRouter(
       try {
         response
           .status(201)
-          .json(await service.createCohort(response.locals.authUser, request.body, request.query))
+          .json(
+            await service.createCohort(
+              response.locals.authUser,
+              request.body,
+              request.query,
+              requestContext(response),
+            ),
+          )
       } catch (error) {
         next(error)
       }
@@ -227,6 +262,7 @@ export function createAdminRouter(
             request.params.cohortId,
             request.body,
             request.query,
+            requestContext(response),
           ),
         )
       } catch (error) {
@@ -257,6 +293,7 @@ export function createAdminRouter(
               response.locals.authUser,
               request.body,
               request.query,
+              requestContext(response),
             ),
           )
       } catch (error) {
@@ -279,6 +316,7 @@ export function createAdminRouter(
               response.locals.authUser,
               request.body,
               request.query,
+              requestContext(response),
             ),
           )
       } catch (error) {
@@ -314,6 +352,7 @@ export function createAdminRouter(
             request.params.userId,
             request.body,
             request.query,
+            requestContext(response),
           ),
         )
       } catch (error) {
@@ -335,6 +374,7 @@ export function createAdminRouter(
             request.params.userId,
             request.body,
             request.query,
+            requestContext(response),
           ),
         )
       } catch (error) {
@@ -356,6 +396,29 @@ export function createAdminRouter(
             request.params.userId,
             request.body,
             request.query,
+            requestContext(response),
+          ),
+        )
+      } catch (error) {
+        next(error)
+      }
+    },
+  )
+
+  router.post(
+    '/admin/instructors/:userId/delete',
+    ...sessionMiddleware,
+    activationWrites.middleware,
+    ...mutationMiddleware,
+    async (request, response, next) => {
+      try {
+        response.json(
+          await service.cancelPendingInstructor(
+            response.locals.authUser,
+            request.params.userId,
+            request.body,
+            request.query,
+            requestContext(response),
           ),
         )
       } catch (error) {
@@ -377,6 +440,7 @@ export function createAdminRouter(
             request.params.userId,
             request.body,
             request.query,
+            requestContext(response),
           ),
         )
       } catch (error) {

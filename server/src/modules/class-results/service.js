@@ -102,7 +102,14 @@ export function summarizeClass({ gameIds, students, attemptsNewestFirst }) {
   }
 }
 
-export function createClassResultsService(database, { registry = createAttemptRegistry() } = {}) {
+export function createClassResultsService(
+  database,
+  {
+    registry = createAttemptRegistry(),
+    maxSummaryAttempts = MAX_SUMMARY_ATTEMPTS,
+    maxClassStudents = MAX_CLASS_STUDENTS,
+  } = {},
+) {
   const permissions = createPermissionService(database)
   const Attempt = attemptModel(database, registry)
   const Membership = membershipModel(database)
@@ -120,10 +127,14 @@ export function createClassResultsService(database, { registry = createAttemptRe
   async function loadStudents(cohortId, onlyId) {
     const filter = { cohortId: new Types.ObjectId(cohortId), status: 'active' }
     if (onlyId) filter.userId = new Types.ObjectId(onlyId)
-    const memberships = await Membership.find(filter, { userId: 1 })
-      .limit(MAX_CLASS_STUDENTS)
+    // one row past the bound shows the bound was reached, and a fixed order keeps the subset stable
+    const rows = await Membership.find(filter, { userId: 1 })
+      .sort({ _id: 1 })
+      .limit(maxClassStudents + 1)
       .lean()
-    if (memberships.length === 0) return []
+    const memberships = rows.slice(0, maxClassStudents)
+    const truncated = rows.length > memberships.length
+    if (memberships.length === 0) return { students: [], truncated }
     const users = await User.find(
       {
         _id: { $in: memberships.map((item) => item.userId) },
@@ -132,23 +143,25 @@ export function createClassResultsService(database, { registry = createAttemptRe
       },
       { username: 1, avatarId: 1 },
     ).lean()
-    return users
+    const students = users
       .map((user) => ({
         id: user._id.toString(),
         username: user.username,
         avatarId: user.avatarId,
       }))
       .sort(byUsername)
+    return { students, truncated }
   }
 
   async function getSummary(actor, cohortIdInput, { page }) {
     const cohortId = await authorize(actor, cohortIdInput)
-    const [cohort, students] = await Promise.all([
+    const [cohort, roster] = await Promise.all([
       Cohort.findById(cohortId, { name: 1, term: 1 }).lean(),
       loadStudents(cohortId),
     ])
     if (!cohort) throw classUnavailable()
-    const attempts =
+    const { students } = roster
+    const attemptRows =
       students.length === 0
         ? []
         : await Attempt.find(
@@ -169,8 +182,9 @@ export function createClassResultsService(database, { registry = createAttemptRe
             },
           )
             .sort({ completedAt: -1, _id: -1 })
-            .limit(MAX_SUMMARY_ATTEMPTS)
+            .limit(maxSummaryAttempts + 1)
             .lean()
+    const attempts = attemptRows.slice(0, maxSummaryAttempts)
     const summary = summarizeClass({
       gameIds,
       students,
@@ -188,6 +202,7 @@ export function createClassResultsService(database, { registry = createAttemptRe
     return {
       cohort: { id: cohortId, name: cohort.name, term: cohort.term },
       activeStudents: students.length,
+      truncated: roster.truncated || attemptRows.length > attempts.length,
       games: summary.games,
       students: summary.students.slice(start, start + STUDENT_PAGE_SIZE),
       page,
@@ -199,7 +214,9 @@ export function createClassResultsService(database, { registry = createAttemptRe
   async function listStudentAttempts(actor, cohortIdInput, studentIdInput, { gameId, page }) {
     const cohortId = await authorize(actor, cohortIdInput)
     const studentId = parseRouteId(studentIdInput)
-    const [student] = await loadStudents(cohortId, studentId)
+    const {
+      students: [student],
+    } = await loadStudents(cohortId, studentId)
     if (!student) throw classUnavailable()
     const filter = {
       status: 'completed',

@@ -40,7 +40,12 @@ describe('audit record policy', () => {
 
   it.each([
     'admin.institution.update',
+    'admin.institution.deactivate',
+    'admin.institution.reactivate',
     'admin.cohort.update',
+    'admin.cohort.deactivate',
+    'admin.cohort.reactivate',
+    'admin.instructor.cancel',
     'admin.administrator.provision',
     'admin.administrator.activation.issue',
     'admin.administrator.cancel',

@@ -44,6 +44,12 @@ Applies to shared pages, the hub and every game (including games' own design fre
 - Teach a game through its How to play preview (animated scene), not paragraphs on the play screen.
 - The sign-in page keeps one sentence saying what Sharlock is, because a first-time visitor lands there before seeing anything else (REVFIX-01, C-008).
 
+### Staff pages (REVFIX-01)
+
+- A destructive step on a staff page asks first in an inline `InlineConfirm` panel beside the control, not a native dialog: the message, then Cancel (which takes focus) and a danger confirm. The typed-name delete dialog stays for permanent account deletion.
+- Feedback after an action stays on screen: success and error lines on the admin and class pages are sticky under the top bar.
+- Tables that cannot fit a phone either become cards below 640px (Accounts) or scroll inside their own region with whole words and real column widths (class results). Never let the shared `overflow-wrap: anywhere` squeeze a table cell.
+
 ### Phone touch targets (FIX-04, Boey, 1 November 2026)
 
 - Below 576px, and on short touch landscapes (under 500px high), a game page turns the Menu, Sound and Exit controls into a solid 64px top bar that owns its height, so no control covers the game (MOB-01). The game's Start still sits above the fold at 375 x 667.

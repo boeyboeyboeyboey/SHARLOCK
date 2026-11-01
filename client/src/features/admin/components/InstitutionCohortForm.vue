@@ -1,5 +1,6 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
+import InlineConfirm from '../../cohorts/components/InlineConfirm.vue'
 
 const props = defineProps({
   institutions: { type: Array, default: () => [] },
@@ -16,6 +17,8 @@ const props = defineProps({
   updatingInstitutionId: { type: String, default: '' },
   updatingCohortId: { type: String, default: '' },
   error: { type: String, default: '' },
+  // the form that failed and the server's message for each of its fields
+  fieldErrors: { type: Object, default: () => ({ form: '', fields: {} }) },
 })
 const emit = defineEmits([
   'create-institution',
@@ -39,6 +42,14 @@ const activeInstitutions = computed(() =>
   props.institutions.filter((institution) => institution.status === 'active'),
 )
 const cohortInstitutionId = ref('')
+const confirmingDeactivation = ref('')
+const institutionsHeading = ref(null)
+const cohortsHeading = ref(null)
+const panel = ref(null)
+const DEACTIVATE_CLASS =
+  'Deactivate this class? Students keep their results and can join another class, but its code stops working and no one can join or be approved.'
+const DEACTIVATE_INSTITUTION =
+  'Deactivate this institution? No class can be created or reactivated in it until it is active again.'
 
 watch(
   () => [activeInstitutions.value, props.selectedInstitutionId],
@@ -79,7 +90,18 @@ function editCohort(cohort) {
   institutionEditId.value = ''
 }
 
+function fieldError(form, field) {
+  return props.fieldErrors.form === form ? props.fieldErrors.fields?.[field] || '' : ''
+}
+
 function saveInstitution(institution) {
+  if (institutionDraft.value.status === 'inactive' && institution.status === 'active') {
+    if (confirmingDeactivation.value !== institution.id) {
+      confirmingDeactivation.value = institution.id
+      return
+    }
+  }
+  confirmingDeactivation.value = ''
   emit('update-institution', {
     id: institution.id,
     name: institutionDraft.value.name,
@@ -89,6 +111,13 @@ function saveInstitution(institution) {
 }
 
 function saveCohort(cohort) {
+  if (cohortDraft.value.status === 'inactive' && cohort.status === 'active') {
+    if (confirmingDeactivation.value !== cohort.id) {
+      confirmingDeactivation.value = cohort.id
+      return
+    }
+  }
+  confirmingDeactivation.value = ''
   emit('update-cohort', {
     id: cohort.id,
     name: cohortDraft.value.name,
@@ -100,10 +129,27 @@ function saveCohort(cohort) {
 
 function finishInstitutionEdit() {
   institutionEditId.value = ''
+  confirmingDeactivation.value = ''
 }
 
 function finishCohortEdit() {
   cohortEditId.value = ''
+  confirmingDeactivation.value = ''
+}
+
+// backing out of an edit returns to its button; the row is still there because nothing reloaded
+async function cancelEdit(finish, id) {
+  finish()
+  await nextTick()
+  panel.value?.querySelector(`[data-edit-id="${id}"]`)?.focus()
+}
+
+function focusInstitutions() {
+  institutionsHeading.value?.focus()
+}
+
+function focusCohorts() {
+  cohortsHeading.value?.focus()
 }
 
 function resetInstitutionForm() {
@@ -116,7 +162,14 @@ function resetCohortForm() {
   cohortTerm.value = ''
 }
 
-defineExpose({ resetInstitutionForm, resetCohortForm, finishInstitutionEdit, finishCohortEdit })
+defineExpose({
+  resetInstitutionForm,
+  resetCohortForm,
+  finishInstitutionEdit,
+  finishCohortEdit,
+  focusInstitutions,
+  focusCohorts,
+})
 
 function statusLabel(status) {
   return status === 'active' ? 'Active' : 'Inactive'
@@ -124,10 +177,9 @@ function statusLabel(status) {
 </script>
 
 <template>
-  <section class="admin-workspace__panel" aria-labelledby="institution-class-title">
+  <section ref="panel" class="admin-workspace__panel" aria-labelledby="institution-class-title">
     <div class="admin-workspace__section-heading">
       <div>
-        <p class="admin-workspace__eyebrow">PLACE AND CLASS</p>
         <h2 id="institution-class-title">Institutions and classes</h2>
       </div>
     </div>
@@ -146,7 +198,18 @@ function statusLabel(status) {
           maxlength="100"
           required
           :disabled="pendingInstitution"
+          :aria-invalid="Boolean(fieldError('institution', 'name'))"
+          :aria-describedby="
+            fieldError('institution', 'name') ? 'admin-institution-name-error' : undefined
+          "
         />
+        <p
+          v-if="fieldError('institution', 'name')"
+          id="admin-institution-name-error"
+          class="admin-workspace__field-error"
+        >
+          {{ fieldError('institution', 'name') }}
+        </p>
         <label for="admin-institution-slug">Institution slug</label>
         <input
           id="admin-institution-slug"
@@ -157,15 +220,22 @@ function statusLabel(status) {
           pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
           required
           :disabled="pendingInstitution"
+          :aria-invalid="Boolean(fieldError('institution', 'slug'))"
+          aria-describedby="admin-institution-slug-hint"
         />
-        <small>Use lowercase letters or numbers separated by single hyphens.</small>
+        <p v-if="fieldError('institution', 'slug')" class="admin-workspace__field-error">
+          {{ fieldError('institution', 'slug') }}
+        </p>
+        <small id="admin-institution-slug-hint">
+          Use lowercase letters or numbers separated by single hyphens.
+        </small>
         <button class="admin-workspace__button" type="submit" :disabled="pendingInstitution">
           {{ pendingInstitution ? 'Creating…' : 'Create institution' }}
         </button>
       </form>
 
       <div class="admin-workspace__list-panel">
-        <h3>Institutions</h3>
+        <h3 ref="institutionsHeading" tabindex="-1">Institutions</h3>
         <p v-if="loadingInstitutions" role="status">Loading institutions…</p>
         <p v-else-if="institutions.length === 0" class="admin-workspace__empty">
           No institutions are listed yet.
@@ -184,7 +254,11 @@ function statusLabel(status) {
                 maxlength="100"
                 required
                 :disabled="updatingInstitutionId === institution.id"
+                :aria-invalid="Boolean(fieldError('institution-edit', 'name'))"
               />
+              <p v-if="fieldError('institution-edit', 'name')" class="admin-workspace__field-error">
+                {{ fieldError('institution-edit', 'name') }}
+              </p>
               <label :for="`admin-institution-edit-status-${institution.id}`">Status</label>
               <select
                 :id="`admin-institution-edit-status-${institution.id}`"
@@ -205,10 +279,17 @@ function statusLabel(status) {
                 class="admin-workspace__text-button"
                 type="button"
                 :disabled="updatingInstitutionId === institution.id"
-                @click="finishInstitutionEdit"
+                @click="cancelEdit(finishInstitutionEdit, institution.id)"
               >
                 Cancel
               </button>
+              <InlineConfirm
+                v-if="confirmingDeactivation === institution.id"
+                :message="DEACTIVATE_INSTITUTION"
+                confirm-label="Yes, deactivate"
+                @confirm="saveInstitution(institution)"
+                @cancel="confirmingDeactivation = ''"
+              />
             </form>
             <div v-else>
               <strong>{{ institution.name }}</strong>
@@ -219,6 +300,7 @@ function statusLabel(status) {
                 v-if="institutionEditId !== institution.id"
                 class="admin-workspace__text-button"
                 type="button"
+                :data-edit-id="institution.id"
                 :aria-label="`Edit ${institution.name}`"
                 @click="editInstitution(institution)"
               >
@@ -287,7 +369,11 @@ function statusLabel(status) {
           maxlength="100"
           required
           :disabled="pendingCohort"
+          :aria-invalid="Boolean(fieldError('cohort', 'name'))"
         />
+        <p v-if="fieldError('cohort', 'name')" class="admin-workspace__field-error">
+          {{ fieldError('cohort', 'name') }}
+        </p>
         <label for="admin-cohort-term">Term</label>
         <input
           id="admin-cohort-term"
@@ -296,7 +382,11 @@ function statusLabel(status) {
           maxlength="50"
           required
           :disabled="pendingCohort"
+          :aria-invalid="Boolean(fieldError('cohort', 'term'))"
         />
+        <p v-if="fieldError('cohort', 'term')" class="admin-workspace__field-error">
+          {{ fieldError('cohort', 'term') }}
+        </p>
         <button
           class="admin-workspace__button"
           type="submit"
@@ -307,7 +397,7 @@ function statusLabel(status) {
       </form>
 
       <div class="admin-workspace__list-panel">
-        <h3>Classes</h3>
+        <h3 ref="cohortsHeading" tabindex="-1">Classes</h3>
         <p v-if="loadingCohorts" role="status">Loading classes…</p>
         <p v-else-if="cohorts.length === 0" class="admin-workspace__empty">
           No classes are listed for this institution.
@@ -326,7 +416,11 @@ function statusLabel(status) {
                 maxlength="100"
                 required
                 :disabled="updatingCohortId === cohort.id"
+                :aria-invalid="Boolean(fieldError('cohort-edit', 'name'))"
               />
+              <p v-if="fieldError('cohort-edit', 'name')" class="admin-workspace__field-error">
+                {{ fieldError('cohort-edit', 'name') }}
+              </p>
               <label :for="`admin-cohort-edit-term-${cohort.id}`">Term</label>
               <input
                 :id="`admin-cohort-edit-term-${cohort.id}`"
@@ -334,7 +428,11 @@ function statusLabel(status) {
                 maxlength="50"
                 required
                 :disabled="updatingCohortId === cohort.id"
+                :aria-invalid="Boolean(fieldError('cohort-edit', 'term'))"
               />
+              <p v-if="fieldError('cohort-edit', 'term')" class="admin-workspace__field-error">
+                {{ fieldError('cohort-edit', 'term') }}
+              </p>
               <label :for="`admin-cohort-edit-status-${cohort.id}`">Status</label>
               <select
                 :id="`admin-cohort-edit-status-${cohort.id}`"
@@ -355,10 +453,17 @@ function statusLabel(status) {
                 class="admin-workspace__text-button"
                 type="button"
                 :disabled="updatingCohortId === cohort.id"
-                @click="finishCohortEdit"
+                @click="cancelEdit(finishCohortEdit, cohort.id)"
               >
                 Cancel
               </button>
+              <InlineConfirm
+                v-if="confirmingDeactivation === cohort.id"
+                :message="DEACTIVATE_CLASS"
+                confirm-label="Yes, deactivate"
+                @confirm="saveCohort(cohort)"
+                @cancel="confirmingDeactivation = ''"
+              />
             </form>
             <div v-else>
               <strong>{{ cohort.name }}</strong>
@@ -371,6 +476,7 @@ function statusLabel(status) {
               v-if="cohortEditId !== cohort.id"
               class="admin-workspace__text-button"
               type="button"
+              :data-edit-id="cohort.id"
               :aria-label="`Edit ${cohort.name}`"
               @click="editCohort(cohort)"
             >

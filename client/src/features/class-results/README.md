@@ -8,7 +8,7 @@
 - Components: `ClassResults.vue` (container: loading, error, 404, stale-response handling, selected student), `ResultsSummary.vue`, `StudentResultsTable.vue`, `StudentAttempts.vue`; `format.js` holds game-name and date helpers.
 - API (`api.js`): `GET /cohorts/:cohortId/results?page=` and `GET /cohorts/:cohortId/students/:studentId/attempts?gameId=&page=`. Nothing is stored client-side.
 - Status: see the INST-01 record in [TASKS.md](../../../../TASKS.md).
-- Limits: only the SQL Injection Arcade saves results today, and only attempts made in the class context appear. Results are completion and performance evidence, not validated mastery.
+- Limits: only completed class-context attempts of registered games appear (`server/src/modules/attempts/registry.js` sets the columns); personal practice and staff play are excluded. A very large class shows a notice when its oldest attempts could not be counted. Results are completion and performance evidence, not validated mastery.
 
 ## Components
 
@@ -20,6 +20,12 @@
 | `StudentAttempts`     | `student`, `attempts`, `page`, `pageSize`, `total`, `loading`, `error`, `gameId`, `gameOptions` | `close`, `change-page`, `change-game`, `retry` |
 
 `ClassManagementPage.vue` mounts `ClassResults` when `?view=results` is active (kept beside `?class=` by `history.replaceState`).
+
+## Layout
+
+Below 992px the table scrolls sideways inside `.class-results__scroll` and the page does not; at 1200px every column fits, because `ClassManagementPage` widens the page for the Results view. Cells keep whole words: the shared body rule `overflow-wrap: anywhere` is switched off here, because it let the browser squeeze columns to one letter. The scroller is positioned so the visually hidden "Not attempted" text cannot widen the page.
+
+A 401 has no message of its own: the shared handler in `features/auth/guards.js` ends the session and returns to sign-in.
 
 ## Tests
 

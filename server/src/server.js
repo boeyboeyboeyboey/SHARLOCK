@@ -27,6 +27,8 @@ const E2E_ATTEMPT_LIMITS = Object.freeze({
 
 const E2E_AUTH_LIMITS = Object.freeze({ activation: 1000, passwordReset: 1000 })
 
+const E2E_ADMIN_LIMITS = Object.freeze({ ordinaryWrites: 1000, activationWrites: 1000 })
+
 let database
 let server
 let app
@@ -127,7 +129,10 @@ try {
       }),
     },
     // every browser test shares one loopback address, so only the e2e server lifts attempt limits
-    ...(config.nodeEnv === 'test' && { attempts: { limits: E2E_ATTEMPT_LIMITS } }),
+    ...(config.nodeEnv === 'test' && {
+      attempts: { limits: E2E_ATTEMPT_LIMITS },
+      admin: { limits: E2E_ADMIN_LIMITS },
+    }),
   })
   server = app.listen(config.port, '127.0.0.1')
   server.on('upgrade', (request, socket, head) => {

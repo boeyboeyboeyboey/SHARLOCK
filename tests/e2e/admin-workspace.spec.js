@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { expect, test } from './fixtures/admin.js'
 import { signInContext } from './fixtures/sign-in.js'
+import { closeLinkDialog, openAddStaff, openAssignments } from './fixtures/staff.js'
 import { forceTown2d, newTown2dContext } from './fixtures/town.js'
 
 test.skip(
@@ -30,8 +31,10 @@ async function changeAccountStatus(page, row, buttonName) {
       response.request().method() === 'GET' &&
       new URL(response.url()).pathname === '/api/admin/users',
   )
-  if (buttonName === 'Disable account') page.once('dialog', (dialog) => dialog.accept())
   await row.getByRole('button', { name: buttonName }).click()
+  if (buttonName === 'Disable account') {
+    await row.getByRole('button', { name: 'Yes, disable' }).click()
+  }
   expect((await patched).ok()).toBe(true)
   expect((await reloaded).ok()).toBe(true)
   await expect(panel.getByRole('button', { name: 'Apply filters' })).toBeEnabled()
@@ -167,6 +170,7 @@ test('admin manages institutions, assignments, audit history, and account access
     expect(createdCohort?.id).toMatch(/^[a-f\d]{24}$/i)
 
     await openTab(page, 'Instructors')
+    await openAddStaff(page)
     await page.getByLabel('Instructor email').fill(instructor.email)
     await page.getByLabel('Instructor username').fill(instructor.username)
     await page.getByRole('button', { name: 'Create instructor and activation link' }).click()
@@ -186,8 +190,7 @@ test('admin manages institutions, assignments, audit history, and account access
     expect(activation.search).toBe('')
     expect(activation.hash).toMatch(/^#token=[A-Za-z\d_-]{43}$/)
 
-    await page.getByRole('button', { name: 'Close', exact: true }).click()
-    await expect(page.getByRole('dialog')).toHaveCount(0)
+    await closeLinkDialog(page)
     await expect(page.getByText(activationUrl, { exact: true })).toHaveCount(0)
 
     activationContext = await newTown2dContext(browser, isolatedContext)
@@ -221,6 +224,7 @@ test('admin manages institutions, assignments, audit history, and account access
     await page.getByRole('button', { name: 'Refresh instructors' }).click()
 
     const instructorEditor = page.getByRole('article', { name: instructor.username, exact: true })
+    await openAssignments(instructorEditor)
     const cohortCheckbox = instructorEditor.getByRole('checkbox', {
       name: `${cohortName}, ${institutionName}, ${term}`,
     })
@@ -267,6 +271,7 @@ test('admin manages institutions, assignments, audit history, and account access
     await page.locator(`#admin-cohort-edit-term-${createdCohort.id}`).fill(renamedTerm)
     await page.locator(`#admin-cohort-edit-status-${createdCohort.id}`).selectOption('inactive')
     await page.getByRole('button', { name: 'Save class' }).click()
+    await page.getByRole('button', { name: 'Yes, deactivate' }).click()
     await expect(
       cohortRow(page, renamedCohort).getByText(renamedCohort, { exact: true }),
     ).toBeVisible()
@@ -278,6 +283,7 @@ test('admin manages institutions, assignments, audit history, and account access
       exact: true,
     })
     await expect(retainedInstructor.getByText('Inactive; retained assignment')).toBeVisible()
+    await openAssignments(retainedInstructor)
     await retainedInstructor.getByRole('button', { name: 'Save assignments' }).click()
     await expect
       .poll(async () => {
@@ -297,6 +303,7 @@ test('admin manages institutions, assignments, audit history, and account access
       .locator(`#admin-institution-edit-status-${createdInstitution.id}`)
       .selectOption('inactive')
     await page.getByRole('button', { name: 'Save institution' }).click()
+    await page.getByRole('button', { name: 'Yes, deactivate' }).click()
     await expect(
       institutionRow(page, renamedInstitution).getByText(`${institutionSlug} · Inactive`, {
         exact: true,
@@ -325,6 +332,7 @@ test('admin manages institutions, assignments, audit history, and account access
       name: instructor.username,
       exact: true,
     })
+    await openAssignments(updatedInstructor)
     await expect(
       updatedInstructor.getByRole('checkbox', {
         name: `${renamedCohort}, ${renamedInstitution}, ${renamedTerm}`,
@@ -334,12 +342,12 @@ test('admin manages institutions, assignments, audit history, and account access
 
     await openTab(page, 'Audit log')
     const auditPanel = page.locator('section[aria-labelledby="audit-events-title"]')
-    await auditPanel.getByLabel('Event type').selectOption('admin.cohort.update')
+    await auditPanel.getByLabel('Event type').selectOption('admin.cohort.deactivate')
     await auditPanel.getByRole('button', { name: 'Apply filters' }).click()
     await expect(
       auditPanel
         .locator('.admin-workspace__audit-list')
-        .getByText('Class updated', { exact: true })
+        .getByText('Class deactivated', { exact: true })
         .first(),
     ).toBeVisible()
     await auditPanel.getByLabel('Event type').selectOption('admin.institution.update')
@@ -413,7 +421,7 @@ test('admin manages institutions, assignments, audit history, and account access
     )
     await disabledInstructorRow.getByRole('button', { name: 'Reissue activation link' }).click()
     await expect(page.getByLabel('Activation link', { exact: true })).toBeVisible()
-    await page.getByRole('button', { name: 'Close', exact: true }).click()
+    await closeLinkDialog(page)
 
     await studentContext.close()
     studentContext = freshStudentContext
@@ -439,6 +447,7 @@ test('admin provisions another administrator through a one-time activation link'
   await page.goto('/admin')
   await expect(page.getByRole('heading', { name: 'Admin workspace' })).toBeVisible()
   await openTab(page, 'Instructors')
+  await openAddStaff(page)
 
   await expect(page.getByRole('heading', { name: 'Provision an administrator' })).toBeVisible()
   await page.getByLabel('Administrator email').fill(`e2e-admin-${suffix}@example.test`)
@@ -455,8 +464,7 @@ test('admin provisions another administrator through a one-time activation link'
     )
     .toBe(true)
   expect(new URL(await linkField.inputValue()).origin).toBe(origin)
-  await page.getByRole('button', { name: 'Close', exact: true }).click()
-  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await closeLinkDialog(page)
 })
 
 function isolatedContextOptions(testInfo) {
@@ -486,12 +494,12 @@ async function provisionPendingAdministrator(page, suffix) {
   await page.goto('/admin')
   await expect(page.getByRole('heading', { name: 'Admin workspace' })).toBeVisible()
   await openTab(page, 'Instructors')
+  await openAddStaff(page)
   await page.getByLabel('Administrator email').fill(`e2e-pending-${suffix}@example.test`)
   await page.getByLabel('Administrator username').fill(username)
   await page.getByRole('button', { name: 'Create administrator and activation link' }).click()
   const activationUrl = await readActivationLink(page)
-  await page.getByRole('button', { name: 'Close', exact: true }).click()
-  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await closeLinkDialog(page)
   return { username, activationUrl }
 }
 
@@ -508,8 +516,7 @@ test('admin reissues a pending administrator link and the activated account leav
   await expect(pending.getByRole('button', { name: `Reissue link for ${username}` })).toBeVisible()
   await pending.getByRole('button', { name: `Reissue link for ${username}` }).click()
   const reissuedUrl = await readActivationLink(page)
-  await page.getByRole('button', { name: 'Close', exact: true }).click()
-  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await closeLinkDialog(page)
 
   const activationContext = await newTown2dContext(browser, isolatedContextOptions(testInfo))
   try {
@@ -555,8 +562,8 @@ test('admin cancels a pending administrator and its activation link stops workin
 
   const pending = page.getByRole('region', { name: 'Pending administrators' })
   await expect(pending.getByRole('button', { name: `Cancel ${username}` })).toBeVisible()
-  page.once('dialog', (dialog) => dialog.accept())
   await pending.getByRole('button', { name: `Cancel ${username}` }).click()
+  await pending.getByRole('button', { name: 'Yes, cancel them' }).click()
   await expect(pending.getByRole('button', { name: `Cancel ${username}` })).toHaveCount(0)
 
   const activationContext = await newTown2dContext(browser, isolatedContextOptions(testInfo))

@@ -21,6 +21,8 @@ import {
   listPendingAdministrators,
   reissueAdministratorActivation,
   cancelPendingAdministrator,
+  cancelPendingInstructor,
+  deleteAdminUser,
   updateCohort,
   updateInstitution,
   updateAdminUser,
@@ -28,6 +30,60 @@ import {
 } from '../api.js'
 
 describe('admin workspace API', () => {
+  it('keeps field errors the forms can show and drops anything else', async () => {
+    mocks.requestCsrfToken.mockResolvedValue('csrf')
+    mocks.api.post.mockRejectedValueOnce({
+      response: {
+        status: 400,
+        data: {
+          error: {
+            code: 'ADMIN_INVALID_REQUEST',
+            fieldErrors: { username: 'Use 3 to 32 letters.', secret: 'private' },
+          },
+        },
+      },
+    })
+    const failure = await createInstructor({}).catch((error) => error)
+    expect(failure.fieldErrors).toEqual({ username: 'Use 3 to 32 letters.' })
+    expect(failure.message).toBe('Check the details you entered and try again.')
+  })
+
+  it.each([
+    ['ADMIN_SLUG_TAKEN', 'That slug is already used by another institution.'],
+    ['ADMIN_CLASS_EXISTS', 'That institution already has a class with this name and term.'],
+    ['ADMIN_ACCOUNT_EXISTS', 'That email or username already has an account.'],
+    ['ADMIN_INSTITUTION_HAS_CLASSES', "Deactivate this institution's classes first."],
+    ['ADMIN_NO_CHANGE', 'Nothing was changed, because the details are the same as before.'],
+  ])('explains %s in its own words', async (code, message) => {
+    mocks.requestCsrfToken.mockResolvedValue('csrf')
+    mocks.api.post.mockRejectedValueOnce({
+      response: { status: 409, data: { error: { code, message: 'server text' } } },
+    })
+    await expect(createInstitution({})).rejects.toMatchObject({ code, message })
+  })
+
+  it('leaves an ended session to the shared handler, with no sentence of its own', async () => {
+    mocks.api.get.mockRejectedValueOnce({
+      response: { status: 401, data: { error: { code: 'AUTHENTICATION_REQUIRED' } } },
+    })
+    const failure = await listInstitutions().catch((error) => error)
+    expect(failure.status).toBe(401)
+    expect(failure.message).not.toMatch(/session/i)
+  })
+
+  it('sends the delete and cancel calls and the account search', async () => {
+    mocks.requestCsrfToken.mockResolvedValue('csrf')
+    mocks.api.post.mockResolvedValue({ data: { outcome: 'deleted' } })
+    await deleteAdminUser('user/id', { confirmUsername: 'x' })
+    expect(mocks.api.post.mock.calls.at(-1)[0]).toBe('/admin/users/user%2Fid/delete')
+    await cancelPendingInstructor('teacher-id')
+    expect(mocks.api.post.mock.calls.at(-1)[0]).toBe('/admin/instructors/teacher-id/delete')
+
+    mocks.api.get.mockResolvedValue({ data: { users: [] } })
+    await listAdminUsers({ search: 'casey' })
+    expect(mocks.api.get.mock.calls.at(-1)[1].params.search).toBe('casey')
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
   })
@@ -402,7 +458,7 @@ describe('admin workspace API', () => {
           username: 'Example_Teacher',
           avatarId: 'mint',
         }),
-      ).rejects.toMatchObject({ code: 'ADMIN_UNAVAILABLE' })
+      ).rejects.toMatchObject({ code: 'ADMIN_LINK_NOT_SHOWN' })
     }
 
     mocks.api.post.mockRejectedValueOnce({

@@ -63,7 +63,7 @@ onMounted(() => heading.value?.focus())
     </div>
     <p v-else-if="!attempts.length">No class attempts yet</p>
     <template v-else>
-      <div class="class-results__scroll">
+      <div class="class-results__scroll" tabindex="0" role="region" aria-label="Student attempts">
         <table>
           <caption class="visually-hidden">
             Completed class attempts for
@@ -83,7 +83,7 @@ onMounted(() => heading.value?.focus())
             <tr v-for="attempt in attempts" :key="attempt.id">
               <th scope="row">{{ gameName(attempt.gameId) }}</th>
               <td>{{ attempt.score }} / {{ attempt.maxScore }}</td>
-              <td>{{ topicsPassed(attempt) }}</td>
+              <td class="class-results__wrap">{{ topicsPassed(attempt) }}</td>
               <td>{{ formatDateTime(attempt.completedAt) }}</td>
             </tr>
           </tbody>

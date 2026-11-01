@@ -11,9 +11,14 @@ const EVENT_TYPES = [
   ['admin.bootstrap', 'Administrator setup'],
   ['admin.institution.create', 'Institution created'],
   ['admin.institution.update', 'Institution updated'],
+  ['admin.institution.deactivate', 'Institution deactivated'],
+  ['admin.institution.reactivate', 'Institution reactivated'],
   ['admin.cohort.create', 'Class created'],
   ['admin.cohort.update', 'Class updated'],
+  ['admin.cohort.deactivate', 'Class deactivated'],
+  ['admin.cohort.reactivate', 'Class reactivated'],
   ['admin.instructor.provision', 'Instructor account created'],
+  ['admin.instructor.cancel', 'Pending instructor cancelled'],
   ['admin.instructor.activation.issue', 'Instructor activation link issued'],
   ['admin.instructor.assignments.update', 'Instructor class assignments changed'],
   ['admin.administrator.provision', 'Administrator account created'],
@@ -59,7 +64,7 @@ let retryPage
 function formatDate(value) {
   const date = new Date(value)
   return Number.isFinite(date.getTime())
-    ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date)
+    ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'medium' }).format(date)
     : 'Time unavailable'
 }
 
@@ -73,6 +78,14 @@ const REASON_LABELS = {
   'student-request': 'Student request',
   'left-school': 'Left school',
   other: 'Other',
+}
+
+// who did what to whom, using the names the server resolved for this page
+function eventPeople(event) {
+  const actor = event.actorName || (event.actorKind === 'operator' ? 'Operator' : 'Removed account')
+  const parts = [event.targetName ? `${actor} → ${event.targetName}` : actor]
+  if (event.cohortName) parts.push(event.cohortName)
+  return parts.join(' · ')
 }
 
 function deleteSummary(event) {
@@ -170,7 +183,7 @@ async function loadEvents(
       page.value = 1
     }
     errorMessage.value = accessExpired.value
-      ? 'Your administrator session or audit access has expired. Sign in again or ask an administrator to check access.'
+      ? 'Your administrator access has changed. Ask an administrator to check it.'
       : error instanceof AdminApiError
         ? error.message
         : 'Audit events could not be loaded. Try again.'
@@ -197,6 +210,8 @@ function retryEvents() {
 
 onMounted(() => loadEvents(1, { clearResults: true }))
 
+defineExpose({ refresh: () => loadEvents(page.value) })
+
 onBeforeUnmount(() => {
   disposed = true
   requestController?.abort()
@@ -208,7 +223,6 @@ onBeforeUnmount(() => {
   <section class="admin-workspace__panel" aria-labelledby="audit-events-title">
     <div class="admin-workspace__section-heading">
       <div>
-        <p class="admin-workspace__eyebrow">ADMINISTRATION HISTORY</p>
         <h2 id="audit-events-title">Audit events</h2>
       </div>
       <button
@@ -279,27 +293,32 @@ onBeforeUnmount(() => {
           <span class="admin-workspace__audit-outcome">{{ event.outcome }}</span>
           <time :datetime="event.occurredAt">{{ formatDate(event.occurredAt) }}</time>
         </div>
+        <p class="admin-workspace__audit-people">{{ eventPeople(event) }}</p>
         <p v-if="deleteSummary(event)" class="admin-workspace__audit-note">
           {{ deleteSummary(event)
           }}<template v-if="event.reasonNote">: {{ event.reasonNote }}</template>
         </p>
         <details class="admin-workspace__audit-details">
-          <summary>Show identifiers</summary>
+          <summary>Identifiers</summary>
           <dl>
             <dt>Actor type</dt>
             <dd>{{ event.actorKind }}</dd>
-            <dt>Actor ID</dt>
-            <dd>
-              <code>{{ event.actorId || 'Not available' }}</code>
-            </dd>
+            <template v-if="event.actorId">
+              <dt>Actor ID</dt>
+              <dd>
+                <code>{{ event.actorId }}</code>
+              </dd>
+            </template>
             <dt>Target ID</dt>
             <dd>
               <code>{{ event.targetId }}</code>
             </dd>
-            <dt>Class ID</dt>
-            <dd>
-              <code>{{ event.scopeCohortId || 'Not available' }}</code>
-            </dd>
+            <template v-if="event.scopeCohortId">
+              <dt>Class ID</dt>
+              <dd>
+                <code>{{ event.scopeCohortId }}</code>
+              </dd>
+            </template>
             <dt>Request ID</dt>
             <dd>
               <code>{{ event.requestId }}</code>

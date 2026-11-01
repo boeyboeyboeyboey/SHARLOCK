@@ -53,6 +53,7 @@ const membershipSchema = new Schema(
   },
 )
 membershipSchema.index({ userId: 1, cohortId: 1 }, { unique: true })
+membershipSchema.index({ cohortId: 1, status: 1 })
 
 export function membershipModel(database) {
   if (!database || typeof database.model !== 'function' || !database.models) {

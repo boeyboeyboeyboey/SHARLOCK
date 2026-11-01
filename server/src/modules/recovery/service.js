@@ -308,7 +308,7 @@ export function createRecoveryService(
     }
   }
 
-  async function issueActivation({ userId, actorId }, { session } = {}) {
+  async function issueActivation({ userId, actorId, requestId }, { session } = {}) {
     if (!session) throw new TypeError('Activation issuing requires a transaction session.')
     const targetId = activationObjectId(userId)
     const administratorId = activationObjectId(actorId)
@@ -358,7 +358,7 @@ export function createRecoveryService(
         targetId,
         scopeCohortId: null,
         outcome: 'success',
-        requestId: randomUUID(),
+        requestId: requestId ?? randomUUID(),
       },
       { session },
     )
