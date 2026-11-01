@@ -232,6 +232,37 @@ async function startRound(ws) {
 const liveRound = () => app.locals.botnetTag.inspectRounds()[0]
 const humanOf = (ws) => liveRound().getPlayer(lastSnapshot(ws).sid)
 
+describe('botnet tag connect limits', () => {
+  it('refuses scripted reconnects per user with a 429 and leaves other students alone', async () => {
+    await stopApp()
+    await startApp({ connectLimits: { user: 2 } })
+    const cohort = await makeClass('a')
+    const [one, two] = [await student(cohort), await student(cohort)]
+    expect((await connect(one)).readyState).toBe(WebSocket.OPEN)
+    expect((await connect(one)).readyState).toBe(WebSocket.OPEN)
+    expect(await connect(one)).toEqual({ status: 429 })
+    expect((await connect(two)).readyState).toBe(WebSocket.OPEN)
+  })
+
+  it('counts every attempt from one address before reading the session', async () => {
+    await stopApp()
+    await startApp({ connectLimits: { ip: 2 } })
+    const cohort = await makeClass('a')
+    const [one, two] = [await student(cohort), await student(cohort)]
+    expect(await connect(null, { cookie: 'sid=forged' })).toEqual({ status: 401 })
+    expect((await connect(one)).readyState).toBe(WebSocket.OPEN)
+    expect(await connect(two)).toEqual({ status: 429 })
+  })
+
+  it('lets a class reconnect normally under the default limits', async () => {
+    const cohort = await makeClass('a')
+    const accounts = await Promise.all(Array.from({ length: 3 }, () => student(cohort)))
+    for (const account of [...accounts, ...accounts]) {
+      expect((await connect(account)).readyState).toBe(WebSocket.OPEN)
+    }
+  })
+})
+
 describe('botnet tag upgrade checks', () => {
   it('rejects a wrong or missing origin', async () => {
     const account = await student(await makeClass('a'))
@@ -804,6 +835,67 @@ describe('botnet tag staff and rechecks', () => {
     )
     await app.locals.botnetTag.refresh()
     expect(await ws.closed).toBe(4403)
+  })
+
+  // a paused client never answers the close frame, so the server's close stays unfinished
+  async function pausedPair() {
+    const cohort = await makeClass('a')
+    const [account, other] = [await student(cohort), await student(cohort)]
+    const ws = await connect(account)
+    const peer = await connect(other)
+    const { sid } = await until(() => lastSnapshot(ws), 'snapshot')
+    await until(() => lastSnapshot(peer)?.players.length === 2, 'peer snapshot')
+    ws.pause()
+    return { cohort, account, ws, peer, sid }
+  }
+
+  // the client's close frame follows what it sent, so the server has read all of it by then
+  async function finishClose(ws, peer) {
+    ws.resume()
+    const code = await ws.closed
+    await flush(peer)
+    return code
+  }
+
+  const everReady = (peer, sid) =>
+    peer.messages.some(
+      (message) =>
+        message.type === 'snapshot' && message.players.some((p) => p.sid === sid && p.ready),
+    )
+
+  it('takes a signed out player out of the round before the socket finishes closing', async () => {
+    const { account, ws, peer, sid } = await pausedPair()
+    await account.agent
+      .post('/api/auth/logout')
+      .set('Origin', authOptions.clientOrigin)
+      .set('X-CSRF-Token', account.csrfToken)
+      .expect(204)
+    expect(liveRound().getPlayer(sid)).toBeNull()
+    expect(liveRound().size).toBe(1)
+    send(ws, { type: 'ready', ready: true })
+    expect(await finishClose(ws, peer)).toBe(4401)
+    expect(everReady(peer, sid)).toBe(false)
+  })
+
+  it('takes a removed student out of the round before the socket finishes closing', async () => {
+    const { account, ws, peer, sid } = await pausedPair()
+    await membershipModel(database).updateMany(
+      { userId: new Types.ObjectId(account.user.id) },
+      { $set: { status: 'removed' } },
+    )
+    await app.locals.botnetTag.refresh()
+    expect(liveRound().getPlayer(sid)).toBeNull()
+    send(ws, { type: 'ready', ready: true })
+    expect(await finishClose(ws, peer)).toBe(4403)
+    expect(everReady(peer, sid)).toBe(false)
+  })
+
+  it('ignores what a socket sends once the server has started to close it', async () => {
+    const { ws, peer, sid } = await pausedPair()
+    for (let i = 0; i < 30; i += 1) ws.send('not json')
+    send(ws, { type: 'ready', ready: true })
+    expect(await finishClose(ws, peer)).toBe(4408)
+    expect(everReady(peer, sid)).toBe(false)
   })
 
   it('closes a game socket when its session ends', async () => {

@@ -26,6 +26,8 @@ import PuzzlePanel from './puzzles/PuzzlePanel.vue'
 import PuzzleResult from './puzzles/PuzzleResult.vue'
 import { HOW_TO_PLAY } from './howToPlay.js'
 import {
+  GUIDE_HOLD_MS,
+  GUIDE_HOLDS,
   TAG_GAP_MS,
   TOAST_MS,
   USE_GAP_MS,
@@ -289,6 +291,27 @@ watch(howToOpen, (open) => {
   startAfterGuide = false
   tag.start()
 })
+
+// the guide opened from the lobby: the server restarts the limit on a ready message, and the
+// restarts stop after a few so an abandoned guide cannot keep the class waiting
+const restartReadyLimit = () => state.you?.readyBy && tag.ready(false)
+let guideHold = null
+function stopGuideHold() {
+  clearInterval(guideHold)
+  guideHold = null
+}
+watch(howToOpen, (open) => {
+  stopGuideHold()
+  restartReadyLimit()
+  if (!open) return
+  let holdsLeft = GUIDE_HOLDS
+  guideHold = setInterval(() => {
+    restartReadyLimit()
+    holdsLeft -= 1
+    if (holdsLeft === 0) stopGuideHold()
+  }, GUIDE_HOLD_MS)
+})
+onBeforeUnmount(stopGuideHold)
 
 // the 3d yard exists only while a round is on screen; babylon loads the first time it is needed
 const arenaEl = ref(null)

@@ -65,6 +65,8 @@ export function createRound({
   let graceEndsAt = null
   let play = 0
   let unsavedReason = null
+  // a real tag happened this play, even if its victims have since left
+  let spread = false
   let finalResults = []
   let sideWon = null
   let clock = isTime(now) ? now : 0
@@ -139,17 +141,18 @@ export function createRound({
   }
 
   function evaluateLobby(t) {
-    if (phase === 'lobby') {
-      const list = counted()
-      if (list.length === 0) removeBots()
-      else if (withBots && list.some((player) => player.ready)) fillBots()
-      if (canStart()) {
-        phase = 'countdown'
-        phaseEndsAt = t + COUNTDOWN_MS
-      }
-    } else if (phase === 'countdown' && !canStart()) {
+    if (phase === 'countdown' && !canStart()) {
       phase = 'lobby'
       phaseEndsAt = null
+    }
+    if (phase !== 'lobby') return
+    // a cancelled countdown lands here too, as nothing else would look at the lobby again
+    const list = counted()
+    if (list.length === 0) removeBots()
+    else if (withBots && list.some((player) => player.ready)) fillBots()
+    if (canStart()) {
+      phase = 'countdown'
+      phaseEndsAt = t + COUNTDOWN_MS
     }
   }
 
@@ -198,6 +201,7 @@ export function createRound({
     graceEndsAt = t + GRACE_MS
     play += 1
     unsavedReason = null
+    spread = false
     phase = 'playing'
     phaseEndsAt = t + ROUND_MS
     pushEvent({ type: 'start', at: t })
@@ -247,7 +251,6 @@ export function createRound({
   function endAfterLeave(t) {
     const list = [...players.values()]
     const infected = list.filter((player) => player.infected)
-    const spread = infected.some((player) => !player.startedInfected)
     if (infected.length === 0 || (infected.length === list.length && !spread)) endRound(t, null)
     else checkEnd(t)
   }
@@ -399,6 +402,7 @@ export function createRound({
       if (!canTag(tagger, target, t)) return { ok: false, reason: 'no_tag' }
       target.infected = true
       target.infectedAt = t
+      spread = true
       puzzles.delete(targetSid)
       bump(tagger, 'tags')
       pushEvent({ type: 'tag', at: t, from: sid, to: targetSid })

@@ -7,6 +7,9 @@ export const URGENT_MS = 30000
 export const IMMUNITY_MS = 15000
 export const MAX_PLAYERS = 8
 export const MAX_EVENTS = 20
+// how to play holds the 45 s ready limit by restarting it this often, this many times
+export const GUIDE_HOLD_MS = 30000
+export const GUIDE_HOLDS = 3
 
 export function tagUrl(loc = globalThis.location) {
   return `${loc.protocol === 'https:' ? 'wss:' : 'ws:'}//${loc.host}/api/botnet-tag`

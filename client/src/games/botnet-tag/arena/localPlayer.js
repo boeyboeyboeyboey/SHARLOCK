@@ -40,6 +40,7 @@ export function createLocalPlayer({ spawn, camera, reduced, onSprint = () => {},
   const lastDir = { x: 0, z: 1 }
   // dev and test only: walk straight at a spot through the normal movement rules
   let auto = input?.auto ?? null
+  let synced = input?.synced ?? false
 
   const startSprint = () => {
     if (!enabled || !sprint.start()) return false
@@ -128,14 +129,19 @@ export function createLocalPlayer({ spawn, camera, reduced, onSprint = () => {},
     else vy -= GRAVITY * dt
     y = Math.max(0, y + vy * dt)
 
-    // a rejected move: the snapshot spot is far from here, so ease back to it
-    if (server && needsCorrection(pos, server)) {
+    // the first server spot of a round is the real spawn, which easing could miss or never reach
+    if (server && !synced) {
+      pos.x = server.x
+      pos.z = server.z
+    } else if (server && needsCorrection(pos, server)) {
+      // a rejected move: the snapshot spot is far from here, so ease back to it
       const fixed = correctPosition(pos, server, dt)
       if (walkable(fixed.x, fixed.z)) {
         pos.x = fixed.x
         pos.z = fixed.z
       }
     }
+    synced = Boolean(server)
 
     const before = heading
     if (moving) heading += diff * (1 - Math.exp(-dt * 10))
@@ -173,7 +179,7 @@ export function createLocalPlayer({ spawn, camera, reduced, onSprint = () => {},
       auto = x === null ? null : { x, z }
     },
     position: () => ({ x: pos.x, z: pos.z }),
-    inputState: () => ({ keys: [...keys], pad: { ...pad }, auto }),
+    inputState: () => ({ keys: [...keys], pad: { ...pad }, auto, synced }),
     dispose() {
       window.removeEventListener('keydown', down)
       window.removeEventListener('keyup', up)

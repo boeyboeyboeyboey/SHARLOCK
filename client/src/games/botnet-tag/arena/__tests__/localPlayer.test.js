@@ -96,6 +96,34 @@ describe('local player', () => {
     expect(Math.hypot(player.position().x + 10, player.position().z - 12)).toBeLessThan(2)
   })
 
+  it('snaps to its spawn on the first playing frame, even out of the pillar at the origin', () => {
+    player.dispose()
+    make({ spawn: { x: 0, z: 0 } })
+    run(0.2)
+    expect(player.position()).toEqual({ x: 0, z: 0 })
+    player.update(1 / 60, { x: 0, z: 6 })
+    expect(player.position()).toEqual({ x: 0, z: 6 })
+  })
+
+  it('snaps once per round, and a later gap eases', () => {
+    player.update(1 / 60, { x: -8, z: 12 })
+    player.update(1 / 60, { x: -10, z: 12 })
+    expect(player.position().x).toBeGreaterThan(-10)
+    expect(player.position().x).toBeLessThan(-8)
+    player.update(1 / 60, null)
+    player.update(1 / 60, { x: -12, z: 12 })
+    expect(player.position()).toEqual({ x: -12, z: 12 })
+  })
+
+  it('does not snap again after an arena rebuild during play', () => {
+    player.update(1 / 60, { x: -8, z: 12 })
+    const input = player.inputState()
+    player.dispose()
+    make({ spawn: { x: -8, z: 12 }, input })
+    player.update(1 / 60, { x: -10, z: 12 })
+    expect(player.position().x).toBeGreaterThan(-10)
+  })
+
   it('tells the caller when a sprint starts, once per cooldown', () => {
     const started = []
     player.dispose()

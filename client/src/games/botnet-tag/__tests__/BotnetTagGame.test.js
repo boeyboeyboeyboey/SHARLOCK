@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 
@@ -40,6 +40,7 @@ class FakeSocket {
 }
 
 const { default: BotnetTagGame } = await import('../BotnetTagGame.vue')
+const { GUIDE_HOLD_MS, GUIDE_HOLDS } = await import('../tagRules.js')
 const { useAuthStore } = await import('../../../features/auth/store.js')
 const { listManagedCohorts, listMemberships } = await import('../../../features/cohorts/api.js')
 
@@ -140,6 +141,72 @@ describe('botnet tag page', () => {
     await flushPromises()
     expect(FakeSocket.all).toHaveLength(1)
     wrapper.unmount()
+  })
+
+  describe('how to play from the lobby', () => {
+    const readyMessages = (socket) => socket.sent.filter((message) => message.type === 'ready')
+
+    async function lobbyWithGuide(you) {
+      HTMLDialogElement.prototype.showModal = vi.fn(function open() {
+        this.setAttribute('open', '')
+      })
+      HTMLDialogElement.prototype.close = vi.fn(function close() {
+        this.removeAttribute('open')
+      })
+      const wrapper = mountGame()
+      await flushPromises()
+      const socket = FakeSocket.all[0]
+      open(socket, { you })
+      await flushPromises()
+      await wrapper.get('[data-testid="tag-howto-open"]').trigger('click')
+      await flushPromises()
+      return { wrapper, socket }
+    }
+    const closeGuide = async (wrapper) => {
+      wrapper.getComponent({ name: 'HowToPlayDialog' }).vm.$emit('update:open', false)
+      await flushPromises()
+    }
+
+    afterEach(() => vi.useRealTimers())
+
+    it('restarts the ready limit when the guide opens and when it closes', async () => {
+      const { wrapper, socket } = await lobbyWithGuide({ readyBy: Date.now() + 5000 })
+      expect(readyMessages(socket)).toEqual([{ type: 'ready', ready: false }])
+      await closeGuide(wrapper)
+      expect(readyMessages(socket)).toHaveLength(2)
+      wrapper.unmount()
+    })
+
+    it('keeps restarting the limit under an open guide, but not for ever', async () => {
+      vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+      const { wrapper, socket } = await lobbyWithGuide({ readyBy: Date.now() + 5000 })
+      vi.advanceTimersByTime(GUIDE_HOLD_MS * GUIDE_HOLDS)
+      expect(readyMessages(socket)).toHaveLength(1 + GUIDE_HOLDS)
+      vi.advanceTimersByTime(GUIDE_HOLD_MS * 10)
+      expect(readyMessages(socket)).toHaveLength(1 + GUIDE_HOLDS)
+      wrapper.unmount()
+    })
+
+    it('stops restarting the limit once the guide is closed or the page is gone', async () => {
+      vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+      const { wrapper, socket } = await lobbyWithGuide({ readyBy: Date.now() + 5000 })
+      await closeGuide(wrapper)
+      vi.advanceTimersByTime(GUIDE_HOLD_MS * 2)
+      expect(readyMessages(socket)).toHaveLength(2)
+      await wrapper.get('[data-testid="tag-howto-open"]').trigger('click')
+      await flushPromises()
+      wrapper.unmount()
+      const sent = readyMessages(socket).length
+      vi.advanceTimersByTime(GUIDE_HOLD_MS * 2)
+      expect(readyMessages(socket)).toHaveLength(sent)
+    })
+
+    it('sends nothing for a player who is ready and has no limit', async () => {
+      const { wrapper, socket } = await lobbyWithGuide({ readyBy: null })
+      await closeGuide(wrapper)
+      expect(readyMessages(socket)).toEqual([])
+      wrapper.unmount()
+    })
   })
 
   it('opens no socket when the student left while the page was loading', async () => {
