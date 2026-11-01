@@ -16,20 +16,37 @@ describe('HintPanel', () => {
     const wrapper = mount(HintPanel, { props: { tier: 1, maxTier: 2, lines: ['Look here.'] } })
     expect(wrapper.text()).toContain('Look here.')
     expect(wrapper.get('button').text()).toBe('Another hint')
-    expect(wrapper.get('button').attributes('disabled')).toBeUndefined()
+    expect(wrapper.get('button').attributes('aria-disabled')).toBe('false')
   })
 
-  it('is disabled with a clear label when no hints remain', () => {
+  it('says so when no hints remain, stays focusable and ignores a press', async () => {
     const wrapper = mount(HintPanel, {
       props: { tier: 2, maxTier: 2, lines: ['One.', 'Two.'] },
     })
-    expect(wrapper.get('button').text()).toBe('No more hints')
-    expect(wrapper.get('button').attributes('disabled')).toBeDefined()
+    const button = wrapper.get('button')
+    expect(button.text()).toBe('No more hints')
+    expect(button.attributes('aria-disabled')).toBe('true')
+    expect(button.attributes('disabled')).toBeUndefined()
+    await button.trigger('click')
+    expect(wrapper.emitted('hint')).toBeUndefined()
   })
 
-  it('is disabled while the game is busy', () => {
+  it('stays focusable and ignores a press while the game is busy', async () => {
     const wrapper = mount(HintPanel, { props: { tier: 0, maxTier: 2, disabled: true } })
-    expect(wrapper.get('button').attributes('disabled')).toBeDefined()
+    const button = wrapper.get('button')
+    expect(button.attributes('aria-disabled')).toBe('true')
+    expect(button.attributes('disabled')).toBeUndefined()
+    await button.trigger('click')
+    expect(wrapper.emitted('hint')).toBeUndefined()
+  })
+
+  it('keeps its live region rendered before the first hint, so the hint is announced', async () => {
+    const wrapper = mount(HintPanel, { props: { tier: 0, maxTier: 2 } })
+    const live = wrapper.get('[aria-live="polite"]')
+    expect(live.text()).toBe('')
+    await wrapper.setProps({ tier: 1, lines: ['Look closely at who really sent this.'] })
+    expect(wrapper.get('[aria-live="polite"]').element).toBe(live.element)
+    expect(live.text()).toContain('Look closely')
   })
 })
 

@@ -10,6 +10,7 @@ MP-01 stage A (server). Live positions of classmates on the 3D wharf over one We
 | ------ | --------------------------------------------------------------------------------------- |
 | 403    | Origin (or Referer fallback) is not the configured client origin (`hasExpectedOrigin`)  |
 | 401    | no valid `sharlock.sid` session, expired session, or `findActiveSessionUser` finds none |
+| 429    | more than 60 connects a minute for this account or 300 for this address (`Retry-After`) |
 
 The session is read through the existing auth session middleware and store (`resolveSessionUser`, `recheckSession` from the auth router); there is no second session system. After the handshake a student with no active class is closed with code 4403 (the client retries slowly so an approval is picked up without a reload).
 
@@ -35,13 +36,13 @@ A room is a class (cohort) id. A student is placed by the server in their active
 - server to client `{"type":"state","sid","username","avatarId","look","role","mode","x","z","yaw","moving"}`: after a valid move from another member of the room. A 2d peer carries `x`,`y`,`moving` instead of `z`,`yaw`. Positions go only to viewers in the same mode; a viewer in the other mode gets the same state with `mode` but no coordinates (`moving` false), so it still counts the classmate online without seeing where they are.
 - server to client `{"type":"leave","sid"}`: a member left the room or disconnected.
 
-`sid` is random per connection. `look` is `{scarf,hat,monocle,accessory}` catalog item ids from `look.js`. Emails, user ids and rosters are never sent. Invalid JSON, unknown types and bad fields are ignored; 30 bad messages in 10 s close the socket (4408), an oversized frame closes it (1009).
+`sid` is random per connection. `look` is `{scarf,hat,monocle,accessory}` catalog item ids from `look.js`. Emails, user ids and rosters are never sent. Invalid JSON, unknown types and bad fields are ignored; 30 bad messages in 10 s close the socket (4408), an oversized frame closes it (1009). A valid `join` less than a second after the last one counts as a bad message, because each costs queries.
 
 ## Limits and lifecycle
 
 - One socket per account (MP-02 removed the old 3-connection cap); a ping every 30 s, terminate on a missed pong.
 - Every 60 s each connection rechecks its session, account and room access; failure closes with 4401 (session or account) or 4403 (class).
-- Logout emits `session-ended` from the auth router and closes that session's sockets at once (4401). A newer login by the same account (SESS-01) emits it for every older session, so those sockets close with 4401 and close reason `replaced` (other 4401 closes use `signed out`). Only `replaced` makes the hub show `/login?reason=elsewhere`; other 4401 closes show the `expired` notice. A membership decision (`cohorts` `decide`) calls `presence.refresh()` straight away; other class changes are caught by the 60 s recheck.
+- Logout emits `session-ended` from the auth router and closes that session's sockets at once (4401); an administrator disabling or deleting the account does the same (`admin/README.md`). A newer login by the same account (SESS-01) emits it for every older session, so those sockets close with 4401 and close reason `replaced` (other 4401 closes use `signed out`). Only `replaced` makes the hub show `/login?reason=elsewhere`; other 4401 closes show the `expired` notice. A membership decision (`cohorts` `decide`) calls `presence.refresh()` straight away; other class changes are caught by the 60 s recheck.
 - Idle HTTP sessions still expire after 30 minutes (the socket does not extend them), so a long-idle tab is closed with 4401.
 - `shutdown()` closes every client and the server; `disposeAuth` does the same for tests.
 

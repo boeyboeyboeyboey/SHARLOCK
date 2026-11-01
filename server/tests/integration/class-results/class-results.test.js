@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import request from 'supertest'
 import { Types } from 'mongoose'
 import { connectDatabase } from '../../../src/config/database.js'
@@ -10,6 +10,7 @@ import { instructorAssignmentModel } from '../../../src/models/InstructorAssignm
 import { institutionModel } from '../../../src/models/Institution.js'
 import { userModel } from '../../../src/models/User.js'
 import { membershipModel } from '../../../src/models/Membership.js'
+import { createClassResultsService } from '../../../src/modules/class-results/service.js'
 import { initializeCohortStorage } from '../../../src/modules/cohorts/storage.js'
 import { initializeAttemptStorage } from '../../../src/modules/attempts/storage.js'
 import {
@@ -232,6 +233,96 @@ const studentAttempts = (account, cohortId, studentId, query = '') =>
     .set('Origin', origin)
 
 describe('instructor class results API', () => {
+  it('says when the summary reached its bound, and not before', async () => {
+    const cohortId = await newCohort()
+    const instructor = await createStaff()
+    await assign(instructor.user.id, cohortId)
+    const first = await createStudent()
+    const second = await createStudent()
+    await addMember(first.user.id, cohortId)
+    await addMember(second.user.id, cohortId)
+    await completeOne(first, inClass(cohortId))
+    await completeOne(second, inClass(cohortId))
+    const actor = { id: instructor.user.id }
+
+    const whole = await createClassResultsService(database, { registry }).getSummary(
+      actor,
+      cohortId,
+      {
+        page: 1,
+      },
+    )
+    expect(whole.truncated).toBe(false)
+
+    const fewAttempts = await createClassResultsService(database, {
+      registry,
+      maxSummaryAttempts: 1,
+    }).getSummary(actor, cohortId, { page: 1 })
+    expect(fewAttempts.truncated).toBe(true)
+    expect(fewAttempts).toMatchObject({ truncatedAttempts: true, truncatedStudents: false })
+
+    const fewStudents = await createClassResultsService(database, {
+      registry,
+      maxClassStudents: 1,
+    }).getSummary(actor, cohortId, { page: 1 })
+    expect(fewStudents.truncated).toBe(true)
+    expect(fewStudents).toMatchObject({ truncatedStudents: true })
+    expect(fewStudents.activeStudents).toBe(1)
+  })
+
+  it('never lists a disabled student', async () => {
+    const cohortId = await newCohort()
+    const instructor = await createStaff()
+    await assign(instructor.user.id, cohortId)
+    const disabled = await createStudent()
+    await addMember(disabled.user.id, cohortId)
+    await completeOne(disabled, inClass(cohortId))
+    await userModel(database).updateOne(
+      { _id: new Types.ObjectId(disabled.user.id) },
+      { $set: { accountStatus: 'disabled' } },
+    )
+    const response = await results(instructor, cohortId).expect(200)
+    expect(response.body.students).toEqual([])
+    await studentAttempts(instructor, cohortId, disabled.user.id).expect(404)
+  })
+
+  it('limits repeated reads per person', async () => {
+    const cohortId = await newCohort()
+    const instructor = await createStaff()
+    await assign(instructor.user.id, cohortId)
+    let last
+    for (let request = 0; request < 121; request += 1) {
+      last = await results(instructor, cohortId)
+      if (last.status === 429) break
+    }
+    expect(last.status).toBe(429)
+    expect(last.body.error.code).toBe('CLASS_RESULTS_RATE_LIMITED')
+  })
+
+  it('logs one line with the request id when a read fails unexpectedly', async () => {
+    const cohortId = await newCohort()
+    const instructor = await createStaff()
+    await assign(instructor.user.id, cohortId)
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const broken = vi.spyOn(cohortModel(database), 'findById').mockImplementation(() => {
+      throw new TypeError('private detail')
+    })
+    try {
+      const failed = await results(instructor, cohortId).expect(503)
+      expect(logged.mock.calls.map(([line]) => line)).toContain(
+        JSON.stringify({
+          event: 'request_failed',
+          requestId: failed.headers['x-request-id'],
+          errorName: 'TypeError',
+        }),
+      )
+      expect(JSON.stringify(failed.body)).not.toContain('private detail')
+    } finally {
+      broken.mockRestore()
+      logged.mockRestore()
+    }
+  })
+
   it('lets an assigned instructor read counted students only', async () => {
     const cohortId = await newCohort()
     const otherCohortId = await newCohort()
@@ -279,7 +370,18 @@ describe('instructor class results API', () => {
     const response = await results(instructor, cohortId).expect(200)
     expect(response.headers['cache-control']).toBe('no-store')
     expect(Object.keys(response.body).sort()).toEqual(
-      ['activeStudents', 'cohort', 'games', 'page', 'pageSize', 'students', 'total'].sort(),
+      [
+        'activeStudents',
+        'cohort',
+        'games',
+        'page',
+        'pageSize',
+        'students',
+        'total',
+        'truncated',
+        'truncatedAttempts',
+        'truncatedStudents',
+      ].sort(),
     )
     expect(response.body.cohort).toEqual({
       id: cohortId,

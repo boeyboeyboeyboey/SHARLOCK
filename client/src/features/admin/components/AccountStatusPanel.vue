@@ -1,9 +1,11 @@
 <script setup>
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { AdminApiError, listAdminUsers, updateAdminUser } from '../api.js'
+import InlineConfirm from '../../cohorts/components/InlineConfirm.vue'
 import DeleteAccountDialog from './DeleteAccountDialog.vue'
 
 const PAGE_SIZE = 25
+const ACCESS_LOST = 'Your administrator access has changed. Ask an administrator to check it.'
 const MAX_PAGE = 10_000
 const props = defineProps({
   reissuing: { type: Object, default: () => ({}) },
@@ -17,7 +19,10 @@ const page = ref(1)
 const total = ref(0)
 const roleFilter = ref('')
 const statusFilter = ref('')
-const appliedFilters = ref({ role: '', accountStatus: '' })
+const searchFilter = ref('')
+const appliedFilters = ref({ role: '', accountStatus: '', search: '' })
+const confirmingDisableId = ref('')
+const heading = ref(null)
 const loading = ref(false)
 const loadError = ref('')
 const rowErrors = ref(Object.create(null))
@@ -35,9 +40,7 @@ function clearForAccessLoss(message) {
   users.value = []
   total.value = 0
   rowErrors.value = Object.create(null)
-  loadError.value =
-    message ||
-    'Your administrator session or account access has expired. Sign in again or ask an administrator to check access.'
+  loadError.value = message || ACCESS_LOST
 }
 
 watch(
@@ -75,10 +78,13 @@ async function loadUsers(nextPage = page.value) {
       ...(appliedFilters.value.accountStatus
         ? { accountStatus: appliedFilters.value.accountStatus }
         : {}),
+      ...(appliedFilters.value.search ? { search: appliedFilters.value.search } : {}),
       signal: controller.signal,
     })
     if (!isCurrentListRequest(controller)) return
     users.value = Array.isArray(response?.users) ? response.users : []
+    // a confirm opened against the old row must not act on the new one
+    confirmingDisableId.value = ''
     page.value =
       Number.isSafeInteger(response?.page) && response.page > 0 ? response.page : page.value
     total.value = Number.isSafeInteger(response?.total) && response.total >= 0 ? response.total : 0
@@ -98,10 +104,12 @@ async function loadUsers(nextPage = page.value) {
 function applyFilters() {
   const filtersChanged =
     roleFilter.value !== appliedFilters.value.role ||
-    statusFilter.value !== appliedFilters.value.accountStatus
+    statusFilter.value !== appliedFilters.value.accountStatus ||
+    searchFilter.value.trim() !== appliedFilters.value.search
   appliedFilters.value = {
     role: roleFilter.value,
     accountStatus: statusFilter.value,
+    search: searchFilter.value.trim(),
   }
   if (filtersChanged) {
     users.value = []
@@ -119,8 +127,10 @@ function roleLabel(user) {
   return role === 'student' ? 'Student' : role === 'instructor' ? 'Instructor' : 'Unavailable'
 }
 
-function accountStatusLabel(status) {
-  return status === 'active' ? 'Active' : status === 'disabled' ? 'Disabled' : 'Unavailable'
+function accountStatusLabel(user) {
+  if (user.pendingActivation) return 'Pending activation'
+  if (user.accountStatus === 'active') return 'Active'
+  return user.accountStatus === 'disabled' ? 'Disabled' : 'Unavailable'
 }
 
 function canManage(user) {
@@ -153,17 +163,37 @@ async function closeDelete() {
   deleteTrigger = null
 }
 
+// a change can empty the last page of a filtered list, and an empty list has no pager to go back
+async function reloadAfterChange() {
+  await loadUsers(page.value)
+  if (users.value.length === 0 && page.value > 1) await loadUsers(page.value - 1)
+}
+
 async function handleDeleted(outcome) {
   deleteTarget.value = null
   deleteTrigger = null
   statusMessage.value =
     outcome === 'anonymised' ? 'Account anonymised; saved results kept.' : 'Account deleted.'
+  await reloadAfterChange()
+  await nextTick()
+  heading.value?.focus()
+}
+
+// the dialog's revision is out of date, so a retry could never succeed; reload and say so here
+async function handleStaleDelete() {
+  const targetId = deleteTarget.value?.id
+  await closeDelete()
   await loadUsers(page.value)
-  if (users.value.length === 0 && page.value > 1) await loadUsers(page.value - 1)
+  if (targetId) {
+    rowErrors.value = {
+      ...rowErrors.value,
+      [targetId]:
+        'This account changed elsewhere. The list was refreshed; review its latest status.',
+    }
+  }
 }
 
 function statusButtonClass(user) {
-  if (actionLabel(user) === 'Disable account') return 'admin-workspace__text-button--danger'
   if (actionLabel(user) === 'Enable account') return 'admin-workspace__text-button--enable'
   return ''
 }
@@ -176,21 +206,24 @@ function rowError(user) {
   return rowErrors.value[user.id] || props.activationErrors[user.id] || ''
 }
 
-function confirmDisable(user) {
-  return window.confirm(
-    `Disable ${user.username}? This signs them out and revokes unused activation and recovery links. Their class memberships and instructor assignments remain.`,
-  )
+function disableMessage(user) {
+  return `Disable ${user.username}? This signs them out and revokes unused activation and recovery links. Their class memberships and instructor assignments remain.`
 }
 
-async function changeStatus(user) {
+function chooseStatusAction(user) {
   if (!canManage(user) || pendingUsers.value[user.id]) return
-  const role = roleFor(user)
-  if (role === 'instructor' && user.accountStatus === 'disabled') {
-    emit('reissue-activation', user.id)
+  if (roleFor(user) === 'instructor' && user.accountStatus === 'disabled') {
+    emit('reissue-activation', user.id, user)
     return
   }
-  const accountStatus = user.accountStatus === 'active' ? 'disabled' : 'active'
-  if (accountStatus === 'disabled' && !confirmDisable(user)) return
+  statusMessage.value = ''
+  if (user.accountStatus === 'active') confirmingDisableId.value = user.id
+  else changeStatus(user, 'active')
+}
+
+async function changeStatus(user, accountStatus) {
+  if (!canManage(user) || pendingUsers.value[user.id]) return
+  confirmingDisableId.value = ''
 
   const controller = new AbortController()
   mutationControllers.set(user.id, controller)
@@ -204,18 +237,13 @@ async function changeStatus(user) {
     )
     if (disposed || controller.signal.aborted || mutationControllers.get(user.id) !== controller)
       return
-    const priorPage = page.value
-    await loadUsers(priorPage)
+    statusMessage.value = accountStatus === 'disabled' ? 'Account disabled.' : 'Account enabled.'
+    await reloadAfterChange()
   } catch (error) {
     if (disposed || controller.signal.aborted || mutationControllers.get(user.id) !== controller)
       return
     if (error instanceof AdminApiError && [401, 403].includes(error.status)) {
-      clearForAccessLoss(
-        safeMessage(
-          error,
-          'Your administrator session or account access has expired. Sign in again or ask an administrator to check access.',
-        ),
-      )
+      clearForAccessLoss(ACCESS_LOST)
       return
     }
     if (error instanceof AdminApiError && error.code === 'ADMIN_STALE_ACCOUNT') {
@@ -235,6 +263,8 @@ async function changeStatus(user) {
 
 onMounted(() => loadUsers(1))
 
+defineExpose({ refresh: () => loadUsers(page.value) })
+
 onBeforeUnmount(() => {
   disposed = true
   listController?.abort()
@@ -247,8 +277,9 @@ onBeforeUnmount(() => {
   <section class="admin-workspace__panel" aria-labelledby="account-controls-title">
     <div class="admin-workspace__section-heading">
       <div>
-        <p class="admin-workspace__eyebrow">ACCOUNT ACCESS</p>
-        <h2 id="account-controls-title">Student and instructor accounts</h2>
+        <h2 id="account-controls-title" ref="heading" tabindex="-1">
+          Student and instructor accounts
+        </h2>
       </div>
       <button
         class="admin-workspace__text-button"
@@ -261,6 +292,10 @@ onBeforeUnmount(() => {
     </div>
 
     <form class="admin-workspace__account-filters" @submit.prevent="applyFilters">
+      <label>
+        Find by username or email
+        <input v-model="searchFilter" type="search" maxlength="254" :disabled="loading" />
+      </label>
       <label>
         Role
         <select v-model="roleFilter" :disabled="loading">
@@ -282,7 +317,9 @@ onBeforeUnmount(() => {
       </button>
     </form>
 
-    <p v-if="statusMessage" class="admin-workspace__empty" role="status">{{ statusMessage }}</p>
+    <p v-if="statusMessage" class="admin-workspace__status-line" role="status">
+      {{ statusMessage }}
+    </p>
     <p v-if="loading && users.length === 0" class="admin-workspace__empty" role="status">
       Loading accounts…
     </p>
@@ -297,50 +334,62 @@ onBeforeUnmount(() => {
     </p>
 
     <div v-if="users.length" class="admin-workspace__account-table-wrap">
-      <table class="admin-workspace__account-table" :aria-busy="loading">
+      <!-- the phone layout restyles these as cards, so the roles keep them a table to assistive tech -->
+      <table class="admin-workspace__account-table" role="table" :aria-busy="loading">
         <caption class="visually-hidden">
           Student and instructor account status controls
         </caption>
-        <thead>
-          <tr>
-            <th scope="col">Username</th>
-            <th scope="col">Role</th>
-            <th scope="col">Status</th>
-            <th scope="col">Action</th>
+        <thead role="rowgroup">
+          <tr role="row">
+            <th scope="col" role="columnheader">Username</th>
+            <th scope="col" role="columnheader">Email</th>
+            <th scope="col" role="columnheader">Role</th>
+            <th scope="col" role="columnheader">Status</th>
+            <th scope="col" role="columnheader">Action</th>
           </tr>
         </thead>
-        <tbody>
-          <tr v-for="user in users" :key="user.id">
-            <td>{{ user.username }}</td>
-            <td>{{ roleLabel(user) }}</td>
-            <td>{{ accountStatusLabel(user.accountStatus) }}</td>
-            <td>
-              <button
-                v-if="actionLabel(user)"
-                class="admin-workspace__text-button"
-                :class="statusButtonClass(user)"
-                type="button"
-                :disabled="loading || actionPending(user)"
-                @click="changeStatus(user)"
-              >
-                {{
-                  actionPending(user)
-                    ? pendingUsers[user.id]
-                      ? 'Saving…'
-                      : 'Preparing link…'
-                    : actionLabel(user)
-                }}
-              </button>
-              <button
-                v-if="canDelete(user)"
-                class="admin-workspace__text-button admin-workspace__text-button--danger"
-                type="button"
-                :disabled="loading || actionPending(user)"
-                :aria-label="`Delete account ${user.username}`"
-                @click="openDelete(user, $event)"
-              >
-                Delete account
-              </button>
+        <tbody role="rowgroup">
+          <tr v-for="user in users" :key="user.id" role="row">
+            <td role="cell" class="admin-workspace__account-name">{{ user.username }}</td>
+            <td role="cell" data-label="Email">{{ user.email }}</td>
+            <td role="cell" data-label="Role">{{ roleLabel(user) }}</td>
+            <td role="cell" data-label="Status">{{ accountStatusLabel(user) }}</td>
+            <td role="cell">
+              <div class="admin-workspace__row-actions">
+                <button
+                  v-if="actionLabel(user)"
+                  class="admin-workspace__text-button"
+                  :class="statusButtonClass(user)"
+                  type="button"
+                  :disabled="loading || actionPending(user)"
+                  @click="chooseStatusAction(user)"
+                >
+                  {{
+                    actionPending(user)
+                      ? pendingUsers[user.id]
+                        ? 'Saving…'
+                        : 'Preparing link…'
+                      : actionLabel(user)
+                  }}
+                </button>
+                <button
+                  v-if="canDelete(user)"
+                  class="admin-workspace__text-button admin-workspace__text-button--danger"
+                  type="button"
+                  :disabled="loading || actionPending(user)"
+                  :aria-label="`Delete account ${user.username}`"
+                  @click="openDelete(user, $event)"
+                >
+                  Delete account
+                </button>
+              </div>
+              <InlineConfirm
+                v-if="confirmingDisableId === user.id"
+                :message="disableMessage(user)"
+                confirm-label="Yes, disable"
+                @confirm="changeStatus(user, 'disabled')"
+                @cancel="confirmingDisableId = ''"
+              />
               <p v-if="rowError(user)" class="admin-workspace__alert" role="alert">
                 {{ rowError(user) }}
               </p>
@@ -373,6 +422,7 @@ onBeforeUnmount(() => {
       v-if="deleteTarget"
       :account="deleteTarget"
       @deleted="handleDeleted"
+      @stale="handleStaleDelete"
       @close="closeDelete"
     />
   </section>

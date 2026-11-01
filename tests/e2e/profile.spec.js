@@ -4,6 +4,7 @@ import { connectDatabase } from '../../server/src/config/database.js'
 import { assertSafeTestDatabaseUri } from '../../server/src/config/database-uri.js'
 import { createAuthService } from '../../server/src/modules/auth/service.js'
 import { parseRegistrationInput } from '../../server/src/modules/auth/policy.js'
+import { signInContext } from './fixtures/sign-in.js'
 
 // each test gets its own student so edits never leak between tests
 async function createStudent(label) {
@@ -29,17 +30,8 @@ async function createStudent(label) {
 }
 
 async function signedInPage(browser, baseURL, identity) {
-  const origin = new URL(baseURL).origin
   const context = await browser.newContext()
-  const csrf = await context.request.get(new URL('/api/auth/csrf', baseURL).href, {
-    headers: { Origin: origin },
-  })
-  const { csrfToken } = await csrf.json()
-  const login = await context.request.post(new URL('/api/auth/login', baseURL).href, {
-    headers: { Origin: origin, 'X-CSRF-Token': csrfToken },
-    data: { email: identity.email, password: identity.password },
-  })
-  if (!login.ok()) throw new Error('Could not authenticate the profile E2E session.')
+  await signInContext(context, baseURL, identity)
   const page = await context.newPage()
   await page.addInitScript(() => localStorage.setItem('sharlock.townMode', '2d'))
   await page.route(/fonts\.(googleapis|gstatic)\.com/, (route) =>

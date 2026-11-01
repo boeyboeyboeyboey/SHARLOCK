@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   achievementCatalogue,
-  achievementKeys,
   deriveAchievements,
 } from '../../../src/modules/progress/achievements.js'
 import { summarizeGame, summarizeTopics } from '../../../src/modules/progress/points.js'
@@ -21,6 +20,23 @@ function attempt(overrides = {}) {
 }
 
 describe('game points', () => {
+  it('keeps the current ruleset when an old run finishes later', () => {
+    const attempts = [
+      { gameId: 'game-a', rulesetVersion: 'v2', score: 50, maxScore: 100, completedAt: 'first' },
+      { gameId: 'game-a', rulesetVersion: 'v1', score: 900, maxScore: 1000, completedAt: 'later' },
+    ]
+    expect(summarizeGame('game-a', attempts, 'v2')).toMatchObject({
+      points: 50,
+      bestScore: 50,
+      maxScore: 100,
+      completedCount: 2,
+      lastCompletedAt: 'later',
+    })
+    // with nothing on the current ruleset, the newest attempt's ruleset still decides
+    expect(summarizeGame('game-a', attempts, 'v3')).toMatchObject({ points: 90 })
+    expect(summarizeGame('game-a', attempts)).toMatchObject({ points: 90 })
+  })
+
   it('is zero with no completed attempts', () => {
     expect(summarizeGame('game-a', [])).toMatchObject({ points: 0, completedCount: 0 })
   })
@@ -132,7 +148,7 @@ describe('achievements', () => {
 describe('achievement catalogue', () => {
   it('lists every achievement without criteria', () => {
     expect(achievementCatalogue).toHaveLength(16)
-    expect(achievementCatalogue.map((item) => item.key)).toEqual([...achievementKeys])
+    expect(new Set(achievementCatalogue.map((item) => item.key)).size).toBe(16)
     for (const item of achievementCatalogue) {
       expect(Object.keys(item).sort()).toEqual(['description', 'key', 'name'])
       expect(Object.values(item).every((value) => typeof value === 'string' && value)).toBe(true)

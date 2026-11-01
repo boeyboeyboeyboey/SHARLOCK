@@ -5,7 +5,6 @@ import PixelIcon from '../../../components/town/PixelIcon.vue'
 import { useAuthStore } from '../store.js'
 import LoginForm from '../components/LoginForm.vue'
 import VerifyEmailPanel from '../components/VerifyEmailPanel.vue'
-import SessionNotice from '../components/SessionNotice.vue'
 import { resolveEnrollmentDestination } from '../../cohorts/journey.js'
 import '../auth.css'
 
@@ -23,10 +22,24 @@ onBeforeUnmount(() => controller.abort())
 const introAvatar = '/images/town/capybara-mint.svg'
 const expiredNotice = computed(() => route.query.reason === 'expired')
 const elsewhereNotice = computed(() => route.query.reason === 'elsewhere')
+// the town is simply the front door, so only another guarded page needs explaining
+const guardedPageNotice = computed(
+  () =>
+    route.query.reason === 'required' &&
+    Boolean(route.redirectedFrom) &&
+    route.redirectedFrom.path !== '/',
+)
 const passwordResetNotice = computed(() => route.query.passwordReset === '1')
 const fieldErrors = computed(() => auth.requestError?.fieldErrors || {})
 const errorMessage = computed(() => auth.requestError?.message || '')
 const verifying = computed(() => Boolean(auth.pendingVerification) && !signedIn.value)
+// only a game's own page, so a crafted link cannot send someone elsewhere after signing in
+const returnTo = computed(() => {
+  const value = route.query.returnTo
+  return typeof value === 'string' && /^\/games\/[a-z-]+(?:\?attempt=[\w-]+)?$/.test(value)
+    ? value
+    : null
+})
 
 async function continueAfterSignIn() {
   if (continuing.value) return
@@ -37,7 +50,9 @@ async function continueAfterSignIn() {
       signal: controller.signal,
       afterAccountAccess: true,
     })
-    if (!controller.signal.aborted) await router.replace(destination)
+    // a class invitation or onboarding still comes first
+    const next = destination === '/' && returnTo.value ? returnTo.value : destination
+    if (!controller.signal.aborted) await router.replace(next)
   } catch {
     if (!controller.signal.aborted) {
       continuationError.value = 'You are signed in. Class setup is unavailable. Try Continue again.'
@@ -91,11 +106,15 @@ async function resendCode() {
   }
 }
 
-async function checkSession() {
+async function cancelCode() {
+  if (pending.value) return
+  pending.value = true
   try {
-    await auth.restoreSession({ force: true })
+    await auth.cancelVerification()
   } catch {
-    // the store exposes only a safe recovery message
+    // the store keeps only the safe message for the code screen
+  } finally {
+    pending.value = false
   }
 }
 </script>
@@ -110,21 +129,27 @@ async function checkSession() {
       <h1 id="login-title" tabindex="-1">
         {{ verifying ? 'Confirm your email' : 'Sign in to Sharlock' }}
       </h1>
+      <p v-if="!signedIn && !verifying" class="auth-intro">
+        Sharlock is a game-based way to learn cybersecurity: investigate phishing, SQL injection,
+        social engineering and more.
+      </p>
 
       <p v-if="passwordResetNotice" class="auth-field-hint" role="status">
         Your password was updated. Sign in with your new password.
       </p>
 
       <p v-if="elsewhereNotice" class="auth-field-hint" role="status">
-        You were signed out because your account signed in somewhere else. If that wasn't you, reset your password.
+        You were signed out because your account signed in somewhere else. If that wasn't you, ask
+        your instructor or school administrator to send you a password reset link.
       </p>
 
-      <SessionNotice
-        v-if="expiredNotice"
-        message="Your session ended. Sign in again to continue. Your unfinished action was not repeated."
-        :pending="pending"
-        @retry="checkSession"
-      />
+      <p v-if="expiredNotice" class="auth-field-hint" role="status">
+        Your session has ended. Sign in again to continue. Your unfinished action was not repeated.
+      </p>
+
+      <p v-if="guardedPageNotice" class="auth-field-hint" role="status">
+        Sign in to open that page.
+      </p>
 
       <!-- the signed-in view stays outside the transition: signing in navigates away at once, and
            an out-in transition holding a not-yet-mounted view crashes when its page is unmounted -->
@@ -145,7 +170,7 @@ async function checkSession() {
           :error="errorMessage"
           @submit="confirmCode"
           @resend="resendCode"
-          @cancel="auth.cancelVerification()"
+          @cancel="cancelCode"
         />
 
         <LoginForm
@@ -159,6 +184,9 @@ async function checkSession() {
         />
       </Transition>
 
+      <p v-if="!signedIn && !verifying" class="auth-field-hint">
+        Forgot your password? Ask your instructor or school administrator to send you a reset link.
+      </p>
       <p v-if="!signedIn && !verifying" class="auth-switch">
         New to Sharlock?
         <RouterLink to="/register">Create a student account</RouterLink>
@@ -170,7 +198,7 @@ async function checkSession() {
     <aside class="auth-aside">
       <PixelIcon name="lock" :size="30" aria-hidden="true" />
       <RouterLink to="/about" class="auth-aside__link">
-        Meet Sharlock <PixelIcon name="arrow" :size="16" aria-hidden="true" />
+        What is Sharlock? <PixelIcon name="arrow" :size="16" aria-hidden="true" />
       </RouterLink>
     </aside>
   </section>

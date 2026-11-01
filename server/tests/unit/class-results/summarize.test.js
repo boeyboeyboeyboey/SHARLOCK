@@ -22,6 +22,27 @@ function attempt(playerId, over = {}) {
 }
 
 describe('summarizeClass', () => {
+  it('keeps the current ruleset when an old run finishes later, and never mixes them', () => {
+    const attemptsNewestFirst = [
+      attempt('a', { rulesetVersion: 'old', score: 10 }),
+      attempt('b', { rulesetVersion: 'new', score: 2 }),
+    ]
+    const result = summarizeClass({
+      gameIds: ['g1'],
+      students,
+      attemptsNewestFirst,
+      currentRulesetOf: () => 'new',
+    })
+    expect(result.games[0]).toMatchObject({ rulesetVersion: 'new', studentsAttempted: 1 })
+    const fallback = summarizeClass({
+      gameIds: ['g1'],
+      students,
+      attemptsNewestFirst,
+      currentRulesetOf: () => 'newer',
+    })
+    expect(fallback.games[0].rulesetVersion).toBe('old')
+  })
+
   it('reports registered games with no attempts as empty', () => {
     const result = summarizeClass({ gameIds: ['g1'], students, attemptsNewestFirst: [] })
     expect(result.games).toEqual([

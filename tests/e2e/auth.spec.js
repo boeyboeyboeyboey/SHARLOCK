@@ -1,10 +1,13 @@
 import { test, expect } from '@playwright/test'
 import { readVerificationCode } from './fixtures/mail.js'
+import { forceTown2d, newTown2dContext } from './fixtures/town.js'
+
+test.beforeEach(({ page }) => forceTown2d(page))
 
 const PASSWORD = 'Correct-Horse-🔒-2026'
 
 test.skip(
-  !process.env.SHARLOCK_TEST_REPLICA_SET,
+  process.env.SHARLOCK_TEST_REPLICA_SET !== '1',
   'The account journey includes transactional onboarding; run with --replica-set.',
 )
 
@@ -159,13 +162,11 @@ test('registers, restores, signs out, signs in, and stops a protected action aft
   await expect(guide).toBeVisible()
   await guide.getByRole('button', { name: 'Start playing' }).click()
   await expect(guide).toBeHidden()
-  await page.route('**/api/auth/me', (route) =>
+  await page.route('**/api/auth/session', (route) =>
     route.fulfill({
-      status: 401,
+      status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({
-        error: { code: 'AUTHENTICATION_REQUIRED', message: 'Sign in to continue.' },
-      }),
+      body: JSON.stringify({ user: null }),
     }),
   )
   await page.getByRole('button', { name: 'Start the run' }).click()
@@ -230,7 +231,7 @@ test('signs in with a mixed-case username instead of the email', async ({
   await page.getByRole('button', { name: 'Skip and explore Sharlock' }).click()
   await expect(page).toHaveURL('/')
 
-  const freshContext = await browser.newContext({
+  const freshContext = await newTown2dContext(browser, {
     storageState: { cookies: [], origins: [] },
     viewport: testInfo.project.use.viewport,
     isMobile: testInfo.project.use.isMobile,

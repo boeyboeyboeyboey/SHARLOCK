@@ -4,7 +4,7 @@ import { rigOptionsFor } from '../../../data/wardrobeLook.js'
 import { createCapybaraRig, createCapybaraStatic, furStyles } from '../scenes/shared/capybara.js'
 import { heightAt } from '../scenes/wharf/layout.js'
 import { applyToon } from '../scenes/wharf/toon.js'
-import { MAX_DRAWN, approachPeer, pickDrawn } from './rules.js'
+import { MAX_DRAWN, REPICK_MS, approachPeer, pickDrawn } from './rules.js'
 
 const SIZE = 1.4
 const LABEL_HEIGHT = 2.1
@@ -20,10 +20,12 @@ export function createRemotePeers({
   reduced,
   look,
   getPlayer,
+  now = () => performance.now(),
 }) {
   const toon = (m) => applyToon(m, { rimGain: 1.1 })
   const drawn = new Map()
   const clip = Matrix.Identity()
+  let lastPick = -Infinity
 
   function build(peer) {
     const options = rigOptionsFor(peer.look)
@@ -82,10 +84,15 @@ export function createRemotePeers({
 
   function set(map) {
     const all = [...map.values()].filter((p) => Number.isFinite(p.x) && Number.isFinite(p.z))
-    const repick =
-      all.length > MAX_DRAWN || all.length !== drawn.size || all.some((p) => !drawn.has(p.sid))
+    const lostOne = [...drawn.keys()].some((sid) => !map.has(sid))
+    const crowded = all.length > MAX_DRAWN
+    // a full class would sort on every message, so a crowd only picks again when someone left, a slot is free or a second passed
+    const repick = crowded
+      ? lostOne || drawn.size < MAX_DRAWN || now() - lastPick >= REPICK_MS
+      : lostOne || all.length !== drawn.size || all.some((p) => !drawn.has(p.sid))
     if (repick) {
-      const chosen = pickDrawn(all, getPlayer() ?? { x: 0, z: 0 }, MAX_DRAWN)
+      lastPick = now()
+      const chosen = pickDrawn(all, getPlayer() ?? { x: 0, z: 0 }, MAX_DRAWN, drawn)
       const keep = new Set(chosen.map((p) => p.sid))
       for (const entry of [...drawn.values()]) if (!keep.has(entry.sid)) drop(entry)
       for (const peer of chosen) if (!drawn.has(peer.sid)) drawn.set(peer.sid, build(peer))

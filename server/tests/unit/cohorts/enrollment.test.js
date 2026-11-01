@@ -54,21 +54,15 @@ describe('cohort enrollment policy', () => {
       expectedRevision: 12,
     })
     expect(parseCodeRevisionInput({ expectedRevision: 0 })).toEqual({ expectedRevision: 0 })
-    for (const input of [
-      { completed: false },
-      { completed: true, role: 'admin' },
-      { status: 'pending', expectedRevision: 0 },
-      { status: 'active', expectedRevision: -1 },
-      { expectedRevision: Number.MAX_SAFE_INTEGER + 1 },
-      { expectedRevision: 0, extra: 1 },
+    for (const [parser, input] of [
+      [parseOnboardingInput, { completed: false }],
+      [parseOnboardingInput, { completed: true, role: 'admin' }],
+      [parseDecisionInput, { status: 'pending', expectedRevision: 0 }],
+      [parseDecisionInput, { status: 'active', expectedRevision: -1 }],
+      [parseCodeRevisionInput, { expectedRevision: Number.MAX_SAFE_INTEGER + 1 }],
+      [parseCodeRevisionInput, { expectedRevision: 0, extra: 1 }],
     ]) {
-      expect(() =>
-        input.status
-          ? parseDecisionInput(input)
-          : input.completed
-            ? parseOnboardingInput(input)
-            : parseCodeRevisionInput(input),
-      ).toThrow(CohortError)
+      expect(() => parser(input)).toThrow(CohortError)
     }
   })
 

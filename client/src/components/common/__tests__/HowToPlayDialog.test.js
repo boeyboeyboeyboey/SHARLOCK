@@ -78,7 +78,7 @@ describe('how to play dialog', () => {
     expect(wrapper.text()).toContain('Access control (CS440 07).')
     expect(wrapper.text()).toContain('Up to 100 points')
     expect(wrapper.text()).toContain('Tab')
-    expect(wrapper.findAll('.howto-dot')).toHaveLength(3)
+    expect(wrapper.findAll('[aria-label^="Step "]')).toHaveLength(3)
     expect(wrapper.get('[data-testid="scene"]').text()).toBe('0')
   })
 
@@ -136,15 +136,32 @@ describe('how to play dialog', () => {
     expect(box.element.checked).toBe(true)
   })
 
-  it('emits update:open false from Start playing, the close button and the native close', async () => {
+  it('emits update:open false from Start playing', async () => {
     const { wrapper } = mountDialog({ open: true })
     await wrapper
       .findAll('button')
       .find((item) => item.text() === 'Start playing')
       .trigger('click')
     expect(wrapper.emitted('update:open')[0]).toEqual([false])
+  })
+
+  it('emits update:open false from the close button', async () => {
+    const { wrapper } = mountDialog({ open: true })
     await wrapper.get('[aria-label="Close how to play"]').trigger('click')
-    expect(wrapper.emitted('update:open').length).toBeGreaterThan(0)
+    expect(wrapper.emitted('update:open')[0]).toEqual([false])
+  })
+
+  it('emits update:open false when the browser closes the dialog, as Escape does', async () => {
+    const { wrapper } = mountDialog({ open: true })
+    expect(wrapper.emitted('update:open')).toBeUndefined()
+    await wrapper.get('dialog').trigger('close')
+    expect(wrapper.emitted('update:open')).toEqual([[false]])
+  })
+
+  it("keeps Don't show again and Start playing together in the one footer", () => {
+    const { wrapper } = mountDialog({ open: true })
+    const footer = wrapper.get('input[type="checkbox"]').element.closest('.howto-foot')
+    expect(footer.textContent).toContain('Start playing')
   })
 
   it('waits for the game doors to open before showing', async () => {

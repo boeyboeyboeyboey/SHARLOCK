@@ -43,6 +43,39 @@ describe('town wanderers', () => {
     }
   })
 
+  it('spend no frames while nothing can move, and carry on after start', () => {
+    let held = true
+    const npcs = useTownNpcs({ npcs: townNpcs, target: far, paused: () => held })
+    npcs.start()
+    run(1)
+    expect(queue).toHaveLength(0)
+    held = false
+    npcs.start()
+    run(8)
+    expect(sweeper(npcs).y).toBeGreaterThan(330)
+    npcs.dispose()
+  })
+
+  it('carry on when reduced motion is turned off, and stop listening once disposed', () => {
+    const listeners = new Set()
+    const query = {
+      addEventListener: (_type, listener) => listeners.add(listener),
+      removeEventListener: (_type, listener) => listeners.delete(listener),
+    }
+    vi.stubGlobal('matchMedia', () => query)
+    let reduced = true
+    const npcs = useTownNpcs({ npcs: townNpcs, target: far, reducedMotion: () => reduced })
+    npcs.start()
+    run(1)
+    expect(queue).toHaveLength(0)
+    reduced = false
+    listeners.forEach((listener) => listener())
+    run(8)
+    expect(sweeper(npcs).y).toBeGreaterThan(330)
+    npcs.dispose()
+    expect(listeners.size).toBe(0)
+  })
+
   it('stop and face sharlock when he is near', () => {
     const npcs = useTownNpcs({ npcs: townNpcs, target: () => ({ x: 540, y: 335 }) })
     npcs.start()

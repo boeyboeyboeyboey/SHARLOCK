@@ -10,7 +10,7 @@ vi.mock('../../../features/attempts/api.js', () => ({
   readAttempt: vi.fn(),
   writeAttempt: vi.fn(),
   listAttemptContexts: vi.fn().mockResolvedValue({ cohorts: [], total: 0 }),
-  safeAttemptError: () => ({ message: 'error', status: 0 }),
+  safeAttemptError: (failure) => ({ message: 'error', status: failure?.response?.status ?? 0 }),
 }))
 
 const loginFields = [
@@ -60,7 +60,7 @@ function snapshot({
   return {
     attemptId: 'att1',
     gameId: 'sql-injection-arcade',
-    rulesetVersion: 'sql-2',
+    rulesetVersion: 'sql-3',
     context: { kind: timed ? 'cohort' : 'personal', cohortId: null },
     mode,
     status,
@@ -99,11 +99,11 @@ const lastOpen = {
   explanation: null,
 }
 
-async function mountGame(first) {
+async function mountGame(first, dismissed = ['sql-injection-arcade']) {
   readAttempt.mockResolvedValue(first)
   const pinia = createPinia()
   setActivePinia(pinia)
-  useAuthStore().user = { howToPlayDismissed: ['sql-injection-arcade'] }
+  useAuthStore().user = { howToPlayDismissed: dismissed }
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
@@ -121,6 +121,14 @@ async function mountGame(first) {
   return wrapper
 }
 
+describe('the guide and a resumed run', () => {
+  it('does not cover a resumed run for a player who never dismissed it', async () => {
+    const wrapper = await mountGame(snapshot(), [])
+    expect(wrapper.get('dialog.howto-dialog').attributes('open')).toBeUndefined()
+    wrapper.unmount()
+  })
+})
+
 const button = (wrapper, name) => wrapper.findAll('button').find((item) => item.text() === name)
 const lastBody = () => writeAttempt.mock.calls.at(-1)[1]
 
@@ -130,6 +138,70 @@ beforeEach(() => {
 })
 afterEach(() => {
   document.body.innerHTML = ''
+})
+
+describe('error and end states', () => {
+  it('offers Reload case but no Sign in link to a signed-in player', async () => {
+    const wrapper = await mountGame(snapshot())
+    writeAttempt.mockRejectedValue({ response: { status: 409 } })
+    await wrapper.findAll('input')[0].setValue('x')
+    await wrapper.findAll('input')[1].setValue('y')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(wrapper.get('[role="alert"]').text()).toContain('Reload case')
+    expect(wrapper.findAll('a').map((link) => link.text())).not.toContain('Sign in')
+  })
+
+  it('shows the Sign in link once the session has ended', async () => {
+    const wrapper = await mountGame(snapshot())
+    writeAttempt.mockRejectedValue({ response: { status: 409 } })
+    await wrapper.findAll('input')[0].setValue('x')
+    await wrapper.findAll('input')[1].setValue('y')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    useAuthStore().user = null
+    await flushPromises()
+    expect(wrapper.findAll('a').map((link) => link.text())).toContain('Sign in')
+  })
+
+  it('never prints Case null when no case is open', async () => {
+    const wrapper = await mountGame(
+      snapshot({ mode: 'standard', curr: null, pub: { lives: 0, last: null } }),
+    )
+    expect(wrapper.text()).not.toContain('null')
+    expect(wrapper.text()).toContain('Run complete')
+  })
+
+  const finished = (mode, verdictCode, score = 50) =>
+    snapshot({
+      mode,
+      curr: null,
+      status: 'completed',
+      score,
+      maxScore: 320,
+      pub: { review: [] },
+      feedback: {
+        verdictCode,
+        casesSolved: 9,
+        casesFailed: 3,
+        repairsCorrect: 3,
+        assistedCases: 0,
+      },
+    })
+
+  it('blames lives only in a timed run, even for a practice result saved under the old code', async () => {
+    const practice = await mountGame(finished('practice', 'SQL_RUN_LIVES_OUT'))
+    expect(practice.text()).toContain('The run reached its end.')
+    practice.unmount()
+    const timed = await mountGame(finished('standard', 'SQL_RUN_LIVES_OUT'))
+    expect(timed.text()).toContain('The run ended when your lives ran out.')
+  })
+
+  it('says when par was reached', async () => {
+    const wrapper = await mountGame(finished('practice', 'SQL_RUN_FINISHED', 320))
+    expect(wrapper.text()).toContain('320 / 320')
+    expect(wrapper.text()).toContain('Par reached')
+  })
 })
 
 describe('login case', () => {
@@ -214,7 +286,11 @@ describe('blind case', () => {
     await wrapper.get('input').setValue("CR-1234' AND 1=1--")
     await wrapper.get('.sql-login').trigger('submit')
     await flushPromises()
+    const calls = writeAttempt.mock.calls.length
     await button(wrapper, 'Yes').trigger('click')
+    await flushPromises()
+    expect(writeAttempt.mock.calls.length).toBe(calls)
+    await button(wrapper, 'Confirm answer').trigger('click')
     await flushPromises()
     expect(lastBody().type).toBe('answer')
     expect(lastBody().payload).toEqual({ caseId: 'aaa111', value: 'yes' })

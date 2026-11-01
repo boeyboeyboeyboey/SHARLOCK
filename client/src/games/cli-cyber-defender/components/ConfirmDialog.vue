@@ -7,11 +7,13 @@ const props = defineProps({
   title: { type: String, required: true },
   confirmLabel: { type: String, default: 'Confirm' },
   cancelLabel: { type: String, default: 'Cancel' },
+  focus: { type: String, default: 'confirm' },
 })
-const emit = defineEmits(['confirm', 'cancel'])
+const emit = defineEmits(['confirm', 'cancel', 'closed'])
 
 const dialog = ref(null)
 const confirmButton = ref(null)
+const cancelButton = ref(null)
 
 // the native modal dialog traps focus and turns escape into a cancel event
 watch(
@@ -23,10 +25,12 @@ watch(
     if (isOpen && !element.open) {
       if (element.showModal) element.showModal()
       else element.setAttribute('open', '')
-      confirmButton.value?.focus()
+      const first = props.focus === 'cancel' ? cancelButton : confirmButton
+      first.value?.focus()
     } else if (!isOpen && element.open) {
       if (element.close) element.close()
       else element.removeAttribute('open')
+      emit('closed')
     }
   },
   { immediate: true },
@@ -50,7 +54,9 @@ function onCancel(event) {
       <h2 :id="`${id}-title`" class="cli-heading">{{ title }}</h2>
       <slot />
       <div class="cli-dialog-actions">
-        <button type="button" class="btn" @click="emit('cancel')">{{ cancelLabel }}</button>
+        <button ref="cancelButton" type="button" class="btn" @click="emit('cancel')">
+          {{ cancelLabel }}
+        </button>
         <button
           ref="confirmButton"
           type="button"

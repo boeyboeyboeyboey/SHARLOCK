@@ -7,6 +7,15 @@ import {
   NewsError,
   editionWindow,
 } from './policy.js'
+import { sampleEdition } from './sample.js'
+
+// no key, publisher unreachable or the day's quota spent: with nothing cached the paper shows its
+// labelled sample edition. news_busy stays a retryable 503, because it clears in seconds
+const SAMPLE_WHEN = new Set([
+  'NEWS_NOT_CONFIGURED',
+  'NEWS_UPSTREAM_UNAVAILABLE',
+  'NEWS_DAILY_LIMIT',
+])
 
 function serializeInline(nodes) {
   return nodes.map(({ type, text, href }) => ({
@@ -107,6 +116,7 @@ export function createNewsService({ store, provider, now = Date.now }) {
       } catch (error) {
         if (cached && new Date(cached.expiresAt).getTime() > now())
           return serialize(cached, now(), error.retryAt || now() + COOLDOWN_MS)
+        if (SAMPLE_WHEN.has(error.code)) return sampleEdition(edition, now(), error.retryAt)
         throw error
       }
     },

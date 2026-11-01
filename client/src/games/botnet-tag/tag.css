@@ -1,4 +1,4 @@
-/* every rule is scoped to .botnet-tag-game; glass panels over the arena placeholder */
+/* every rule is scoped to .botnet-tag-game; glass panels over the 3d yard */
 .botnet-tag-game {
   --game-bg: #0b1220;
   --game-glass: rgb(20 32 46 / 72%);
@@ -54,8 +54,49 @@
 }
 .botnet-tag-game .immersive-controls.is-inline {
   position: fixed;
-  inset: 12px auto auto 12px;
+  inset: 12px 12px auto 12px;
   z-index: 1020;
+}
+.botnet-tag-game .tag-short {
+  display: none;
+}
+.botnet-tag-game .tag-note {
+  margin: 8px 0 0;
+  color: var(--game-muted);
+  font-size: 14px;
+}
+.botnet-tag-game .tag-note.is-warn {
+  color: var(--game-warn);
+}
+.botnet-tag-game .tag-reconnect {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  z-index: 1010;
+  max-width: calc(100% - 24px);
+  margin: 0;
+  padding: 8px 16px;
+  border-color: var(--game-warn);
+  font-weight: 600;
+  text-align: center;
+  transform: translateX(-50%);
+}
+.botnet-tag-game .tag-grace {
+  position: absolute;
+  top: 118px;
+  left: 50%;
+  width: max-content;
+  max-width: calc(100% - 24px);
+  margin: 0;
+  padding: 6px 14px;
+  border-color: var(--game-warn);
+  color: var(--game-warn);
+  font-weight: 700;
+  text-align: center;
+  transform: translateX(-50%);
+}
+.botnet-tag-game .tag-sub {
+  display: none;
 }
 .botnet-tag-game .tag-panel-head {
   display: flex;
@@ -196,6 +237,7 @@
 }
 .botnet-tag-game .tag-table thead th {
   border-top: 0;
+  white-space: nowrap;
   color: var(--game-muted);
   font-size: 12px;
   font-weight: 600;
@@ -210,6 +252,7 @@
 }
 .botnet-tag-game .tag-pill {
   display: inline-flex;
+  white-space: nowrap;
   padding: 2px 8px;
   border-radius: 99px;
   font-size: 12px;
@@ -340,6 +383,16 @@
   }
   .botnet-tag-game .tag-immunity {
     bottom: 100px;
+  }
+  .botnet-tag-game .tag-sub {
+    display: block;
+    margin-top: 2px;
+    color: var(--game-muted);
+    font-size: 12px;
+    font-weight: 400;
+  }
+  .botnet-tag-game .tag-table th[scope='row'] {
+    overflow-wrap: anywhere;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -523,8 +576,13 @@
   overflow: hidden;
   clip-path: inset(50%);
 }
+/* above the use pill, and wrapping because the failure reason is the only teaching on a wrong answer */
 .botnet-tag-game .pz-result {
-  bottom: 24px;
+  bottom: 90px;
+  width: max-content;
+  max-width: calc(100% - 24px);
+  text-align: center;
+  white-space: normal;
 }
 .botnet-tag-game .pz-result.is-bad {
   border-color: var(--game-bad);
@@ -764,7 +822,7 @@
     display: block;
   }
   .botnet-tag-game .tag-use {
-    bottom: 150px;
+    bottom: 176px;
     left: auto;
     right: 16px;
     transform: none;
@@ -778,6 +836,34 @@
   }
   .botnet-tag-game .tag-immunity {
     top: 100px;
+    bottom: auto;
+  }
+}
+/* the right-hand controls shorten so the timer stays clear of them; phones also drop the hud under the bar */
+@media (max-width: 767.98px) {
+  .botnet-tag-game .tag-long {
+    display: none;
+  }
+  .botnet-tag-game .tag-short {
+    display: inline;
+  }
+}
+@media (max-width: 575.98px) {
+  .botnet-tag-game .tag-hud-top {
+    top: 62px;
+  }
+  .botnet-tag-game .tag-status {
+    top: 62px;
+  }
+  .botnet-tag-game .tag-grace {
+    top: 158px;
+  }
+  .botnet-tag-game .tag-immunity {
+    top: 158px;
+    bottom: auto;
+  }
+  .botnet-tag-game .tag-toast {
+    top: 212px;
     bottom: auto;
   }
 }

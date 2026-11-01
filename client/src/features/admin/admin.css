@@ -49,13 +49,6 @@
   font-weight: 700;
 }
 
-.admin-workspace .admin-workspace__eyebrow {
-  margin: 0 0 0.35rem;
-  font-size: 0.82rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-}
-
 .admin-workspace .admin-workspace__panel {
   display: grid;
   padding: clamp(1rem, 3vw, 1.5rem);
@@ -106,13 +99,21 @@
   font-size: 1.15rem;
 }
 
+/* a heading takes focus only so the next tab starts from it */
+.admin-workspace [tabindex='-1']:focus-visible {
+  outline: none;
+}
+
 .admin-workspace .admin-workspace__form label,
+.admin-workspace .admin-workspace__edit-form label,
 .admin-workspace .admin-workspace__dialog-card label {
   font-weight: 700;
 }
 
-.admin-workspace .admin-workspace__form input,
+.admin-workspace .admin-workspace__form input:not([type='radio']),
 .admin-workspace .admin-workspace__form select,
+.admin-workspace .admin-workspace__edit-form input,
+.admin-workspace .admin-workspace__edit-form select,
 .admin-workspace .admin-workspace__dialog-card input:not([type='checkbox']),
 .admin-workspace .admin-workspace__dialog-card select,
 .admin-workspace .admin-workspace__dialog-card textarea,
@@ -129,6 +130,10 @@
 
 .admin-workspace .admin-workspace__form input:focus-visible,
 .admin-workspace .admin-workspace__form select:focus-visible,
+.admin-workspace .admin-workspace__edit-form input:focus-visible,
+.admin-workspace .admin-workspace__edit-form select:focus-visible,
+.admin-workspace .admin-workspace__add-staff summary:focus-visible,
+.admin-workspace .admin-workspace__account-filters input:focus-visible,
 .admin-workspace .admin-workspace__audit-filters input:focus-visible,
 .admin-workspace .admin-workspace__audit-filters select:focus-visible,
 .admin-workspace .admin-workspace__activation-url:focus-visible,
@@ -398,6 +403,7 @@
 
 .admin-workspace .admin-workspace__audit-filters input,
 .admin-workspace .admin-workspace__audit-filters select,
+.admin-workspace .admin-workspace__account-filters input,
 .admin-workspace .admin-workspace__account-filters select {
   width: 100%;
   min-width: 0;
@@ -416,7 +422,6 @@
 
 .admin-workspace .admin-workspace__account-table {
   width: 100%;
-  min-width: 38rem;
   border-collapse: collapse;
 }
 
@@ -424,8 +429,13 @@
 .admin-workspace .admin-workspace__account-table td {
   padding: 0.65rem;
   border-bottom: 1px solid var(--border-strong);
+  overflow-wrap: normal;
   text-align: left;
   vertical-align: top;
+}
+
+.admin-workspace .admin-workspace__account-table td[data-label='Email'] {
+  overflow-wrap: anywhere;
 }
 
 .admin-workspace .admin-workspace__account-table th {
@@ -436,22 +446,90 @@
   margin: 0.35rem 0 0;
 }
 
+.admin-workspace .admin-workspace__row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.admin-workspace .admin-workspace__account-table .inline-confirm {
+  margin-top: 0.5rem;
+}
+
+.admin-workspace .admin-workspace__account-name {
+  font-weight: 700;
+}
+
+.admin-workspace .admin-workspace__field-error {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.admin-workspace .admin-workspace__form input[aria-invalid='true'],
+.admin-workspace .admin-workspace__edit-form input[aria-invalid='true'] {
+  border-width: 3px;
+  border-color: var(--alert-danger);
+}
+
+.admin-workspace .admin-workspace__edit-toggle {
+  justify-self: start;
+}
+
+.admin-workspace .admin-workspace__add-staff summary {
+  min-height: 44px;
+  align-content: center;
+  cursor: pointer;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.admin-workspace .admin-workspace__add-staff[open] {
+  gap: 1rem;
+}
+
+.admin-workspace .admin-workspace__add-staff[open] > .admin-workspace__panel {
+  margin-top: 1rem;
+}
+
+/* confirmation stays on screen after an action far down the page */
+.admin-workspace .admin-workspace__feedback,
+.admin-workspace .admin-workspace__status-line {
+  position: sticky;
+  top: calc(var(--header-height) + 0.5rem);
+  z-index: 5;
+}
+
+.admin-workspace .admin-workspace__status-line {
+  margin: 0;
+  padding: 0.6rem 0.85rem;
+  border: 2px solid var(--border-strong);
+  background: var(--accent-secondary);
+  font-weight: 700;
+}
+
 .admin-workspace .admin-workspace__audit-list {
   display: grid;
   min-width: 0;
   margin: 0;
   padding: 0;
-  gap: 0.65rem;
+  gap: 0.4rem;
   list-style: none;
 }
 
 .admin-workspace .admin-workspace__audit-list > li {
   display: grid;
   min-width: 0;
-  padding: 0.85rem;
+  padding: 0.5rem 0.75rem;
   border: 2px solid var(--border-strong);
   background: var(--surface);
-  gap: 0.65rem;
+  gap: 0.25rem;
+}
+
+.admin-workspace .admin-workspace__audit-people {
+  margin: 0;
+  font-size: 0.95rem;
+  overflow-wrap: anywhere;
 }
 
 .admin-workspace .admin-workspace__audit-summary {
@@ -566,10 +644,6 @@
     height: 3rem;
   }
 
-  .admin-workspace .admin-workspace__two-column {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
   .admin-workspace .admin-workspace__section-heading,
   .admin-workspace .admin-workspace__instructor-heading {
     align-items: flex-start;
@@ -600,12 +674,59 @@
   }
 }
 
+/* two regions stack below the tablet width, as the design rules ask */
+@media (max-width: 767.98px) {
+  .admin-workspace .admin-workspace__two-column {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* below this the account table would need sideways scrolling, so each row becomes a card */
+@media (max-width: 639.98px) {
+  .admin-workspace .admin-workspace__account-table,
+  .admin-workspace .admin-workspace__account-table tbody,
+  .admin-workspace .admin-workspace__account-table tr,
+  .admin-workspace .admin-workspace__account-table td {
+    display: block;
+  }
+
+  .admin-workspace .admin-workspace__account-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .admin-workspace .admin-workspace__account-table tr {
+    margin-bottom: 0.65rem;
+    padding: 0.65rem;
+    border: 2px solid var(--border-strong);
+  }
+
+  .admin-workspace .admin-workspace__account-table td {
+    padding: 0.2rem 0;
+    border-bottom: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .admin-workspace .admin-workspace__account-table td[data-label]::before {
+    content: attr(data-label) ': ';
+    font-weight: 700;
+  }
+
+  .admin-workspace .admin-workspace__account-table .admin-workspace__row-actions {
+    margin-top: 0.4rem;
+    gap: 0.85rem;
+  }
+}
+
 @media (min-width: 1200px) {
   .admin-workspace .admin-workspace__audit-filters {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .admin-workspace .admin-workspace__account-filters {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+    grid-template-columns: minmax(0, 1.5fr) repeat(2, minmax(0, 1fr)) auto;
   }
 }

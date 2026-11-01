@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import request from 'supertest'
 import { Types } from 'mongoose'
 import { connectDatabase } from '../../../src/config/database.js'
@@ -39,8 +39,8 @@ function guardTestDatabase() {
   assertSafeTestDatabaseUri(process.env.TEST_MONGODB_URI, process.env.MONGO_URI)
 }
 
-async function registerAdmin() {
-  const account = await registerTestStudent(app)
+async function registerAdminOn(targetApp) {
+  const account = await registerTestStudent(targetApp)
   owned.users.add(account.user.id)
   await userModel(database).updateOne(
     { _id: new Types.ObjectId(account.user.id) },
@@ -48,6 +48,8 @@ async function registerAdmin() {
   )
   return account
 }
+
+const registerAdmin = () => registerAdminOn(app)
 
 async function createSyntheticUser(globalRoles = ['student'], accountStatus = 'active') {
   const suffix = randomUUID().replaceAll('-', '').slice(0, 12)
@@ -117,7 +119,8 @@ function patchStatus(userId, accountStatus, expectedRevision, actor = admin) {
 beforeAll(async () => {
   if (process.env.SHARLOCK_TEST_REPLICA_SET !== '1') return
   const config = validateEnvironment(process.env)
-  if (config.nodeEnv !== 'test') throw new Error('Admin account integration requires NODE_ENV=test.')
+  if (config.nodeEnv !== 'test')
+    throw new Error('Admin account integration requires NODE_ENV=test.')
   assertSafeTestDatabaseUri(config.databaseUri, process.env.MONGO_URI)
   database = await connectDatabase(config.databaseUri)
   guardTestDatabase()
@@ -164,6 +167,222 @@ afterAll(async () => {
   await disposeTestAuthApps()
   await database?.close()
 })
+
+function adminPost(path, body) {
+  return admin.agent
+    .post(path)
+    .set('Origin', origin)
+    .set('X-CSRF-Token', admin.csrfToken)
+    .send(body)
+}
+
+function instructorInput() {
+  const suffix = randomUUID().replaceAll('-', '').slice(0, 12)
+  return {
+    email: `pending-${suffix}@example.test`,
+    username: `pending-${suffix}`,
+    avatarId: 'mint',
+  }
+}
+
+async function provisionInstructor() {
+  const response = await adminPost('/api/admin/instructors', instructorInput()).expect(201)
+  owned.users.add(response.body.instructor.id)
+  return response
+}
+
+describe.skipIf(process.env.SHARLOCK_TEST_REPLICA_SET !== '1')('admin conflict reasons', () => {
+  it('names the cause of each refusal', async () => {
+    const suffix = randomUUID().replaceAll('-', '').slice(0, 12)
+    const slug = `conflict-${suffix}`
+    const created = await adminPost('/api/admin/institutions', { name: 'A', slug }).expect(201)
+    owned.institutions.add(created.body.id)
+    const duplicateSlug = await adminPost('/api/admin/institutions', { name: 'B', slug }).expect(
+      409,
+    )
+    expect(duplicateSlug.body.error.code).toBe('ADMIN_SLUG_TAKEN')
+
+    const cohort = { institutionId: created.body.id, name: `C ${suffix}`, term: 'T1' }
+    const first = await adminPost('/api/admin/cohorts', cohort).expect(201)
+    owned.cohorts.add(first.body.id)
+    const duplicateClass = await adminPost('/api/admin/cohorts', cohort).expect(409)
+    expect(duplicateClass.body.error.code).toBe('ADMIN_CLASS_EXISTS')
+
+    const patchInstitution = (body) =>
+      admin.agent
+        .patch(`/api/admin/institutions/${created.body.id}`)
+        .set('Origin', origin)
+        .set('X-CSRF-Token', admin.csrfToken)
+        .send(body)
+    const hasClasses = await patchInstitution({ status: 'inactive', expectedRevision: 0 }).expect(
+      409,
+    )
+    expect(hasClasses.body.error.code).toBe('ADMIN_INSTITUTION_HAS_CLASSES')
+    const unchanged = await patchInstitution({ name: 'A', expectedRevision: 0 }).expect(409)
+    expect(unchanged.body.error.code).toBe('ADMIN_NO_CHANGE')
+
+    const input = instructorInput()
+    const provisioned = await adminPost('/api/admin/instructors', input).expect(201)
+    owned.users.add(provisioned.body.instructor.id)
+    const duplicateAccount = await adminPost('/api/admin/instructors', input).expect(409)
+    expect(duplicateAccount.body.error.code).toBe('ADMIN_ACCOUNT_EXISTS')
+    const duplicateAdmin = await adminPost('/api/admin/administrators', input).expect(409)
+    expect(duplicateAdmin.body.error.code).toBe('ADMIN_ACCOUNT_EXISTS')
+  })
+})
+
+describe.skipIf(process.env.SHARLOCK_TEST_REPLICA_SET !== '1')('pending instructors', () => {
+  it('marks a never-activated instructor pending and lets an administrator cancel them', async () => {
+    const provisioned = await provisionInstructor()
+    const id = provisioned.body.instructor.id
+    expect(provisioned.body.instructor.pendingActivation).toBe(true)
+
+    const listed = await admin.agent.get('/api/admin/instructors').set('Origin', origin).expect(200)
+    expect(listed.body.instructors.find((row) => row.id === id).pendingActivation).toBe(true)
+    const accounts = await admin.agent
+      .get('/api/admin/users')
+      .query({ role: 'instructor' })
+      .set('Origin', origin)
+      .expect(200)
+    expect(accounts.body.users.find((row) => row.id === id).pendingActivation).toBe(true)
+
+    await adminPost(`/api/admin/instructors/${id}/delete`, {}).expect(200, { outcome: 'cancelled' })
+    expect(await userModel(database).exists({ _id: id })).toBeNull()
+    const event = await database.db
+      .collection('audit_events')
+      .findOne({ eventType: 'admin.instructor.cancel', targetId: new Types.ObjectId(id) })
+    expect(event).toBeTruthy()
+    await adminPost(`/api/admin/instructors/${id}/delete`, {}).expect(404)
+  })
+
+  it('refuses to cancel anyone who is not a pending instructor', async () => {
+    const active = await createSyntheticUser(['instructor'])
+    await adminPost(`/api/admin/instructors/${active._id}/delete`, {}).expect(404)
+    await adminPost(`/api/admin/instructors/${student._id}/delete`, {}).expect(404)
+    await adminPost(`/api/admin/instructors/${admin.user.id}/delete`, {}).expect(404)
+  })
+
+  it('keeps an instructor who activated and was later disabled, even after their token expired', async () => {
+    const provisioned = await provisionInstructor()
+    const id = provisioned.body.instructor.id
+    const token = tokenFrom(provisioned.body.activationUrl)
+    const publicAgent = await newPublicAgent()
+    await publicAgent.agent
+      .post('/api/auth/activate-account')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', publicAgent.csrfToken)
+      .send({ token, password })
+      .expect(204)
+    const current = await userModel(database).findById(id).lean()
+    await patchStatus(id, 'disabled', current.authVersion).expect(200)
+    await database.db.collection('password_resets').deleteMany({ userId: new Types.ObjectId(id) })
+
+    const listed = await admin.agent.get('/api/admin/instructors').set('Origin', origin).expect(200)
+    expect(listed.body.instructors.find((row) => row.id === id).pendingActivation).toBe(false)
+    await adminPost(`/api/admin/instructors/${id}/delete`, {}).expect(404)
+    expect(await userModel(database).exists({ _id: id })).toBeTruthy()
+  })
+
+  it('requires an administrator, the security token and an empty body', async () => {
+    const provisioned = await provisionInstructor()
+    const id = provisioned.body.instructor.id
+    const studentSession = await studentLogin()
+    await studentSession.agent
+      .post(`/api/admin/instructors/${id}/delete`)
+      .set('Origin', origin)
+      .set('X-CSRF-Token', studentSession.csrfToken)
+      .send({})
+      .expect(403)
+    await admin.agent
+      .post(`/api/admin/instructors/${id}/delete`)
+      .set('Origin', origin)
+      .send({})
+      .expect(403)
+    await adminPost(`/api/admin/instructors/${id}/delete`, { extra: 1 }).expect(400)
+    expect(await userModel(database).exists({ _id: id })).toBeTruthy()
+  })
+})
+
+describe.skipIf(process.env.SHARLOCK_TEST_REPLICA_SET !== '1')(
+  'admin account list and audit ids',
+  () => {
+    it('finds accounts by a username or email prefix and shows the email', async () => {
+      const response = await admin.agent
+        .get('/api/admin/users')
+        .query({ search: student.username.slice(0, 16).toUpperCase() })
+        .set('Origin', origin)
+        .expect(200)
+      expect(response.body.users.map(({ id }) => id)).toEqual([student._id.toString()])
+      expect(response.body.users[0].email).toBe(student.emailNormalized)
+
+      const byEmail = await admin.agent
+        .get('/api/admin/users')
+        .query({ search: student.emailNormalized })
+        .set('Origin', origin)
+        .expect(200)
+      expect(byEmail.body.total).toBe(1)
+
+      const literal = await admin.agent
+        .get('/api/admin/users')
+        .query({ search: 'account.*' })
+        .set('Origin', origin)
+        .expect(200)
+      expect(literal.body.total).toBe(0)
+
+      await admin.agent
+        .get('/api/admin/users')
+        .query({ search: 'x'.repeat(255) })
+        .set('Origin', origin)
+        .expect(400)
+      await admin.agent.get('/api/admin/users?search[$ne]=x').set('Origin', origin).expect(400)
+    })
+
+    it('stores the response request id on status, provisioning and activation audit rows', async () => {
+      const changed = await patchStatus(student._id, 'disabled', 1).expect(200)
+      const statusEvent = await database.db
+        .collection('audit_events')
+        .findOne({ eventType: 'admin.user.disable', targetId: student._id })
+      expect(statusEvent.requestId).toBe(changed.headers['x-request-id'])
+
+      const provisioned = await provisionInstructor()
+      const targetId = new Types.ObjectId(provisioned.body.instructor.id)
+      for (const eventType of ['admin.instructor.provision', 'admin.instructor.activation.issue']) {
+        const row = await database.db.collection('audit_events').findOne({ eventType, targetId })
+        expect(row.requestId).toBe(provisioned.headers['x-request-id'])
+      }
+    })
+
+    it('logs one line with the request id when a change fails unexpectedly', async () => {
+      const failingApp = createTestApp(database, authOptions, {
+        admin: {
+          recordAuditEvent: async () => {
+            throw new TypeError('private detail')
+          },
+        },
+      })
+      const session = await registerAdminOn(failingApp)
+      const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+      try {
+        const failed = await session.agent
+          .post('/api/admin/institutions')
+          .set('Origin', origin)
+          .set('X-CSRF-Token', session.csrfToken)
+          .send({ name: 'Never saved', slug: `never-${randomUUID().slice(0, 8)}` })
+          .expect(503)
+        expect(logged.mock.calls.map(([line]) => line)).toContain(
+          JSON.stringify({
+            event: 'request_failed',
+            requestId: failed.headers['x-request-id'],
+            errorName: 'TypeError',
+          }),
+        )
+        expect(JSON.stringify(failed.body)).not.toContain('private detail')
+      } finally {
+        logged.mockRestore()
+      }
+    })
+  },
+)
 
 describe.skipIf(process.env.SHARLOCK_TEST_REPLICA_SET !== '1')('admin account controls API', () => {
   it('requires the current account-management capability for listing accounts', async () => {
@@ -213,10 +432,18 @@ describe.skipIf(process.env.SHARLOCK_TEST_REPLICA_SET !== '1')('admin account co
     )
     const dto = selected ?? list.body.users[0]
     expect(Object.keys(dto).sort()).toEqual(
-      ['id', 'username', 'avatarId', 'globalRoles', 'accountStatus', 'revision'].sort(),
+      [
+        'id',
+        'username',
+        'email',
+        'pendingActivation',
+        'avatarId',
+        'globalRoles',
+        'accountStatus',
+        'revision',
+      ].sort(),
     )
     expect(dto).toMatchObject({ globalRoles: ['student'], accountStatus: 'active', revision: 1 })
-    expect(dto).not.toHaveProperty('email')
     expect(dto).not.toHaveProperty('passwordHash')
     expect(dto).not.toHaveProperty('authVersion')
 
@@ -318,7 +545,10 @@ describe.skipIf(process.env.SHARLOCK_TEST_REPLICA_SET !== '1')('admin account co
 
     const events = await database.db
       .collection('audit_events')
-      .find({ targetId: student._id, eventType: { $in: ['admin.user.disable', 'admin.user.enable'] } })
+      .find({
+        targetId: student._id,
+        eventType: { $in: ['admin.user.disable', 'admin.user.enable'] },
+      })
       .toArray()
     expect(events.map(({ eventType }) => eventType).sort()).toEqual(
       ['admin.user.disable', 'admin.user.enable'].sort(),
@@ -351,10 +581,9 @@ describe.skipIf(process.env.SHARLOCK_TEST_REPLICA_SET !== '1')('admin account co
       .send({ identityVerified: true })
       .expect(200)
     const resetToken = tokenFrom(resetIssue.body.resetUrl)
-    await database.db.collection('users').updateOne(
-      { _id: student._id },
-      { $unset: { authVersion: '' } },
-    )
+    await database.db
+      .collection('users')
+      .updateOne({ _id: student._id }, { $unset: { authVersion: '' } })
 
     const listed = await admin.agent
       .get('/api/admin/users?role=student&limit=50')
@@ -453,7 +682,10 @@ describe.skipIf(process.env.SHARLOCK_TEST_REPLICA_SET !== '1')('admin account co
       .post('/api/auth/activate-account')
       .set('Origin', origin)
       .set('X-CSRF-Token', activation.csrfToken)
-      .send({ token: tokenFrom(reissued.body.activationUrl), password: 'Synthetic-Activated-Password-2026!' })
+      .send({
+        token: tokenFrom(reissued.body.activationUrl),
+        password: 'Synthetic-Activated-Password-2026!',
+      })
       .expect(204)
     expect((await userModel(database).findById(instructor._id).lean()).accountStatus).toBe('active')
     expect(

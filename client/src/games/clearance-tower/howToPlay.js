@@ -19,10 +19,10 @@ export const HOW_TO_PLAY = Object.freeze({
     },
   ],
   learn:
-    'discretionary, mandatory (Bell–LaPadula) and role-based access control, including Trojan horses and separation of duties (CS440 07-access-control, slides 13–32).',
+    'discretionary, mandatory (Bell–LaPadula) and role-based access control, including Trojan horses (CS440 07-access-control, slides 13–38). Separation of duties is a team design built on the roles on slide 36.',
   rules: [
     'Six cases, played in any order. Each case can be run once.',
-    'A case scores up to 100 for leaks stopped, work completed, least privilege and predictions.',
+    'A case scores up to 100 for leaks stopped, work completed, least privilege and predictions. Any leak loses the whole leaks row and keeps that topic from being achieved.',
     'A climb totals up to 600 points. Cases you skip score 0.',
     'There is no timer. Class climbs reach that class leaderboard; personal climbs do not.',
   ],
@@ -33,3 +33,17 @@ export const HOW_TO_PLAY = Object.freeze({
     { keys: 'Escape', action: 'close this guide' },
   ],
 })
+
+const CURRENT_RULESET = 'clear-4'
+
+// a climb keeps the ruleset it started under, so its guide says so instead of promising these rules
+export function howToPlayFor(rulesetVersion) {
+  if (!rulesetVersion || rulesetVersion === CURRENT_RULESET) return HOW_TO_PLAY
+  return {
+    ...HOW_TO_PLAY,
+    rules: [
+      ...HOW_TO_PLAY.rules,
+      'This climb started under older scoring and keeps it, so a case may score differently from the rules above.',
+    ],
+  }
+}

@@ -69,15 +69,21 @@ async function openMap() {
   closer.value?.focus()
 }
 
-function closeMap() {
+function closeMap({ restoreFocus = true } = {}) {
   if (!open.value) return
   open.value = false
-  nextTick(() => toggle.value?.focus())
+  if (restoreFocus) nextTick(() => toggle.value?.focus())
 }
 
-function pick(id) {
+// the hub may move focus to the enter button on the next tick; if it did not, focus must not stay on the hidden pin
+async function pick(id) {
+  const wasOpen = open.value
   emit('choose', id)
-  closeMap()
+  closeMap({ restoreFocus: false })
+  if (!wasOpen) return
+  await nextTick()
+  const active = document.activeElement
+  if (!active || active === document.body || panel.value?.contains(active)) toggle.value?.focus()
 }
 
 // the overlay keeps keyboard focus and owns Escape; on desktop Escape still reaches the hub
@@ -308,7 +314,7 @@ function onKeydown(event) {
   border: 1px solid var(--town-edge);
   background: var(--town-paper);
   color: var(--town-edge);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.3;
   white-space: nowrap;
   transform: translateX(-50%);

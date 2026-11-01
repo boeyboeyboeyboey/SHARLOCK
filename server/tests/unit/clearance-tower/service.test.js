@@ -1,7 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import { LEVELS, findLevel } from '../../../src/modules/games/clearance-tower/levels.js'
 import { parseSubmission } from '../../../src/modules/games/clearance-tower/policy.js'
-import { clearanceRuleset } from '../../../src/modules/games/clearance-tower/ruleset.js'
+import {
+  clearanceHintsRuleset,
+  clearanceLegacyRuleset,
+} from '../../../src/modules/games/clearance-tower/legacy.js'
+import {
+  clearanceRuleset,
+  levelMastered,
+} from '../../../src/modules/games/clearance-tower/ruleset.js'
+import {
+  LEGACY_SCORING_RULES,
+  SCORING_RULES,
+} from '../../../src/modules/games/clearance-tower/scoring.js'
+import { createProductionAttemptRegistry } from '../../../src/modules/attempts/production-registry.js'
+import { deriveAchievements } from '../../../src/modules/progress/achievements.js'
 import { predictionList, SOLUTIONS } from './solutions.js'
 
 function submission(levelId, overrides = {}) {
@@ -174,9 +187,77 @@ describe('clearance tower ruleset', () => {
     expect(summary.score).toBe(expected)
     expect(summary.score).toBeLessThanOrEqual(clearanceRuleset.maxScore)
     expect(clearanceRuleset.maxScore).toBe(600)
+    expect(summary.score).toBe(600)
     expect(summary.topicOutcomes.map((item) => item.topic)).toEqual(clearanceRuleset.topicTags)
     const partial = clearanceRuleset.summarize(play(empty, 'the-matrix'))
     expect(partial.score).toBe(100)
     expect(partial.topicOutcomes.every((item) => !item.achieved)).toBe(true)
+  })
+
+  it('reaches the advertised maximum, so the perfect case badge can be earned', () => {
+    let state = clearanceRuleset.createState().state
+    for (const levelId of Object.keys(SOLUTIONS)) state = play(state, levelId)
+    const { score, topicOutcomes } = clearanceRuleset.summarize(state)
+    expect(score).toBe(clearanceRuleset.maxScore)
+    const earned = deriveAchievements([
+      {
+        gameId: 'clearance-tower',
+        rulesetVersion: clearanceRuleset.rulesetVersion,
+        score,
+        maxScore: clearanceRuleset.maxScore,
+        topicOutcomes,
+        completedAt: new Date('2026-11-01T00:00:00Z'),
+      },
+    ]).map((item) => item.key)
+    expect(earned).toContain('perfect-case')
+    expect(earned).toContain('topic-expert')
+  })
+
+  it('does not achieve a topic with a leak, whatever the score', () => {
+    expect(levelMastered({ score: 90, meters: { leaks: 1 } }, SCORING_RULES)).toBe(false)
+    expect(levelMastered({ score: 75, meters: { leaks: 0 } }, SCORING_RULES)).toBe(true)
+    expect(levelMastered({ score: 74, meters: { leaks: 0 } }, SCORING_RULES)).toBe(false)
+    expect(levelMastered(undefined, SCORING_RULES)).toBe(false)
+  })
+
+  function climbWithUnchangedGift(ruleset) {
+    const send = (state, levelId, policy) =>
+      ruleset.applyAction(state, {
+        type: 'submit-level',
+        payload: ruleset.validateAction('submit-level', submission(levelId, { policy })),
+      })
+    const solved = send(ruleset.createState().state, 'the-matrix', SOLUTIONS['the-matrix'].policy)
+    return ruleset.summarize(send(solved, 'the-gift', findLevel('the-gift').startPolicy))
+  }
+
+  it('leaves the discretionary topic unachieved when the gift leaks', () => {
+    const summary = climbWithUnchangedGift(clearanceRuleset)
+    expect(summary.score).toBe(160)
+    expect(summary.topicOutcomes[0]).toEqual({
+      topic: 'discretionary-access-control',
+      achieved: false,
+      feedbackCode: 'DAC_REVIEW',
+    })
+  })
+
+  it.each([
+    ['clear-2', clearanceLegacyRuleset],
+    ['clear-3', clearanceHintsRuleset],
+  ])('keeps %s scoring and topic rules for saved climbs', (version, ruleset) => {
+    expect(ruleset).toMatchObject({ rulesetVersion: version, current: false, maxScore: 600 })
+    const summary = climbWithUnchangedGift(ruleset)
+    expect(summary.score).toBe(180)
+    expect(summary.topicOutcomes[0]).toMatchObject({
+      achieved: true,
+      feedbackCode: 'DAC_SECURED',
+    })
+    expect(LEGACY_SCORING_RULES.leakBlocksTopic).toBe(false)
+  })
+
+  it('registers every version with clear-4 as the only current one', () => {
+    const registry = createProductionAttemptRegistry()
+    expect(registry.getCurrent('clearance-tower').rulesetVersion).toBe('clear-4')
+    for (const version of ['clear-2', 'clear-3'])
+      expect(registry.get('clearance-tower', version)).toMatchObject({ current: false })
   })
 })

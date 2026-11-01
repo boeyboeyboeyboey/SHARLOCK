@@ -101,7 +101,7 @@ export function buildLamps({ scene, world, extraHeads, reduced }) {
     poolMesh.thinInstanceBufferUpdated('color');
     return moving;
   };
-  write(reduced() ? 0 : 0);
+  write(0);
   let acc = 0;
   return {
     meshes: [headMesh, poolMesh],

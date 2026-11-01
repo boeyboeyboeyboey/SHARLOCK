@@ -27,6 +27,16 @@ function sendCohortError(error, _request, response, next) {
     next(error)
     return
   }
+  if (error.status === 503) {
+    // same single line as the shared handler: the id and error name, never a message or stack
+    console.error(
+      JSON.stringify({
+        event: 'request_failed',
+        requestId: response.locals.requestId,
+        errorName: error.causeName,
+      }),
+    )
+  }
   response.set('Cache-Control', 'no-store')
   response.status(error.status).json({
     error: {
@@ -49,7 +59,8 @@ function requireMiddlewareArray(middleware, name) {
   return middleware
 }
 
-function createLimiter({ windowMs, limit, message, perUser = false }) {
+// the library has already set the retry header from the real window when this handler runs
+function createLimiter({ windowMs, limit, message, perUser = false, skipSuccessful = false }) {
   const store = new MemoryStore()
   const options = {
     windowMs,
@@ -57,9 +68,9 @@ function createLimiter({ windowMs, limit, message, perUser = false }) {
     store,
     standardHeaders: 'draft-7',
     legacyHeaders: false,
+    skipSuccessfulRequests: skipSuccessful,
     handler(request, response) {
       response.set('Cache-Control', 'no-store')
-      response.set('Retry-After', '60')
       response.status(429).json({
         error: { code: 'RATE_LIMITED', message },
         requestId: response.locals.requestId,
@@ -104,10 +115,12 @@ export function createCohortRouter(
     message: 'Too many class requests. Please try again later.',
     perUser: true,
   })
+  // a whole class can share one school address, so only failed attempts count against the address
   const joinIp = createLimiter({
     windowMs: 15 * 60 * 1000,
     limit: 30,
     message: 'Too many class requests. Please try again later.',
+    skipSuccessful: true,
   })
   const codeUser = createLimiter({
     windowMs: 60 * 60 * 1000,
@@ -119,6 +132,7 @@ export function createCohortRouter(
     windowMs: 60 * 60 * 1000,
     limit: 60,
     message: 'Too many class code changes. Please try again later.',
+    skipSuccessful: true,
   })
   const staffUser = createLimiter({
     windowMs: 15 * 60 * 1000,
@@ -130,6 +144,7 @@ export function createCohortRouter(
     windowMs: 15 * 60 * 1000,
     limit: 60,
     message: 'Too many class changes. Please try again later.',
+    skipSuccessful: true,
   })
   const noStore = (_request, response, next) => {
     response.set('Cache-Control', 'no-store')
@@ -183,7 +198,9 @@ export function createCohortRouter(
     ...mutationMiddleware,
     async (request, response, next) => {
       try {
-        await service.completeOnboarding(response.locals.authUser, request.body, request.query)
+        await service.completeOnboarding(response.locals.authUser, request.body, request.query, {
+          requestId: response.locals.requestId,
+        })
         response.status(204).end()
       } catch (error) {
         next(error)
@@ -204,6 +221,7 @@ export function createCohortRouter(
         const result = await service.join(response.locals.authUser, request.body, {
           invitationHash,
           query: request.query,
+          requestId: response.locals.requestId,
         })
         if (invitationHash) {
           clearPendingInvitation(request)
@@ -259,6 +277,7 @@ export function createCohortRouter(
             request.params.membershipId,
             request.body,
             request.query,
+            { requestId: response.locals.requestId },
           ),
         )
       } catch (error) {
@@ -299,6 +318,7 @@ export function createCohortRouter(
               request.params.cohortId,
               request.body,
               request.query,
+              { requestId: response.locals.requestId },
             ),
           )
       } catch (error) {
@@ -323,6 +343,7 @@ export function createCohortRouter(
             request.params.codeId,
             request.body,
             request.query,
+            { requestId: response.locals.requestId },
           ),
         )
       } catch (error) {

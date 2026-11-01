@@ -25,6 +25,10 @@ const E2E_ATTEMPT_LIMITS = Object.freeze({
   readIp: 20000,
 })
 
+const E2E_AUTH_LIMITS = Object.freeze({ activation: 1000, passwordReset: 1000 })
+
+const E2E_ADMIN_LIMITS = Object.freeze({ ordinaryWrites: 1000, activationWrites: 1000 })
+
 let database
 let server
 let app
@@ -109,6 +113,8 @@ try {
       clientOrigin: config.clientOrigin,
       sessionSecret: config.sessionSecret,
     },
+    // every browser test shares one loopback address, so only the e2e server lifts these
+    ...(config.nodeEnv === 'test' && { authRateLimits: E2E_AUTH_LIMITS }),
     ...(testOutbox && { mail: { mailer: createFileMailer(testOutbox) } }),
     news: {
       apiKey: config.nodeEnv === 'test' ? undefined : config.guardianApiKey,
@@ -123,7 +129,12 @@ try {
       }),
     },
     // every browser test shares one loopback address, so only the e2e server lifts attempt limits
-    ...(config.nodeEnv === 'test' && { attempts: { limits: E2E_ATTEMPT_LIMITS } }),
+    ...(config.nodeEnv === 'test' && {
+      attempts: { limits: E2E_ATTEMPT_LIMITS },
+      admin: { limits: E2E_ADMIN_LIMITS },
+      // browser specs script a botnet tag round; bots stand still so nothing moves under the test
+      botnetTag: { testControls: true, botsIdle: true },
+    }),
   })
   server = app.listen(config.port, '127.0.0.1')
   server.on('upgrade', (request, socket, head) => {

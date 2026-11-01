@@ -43,6 +43,15 @@ export async function disposeTestAuthApps() {
   await Promise.all(apps.map((app) => app.locals.disposeAuth?.()))
 }
 
+// the cookie header an agent would send, for a websocket opened outside supertest; the jar files
+// cookies under the host the agent reached, which is [::1] where the machine has ipv6
+export function agentCookieHeader(agent) {
+  const cookies = ['[::1]', '127.0.0.1'].flatMap((domain) =>
+    agent.jar.getCookies({ domain, path: '/api', secure: false, script: false }),
+  )
+  return cookies.map((cookie) => `${cookie.name}=${cookie.value}`).join('; ')
+}
+
 export async function registerTestStudent(app, overrides = {}) {
   const origin = appOrigins.get(app)
   if (!origin) throw new Error('Create the app with createTestApp before registering a student.')

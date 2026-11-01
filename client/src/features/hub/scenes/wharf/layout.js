@@ -26,7 +26,7 @@ export const destinations = [
   { id: 'sql-injection-arcade', title: 'SQL Injection Arcade', accent: accents.customs, x: 10, z: 19, face: -Math.PI / 2, reach: 2.8, building: 'customs' },
   { id: 'threat-briefing', title: 'The daily briefing', accent: accents.news, x: -1.9, z: 54.4, face: Math.PI, reach: 2.6, building: 'newsstand' },
   { id: 'phishing-post-mortem', title: 'The Phishing Post-Mortem', accent: accents.post, x: 10, z: -2, face: -Math.PI / 2, reach: 2.8, building: 'post' },
-  { id: 'social-engineering-simulator', title: 'LLM Social Engineering Simulator', accent: accents.pub, x: -10, z: -21, face: Math.PI / 2, reach: 2.8, building: 'pub' },
+  { id: 'social-engineering-simulator', title: 'Help Desk Shift', accent: accents.pub, x: -10, z: -21, face: Math.PI / 2, reach: 2.8, building: 'pub' },
   { id: 'clearance-tower', title: 'Clearance Tower', accent: accents.police, x: -10, z: 0, face: Math.PI / 2, reach: 2.8, building: 'police' },
   { id: 'botnet-tag', title: 'Botnet Tag', accent: accents.yard, x: 40, z: 20.5, face: -Math.PI / 2, reach: 2.8, building: 'warehouse' },
 ];

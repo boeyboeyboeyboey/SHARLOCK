@@ -41,9 +41,6 @@ describe('auth request policy', () => {
       parseLoginInput({ email: 'learner@example.test', password: 'AlphaBravo1!' }).password,
     ).toBe('AlphaBravo1!')
     expect(() =>
-      parseLoginInput({ email: 'learner@example.test', password: 'a'.repeat(11) }),
-    ).toThrow()
-    expect(() =>
       parseLoginInput({ email: 'learner@example.test', password: 'a'.repeat(129) }),
     ).toThrow()
     expect(() =>
@@ -59,12 +56,9 @@ describe('auth request policy', () => {
     expect(
       parseRegistrationInput({ ...validRegistration, password: 'ABCDEFGHIJ!!' }).password,
     ).toBe('ABCDEFGHIJ!!')
-    expect(registrationPasswordError('AlphaBravo!')).toMatch(
-      /12 to 128 well-formed Unicode characters/,
-    )
-    expect(registrationPasswordError(`A${'a'.repeat(127)}!`)).toMatch(
-      /12 to 128 well-formed Unicode characters/,
-    )
+    expect(registrationPasswordError('AlphaBravo!')).toMatch(/at least 12 characters/)
+    expect(registrationPasswordError('AlphaBravo!')).not.toMatch(/128/)
+    expect(registrationPasswordError(`A${'a'.repeat(127)}!`)).toBe('That password is too long.')
     expect(registrationPasswordError('alphabravo1!')).toMatch(/uppercase letter/)
     expect(registrationPasswordError('AlphaBravo12')).toMatch(/punctuation or symbol/)
     expect(registrationPasswordError('AlphaBravo1 ')).toMatch(/punctuation or symbol/)
@@ -72,6 +66,22 @@ describe('auth request policy', () => {
     expect(
       parseRegistrationInput({ ...validRegistration, password: 'Äbcdefghij🔒1' }).password,
     ).toBe('Äbcdefghij🔒1')
+  })
+
+  it('asks only for a password at sign-in and never states a length rule there', () => {
+    const passwordError = (password) => {
+      try {
+        parseLoginInput({ identifier: 'learner@example.test', password })
+      } catch (error) {
+        return error.fieldErrors.password
+      }
+      return null
+    }
+    expect(passwordError('')).toBe('Enter your password.')
+    expect(passwordError(undefined)).toBe('Enter your password.')
+    expect(passwordError('short')).toBeNull()
+    expect(passwordError('a'.repeat(128))).toBeNull()
+    expect(passwordError('a'.repeat(129))).toBe('Enter your password.')
   })
 
   it('allows legacy composition-free passwords to pass login validation', () => {

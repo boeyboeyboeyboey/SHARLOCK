@@ -1,8 +1,7 @@
 import { appendFile, mkdir } from 'node:fs/promises'
 import { dirname } from 'node:path'
 
-// Outbound mail is a one-method interface so a real provider is a one-file swap.
-// Only these adapters exist: no provider, credential or paid service is assumed.
+// a one-method interface; no provider, credential or paid service is assumed
 
 export function createConsoleMailer(log = console.info) {
   return Object.freeze({
@@ -14,8 +13,7 @@ export function createConsoleMailer(log = console.info) {
   })
 }
 
-// browser tests run the real server in another process, so they read codes from a file.
-// server.js only builds this when NODE_ENV=test and TEST_MAIL_OUTBOX is set.
+// browser tests read codes from a file; only built in a test process with an outbox path set
 export function createFileMailer(outboxPath) {
   if (typeof outboxPath !== 'string' || !outboxPath) {
     throw new TypeError('An outbox path is required.')

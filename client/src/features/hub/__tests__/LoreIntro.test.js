@@ -69,6 +69,28 @@ describe('lore intro', () => {
     wrapper.unmount()
   })
 
+  it('lets Space press a focused button instead of skipping', async () => {
+    const wrapper = mountIntro({ reducedMotion: true })
+    await vi.advanceTimersByTimeAsync(0)
+    const continueButton = wrapper.get('[data-testid="lore-intro-continue"]')
+    const event = new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true })
+    continueButton.element.dispatchEvent(event)
+    expect(event.defaultPrevented).toBe(false)
+    expect(wrapper.emitted('done')).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('starts no card timers when it is removed while waiting on play', async () => {
+    let resolvePlay
+    play.mockReturnValue(new Promise((resolve) => (resolvePlay = resolve)))
+    const wrapper = mountIntro()
+    await vi.advanceTimersByTimeAsync(0)
+    wrapper.unmount()
+    resolvePlay()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
   it('skips the whole intro on Space and Escape', async () => {
     for (const key of [' ', 'Escape']) {
       const wrapper = mountIntro()
@@ -143,8 +165,8 @@ describe('lore intro', () => {
       expect(play).not.toHaveBeenCalled()
       expect(card(wrapper)).toBe(LORE_CARDS[0].text)
       const toggle = wrapper.get('[data-testid="lore-intro-sound"]')
-      expect(toggle.attributes('aria-pressed')).toBe('true')
-      expect(toggle.attributes('aria-label')).toBe('Turn on intro sound')
+      expect(toggle.attributes('aria-pressed')).toBe('false')
+      expect(toggle.attributes('aria-label')).toBe('Intro sound')
       wrapper.unmount()
     })
 
@@ -152,7 +174,8 @@ describe('lore intro', () => {
       const wrapper = mountIntro()
       await vi.advanceTimersByTimeAsync(0)
       const toggle = wrapper.get('[data-testid="lore-intro-sound"]')
-      expect(toggle.attributes('aria-label')).toBe('Mute intro sound')
+      expect(toggle.attributes('aria-label')).toBe('Intro sound')
+      expect(toggle.attributes('aria-pressed')).toBe('true')
       await toggle.trigger('click')
       expect(sessionStorage.getItem('sharlock.musicMuted')).toBe('1')
       await toggle.trigger('click')

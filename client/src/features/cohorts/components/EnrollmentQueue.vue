@@ -1,5 +1,8 @@
 <script setup>
-defineProps({
+import { computed, ref, watch } from 'vue'
+import InlineConfirm from './InlineConfirm.vue'
+
+const props = defineProps({
   memberships: { type: Array, default: () => [] },
   pendingIds: { type: Object, default: () => ({}) },
   status: { type: String, default: 'pending' },
@@ -7,8 +10,31 @@ defineProps({
   total: { type: Number, default: 0 },
   busy: { type: Boolean, default: false },
   recoveryAllowed: { type: Boolean, default: false },
+  className: { type: String, default: 'this class' },
 })
-defineEmits(['approve', 'reject', 'remove', 'page', 'recover'])
+const emit = defineEmits(['approve', 'reject', 'remove', 'page', 'recover'])
+const confirmingId = ref('')
+const confirmingMember = computed(() =>
+  props.memberships.find((member) => member.id === confirmingId.value),
+)
+const confirmMessage = computed(() => {
+  const username = confirmingMember.value?.username
+  return props.status === 'pending'
+    ? `Decline ${username}'s request? They must ask again with a class code.`
+    : `Remove ${username} from ${props.className}? They lose class access and must rejoin.`
+})
+
+watch(
+  () => props.memberships,
+  () => {
+    confirmingId.value = ''
+  },
+)
+
+function confirmDecision(member) {
+  confirmingId.value = ''
+  emit(props.status === 'pending' ? 'reject' : 'remove', member)
+}
 </script>
 
 <template>
@@ -20,7 +46,7 @@ defineEmits(['approve', 'reject', 'remove', 'page', 'recover'])
       <li v-for="member in memberships" :key="member.id">
         <div>
           <strong>{{ member.username }}</strong
-          ><small>{{ member.email }} · {{ status }}</small>
+          ><small>{{ member.email }} · {{ member.status }}</small>
         </div>
         <div class="cohort-row-actions">
           <template v-if="status === 'pending'">
@@ -36,7 +62,8 @@ defineEmits(['approve', 'reject', 'remove', 'page', 'recover'])
               class="btn btn-secondary"
               type="button"
               :disabled="pendingIds[member.id] || busy"
-              @click="$emit('reject', member)"
+              :aria-label="`Decline ${member.username}`"
+              @click="confirmingId = member.id"
             >
               Decline
             </button>
@@ -46,7 +73,8 @@ defineEmits(['approve', 'reject', 'remove', 'page', 'recover'])
             class="btn btn-secondary"
             type="button"
             :disabled="pendingIds[member.id] || busy"
-            @click="$emit('remove', member)"
+            :aria-label="`Remove ${member.username}`"
+            @click="confirmingId = member.id"
           >
             Remove
           </button>
@@ -61,6 +89,13 @@ defineEmits(['approve', 'reject', 'remove', 'page', 'recover'])
             Prepare password reset link
           </button>
         </div>
+        <InlineConfirm
+          v-if="confirmingId === member.id"
+          :message="confirmMessage"
+          :confirm-label="status === 'pending' ? 'Yes, decline' : 'Yes, remove'"
+          @confirm="confirmDecision(member)"
+          @cancel="confirmingId = ''"
+        />
       </li>
     </ul>
     <div v-if="total > 20" class="cohort-pagination">

@@ -57,8 +57,12 @@ describe('WardrobePicker', () => {
 
   it('renders a group per slot with the equipped item checked', async () => {
     const wrapper = await mountPicker()
-    for (const label of ['Scarf', 'Hat', 'Monocle', 'Accessory'])
-      expect(wrapper.find('fieldset legend', { text: label }).exists()).toBe(true)
+    expect(wrapper.findAll('fieldset legend').map((legend) => legend.text())).toEqual([
+      'Scarf',
+      'Hat',
+      'Monocle',
+      'Accessory',
+    ])
     expect(wrapper.findAll('fieldset')).toHaveLength(4)
     expect(wrapper.find('input[value="scarf-red"]').element.checked).toBe(true)
   })
@@ -76,14 +80,13 @@ describe('WardrobePicker', () => {
     const saved = { ...catalog().equipped, scarf: 'scarf-teal' }
     mocks.equipWardrobeItem.mockResolvedValue(saved)
     const auth = useAuthStore()
+    auth.user = Object.freeze({ id: 'u' })
     const wrapper = await mountPicker()
     await wrapper.find('input[value="scarf-teal"]').setValue(true)
     await flushPromises()
     expect(mocks.equipWardrobeItem).toHaveBeenCalledWith('scarf', 'scarf-teal')
     expect(wrapper.find('.wardrobe__live').text()).toBe('Teal scarf equipped.')
     expect(wrapper.find('input[value="scarf-teal"]').element.checked).toBe(true)
-    auth.user = Object.freeze({ id: 'u' })
-    auth.setWardrobe(saved)
     expect(auth.user.wardrobe.scarf).toBe('scarf-teal')
   })
 

@@ -1,12 +1,34 @@
 import { onBeforeUnmount, ref, shallowRef } from 'vue'
 import { readAttempt, safeAttemptError, writeAttempt } from './api.js'
 
+const NOT_SENT_MESSAGE = 'Could not reach saved play. Check your connection, then try again.'
+const SERVER_FAULT_MESSAGE = 'Saved play had a problem on our side. Try again in a moment.'
+const UNEXPECTED_MESSAGE = 'Saved play sent an unexpected answer. Reload the page and try again.'
+
+class UnexpectedAnswer extends Error {}
+
+// a start or a read has no held request, so its failure is worded here; only the status says whose fault it is
+function failureMessage(failure, safe, heldRequest) {
+  if (failure instanceof UnexpectedAnswer) return UNEXPECTED_MESSAGE
+  if (heldRequest) return safe.message
+  if (safe.status >= 500) return SERVER_FAULT_MESSAGE
+  return safe.status === 0 ? NOT_SENT_MESSAGE : safe.message
+}
+
+// resending can only help a lost response or a busy server; a refusal would just be refused again
+function canResend({ status, code }) {
+  if (status === 403) return code === 'CSRF_INVALID'
+  return ![400, 401, 404, 409].includes(status)
+}
+
 export function useAttempt(gameId) {
   const snapshot = shallowRef(null)
   const busy = ref(false)
   const error = ref('')
   const retryable = ref(false)
   let pending = null
+  // a read can always be repeated; a start cannot, because it would open a second attempt
+  let heldRead = null
   const controller = new AbortController()
 
   async function execute(operation) {
@@ -16,17 +38,26 @@ export function useAttempt(gameId) {
     try {
       const result = await operation()
       if (controller.signal.aborted) return false
-      if (result.gameId !== gameId) throw new Error('Unexpected game')
+      if (result.gameId !== gameId) throw new UnexpectedAnswer()
       snapshot.value = result
       pending = null
+      heldRead = null
       retryable.value = false
       return true
     } catch (failure) {
       if (!controller.signal.aborted) {
         const safe = safeAttemptError(failure)
-        error.value = safe.message
-        retryable.value = Boolean(pending) && ![400, 401, 404, 409].includes(safe.status)
-        if (!retryable.value) pending = null
+        const unreached = safe.status === 0 || safe.status >= 500
+        error.value = failureMessage(failure, safe, Boolean(pending))
+        if (failure instanceof UnexpectedAnswer) {
+          pending = null
+          heldRead = null
+          retryable.value = false
+          return false
+        }
+        if (!unreached) heldRead = null
+        retryable.value = Boolean(heldRead) || (Boolean(pending) && canResend(safe))
+        if (!pending || !canResend(safe)) pending = null
       }
       return false
     } finally {
@@ -35,6 +66,7 @@ export function useAttempt(gameId) {
   }
 
   async function sendPending() {
+    if (heldRead) return execute(heldRead)
     if (!pending) return false
     const request = pending
     return execute(() => writeAttempt(request.path, request.body, controller.signal))
@@ -42,6 +74,7 @@ export function useAttempt(gameId) {
 
   function mutate(type, payload = {}) {
     if (busy.value || pending || !snapshot.value || snapshot.value.status !== 'active') return false
+    heldRead = null
     pending = {
       path: `/attempts/${snapshot.value.attemptId}/actions`,
       body: {
@@ -56,6 +89,7 @@ export function useAttempt(gameId) {
 
   function complete() {
     if (busy.value || pending || !snapshot.value) return false
+    heldRead = null
     pending = {
       path: `/attempts/${snapshot.value.attemptId}/complete`,
       body: { actionId: crypto.randomUUID(), expectedRevision: snapshot.value.revision },
@@ -65,12 +99,14 @@ export function useAttempt(gameId) {
 
   function start(context) {
     if (pending) return false
+    heldRead = null
     return execute(() => writeAttempt(`/games/${gameId}/attempts`, { context }, controller.signal))
   }
 
   function load(id) {
     if (pending) return false
-    return execute(() => readAttempt(id, controller.signal))
+    heldRead = () => readAttempt(id, controller.signal)
+    return execute(heldRead)
   }
 
   onBeforeUnmount(() => {

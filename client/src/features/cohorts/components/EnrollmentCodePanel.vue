@@ -1,5 +1,6 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
+import InlineConfirm from './InlineConfirm.vue'
 
 const props = defineProps({
   code: { type: Object, default: null },
@@ -8,15 +9,30 @@ const props = defineProps({
   revision: { type: Number, default: 0 },
   pending: { type: Boolean, default: false },
   loading: { type: Boolean, default: false },
+  unavailable: { type: Boolean, default: false },
 })
 const emit = defineEmits(['generate', 'revoke', 'clear'])
 const rawCode = ref('')
 const copied = ref(false)
 const copyError = ref(false)
+const confirming = ref('')
 const formattedCode = computed(() => {
   const normalized = rawCode.value.replace(/[-\s]/g, '')
   return normalized.match(/.{1,4}/g)?.join('-') || ''
 })
+const codeIsLive = computed(
+  () =>
+    Boolean(props.code) &&
+    !props.code.revokedAt &&
+    new Date(props.code.expiresAt).getTime() > Date.now(),
+)
+
+watch(
+  () => props.code,
+  () => {
+    confirming.value = ''
+  },
+)
 
 async function copyCode() {
   copyError.value = false
@@ -50,6 +66,14 @@ function closeCode() {
   clearCode()
   emit('clear')
 }
+function confirmReplace() {
+  confirming.value = ''
+  emit('generate', props.revision)
+}
+function confirmRevoke() {
+  confirming.value = ''
+  emit('revoke', { id: props.code.id, revision: props.revision })
+}
 defineExpose({ receiveCode, clearCode })
 </script>
 
@@ -67,42 +91,63 @@ defineExpose({ receiveCode, clearCode })
       <p v-if="copyError" class="cohort-alert" role="alert">
         Clipboard access was unavailable. You can select and copy the code.
       </p>
-      <button class="btn btn-primary" type="button" :disabled="pending" @click="copyCode">
-        {{ copied ? 'Copied' : 'Copy code' }}
-      </button>
-      <button class="btn btn-secondary" type="button" :disabled="pending" @click="copyLink">
-        Copy invitation link
-      </button>
-      <button class="btn btn-secondary" type="button" :disabled="pending" @click="closeCode">
-        Close and clear code
-      </button>
+      <div class="cohort-actions">
+        <button class="btn btn-primary" type="button" :disabled="pending" @click="copyCode">
+          {{ copied ? 'Copied' : 'Copy code' }}
+        </button>
+        <button class="btn btn-secondary" type="button" :disabled="pending" @click="copyLink">
+          Copy invitation link
+        </button>
+        <button class="btn btn-secondary" type="button" :disabled="pending" @click="closeCode">
+          Close and clear code
+        </button>
+      </div>
     </template>
-    <template v-else-if="code && !code.revokedAt">
+    <p v-else-if="unavailable">This class's code could not be checked.</p>
+    <template v-else-if="codeIsLive">
       <p>
         Code active until {{ new Date(code.expiresAt).toLocaleString() }}. The code itself cannot be
         viewed again.
       </p>
-      <button
-        class="btn btn-secondary"
-        type="button"
-        :disabled="pending || loading"
-        @click="$emit('revoke', { id: code.id, revision })"
-      >
-        Revoke code
-      </button>
-      <button
-        class="btn btn-primary"
-        type="button"
-        :disabled="pending || loading"
-        @click="$emit('generate', revision)"
-      >
-        Replace code
-      </button>
+      <div class="cohort-actions">
+        <button
+          class="btn btn-secondary"
+          type="button"
+          :disabled="pending || loading"
+          @click="confirming = 'revoke'"
+        >
+          Revoke code
+        </button>
+        <button
+          class="btn btn-secondary"
+          type="button"
+          :disabled="pending || loading"
+          @click="confirming = 'replace'"
+        >
+          Replace code
+        </button>
+      </div>
+      <InlineConfirm
+        v-if="confirming === 'revoke'"
+        message="Revoke this code? Students using it will be refused."
+        confirm-label="Yes, revoke it"
+        cancel-label="Keep this code"
+        @confirm="confirmRevoke"
+        @cancel="confirming = ''"
+      />
+      <InlineConfirm
+        v-else-if="confirming === 'replace'"
+        message="Replace this code? Students using the old code will be refused."
+        confirm-label="Yes, replace it"
+        cancel-label="Keep this code"
+        @confirm="confirmReplace"
+        @cancel="confirming = ''"
+      />
     </template>
     <template v-else>
       <p>No active class code. Generate a seven-day invitation.</p>
       <button
-        class="btn btn-primary"
+        class="btn btn-primary cohort-action"
         type="button"
         :disabled="pending || loading"
         @click="$emit('generate', revision)"

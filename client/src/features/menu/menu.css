@@ -321,10 +321,6 @@
   display: block;
   overflow-wrap: anywhere;
 }
-.menu-user small {
-  color: var(--hub-glass-muted);
-  font-size: 12px;
-}
 .menu-count {
   display: flex;
   justify-content: space-between;
@@ -442,6 +438,10 @@
   padding: 16px 18px 20px;
   overflow-y: auto;
   overflow-x: hidden;
+}
+.overlay-body:focus-visible {
+  outline: 3px solid var(--hub-glass-focus);
+  outline-offset: -3px;
 }
 /* the shared pages keep their own light palette inside a paper card */
 /* one heading scale inside every overlay: title 18px, page h1 24px, h2 20px, h3 16px */
@@ -572,9 +572,9 @@
 }
 
 /* interface size (sharlock.uiScale): zoom shrinks the layer, so viewport-sized boxes grow back by the same factor
+   the drawer always sits inside .immersive-controls and inherits its zoom once, so it must not add its own
    content overlays stay unzoomed: chrome reports zoomed form controls as off screen */
-.immersive-controls,
-.site-menu {
+.immersive-controls {
   zoom: var(--ui-scale, 1);
 }
 .site-menu {
@@ -582,14 +582,9 @@
   max-width: calc(100vw / var(--ui-scale, 1));
   height: calc(100dvh / var(--ui-scale, 1));
 }
-.menu-overlay {
-  width: min(760px, calc(100vw - 24px));
-  max-height: calc(100dvh - 24px);
-}
 @media (pointer: coarse) {
-  .immersive-controls,
-  .site-menu {
-    zoom: max(1, var(--ui-scale, 1));
+  .immersive-controls {
+    zoom: 1;
   }
   .site-menu {
     width: min(320px, 100vw);

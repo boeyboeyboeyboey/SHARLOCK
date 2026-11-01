@@ -1,11 +1,15 @@
 import { createHmac } from 'node:crypto'
-import { MemoryStore, rateLimit } from 'express-rate-limit'
+// library: express-rate-limit (mit); credited in credits.md
+import { ipKeyGenerator, MemoryStore, rateLimit } from 'express-rate-limit'
 import { AuthError } from './policy.js'
 
 const FIFTEEN_MINUTES = 15 * 60 * 1000
 const ONE_HOUR = 60 * 60 * 1000
 export const CSRF_BOOTSTRAP_LIMIT = 300
 export const REGISTRATION_LIMIT = 30
+export const FAILED_LOGINS_PER_ADDRESS = 5
+export const FAILED_LOGINS_PER_ACCOUNT = 25
+const IPV6_SUBNET = 56
 
 function sendRateLimitError(request, response, message, retryAfter = 1) {
   response.set('Cache-Control', 'no-store')
@@ -36,7 +40,7 @@ function requestLimiter({ windowMs, limit, message, keyGenerator, skipSuccessful
   return { middleware, store }
 }
 
-export function createRateLimits({ secret, now = Date.now } = {}) {
+export function createRateLimits({ secret, now = Date.now, overrides = {} } = {}) {
   if (typeof secret !== 'string' || !/^[a-fA-F0-9]{64,}$/.test(secret)) {
     throw new TypeError('A validated session secret is required for auth rate limits.')
   }
@@ -65,7 +69,7 @@ export function createRateLimits({ secret, now = Date.now } = {}) {
   })
   const activation = requestLimiter({
     windowMs: FIFTEEN_MINUTES,
-    limit: 10,
+    limit: overrides.activation ?? 10,
     message: 'Too many activation attempts. Please try again later.',
   })
   const classInvitation = requestLimiter({
@@ -87,7 +91,7 @@ export function createRateLimits({ secret, now = Date.now } = {}) {
   })
   const passwordReset = requestLimiter({
     windowMs: FIFTEEN_MINUTES,
-    limit: 10,
+    limit: overrides.passwordReset ?? 10,
     message: 'Too many password reset attempts. Please try again later.',
   })
   const recoveryStudents = new MemoryStore()
@@ -117,40 +121,57 @@ export function createRateLimits({ secret, now = Date.now } = {}) {
     }
   }, 60_000).unref()
 
-  function keyFor(emailNormalized, ipAddress) {
-    return createHmac('sha256', secret).update(`${ipAddress}\u0000${emailNormalized}`).digest('hex')
+  function keyFor(emailNormalized, scope) {
+    return createHmac('sha256', secret).update(`${scope}\u0000${emailNormalized}`).digest('hex')
   }
 
-  function reserveFailedLogin(emailNormalized, ipAddress) {
-    const key = keyFor(emailNormalized, ipAddress)
-    const currentTime = now()
+  function liveEntry(key, currentTime) {
     let entry = failedLogins.get(key)
     if (!entry || entry.expiresAt <= currentTime) {
-      entry = { failures: 0, pending: 0, expiresAt: currentTime + FIFTEEN_MINUTES }
+      entry = { key, failures: 0, pending: 0, expiresAt: currentTime + FIFTEEN_MINUTES }
       failedLogins.set(key, entry)
     }
+    return entry
+  }
 
-    if (entry.failures + entry.pending >= 5) {
-      throw new AuthError(
-        'RATE_LIMITED',
-        'Too many sign-in attempts for these details. Please try again later.',
-        429,
-        undefined,
-        Math.max(1, entry.expiresAt - currentTime),
-      )
+  // one budget per account and address, plus a higher one per account so many addresses cannot
+  // add up to unlimited guesses
+  function reserveFailedLogin(emailNormalized, ipAddress) {
+    const currentTime = now()
+    const addressKey = keyFor(emailNormalized, ipKeyGenerator(ipAddress, IPV6_SUBNET))
+    const budgets = [
+      { entry: liveEntry(addressKey, currentTime), limit: FAILED_LOGINS_PER_ADDRESS },
+      {
+        entry: liveEntry(keyFor(emailNormalized, 'account'), currentTime),
+        limit: FAILED_LOGINS_PER_ACCOUNT,
+      },
+    ]
+
+    for (const { entry, limit } of budgets) {
+      if (entry.failures + entry.pending >= limit) {
+        throw new AuthError(
+          'RATE_LIMITED',
+          'Too many sign-in attempts for these details. Please try again later.',
+          429,
+          undefined,
+          Math.max(1, entry.expiresAt - currentTime),
+        )
+      }
     }
 
-    entry.pending += 1
+    for (const { entry } of budgets) entry.pending += 1
     let settled = false
     function release(failed) {
       if (settled) return
       settled = true
-      entry.pending = Math.max(0, entry.pending - 1)
-      if (failed) {
-        entry.failures += 1
-        entry.expiresAt = now() + FIFTEEN_MINUTES
-      } else if (entry.pending === 0 && entry.failures === 0) {
-        failedLogins.delete(key)
+      for (const { entry } of budgets) {
+        entry.pending = Math.max(0, entry.pending - 1)
+        if (failed) {
+          entry.failures += 1
+          entry.expiresAt = now() + FIFTEEN_MINUTES
+        } else if (entry.pending === 0 && entry.failures === 0) {
+          failedLogins.delete(entry.key)
+        }
       }
     }
 

@@ -1,9 +1,6 @@
 import { test, expect } from './fixtures/auth.js'
 import { gameCatalog } from '../../client/src/data/gameCatalog.js'
 
-const startShot =
-  '/private/tmp/claude-501/-Users-boey-Documents-SMU-2-1-wad2-group-proj-IS216-GROUP7-SHARLOCK/096f058d-3b1d-428a-b555-066dffafadfc/scratchpad/hub-a-start.png'
-
 // the software renderer builds the wharf slowly
 test.setTimeout(240000)
 const slow = { timeout: 120000 }
@@ -109,7 +106,6 @@ test('lists every game, walks, and enters a game route', async ({ page }) => {
   for (const game of gameCatalog) {
     await expect(page.getByTestId(`dest-${game.id}`)).toHaveAccessibleName(game.name)
   }
-  await page.screenshot({ path: startShot })
 
   // keyboard walking works while nothing is paused
   const before = await position(page)
@@ -328,6 +324,59 @@ test('fills the window below the navbar without sideways scroll', async ({ page 
   await expect(page.getByText('Welcome to Sharlock Town')).toHaveCount(0)
 })
 
+test('leaving before the hub is ready stops the build and frees it', async ({ page }) => {
+  // the build waits on the skyline pictures, so holding them keeps the hub loading until it has been left
+  const held = []
+  await page.route('**/hub/plates/**', (route) => held.push(route))
+  await page.goto('/')
+  await expect(page.locator('canvas.hub-canvas')).toHaveCount(1)
+  await expect.poll(() => held.length, slow).toBeGreaterThan(0)
+  expect(await page.evaluate(() => window.__hub.state.ready)).toBe(false)
+  await pickDest(page, 'cli-cyber-defender')
+  await page.getByTestId('enter').click()
+  await expect(page).toHaveURL(/\/games\/cli-cyber-defender$/, slow)
+  await page.unroute('**/hub/plates/**')
+  await Promise.all(held.map((route) => route.continue().catch(() => {})))
+  await expect(page.locator('canvas.hub-canvas')).toHaveCount(0, slow)
+  await page.waitForFunction(() => window.__hub === undefined, null, slow)
+
+  await page.goBack()
+  await hubReady(page)
+  const counts = await page.evaluate(() => ({
+    mounts: window.__hub.state.mounts,
+    disposals: window.__hub.state.disposals,
+  }))
+  // the first hub gave up before it finished, so only the second counts as mounted
+  expect(counts).toEqual({ mounts: 1, disposals: 1 })
+})
+
+test.describe('on a high density screen', () => {
+  test.use({ deviceScaleFactor: 2 })
+
+  test('a click on the ground walks to the point that was clicked', async ({ page }) => {
+    await page.goto('/')
+    await hubReady(page)
+    const from = await position(page)
+    const target = { x: from.x + 3, z: from.z + 6 }
+    await page.evaluate(({ x, z }) => {
+      const { scene } = window.__hub.debug
+      const canvas = document.querySelector('canvas.hub-canvas')
+      const rect = canvas.getBoundingClientRect()
+      const m = scene.getTransformMatrix().m
+      const w = x * m[3] + z * m[11] + m[15]
+      const cx = (((x * m[0] + z * m[8] + m[12]) / w + 1) / 2) * rect.width + rect.left
+      const cy = ((1 - (x * m[1] + z * m[9] + m[13]) / w) / 2) * rect.height + rect.top
+      window.__hub.debug.clickAt(cx, cy)
+    }, target)
+    await expect
+      .poll(async () => {
+        const at = await position(page)
+        return Math.hypot(at.x - target.x, at.z - target.z)
+      }, slow)
+      .toBeLessThan(1)
+  })
+})
+
 test('remounts the hub after leaving it and keeps the news dialog usable', async ({ page }) => {
   await page.goto('/')
   await hubReady(page)
@@ -350,6 +399,8 @@ test('remounts the hub after leaving it and keeps the news dialog usable', async
   await page.getByTestId('enter').click()
   await expect(page.getByRole('dialog', { name: 'The Sharlock Times' })).toBeVisible(slow)
   expect(await page.evaluate(() => window.__hub.state.inputPaused)).toBe(true)
+  // one sound source: the lamp hiss and the footsteps hold while the newspaper plays its own loop
+  await expect.poll(() => page.evaluate(() => window.__hub.debug.sfxPaused())).toBe(true)
   await expect(page.getByTestId('hub-minimap')).toHaveCount(0)
   await page.waitForFunction(() => window.__hub.state.mode === 'explore', null, slow)
 
@@ -377,13 +428,13 @@ test('switches between the 3D town and the 2D town and remembers the choice', as
   // the 3D hub plays its own ambience loop, never the town music
   await expect(page.locator('audio')).toHaveCount(1)
   await expect(page.locator('audio')).toHaveAttribute('src', '/audio/hub-ambience.mp3')
-  await expect(page.getByRole('button', { name: /hub sound$/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Hub sound' })).toBeVisible()
 
   await toggle.click()
   await expect(town).toBeVisible()
   await expect(page.locator('audio')).toHaveCount(1)
   await expect(page.locator('audio')).toHaveAttribute('src', '/audio/sharlock-bgm.mp3')
-  await expect(page.getByRole('button', { name: /hub sound$/ })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Hub sound' })).toHaveCount(0)
   await expect(page.locator('canvas.hub-canvas')).toHaveCount(0)
   expect(await page.evaluate(() => window.__hub)).toBeUndefined()
   await expect(toggle).toHaveText('3D')
@@ -456,8 +507,9 @@ test('turns the camera with Z and C and brings it back with the Settings row and
   await expect
     .poll(async () => Math.abs((await cameraAlpha(page)) - start), slow)
     .toBeGreaterThan(0.15)
-  await page.keyboard.up('KeyZ')
+  // the view starts a little off behind him, so turning can first pass through straight behind
   await expect.poll(() => offBehind(page), slow).toBeGreaterThan(0.1)
+  await page.keyboard.up('KeyZ')
 
   await openSettings(page)
   await page.getByTestId('settings-reset-camera').click()
@@ -503,7 +555,7 @@ test('minimap selects a destination and follows the player', async ({ page }, te
     await expect(map).toBeVisible()
   }
   await expect(map).toHaveAccessibleName('Map')
-  await expect(pin).toHaveAccessibleName('Travel to LLM Social Engineering Simulator')
+  await expect(pin).toHaveAccessibleName('Travel to Help Desk Shift')
   await pin.click()
   await expect(page.getByTestId(`dest-${id}`)).toHaveAttribute('aria-pressed', 'true')
   await expect(pin).toHaveAttribute('aria-pressed', 'true')
@@ -541,6 +593,16 @@ test('the mobile map opens from the Map button and closes with Escape', async ({
   await expect(map).toBeHidden()
   await expect(toggle).toBeFocused()
   await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+
+  // picking the selected place again deselects it, so the hub takes no focus and it returns to the button
+  const pin = page.getByTestId('hub-map-cli-cyber-defender')
+  await toggle.click()
+  await pin.click()
+  await expect(map).toBeHidden()
+  await toggle.click()
+  await pin.click()
+  await expect(map).toBeHidden()
+  await expect(toggle).toBeFocused()
 
   await toggle.click()
   await page.getByTestId('hub-map-close').click()
@@ -627,3 +689,39 @@ test('Shift starts a sprint that recharges and then becomes ready again', async 
   })
   expect(speed).toBeCloseTo(11.52)
 })
+
+// the bottom controls must never cover each other, at the widths between the phone and desktop layouts
+const overlap = (a, b) =>
+  a &&
+  b &&
+  a.x < b.x + b.width &&
+  b.x < a.x + a.width &&
+  a.y < b.y + b.height &&
+  b.y < a.y + a.height
+
+for (const width of [576, 768, 820]) {
+  test(`bottom controls stay apart at ${width} px with a pick and a talk prompt`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto('/')
+    await hubReady(page)
+    await page.evaluate(() => {
+      const { x, z } = window.__hub.debug.doors().find((d) => d.id === 'phishing-post-mortem')
+      window.__hub.debug.teleport(x, z)
+    })
+    // standing on the ring picks the door and brings its keeper's talk button
+    await expect(page.getByTestId('enter')).toBeVisible(slow)
+    await expect(page.getByTestId('talk')).toBeVisible(slow)
+    const boxes = {}
+    for (const id of ['enter', 'talk', 'hub-sprint', 'hub-jump', 'hub-minimap']) {
+      const node = page.getByTestId(id)
+      boxes[id] = (await node.isVisible()) ? await node.boundingBox() : null
+    }
+    for (const bar of ['enter', 'talk']) {
+      for (const other of ['hub-sprint', 'hub-jump', 'hub-minimap']) {
+        expect(overlap(boxes[bar], boxes[other]), `${bar} and ${other}`).toBeFalsy()
+      }
+    }
+  })
+}

@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import axios from 'axios'
-import { createAccountGuard, installBrowserAccountAccess } from '../guards.js'
+import axios, { AxiosError } from 'axios'
+import {
+  createAccountGuard,
+  installBrowserAccountAccess,
+  installSessionReturnCheck,
+} from '../guards.js'
 
 const disposals = []
 afterEach(() => disposals.splice(0).forEach((dispose) => dispose()))
@@ -18,18 +22,300 @@ function clientWithAccess(checkSession) {
     data: { accepted: true },
   }))
   const client = axios.create({ baseURL: '/api', adapter })
-  const onExpired = vi.fn()
+  let signedIn = true
+  const onExpired = vi.fn(() => (signedIn = false))
   disposals.push(
     installBrowserAccountAccess(client, {
       checkSession,
       onExpired,
+      isSignedIn: () => signedIn,
       getOrigin: () => 'http://localhost:5173',
     }),
   )
   return { client, adapter, onExpired }
 }
 
+// answers each request from a table of path to [status, body]
+function clientWithResponses(table, { signedIn = true } = {}) {
+  const adapter = vi.fn(async (config) => {
+    const [status, data] = table[config.url] ?? [200, {}]
+    const response = { config, status, statusText: '', headers: {}, data }
+    if (status < 400) return response
+    throw new AxiosError('failed', 'ERR_BAD_REQUEST', config, undefined, response)
+  })
+  const client = axios.create({ baseURL: '/api', adapter })
+  const onExpired = vi.fn()
+  disposals.push(
+    installBrowserAccountAccess(client, {
+      checkSession: vi.fn().mockResolvedValue({ id: 'student' }),
+      onExpired,
+      isSignedIn: () => signedIn,
+      getOrigin: () => 'http://localhost:5173',
+    }),
+  )
+  return { client, onExpired }
+}
+
+const ended = (reason) => [
+  401,
+  { error: { code: 'AUTHENTICATION_REQUIRED', message: 'Sign in.', ...(reason && { reason }) } },
+]
+
+describe('session end from any feature', () => {
+  it('treats a 401 on a signed-in request as expiry and still rejects the caller', async () => {
+    const { client, onExpired } = clientWithResponses({ '/cohorts/managed': ended() })
+    await expect(client.get('/cohorts/managed')).rejects.toMatchObject({
+      response: { status: 401 },
+    })
+    expect(onExpired).toHaveBeenCalledExactlyOnceWith({ replaced: false })
+  })
+
+  it.each(['/attempts/a1/actions', '/me/profile', '/me/wardrobe', '/leaderboards'])(
+    'covers %s, not only news and games',
+    async (path) => {
+      const { client, onExpired } = clientWithResponses({ [path]: ended() })
+      await expect(client.post(path, {})).rejects.toBeDefined()
+      expect(onExpired).toHaveBeenCalledOnce()
+    },
+  )
+
+  it('passes on the reason when a newer sign-in replaced the session', async () => {
+    const { client, onExpired } = clientWithResponses({
+      '/cohorts/managed': ended('session-replaced'),
+    })
+    await expect(client.get('/cohorts/managed')).rejects.toBeDefined()
+    expect(onExpired).toHaveBeenCalledExactlyOnceWith({ replaced: true })
+  })
+
+  it('reads the reason from a security token reply, which replaces the marker', async () => {
+    const { client, onExpired } = clientWithResponses({
+      '/auth/csrf': [200, { csrfToken: 'x', sessionEnded: 'replaced' }],
+    })
+    await expect(client.get('/auth/csrf')).resolves.toMatchObject({ status: 200 })
+    expect(onExpired).toHaveBeenCalledExactlyOnceWith({ replaced: true })
+  })
+
+  it('ignores a wrong password, whose 401 is not about a session', async () => {
+    const { client, onExpired } = clientWithResponses({
+      '/auth/login': [401, { error: { code: 'INVALID_CREDENTIALS' } }],
+    })
+    await expect(client.post('/auth/login', {})).rejects.toBeDefined()
+    expect(onExpired).not.toHaveBeenCalled()
+  })
+
+  it('stays quiet for a signed-out caller, so public pages cannot loop', async () => {
+    const { client, onExpired } = clientWithResponses(
+      {
+        '/me/enrollment': ended(),
+        '/auth/csrf': [200, { csrfToken: 'x', sessionEnded: 'replaced' }],
+      },
+      { signedIn: false },
+    )
+    await expect(client.get('/me/enrollment')).rejects.toBeDefined()
+    await client.get('/auth/csrf')
+    expect(onExpired).not.toHaveBeenCalled()
+  })
+})
+
+describe('requests that cross a sign-in or sign-out', () => {
+  function clientWithHeldResponse(path, response) {
+    let release
+    const held = new Promise((resolve) => (release = resolve))
+    const adapter = vi.fn(async (config) => {
+      await held
+      const reply = { config, statusText: '', headers: {}, ...response }
+      if (reply.status < 400) return reply
+      throw new AxiosError('failed', 'ERR_BAD_REQUEST', config, undefined, reply)
+    })
+    const client = axios.create({ baseURL: '/api', adapter })
+    const onExpired = vi.fn()
+    const session = { signedIn: false, generation: 1 }
+    disposals.push(
+      installBrowserAccountAccess(client, {
+        checkSession: vi.fn().mockResolvedValue({ id: 'student' }),
+        onExpired,
+        isSignedIn: () => session.signedIn,
+        getSessionGeneration: () => session.generation,
+        getOrigin: () => 'http://localhost:5173',
+      }),
+    )
+    return { client, onExpired, session, release, sent: () => adapter.mock.calls.length > 0 }
+  }
+
+  it('ignores a 401 for a request sent before this sign-in', async () => {
+    const { client, onExpired, session, release, sent } = clientWithHeldResponse('/me/enrollment', {
+      status: 401,
+      data: ended()[1],
+    })
+    const request = client.get('/me/enrollment')
+    await vi.waitFor(() => expect(sent()).toBe(true))
+    session.signedIn = true
+    session.generation = 2
+    release()
+    await expect(request).rejects.toBeDefined()
+    expect(onExpired).not.toHaveBeenCalled()
+  })
+
+  it('ignores a 401 sent under the account signed in before this one', async () => {
+    const { client, onExpired, session, release, sent } = clientWithHeldResponse('/me/enrollment', {
+      status: 401,
+      data: ended()[1],
+    })
+    session.signedIn = true
+    const request = client.get('/me/enrollment')
+    await vi.waitFor(() => expect(sent()).toBe(true))
+    session.generation = 5
+    release()
+    await expect(request).rejects.toBeDefined()
+    expect(onExpired).not.toHaveBeenCalled()
+  })
+
+  it('ignores a replaced marker on a token reply sent before this sign-in', async () => {
+    const { client, onExpired, session, release, sent } = clientWithHeldResponse('/auth/csrf', {
+      status: 200,
+      data: { csrfToken: 'x', sessionEnded: 'replaced' },
+    })
+    const request = client.get('/auth/csrf')
+    await vi.waitFor(() => expect(sent()).toBe(true))
+    session.signedIn = true
+    session.generation = 2
+    release()
+    await expect(request).resolves.toMatchObject({ status: 200 })
+    expect(onExpired).not.toHaveBeenCalled()
+  })
+
+  it('still ends the session for a 401 on a request sent during it', async () => {
+    const { client, onExpired, session, release, sent } = clientWithHeldResponse('/me/enrollment', {
+      status: 401,
+      data: ended()[1],
+    })
+    session.signedIn = true
+    const request = client.get('/me/enrollment')
+    await vi.waitFor(() => expect(sent()).toBe(true))
+    release()
+    await expect(request).rejects.toBeDefined()
+    expect(onExpired).toHaveBeenCalledExactlyOnceWith({ replaced: false })
+  })
+})
+
+describe('protected requests from visitors', () => {
+  function protectedClient({ signedIn }) {
+    const client = axios.create({ baseURL: '/api', adapter: vi.fn() })
+    let active = signedIn
+    const onExpired = vi.fn(() => (active = false))
+    disposals.push(
+      installBrowserAccountAccess(client, {
+        checkSession: vi.fn().mockResolvedValue(null),
+        onExpired,
+        isSignedIn: () => active,
+        getOrigin: () => 'http://localhost:5173',
+      }),
+    )
+    return { client, onExpired }
+  }
+
+  it('does not call a session expired for someone who never signed in', async () => {
+    const { client, onExpired } = protectedClient({ signedIn: false })
+    await expect(client.get('/news')).rejects.toMatchObject({ code: 'ERR_AUTH_REQUIRED' })
+    expect(onExpired).not.toHaveBeenCalled()
+  })
+
+  it('still reports expiry when a signed-in session is gone', async () => {
+    const { client, onExpired } = protectedClient({ signedIn: true })
+    await expect(client.get('/news')).rejects.toMatchObject({ code: 'ERR_AUTH_REQUIRED' })
+    expect(onExpired).toHaveBeenCalledOnce()
+  })
+})
+
+describe('checking the session when the person returns to a tab', () => {
+  function returningTab({
+    visibilityState = 'visible',
+    signedIn = true,
+    check,
+    getSessionGeneration,
+  } = {}) {
+    const target = new EventTarget()
+    target.document = Object.assign(new EventTarget(), { visibilityState })
+    const checkSession = check ?? vi.fn().mockResolvedValue(null)
+    const onExpired = vi.fn()
+    let time = 0
+    const stop = installSessionReturnCheck({
+      checkSession,
+      onExpired,
+      isSignedIn: () => signedIn,
+      getSessionGeneration,
+      target,
+      now: () => time,
+    })
+    disposals.push(stop)
+    return { target, checkSession, onExpired, stop, advance: (ms) => (time += ms) }
+  }
+
+  it('ends the session when the server no longer has it', async () => {
+    const { target, onExpired } = returningTab()
+    target.dispatchEvent(new Event('focus'))
+    await vi.waitFor(() => expect(onExpired).toHaveBeenCalledOnce())
+  })
+
+  it('does not report a deliberate sign-out during the check as expiry', async () => {
+    let generation = 1
+    let answer
+    const { target, onExpired, checkSession } = returningTab({
+      check: vi.fn(() => new Promise((resolve) => (answer = resolve))),
+      getSessionGeneration: () => generation,
+    })
+    target.dispatchEvent(new Event('focus'))
+    expect(checkSession).toHaveBeenCalledOnce()
+    generation = 2
+    answer(null)
+    await checkSession.mock.results[0].value
+    await Promise.resolve()
+    expect(onExpired).not.toHaveBeenCalled()
+  })
+
+  it('checks once for a burst of focus and visibility events', async () => {
+    const { target, checkSession, advance } = returningTab()
+    target.dispatchEvent(new Event('focus'))
+    target.document.dispatchEvent(new Event('visibilitychange'))
+    expect(checkSession).toHaveBeenCalledOnce()
+    advance(5000)
+    target.dispatchEvent(new Event('focus'))
+    expect(checkSession).toHaveBeenCalledTimes(2)
+  })
+
+  it('does nothing while hidden or signed out, and says nothing when the server is unreachable', async () => {
+    const hidden = returningTab({ visibilityState: 'hidden' })
+    hidden.target.document.dispatchEvent(new Event('visibilitychange'))
+    expect(hidden.checkSession).not.toHaveBeenCalled()
+
+    const anonymous = returningTab({ signedIn: false })
+    anonymous.target.dispatchEvent(new Event('focus'))
+    expect(anonymous.checkSession).not.toHaveBeenCalled()
+
+    const offline = returningTab({ check: vi.fn().mockRejectedValue(new Error('offline')) })
+    offline.target.dispatchEvent(new Event('focus'))
+    await vi.waitFor(() => expect(offline.checkSession).toHaveBeenCalledOnce())
+    expect(offline.onExpired).not.toHaveBeenCalled()
+  })
+
+  it('removes its listeners on disposal', () => {
+    const { target, checkSession, stop } = returningTab()
+    stop()
+    target.dispatchEvent(new Event('focus'))
+    expect(checkSession).not.toHaveBeenCalled()
+  })
+})
+
 describe('account navigation', () => {
+  it('sends a replaced session to sign-in with the elsewhere reason', async () => {
+    const auth = { ...account('authenticated'), sessionEnd: 'elsewhere' }
+    const guard = createAccountGuard(auth)
+    await expect(guard({ meta: { requiresAccount: true } })).resolves.toEqual({
+      path: '/login',
+      query: { reason: 'elsewhere' },
+    })
+  })
+
   it('waits for restoration before permitting protected content', async () => {
     const auth = account()
     let finish

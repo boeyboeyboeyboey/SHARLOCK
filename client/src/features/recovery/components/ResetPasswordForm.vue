@@ -10,6 +10,7 @@ const emit = defineEmits(['submit'])
 const password = ref('')
 const confirmation = ref('')
 const localError = ref('')
+const showPassword = ref(false)
 const summary = ref(null)
 
 function focusSummary() {
@@ -20,18 +21,16 @@ function clearSecrets() {
   password.value = ''
   confirmation.value = ''
   localError.value = ''
+  showPassword.value = false
 }
 
 function submit() {
   localError.value = ''
-  if (Array.from(password.value).length < 12) {
-    localError.value = 'Use at least 12 characters.'
-  } else {
-    try {
-      parseNewPasswordInput(password.value)
-    } catch {
-      localError.value = 'That password could not be accepted. Please choose a different password.'
-    }
+  try {
+    parseNewPasswordInput(password.value)
+  } catch (cause) {
+    // the shared rule names each requirement that is still missing
+    localError.value = cause.fieldErrors?.password || 'That password could not be accepted.'
   }
   if (!localError.value && password.value !== confirmation.value) {
     localError.value = 'Passwords must match.'
@@ -50,17 +49,29 @@ defineExpose({ clearSecrets })
   <form class="auth-form recovery-reset-form" @submit.prevent="submit">
     <div class="auth-field">
       <label for="reset-password">New password</label>
-      <input
-        id="reset-password"
-        v-model="password"
-        type="password"
-        name="new-password"
-        autocomplete="new-password"
-        required
-        :disabled="pending"
-        :aria-invalid="Boolean(localError || error)"
-        aria-describedby="reset-password-hint reset-password-error"
-      />
+      <div class="auth-password-control">
+        <input
+          id="reset-password"
+          v-model="password"
+          :type="showPassword ? 'text' : 'password'"
+          name="new-password"
+          autocomplete="new-password"
+          required
+          :disabled="pending"
+          :aria-invalid="Boolean(localError || error)"
+          aria-describedby="reset-password-hint reset-password-error"
+        />
+        <button
+          class="auth-password-toggle"
+          type="button"
+          :aria-pressed="showPassword"
+          :aria-label="showPassword ? 'Hide password' : 'Show password'"
+          :disabled="pending"
+          @click="showPassword = !showPassword"
+        >
+          {{ showPassword ? 'Hide' : 'Show' }}
+        </button>
+      </div>
       <small id="reset-password-hint">
         Use at least 12 characters, including an uppercase letter and a special character.
       </small>
@@ -70,7 +81,7 @@ defineExpose({ clearSecrets })
       <input
         id="reset-password-confirmation"
         v-model="confirmation"
-        type="password"
+        :type="showPassword ? 'text' : 'password'"
         name="new-password-confirmation"
         autocomplete="new-password"
         required

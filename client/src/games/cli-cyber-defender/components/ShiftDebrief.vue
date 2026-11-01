@@ -42,6 +42,14 @@ function confettiStyle(step) {
 
 const contained = computed(() => props.result.result.correct ?? 0)
 
+function yourCommands(item) {
+  return item.yourCommands?.length ? item.yourCommands : [item.yourCommand ?? 'none']
+}
+
+function correctCommands(item) {
+  return item.expectedCommands ?? [item.expectedCommand]
+}
+
 // per-topic tally from the incident list, drawn as a terminal block bar
 const topicRows = computed(() =>
   props.result.topicOutcomes.map((topic) => {
@@ -62,7 +70,7 @@ onMounted(() => heading.value?.focus())
 
 <template>
   <section class="cli-panel cli-debrief" aria-labelledby="cli-debrief-heading">
-    <div v-if="perfect" class="cli-confetti" aria-hidden="true">
+    <div v-if="perfect" class="cli-confetti" data-testid="cli-confetti" aria-hidden="true">
       <span
         v-for="step in 24"
         :key="step"
@@ -174,6 +182,7 @@ onMounted(() => heading.value?.focus())
             v-for="(item, index) in result.debrief"
             :key="item.incidentId"
             class="cli-debrief-item"
+            data-testid="cli-debrief-item"
             :style="{ '--i': index }"
           >
             <details
@@ -182,7 +191,11 @@ onMounted(() => heading.value?.focus())
             >
               <summary class="cli-debrief-title">
                 <span class="cli-incident-number">{{ index + 1 }}</span>
-                <span :class="['cli-outcome', `cli-outcome-${item.outcome}`]">
+                <span
+                  :class="['cli-outcome', `cli-outcome-${item.outcome}`]"
+                  data-testid="cli-debrief-outcome"
+                  :data-outcome="item.outcome"
+                >
                   <CliIcon :name="OUTCOME_ICONS[item.outcome]" :size="14" />{{
                     OUTCOME_LABELS[item.outcome]
                   }}
@@ -199,26 +212,28 @@ onMounted(() => heading.value?.focus())
                   <div>
                     <dt>Your command</dt>
                     <dd>
-                      <code v-if="!item.yourCommands?.length">{{
-                        item.yourCommand ?? 'none'
-                      }}</code>
-                      <template v-else>
-                        <code v-for="(command, position) in item.yourCommands" :key="position">{{
-                          command
-                        }}</code>
-                      </template>
+                      <ol
+                        :class="['cli-command-list', { 'is-steps': yourCommands(item).length > 1 }]"
+                      >
+                        <li v-for="(command, position) in yourCommands(item)" :key="position">
+                          <code>{{ command }}</code>
+                        </li>
+                      </ol>
                     </dd>
                   </div>
                   <div>
                     <dt>Correct response</dt>
                     <dd>
-                      <code
-                        v-for="(command, position) in item.expectedCommands ?? [
-                          item.expectedCommand,
+                      <ol
+                        :class="[
+                          'cli-command-list',
+                          { 'is-steps': correctCommands(item).length > 1 },
                         ]"
-                        :key="position"
-                        >{{ command }}</code
                       >
+                        <li v-for="(command, position) in correctCommands(item)" :key="position">
+                          <code>{{ command }}</code>
+                        </li>
+                      </ol>
                     </dd>
                   </div>
                   <div v-if="item.lookupsUsed != null">

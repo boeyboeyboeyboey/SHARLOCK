@@ -11,7 +11,7 @@ import {
   scorePassword,
   submissionFor,
 } from '../../../src/modules/games/botnet-tag/puzzles.js'
-import { createRng } from '../../../src/modules/games/botnet-tag/rules.js'
+import { createRng } from './rng.js'
 
 const DENY_KEYS = ['answer', 'correct', 'solution', 'index', 'bad', 'expected', 'choices']
 
@@ -61,16 +61,9 @@ describe('patch-station puzzles', () => {
         const puzzle = generatePuzzle(kind, createRng(3))
         let wrong = { index: (puzzle.answer + 1) % 3 }
         if (Array.isArray(puzzle.answer)) {
-          const swap =
-            puzzle.answer[0] === 'allow'
-              ? 'block'
-              : puzzle.answer[0] === 'block'
-                ? 'allow'
-                : 'patch-x'
           const options = kind === 'patch' ? ['patch-a', 'patch-b', 'patch-c'] : ['allow', 'block']
           const other = options.find((option) => option !== puzzle.answer[0])
           wrong = { choices: [other, ...puzzle.answer.slice(1)] }
-          expect(swap).toBeTypeOf('string')
         }
         expect(checkPuzzle(kind, puzzle.answer, wrong)).toBe(false)
       })

@@ -4,6 +4,8 @@ const COMMON = {
     'The database reported a syntax error: the query it received was malformed, often an unbalanced quote or a missing piece. It still counts as a try.',
   UNSUPPORTED:
     'This trainer does not model that syntax, so nothing was evaluated. It still counts as a try.',
+  STACKED_NOT_RUN:
+    'Stacked statements (;) are never run in this trainer, which is how a real database driver usually behaves too. Try the injection without the second statement. It still counts as a try, but not as a slip.',
   NO_BREAKOUT: 'The input stayed inside its quotes, so the database treated it as plain data.',
   NO_MATCH: 'The query ran but matched no rows.',
   NORMAL: 'That is how the page is meant to work. No injection happened.',
@@ -17,6 +19,10 @@ const COMMON = {
     'You changed which manifest rows came back, but nothing from another table. Try a UNION.',
   YES: 'The page says: in stock.',
   NO: 'The page says: not in stock.',
+  YES_OFF_TARGET:
+    'The page says: in stock. That probe read a different column or letter, so it is not evidence for this question. Ask about the first letter of the hidden column.',
+  NO_OFF_TARGET:
+    'The page says: not in stock. That probe read a different column or letter, so it is not evidence for this question. Ask about the first letter of the hidden column.',
   STORED: 'Registered. The quote was escaped on insert, so the name is stored exactly as typed.',
   TAKEN: 'That username is already registered. It counts as a try.',
   OWN_ACCOUNT: 'Only your own new account was updated.',

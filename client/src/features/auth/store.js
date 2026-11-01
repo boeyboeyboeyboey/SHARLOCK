@@ -3,11 +3,11 @@ import { ref } from 'vue'
 import { parseLoginInput, parseRegistrationInput } from './validation.js'
 import {
   requestCsrfToken,
-  requestCurrentUser,
   requestLogin,
   requestLogout,
   requestRegistration,
   requestResendVerification,
+  requestSession,
   requestVerifyEmail,
   SafeAuthError,
   toSafeAuthError,
@@ -27,8 +27,12 @@ function verificationDto(value) {
   ) {
     throw new SafeAuthError({ message: 'Sharlock returned an incomplete response. Try again.' })
   }
-  const { email, delivery, expiresAt, resendAvailableAt } = value
-  return Object.freeze({ email, delivery, expiresAt, resendAvailableAt })
+  const { email, delivery, expiresAt, resendAvailableAt, resendInSeconds } = value
+  // restated on this device's clock so a wrong clock cannot shift the resend countdown
+  const resendAt = Number.isFinite(resendInSeconds)
+    ? new Date(Date.now() + resendInSeconds * 1000).toISOString()
+    : resendAvailableAt
+  return Object.freeze({ email, delivery, expiresAt, resendAvailableAt: resendAt })
 }
 
 function isAuthenticationRequired(error) {
@@ -70,9 +74,11 @@ export const useAuthStore = defineStore('auth', () => {
   const csrfToken = ref(null)
   const requestError = ref(null)
   const logoutPending = ref(false)
-  // set while an account exists but its email address is not confirmed yet. Memory only: a
-  // refresh returns to the form, and signing in again sends a fresh code.
+  // set while an account exists but its email address is not confirmed yet; a refresh restores
+  // it from the server's pending session
   const pendingVerification = ref(null)
+  // why the last signed-in session ended: 'elsewhere', 'expired' or null
+  const sessionEnd = ref(null)
 
   let generation = 0
   let restoreRequest = null
@@ -155,7 +161,13 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function restoreSession({ force = false } = {}) {
+  function noteSessionEnd(serverReason, hadIdentity) {
+    if (serverReason === 'replaced') sessionEnd.value = 'elsewhere'
+    else if (hadIdentity) sessionEnd.value = 'expired'
+  }
+
+  // quiet is for background checks: a failed one says nothing to the person, so it raises no alert
+  async function restoreSession({ force = false, quiet = false } = {}) {
     if (logoutPending.value || mutationPending) throw accountActionBusy()
     if (!force && status.value === 'authenticated' && user.value) return user.value
     if (restoreRequest?.generation === generation) return restoreRequest.promise
@@ -163,13 +175,24 @@ export const useAuthStore = defineStore('auth', () => {
     const operation = generation
     const hadIdentity = status.value === 'authenticated' && Boolean(user.value)
     if (!hadIdentity) status.value = 'loading'
-    requestError.value = null
+    if (!quiet) requestError.value = null
 
     const request = { generation: operation }
     request.promise = (async () => {
       let accountVerified = false
       try {
-        const restoredUser = userDto(await requestCurrentUser())
+        const session = await requestSession()
+        if (session?.user === null) {
+          if (!isCurrent(operation)) return settledRestoreResult()
+          clearIdentity('anonymous')
+          requestError.value = null
+          noteSessionEnd(session.sessionEnded, hadIdentity)
+          pendingVerification.value = session.verification
+            ? verificationDto(session.verification)
+            : null
+          return null
+        }
+        const restoredUser = userDto(session?.user)
         if (!isCurrent(operation)) return settledRestoreResult()
         user.value = restoredUser
         status.value = 'authenticated'
@@ -182,9 +205,10 @@ export const useAuthStore = defineStore('auth', () => {
         if (isAuthenticationRequired(safeError)) {
           clearIdentity('anonymous')
           requestError.value = null
+          noteSessionEnd(null, hadIdentity)
           return null
         }
-        requestError.value = safeError
+        if (!quiet) requestError.value = safeError
         if (!hadIdentity && !accountVerified) status.value = 'unknown'
         throw safeError
       } finally {
@@ -209,6 +233,7 @@ export const useAuthStore = defineStore('auth', () => {
     csrfToken.value = response.csrfToken
     status.value = 'authenticated'
     pendingVerification.value = null
+    sessionEnd.value = null
     requestError.value = null
     return authenticatedUser
   }
@@ -216,11 +241,15 @@ export const useAuthStore = defineStore('auth', () => {
   async function authenticate(kind, payload) {
     const operation = beginMutation()
     try {
-      const token = await getCsrf(operation)
-      const response =
-        kind === 'register'
-          ? await requestRegistration(payload, token)
-          : await requestLogin(payload, token)
+      const submit = kind === 'register' ? requestRegistration : requestLogin
+      let response
+      try {
+        response = await submit(payload, await getCsrf(operation))
+      } catch (error) {
+        // anonymous sessions are short: nothing was written, so replay once with a fresh token
+        if (toSafeAuthError(error).code !== 'CSRF_INVALID') throw error
+        response = await submit(payload, await getCsrf(operation, { force: true }))
+      }
       if (response?.verification && !response.user) {
         // correct details, but the email address still needs its code: no identity yet
         const verification = verificationDto(response.verification)
@@ -323,9 +352,27 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  function cancelVerification() {
-    pendingVerification.value = null
-    requestError.value = null
+  // the code screen stays until the server has ended the pending session, otherwise a refresh or
+  // a session check already on its way would bring it back
+  async function cancelVerification() {
+    const operation = beginMutation()
+    try {
+      try {
+        await requestLogout(await getCsrf(operation))
+      } catch (error) {
+        // a lapsed pending session makes the cached token stale: refetch once and retry
+        if (toSafeAuthError(error).code !== 'CSRF_INVALID') throw error
+        await requestLogout(await getCsrf(operation, { force: true }))
+      }
+      if (isCurrent(operation)) {
+        pendingVerification.value = null
+        csrfToken.value = null
+      }
+    } catch (error) {
+      throw storeMutationError(error, operation)
+    } finally {
+      mutationPending = false
+    }
   }
 
   async function logout() {
@@ -353,6 +400,7 @@ export const useAuthStore = defineStore('auth', () => {
       }
       if (generation === operation) {
         clearIdentity('anonymous')
+        sessionEnd.value = null
         requestError.value = null
       }
     } catch (error) {
@@ -360,6 +408,7 @@ export const useAuthStore = defineStore('auth', () => {
       if (generation !== operation) return
       if (isAuthenticationRequired(safeError)) {
         clearIdentity('anonymous')
+        sessionEnd.value = null
         requestError.value = null
         return
       }
@@ -371,7 +420,8 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  function invalidateSession() {
+  function invalidateSession(reason = null) {
+    sessionEnd.value = reason
     generation += 1
     restoreRequest = null
     csrfRequest = null
@@ -406,6 +456,11 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  // changes whenever the identity may have changed, so a reply can be matched to its session
+  function sessionGeneration() {
+    return generation
+  }
+
   // the picker has already saved on the server, this only mirrors the equipped ids
   function setWardrobe(equipped) {
     if (!user.value || !equipped || typeof equipped !== 'object') return
@@ -419,6 +474,7 @@ export const useAuthStore = defineStore('auth', () => {
     requestError,
     logoutPending,
     pendingVerification,
+    sessionEnd,
     restoreSession,
     login,
     register,
@@ -427,6 +483,7 @@ export const useAuthStore = defineStore('auth', () => {
     cancelVerification,
     logout,
     invalidateSession,
+    sessionGeneration,
     setHowToPlayDismissed,
     setWardrobe,
   }

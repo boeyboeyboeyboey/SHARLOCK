@@ -22,9 +22,11 @@ export const HOW_TO_PLAY = Object.freeze({
     'how worms and botnets spread and how patching and filtering stop them (CS440 software security and network security topics). Everything is a game; nothing real is touched.',
   rules: [
     'Three to eight players. Bots fill the room to three.',
-    'One player starts infected. Immune players cannot be infected.',
+    'One player starts infected, far from the others. Nobody can tag for the first 5 seconds.',
+    'Immune players cannot be infected.',
     'A wrong answer locks the station for you for a few seconds.',
-    'Your result is saved as practice. There is no leaderboard.',
+    'Press Ready within 45 seconds or you leave the lobby.',
+    'Your result is saved as practice and can appear on your class practice board. Rounds under 20 seconds, or that lose a whole side, are not saved.',
   ],
   controls: [
     { keys: 'W A S D or arrows', action: 'move' },

@@ -4,10 +4,14 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { avatarFor } from '../auth/avatars.js'
 import { gameCatalog } from '../../data/gameCatalog.js'
 import { useTownControls } from './townControls.js'
+import { applyUiScale } from '../../composables/useUiScale.js'
 import { useDiscoveries } from '../hub/discoveries.js'
 import { usePresenceRoster } from '../hub/presence/roster.js'
 import DestinationRow from './DestinationRow.vue'
 import './menu.css'
+
+// every page with the menu reads the stored interface size, so a reload on any route starts at the chosen size
+applyUiScale()
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -89,6 +93,7 @@ watch(() => props.open, sync)
         </div>
       </div>
       <RouterLink
+        v-if="user"
         to="/discoveries"
         class="menu-count menu-count-link"
         data-testid="menu-discoveries"
@@ -151,7 +156,7 @@ watch(() => props.open, sync)
               >
             </li>
           </template>
-          <li>
+          <li v-if="user">
             <RouterLink to="/settings" class="menu-link" @click="emit('navigate')"
               >Settings</RouterLink
             >
@@ -165,7 +170,7 @@ watch(() => props.open, sync)
           <template v-if="user">
             <li v-if="isInstructor || isAdmin">
               <RouterLink to="/instructor" class="menu-link" @click="emit('navigate')"
-                >Instructor desk</RouterLink
+                >Manage your classes</RouterLink
               >
             </li>
             <li v-if="isAdmin">

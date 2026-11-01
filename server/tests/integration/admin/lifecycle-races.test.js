@@ -308,7 +308,7 @@ describe('institution and cohort lifecycle serialization', () => {
     const reactivatingAdmin = createAdminService(database, {
       now: () => currentTime,
       recordAuditEvent: async (...args) => {
-        if (args[0].eventType === 'admin.cohort.update' && !blocked) {
+        if (args[0].eventType === 'admin.cohort.reactivate' && !blocked) {
           blocked = true
           reachedUpdateAudit.resolve()
           await releaseUpdateAudit.promise

@@ -73,8 +73,43 @@ describe('the trojan horse', () => {
     const events = simulateDay(level, SOLUTIONS.compartments.policy)
     const trojan = events.find((event) => event.id === 'a2')
     expect(trojan.outcome).toBe('stopped')
-    expect(trojan.steps.map((step) => step.allowed)).toEqual([true, false, true])
+    expect(trojan.steps.map((step) => step.allowed)).toEqual([true, false, null])
+    expect(trojan.steps[2].reason).toMatch(/earlier step was blocked/)
     expect(outcomeOf(events, 'i1')).toBe('tampered')
+  })
+
+  it('reports no verdict for any step after the first blocked one', () => {
+    const level = findLevel('the-gift')
+    const noRead = {
+      grants: [
+        { subject: 'cfo', object: 'board', rights: ['w'] },
+        { subject: 'manager', object: 'board', rights: ['r'] },
+      ],
+    }
+    const trojan = simulateDay(level, noRead).find((event) => event.id === 'a1')
+    expect(trojan.outcome).toBe('stopped')
+    expect(trojan.steps.map((step) => step.allowed)).toEqual([false, null, null])
+  })
+})
+
+describe('writing up needs dominance, not just a higher level', () => {
+  const level = findLevel('compartments')
+  const secretCyber = { agent: 'analyst', action: 'write', file: 'defense' }
+  const higherButOtherCompartment = {
+    objectLabels: {
+      ...SOLUTIONS.compartments.policy.objectLabels,
+      defense: label('top-secret', ['defense']),
+    },
+  }
+
+  it('denies a write to a higher file that lacks the writer category', () => {
+    expect(checkStep(level, higherButOtherCompartment, secretCyber).allowed).toBe(false)
+  })
+
+  it('teaches the same rule in the clerk prediction', () => {
+    const { explanation } = level.predictions.find((prompt) => prompt.id === 'p3')
+    expect(explanation).not.toMatch(/always allowed/)
+    expect(explanation).toMatch(/dominates/)
   })
 })
 
@@ -121,6 +156,18 @@ describe('level data', () => {
     }
   })
 
+  it('marks the unix mode calls as non-examinable and credits separation of duties to the team', () => {
+    const matrix = findLevel('the-matrix')
+    for (const id of ['p2', 'p3']) {
+      const prompt = matrix.predictions.find((item) => item.id === id)
+      expect(prompt.context).toMatch(/not examinable/)
+      expect(prompt.explanation).toMatch(/non-examinable/)
+    }
+    expect(matrix.brief).toMatch(/Authentication/)
+    const duty = findLevel('roles-not-people').takeaways.find((text) => /Separation/.test(text))
+    expect(duty).toMatch(/team design/)
+  })
+
   it('keeps the day script and answers out of the public level', () => {
     for (const level of LEVELS) {
       const payload = JSON.stringify(publicLevel(level))
@@ -129,6 +176,7 @@ describe('level data', () => {
       for (const prompt of level.predictions) expect(payload).not.toContain(prompt.explanation)
       expect(payload).not.toContain('"answer"')
       expect(payload).not.toContain('takeaways')
+      expect(payload).not.toContain('unavoidableWorkLoss')
     }
   })
 })

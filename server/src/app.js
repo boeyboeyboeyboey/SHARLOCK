@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+// library: express (mit), http api; credited in credits.md
 import express from 'express'
 import { createNewsRouter } from './modules/news/router.js'
 import { createSocialEngineeringRouter } from './modules/games/social-engineering-simulator/router.js'
@@ -14,6 +15,7 @@ import { createProgressRouter } from './modules/progress/router.js'
 import { createClassResultsRouter } from './modules/class-results/router.js'
 import { createLeaderboardRouter } from './modules/leaderboards/router.js'
 import { createBotnetTagService } from './modules/games/botnet-tag/socket.js'
+import { createTagTestRouter } from './modules/games/botnet-tag/testControls.js'
 import { createPresenceService } from './modules/presence/service.js'
 import { createProfileRouter } from './modules/profile/router.js'
 import { createWardrobeRouter } from './modules/wardrobe/router.js'
@@ -30,8 +32,10 @@ export function createApp(
     audit = {},
     cohorts = {},
     attempts = {},
+    authRateLimits,
     progress = {},
     news = {},
+    health = {},
     socialEngineering = {},
     cliDefender = {},
     presence: presenceOptions = {},
@@ -48,7 +52,10 @@ export function createApp(
     next()
   })
   app.use(express.json({ limit: '16kb' }))
-  const authRuntime = createAuthRouter(database, auth, mail.mailer ? { mailer: mail.mailer } : {})
+  const authRuntime = createAuthRouter(database, auth, {
+    ...(mail.mailer && { mailer: mail.mailer }),
+    rateLimitOverrides: authRateLimits,
+  })
   app.use('/api/auth', authRuntime.router)
   // websocket presence is attached to the http server by server.js through app.locals.presence
   const presence = createPresenceService(database, {
@@ -63,6 +70,10 @@ export function createApp(
   app.locals.presence = presence
   const adminRouter = createAdminRouter(database, {
     ...admin,
+    // closes live sockets at once, as a replaced login does
+    onSessionsEnded: (sessionIds) => {
+      for (const sessionId of sessionIds) authRuntime.events.emit('session-ended', sessionId)
+    },
     now: admin.now ?? authRuntime.now,
     clientOrigin: authRuntime.clientOrigin,
     requireSession: authRuntime.requireSession,
@@ -133,7 +144,7 @@ export function createApp(
     '/api',
     createAuditRouter(database, { ...audit, requireSession: authRuntime.requireSession }),
   )
-  app.use('/api', createHealthRouter(database))
+  app.use('/api', createHealthRouter(database, health))
   app.use('/api', createNewsRouter(database, news))
   // one attempts service records every server-recorded game
   const recordedAttempts = createAttemptService(database, {
@@ -152,6 +163,9 @@ export function createApp(
     botnetTag.disconnectSession(sessionId, reason),
   )
   app.locals.botnetTag = botnetTag
+  if (process.env.NODE_ENV === 'test' && botnetTagOptions.testControls) {
+    app.use('/api/test/botnet-tag', createTagTestRouter(botnetTag))
+  }
   app.use(
     '/api',
     createSocialEngineeringRouter({

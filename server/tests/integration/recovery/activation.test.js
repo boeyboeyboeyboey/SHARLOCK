@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import request from 'supertest'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Types } from 'mongoose'
 import { connectDatabase } from '../../../src/config/database.js'
 import { validateEnvironment } from '../../../src/config/env.js'
@@ -191,6 +191,33 @@ describe.skipIf(process.env.SHARLOCK_TEST_REPLICA_SET !== '1')(
         .findOne({ userId: before._id, revokedAt: null })
       expect(reset.consumedAt).toBe(null)
       expect((await userModel(database).findById(before._id).lean()).accountStatus).toBe('disabled')
+    })
+
+    it('reports the ended sessions only after activation commits', async () => {
+      const sessionId = `activation-ended-${fixture.instructor.id}`
+      await database.db.collection('auth_sessions').insertOne({
+        _id: sessionId,
+        session: { userId: fixture.instructor.id },
+        expires: new Date(Date.now() + 60000),
+      })
+      const token = tokenFrom(fixture.activationUrl)
+      const onSessionsEnded = vi.fn()
+      const failing = createRecoveryService(database, {
+        clientOrigin: authOptions.clientOrigin,
+        onSessionsEnded,
+        recordAuditEvent: async () => {
+          throw new Error('synthetic audit failure')
+        },
+      })
+      await expect(failing.activateAccount({ token, password })).rejects.toBeDefined()
+      expect(onSessionsEnded).not.toHaveBeenCalled()
+
+      const working = createRecoveryService(database, {
+        clientOrigin: authOptions.clientOrigin,
+        onSessionsEnded,
+      })
+      await working.activateAccount({ token, password })
+      expect(onSessionsEnded).toHaveBeenCalledExactlyOnceWith([sessionId])
     })
 
     it('rolls back token consumption, password, account status and session deletion if auditing fails', async () => {

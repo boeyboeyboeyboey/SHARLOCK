@@ -234,8 +234,8 @@ describe('cli cyber defender http api', () => {
     const foreign = await post(owner, base, {
       mode: 'practice',
       context: { kind: 'cohort', cohortId },
-    })
-    expect([403, 404]).toContain(foreign.status)
+    }).expect(404)
+    expect(foreign.body.error.code).toBe('COHORT_NOT_FOUND')
   })
 
   it('returns the score with saved false when membership ends mid-run', async () => {
@@ -326,8 +326,8 @@ describe('cli cyber defender http api', () => {
     expect(JSON.stringify(second.body)).not.toContain('expectedCommand')
     const third = await post(student, url, body).expect(409)
     expect(third.body.error.code).toBe('CLI_HINT_EXHAUSTED')
-    const foreign = await post(other, url, body)
-    expect([403, 404]).toContain(foreign.status)
+    const foreign = await post(other, url, body).expect(404)
+    expect(foreign.body.error.code).toBe('CLI_RUN_NOT_FOUND')
   })
 
   it('serves scripted lookups and dismiss without leaking the answer', async () => {
@@ -394,6 +394,145 @@ describe('cli cyber defender http api', () => {
     await post(student, base, { mode: 'timed' }).expect(400)
     const bad = await get(student, `${base}/not-a-run`).expect(404)
     expect(bad.body.error.code).toBe('CLI_RUN_NOT_FOUND')
+  })
+
+  it('saves a timed class run that ran out of time as a zero with every miss stored', async () => {
+    const student = await createStudent()
+    const cohortId = await newCohort()
+    await addMember(student.user.id, cohortId)
+    const start = await post(student, base, {
+      mode: 'timed',
+      context: { kind: 'cohort', cohortId },
+    }).expect(200)
+    clock.now += 201_000
+    const done = await post(student, `${base}/${start.body.runId}/complete`, {
+      actionId: actionId(),
+    }).expect(200)
+    expect(done.body).toMatchObject({ saved: true, score: 0, maxScore: 2700 })
+    expect(done.body.result).toMatchObject({ correct: 0, missed: 8 })
+    const read = await get(student, `/api/attempts/${done.body.attempt.attemptId}`).expect(200)
+    expect(read.body).toMatchObject({ status: 'completed', mode: 'standard', score: 0 })
+    const stored = await database.db
+      .collection('game_attempts')
+      .findOne({ _id: new Types.ObjectId(done.body.attempt.attemptId) })
+    expect(stored.state.incidents.map((item) => item.outcome)).toEqual(Array(8).fill('missed'))
+    expect(stored.state.incidents.every((item) => item.trail.length === 0)).toBe(true)
+    // a saved loss still ranks, as a zero, because the class best board counts every timed run
+    const best = await get(student, `/api/cohorts/${cohortId}/leaderboard?gameId=${gameId}`).expect(
+      200,
+    )
+    expect(best.body.rows.map((row) => [row.username, row.score])).toEqual([
+      [student.user.username, 0],
+    ])
+  })
+
+  it('stores what the debrief shows for a wrong action, a partial two-step and an early end', async () => {
+    const student = await createStudent()
+    const start = await post(student, base, { mode: 'practice', context: personal }).expect(200)
+    let snapshot = start.body
+    const send = async (command) => {
+      const response = await post(student, `${base}/${snapshot.runId}/commands`, {
+        actionId: actionId(),
+        incidentId: snapshot.current.incidentId,
+        command,
+      }).expect(200)
+      snapshot = response.body
+      return response.body
+    }
+    // a wrong action closes the first one-step incident
+    const scenario = scenarioFor(snapshot.current)
+    await send(scenario.decoy ? 'block ip 192.0.2.250' : 'dismiss')
+    // solve until the first two-step incident is open, then do only its first step
+    while (scenarioFor(snapshot.current).steps.length < 2) {
+      for (const command of answersFor(snapshot.current)) await send(command)
+    }
+    const partial = snapshot.current.incidentId
+    const step = await send(answersFor(snapshot.current)[0])
+    expect(step.outcome).toBe('step')
+    const done = await post(student, `${base}/${snapshot.runId}/complete`, {
+      actionId: actionId(),
+    }).expect(200)
+    expect(done.body.saved).toBe(true)
+    const stored = await database.db
+      .collection('game_attempts')
+      .findOne({ _id: new Types.ObjectId(done.body.attempt.attemptId) })
+    expect(stored.state.incidents).toHaveLength(8)
+    expect(stored.score).toBe(done.body.score)
+    // the saved score comes from the trails, and matches the sum the debrief lists
+    const debriefTotal = done.body.debrief.reduce((total, item) => total + item.pointsAwarded, 0)
+    expect(stored.score).toBe(debriefTotal)
+    expect(stored.state.incidents[0].outcome).toBe('wrong')
+    expect(stored.state.incidents[0].trail).toEqual(['bad'])
+    const partialIndex = done.body.debrief.findIndex((item) => item.incidentId === partial)
+    expect(stored.state.incidents[partialIndex].outcome).toBe('skipped')
+    expect(stored.state.incidents[partialIndex].trail).toEqual(['ok'])
+    expect(stored.state.incidents.slice(partialIndex + 1).map((item) => item.trail)).toEqual(
+      Array(8 - partialIndex - 1).fill([]),
+    )
+  })
+
+  it('stops the pause budget at the server and leaves practice without one', async () => {
+    const student = await createStudent()
+    const start = await post(student, base, { mode: 'timed', context: personal }).expect(200)
+    const url = `${base}/${start.body.runId}`
+    expect(start.body.pauseBudget).toEqual({
+      pausesLeft: 2,
+      msLeft: 30000,
+      leaveHoldMsLeft: 30000,
+    })
+    await post(student, `${url}/pause`, { reason: 'stretch' }).expect(400)
+    const held = await post(student, `${url}/pause`, { reason: 'leave' }).expect(200)
+    expect(held.body.paused).toBe(true)
+    expect(held.body.pauseBudget.pausesLeft).toBe(2)
+    await post(student, `${url}/resume`, {}).expect(200)
+    await post(student, `${url}/pause`, {}).expect(200)
+    await post(student, `${url}/resume`, {}).expect(200)
+    await post(student, `${url}/pause`, {}).expect(200)
+    await post(student, `${url}/resume`, {}).expect(200)
+    const third = await post(student, `${url}/pause`, {}).expect(409)
+    expect(third.body.error.code).toBe('CLI_PAUSE_UNAVAILABLE')
+    const practice = await post(student, base, { mode: 'practice', context: personal }).expect(200)
+    expect(practice.body.pauseBudget).toBeNull()
+    const refused = await post(student, `${base}/${practice.body.runId}/pause`, {}).expect(409)
+    expect(refused.body.error.code).toBe('CLI_PAUSE_UNAVAILABLE')
+  })
+
+  describe('mutation protection', () => {
+    const routes = (runId) => [
+      [base, { mode: 'practice', context: personal }],
+      [
+        `${base}/${runId}/commands`,
+        { actionId: actionId(), incidentId: 'incident-01', command: 'logs lab-gw' },
+      ],
+      [`${base}/${runId}/complete`, { actionId: actionId() }],
+    ]
+
+    it('needs the csrf token on every post route', async () => {
+      const student = await createStudent()
+      const start = await post(student, base, { mode: 'practice', context: personal }).expect(200)
+      for (const [path, body] of routes(start.body.runId)) {
+        const refused = await student.agent.post(path).set('Origin', origin).send(body).expect(403)
+        expect(refused.body.error.code, path).toBe('CSRF_INVALID')
+      }
+      // nothing above reached the run
+      const read = await get(student, `${base}/${start.body.runId}`).expect(200)
+      expect(read.body.current.lookups.used).toBe(0)
+      expect(read.body.status).toBe('active')
+    })
+
+    it('refuses a foreign origin on every post route', async () => {
+      const student = await createStudent()
+      const start = await post(student, base, { mode: 'practice', context: personal }).expect(200)
+      for (const [path, body] of routes(start.body.runId)) {
+        const refused = await student.agent
+          .post(path)
+          .set('Origin', 'https://evil.example')
+          .set('X-CSRF-Token', student.csrfToken)
+          .send(body)
+          .expect(403)
+        expect(refused.body.error.code, path).toBe('ORIGIN_FORBIDDEN')
+      }
+    })
   })
 
   it('paces a client that floods the endpoint', async () => {

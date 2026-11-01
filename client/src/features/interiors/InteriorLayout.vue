@@ -1,14 +1,15 @@
 <script setup>
-import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, provide, ref, shallowReactive, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import ConfirmDialog from '../../components/common/ConfirmDialog.vue'
 import PixelIcon from '../../components/town/PixelIcon.vue'
 import { useGameAudio } from '../../composables/useGameAudio.js'
 import { useAuthStore } from '../auth/store.js'
 import ImmersiveControls from '../menu/ImmersiveControls.vue'
-import { useSignOut, useTownControls } from '../menu/townControls.js'
+import { useSignOut } from '../menu/townControls.js'
 import { fallbackGradient, stillUrl } from './renderMode.js'
 import { roomFor } from './rooms/palettes.js'
+import { INTERIOR_LEAVE } from './useInteriorLeave.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -19,11 +20,6 @@ const room = computed(() => roomFor(roomId.value))
 
 // the room's theme is the only music on a game route
 const { isMuted, starting, toggle, missing } = useGameAudio(() => roomId.value)
-const controls = useTownControls()
-const unregisterSound = controls?.sound.register(
-  reactive({ muted: isMuted, busy: computed(() => starting.value || missing.value), toggle }),
-)
-onBeforeUnmount(() => unregisterSound?.())
 
 const stillMissing = ref(false)
 watch(roomId, () => (stillMissing.value = false))
@@ -36,6 +32,24 @@ let pending = null
 let chromeLeave = false
 let leaveConfirmed = false
 let chromeTimer = null
+
+// a timed game can register here to hold its clock while the leave dialog is open
+const leaveHooks = shallowReactive(new Set())
+// a registered game may add a line to the dialog, such as what its clock is doing
+const leaveMessage = computed(() =>
+  ["An unfinished round won't be saved.", ...[...leaveHooks].map((hooks) => hooks.note?.value)]
+    .filter(Boolean)
+    .join(' '),
+)
+provide(INTERIOR_LEAVE, (hooks) => {
+  leaveHooks.add(hooks)
+  return () => leaveHooks.delete(hooks)
+})
+watch(confirmOpen, (open) => {
+  // a confirmed leave unmounts the game, so its clock stays held
+  if (!open && leaveConfirmed) return
+  for (const hooks of leaveHooks) (open ? hooks.onOpen : hooks.onClose)?.()
+})
 
 function markMenuNavigation() {
   chromeLeave = true
@@ -50,12 +64,21 @@ function cancelLeave() {
   confirmOpen.value = false
   pending = null
 }
-function confirmLeave() {
+async function confirmLeave() {
   confirmOpen.value = false
   leaveConfirmed = true
   const target = pending ?? '/'
   pending = null
-  router.push(target)
+  let failure
+  try {
+    failure = await router.push(target)
+  } catch (error) {
+    failure = error
+  }
+  if (!failure) return
+  // still here, so the next leave must ask again and a held clock must restart
+  leaveConfirmed = false
+  for (const hooks of leaveHooks) hooks.onClose?.()
 }
 onBeforeRouteLeave((to) => {
   if (leaveConfirmed || !chromeLeave) return true
@@ -68,7 +91,7 @@ onBeforeUnmount(() => clearTimeout(chromeTimer))
 </script>
 
 <template>
-  <div class="interior" :data-room="roomId" data-stage="still" data-testid="interior">
+  <div class="interior" :data-room="roomId" data-testid="interior">
     <div class="interior-stage" aria-hidden="true">
       <div
         class="interior-fallback"
@@ -100,7 +123,7 @@ onBeforeUnmount(() => clearTimeout(chromeTimer))
             class="sound-button interior-sound"
             type="button"
             data-testid="interior-sound"
-            :aria-label="isMuted ? 'Turn on game sound' : 'Mute game sound'"
+            aria-label="Game sound"
             :aria-pressed="!isMuted"
             :disabled="starting"
             @click="toggle"
@@ -123,7 +146,7 @@ onBeforeUnmount(() => clearTimeout(chromeTimer))
     <ConfirmDialog
       :open="confirmOpen"
       title="Leave the game?"
-      message="An unfinished round won't be saved."
+      :message="leaveMessage"
       confirm-label="Leave game"
       cancel-label="Keep playing"
       @confirm="confirmLeave"
@@ -182,11 +205,18 @@ onBeforeUnmount(() => clearTimeout(chromeTimer))
   }
 }
 
-/* the same pages the shell trims on laptop-height windows */
+/* fitted games, which the shell also trims on laptop-height windows */
 @media (min-width: 768px) and (min-height: 600px) {
-  .interior:has(.is-fitted, .auth-page, .profile-view, .cohort-page) {
+  .interior:has(.is-fitted) {
     --pt: 0.75rem;
     --pb: 1rem;
+  }
+}
+
+/* short landscape: every row counts, so the desk gives up most of its top padding */
+@media (max-height: 500px) {
+  .interior {
+    --desk-pt: 0.5rem;
   }
 }
 
@@ -210,9 +240,6 @@ onBeforeUnmount(() => clearTimeout(chromeTimer))
 
 .interior-still {
   object-fit: cover;
-}
-
-.interior-still {
   filter: blur(1.5px);
   transform: scale(1.03);
 }
@@ -225,7 +252,7 @@ onBeforeUnmount(() => clearTimeout(chromeTimer))
     0 0 0 3px var(--room-wood),
     0 10px 40px rgb(0 0 0 / 0.45);
   min-width: 0;
-  padding: var(--pt) var(--gutter) var(--pb);
+  padding: var(--desk-pt, var(--pt)) var(--gutter) var(--pb);
 }
 
 /* phones: the room is a header band above the game panel */
@@ -248,7 +275,7 @@ onBeforeUnmount(() => clearTimeout(chromeTimer))
 }
 
 /* phones and short landscape: the controls are a solid top bar that owns its height, so the game starts below it */
-@media (max-width: 575.98px), (max-height: 500px) and (pointer: coarse) {
+@media (max-width: 575.98px), (max-height: 500px) {
   /* games that size themselves to the screen minus the header must also leave the bar */
   .interior {
     --top-band: 64px;

@@ -562,11 +562,9 @@ export function buildArenaWorld({ engine, tier, reduced }) {
   const flicker = !reduced()
   return {
     scene,
-    moon,
     shadow,
     kiosks,
     blockers,
-    stationCenter: (id) => stations.find((s) => s.id === id),
     // station views from the snapshot; serverNow is the server clock in ms
     setStations(list, serverNow) {
       for (const kiosk of kiosks) {

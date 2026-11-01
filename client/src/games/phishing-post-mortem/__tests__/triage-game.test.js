@@ -30,7 +30,7 @@ const email = (id, subject) => ({
 function snap(overrides = {}, state = {}) {
   return {
     gameId: 'phishing-post-mortem',
-    rulesetVersion: 'phish-3',
+    rulesetVersion: 'phish-4',
     attemptId: 'att-1',
     revision: 0,
     status: 'active',
@@ -91,10 +91,10 @@ const completedSnap = () =>
     { current: null, last: lastCall, review, roundsPlayed: 12, score: 10 },
   )
 
-async function mountGame(query = {}) {
+async function mountGame(query = {}, dismissed = ['phishing-post-mortem']) {
   const pinia = createPinia()
   setActivePinia(pinia)
-  useAuthStore().user = { howToPlayDismissed: ['phishing-post-mortem'] }
+  useAuthStore().user = { howToPlayDismissed: dismissed }
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
@@ -113,6 +113,7 @@ async function mountGame(query = {}) {
 }
 
 const button = (wrapper, label) => wrapper.findAll('button').find((item) => item.text() === label)
+const partButtons = (wrapper) => wrapper.findAll('button[aria-label^="Report "]')
 
 async function startPersonal(wrapper, snapshot = snap()) {
   writeAttempt.mockResolvedValueOnce(snapshot)
@@ -121,6 +122,12 @@ async function startPersonal(wrapper, snapshot = snap()) {
 }
 
 Element.prototype.scrollTo = vi.fn()
+HTMLDialogElement.prototype.showModal = function showModal() {
+  this.setAttribute('open', '')
+}
+HTMLDialogElement.prototype.close = function close() {
+  this.removeAttribute('open')
+}
 
 afterEach(() => {
   vi.useRealTimers()
@@ -129,10 +136,11 @@ afterEach(() => {
 })
 
 describe('triage game page', () => {
-  it('offers the start control without helper copy', async () => {
+  it('offers the start control and no game controls before a run', async () => {
     listAttemptContexts.mockResolvedValue({ cohorts: [], total: 0 })
     const { wrapper } = await mountGame()
     expect(button(wrapper, 'Start run')).toBeDefined()
+    expect(button(wrapper, 'Report')).toBeUndefined()
   })
 
   it('starts a class run with the countdown and keeps the attempt in the route', async () => {
@@ -166,23 +174,23 @@ describe('triage game page', () => {
     listAttemptContexts.mockResolvedValue({ cohorts: [], total: 0 })
     const { wrapper } = await mountGame()
     await startPersonal(wrapper)
-    expect(wrapper.findAll('button.triage-part')).toHaveLength(0)
+    expect(partButtons(wrapper)).toHaveLength(0)
 
     await button(wrapper, 'Report').trigger('click')
     expect(wrapper.text()).toContain('Tap what gave it away')
-    expect(wrapper.findAll('button.triage-part').length).toBeGreaterThan(0)
+    expect(partButtons(wrapper).length).toBeGreaterThan(0)
     expect(button(wrapper, 'Trust')).toBeUndefined()
 
     await button(wrapper, 'Cancel').trigger('click')
     await flushPromises()
-    expect(wrapper.findAll('button.triage-part')).toHaveLength(0)
+    expect(partButtons(wrapper)).toHaveLength(0)
     expect(document.activeElement).toBe(button(wrapper, 'Report').element)
 
     await button(wrapper, 'Report').trigger('click')
     writeAttempt.mockResolvedValueOnce(
       snap({ revision: 1 }, { last: { ...lastCall, call: 'report' }, roundsPlayed: 1 }),
     )
-    await wrapper.get('button.triage-part[aria-label^="Report sender"]').trigger('click')
+    await wrapper.get('button[aria-label^="Report sender"]').trigger('click')
     await flushPromises()
     const [path, body] = writeAttempt.mock.calls.at(-1)
     expect(path).toBe('/attempts/att-1/actions')
@@ -224,7 +232,7 @@ describe('triage game page', () => {
     )
     await button(wrapper, 'Trust').trigger('click')
     await flushPromises()
-    expect(wrapper.get('.triage-live').text()).toContain('Correct +10')
+    expect(wrapper.get('[data-testid="triage-live"]').text()).toContain('Correct +10')
     expect(wrapper.text()).toContain('Second subject')
     expect(wrapper.text()).toContain('Trusted')
     expect(button(wrapper, 'Report').attributes('disabled')).toBeUndefined()
@@ -252,13 +260,14 @@ describe('triage game page', () => {
     readAttempt.mockResolvedValue(completedSnap())
     const { wrapper, router } = await mountGame({ attempt: 'att-1' })
     expect(readAttempt).toHaveBeenCalledWith('att-1', expect.any(AbortSignal))
-    expect(wrapper.text()).toContain('Run complete')
-    expect(wrapper.findAll('button').filter((item) => item.text() === 'Play again')).toHaveLength(1)
+    const headings = wrapper.get('section[aria-label="Saved result"]').findAll('h2')
+    expect(headings.map((heading) => heading.text())).toEqual(['Case closed'])
     expect(wrapper.text()).toContain('10 / 1000')
+    expect(wrapper.text()).toContain('Score10 of 1000')
     expect(wrapper.text()).toContain('Result saved to your account.')
     expect(wrapper.text()).toContain('It was a genuine notice.')
 
-    await wrapper.get('button.btn-primary').trigger('click')
+    await button(wrapper, 'Play again').trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.query.attempt).toBeUndefined()
     expect(wrapper.find('form').exists()).toBe(true)
@@ -285,6 +294,41 @@ describe('triage game page', () => {
     await button(wrapper, 'Play again').trigger('click')
     await flushPromises()
     expect(wrapper.find('form').exists()).toBe(true)
+  })
+
+  it('still reads an open run from the earlier phish-3 triage ruleset as a game', async () => {
+    readAttempt.mockResolvedValue(snap({ rulesetVersion: 'phish-3', maxScore: 6610 }))
+    const { wrapper } = await mountGame({ attempt: 'att-1' })
+    expect(wrapper.text()).toContain('First subject')
+    expect(wrapper.text()).not.toContain('Earlier inbox investigation')
+  })
+
+  it('keeps a hint on screen while the player picks the part', async () => {
+    listAttemptContexts.mockResolvedValue({ cohorts: [], total: 0 })
+    const hinted = snap(
+      { revision: 1 },
+      { maxHintTier: 2, hint: { tier: 1, lines: ['Check the reply-to address.'] } },
+    )
+    readAttempt.mockResolvedValue(hinted)
+    const { wrapper } = await mountGame({ attempt: 'att-1' })
+    expect(wrapper.text()).toContain('Check the reply-to address.')
+    await button(wrapper, 'Report').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Tap what gave it away')
+    expect(wrapper.text()).toContain('Check the reply-to address.')
+    expect(button(wrapper, 'Another hint').attributes('aria-disabled')).toBe('true')
+  })
+
+  it('does not open the guide over a resumed run that has never dismissed it', async () => {
+    readAttempt.mockResolvedValue(timedSnap())
+    const { wrapper } = await mountGame({ attempt: 'att-1' }, [])
+    expect(wrapper.get('dialog.howto-dialog').attributes('open')).toBeUndefined()
+  })
+
+  it('opens the guide on a first visit with no run to resume', async () => {
+    listAttemptContexts.mockResolvedValue({ cohorts: [], total: 0 })
+    const { wrapper } = await mountGame({}, [])
+    expect(wrapper.get('dialog.howto-dialog').attributes('open')).toBeDefined()
   })
 
   it('resumes an active run from the route', async () => {

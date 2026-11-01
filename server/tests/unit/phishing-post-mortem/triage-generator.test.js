@@ -62,6 +62,19 @@ describe('triage generator', { timeout: 30000 }, () => {
     )
   })
 
+  // open attempts regenerate their emails from the stored seed, so this pins what a seed produces
+  // if it fails, the change alters open and saved runs: see "changing the generator" in the readme
+  it('still produces the same emails for a fixed seed', () => {
+    const rounds = Array.from({ length: 60 }, (_, roundIndex) =>
+      generateRound({ seed: SEEDS[0], roundIndex }),
+    )
+    const hash = createHash('sha256').update(JSON.stringify(rounds)).digest('hex')
+    expect({ generator: GENERATOR_VERSION, hash }).toEqual({
+      generator: 'triage-2',
+      hash: '8310e61bc02000d5f93167c0237cccd1a4494aae8a21d071c0ad61d41fb6c752',
+    })
+  })
+
   it('stamps the tier from the round index', () => {
     everyRound((round, seed, roundIndex) => {
       if (SEEDS.indexOf(seed) % 50 === 0) expect(round.email.tier).toBe(tierForRound(roundIndex))

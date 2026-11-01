@@ -94,11 +94,34 @@ async function classFor(student, status = 'active') {
 }
 
 describe('saved SQL run', () => {
+  it('saves against the par of 320 and reads an older sql-2 run against its own maximum', async () => {
+    const student = await registerTestStudent(app)
+    const start = await post(student, gamePath, { context: { kind: 'personal' } }).expect(201)
+    expect(start.body.maxScore).toBe(320)
+    expect(Number.isFinite(start.body.publicState.serverNow)).toBe(true)
+    await database.db.collection('game_attempts').updateOne(
+      { _id: new Types.ObjectId(start.body.attemptId) },
+      {
+        $set: {
+          rulesetVersion: 'sql-2',
+          rulesetKey: 'sql-injection-arcade@sql-2',
+          maxScore: 1130,
+        },
+      },
+    )
+    const read = await student.agent
+      .get(`/api/attempts/${start.body.attemptId}`)
+      .set('Origin', origin)
+      .expect(200)
+    expect(read.body).toMatchObject({ rulesetVersion: 'sql-2', maxScore: 1130 })
+    expect(read.body.publicState.current.number).toBe(1)
+  })
+
   it('starts practice without answers, plays a full run, completes once and keeps raw input out', async () => {
     const student = await registerTestStudent(app)
     const start = await post(student, gamePath, { context: { kind: 'personal' } }).expect(201)
     expect(start.body).toMatchObject({
-      rulesetVersion: 'sql-2',
+      rulesetVersion: 'sql-3',
       mode: 'practice',
       deadlineAt: null,
       persisted: true,
@@ -121,7 +144,9 @@ describe('saved SQL run', () => {
       expected += c.private.kind === 'repair' ? 10 : c.private.tier * 10 + 10
       snapshot = await solveCurrent(student, snapshot, seed)
     }
-    expect(snapshot.score).toBe(expected)
+    // a flawless run always reaches the par, and the score stops there
+    expect(expected).toBeGreaterThanOrEqual(320)
+    expect(snapshot.score).toBe(320)
     expect(snapshot.publicState.current).toBeNull()
     const path = `/api/attempts/${id}`
     const finish = { actionId: randomUUID(), expectedRevision: snapshot.revision }
@@ -134,7 +159,7 @@ describe('saved SQL run', () => {
     expect(results[0].body).toMatchObject({
       status: 'completed',
       mode: 'practice',
-      score: expected,
+      score: 320,
     })
     expect(results[0].body.publicState.review).toHaveLength(15)
     expect((await student.agent.get(path).expect(200)).body).toEqual(results[0].body)
@@ -221,7 +246,8 @@ describe('saved SQL run', () => {
     const late = generateCase({ seed, index: 1 })
     const step = solutionFor(late)[0]
     const refused = await post(student, `${path}/actions`, action(solved, step.type, step.payload))
-    expect(refused.status).toBeGreaterThanOrEqual(400)
+    expect(refused.status).toBe(409)
+    expect(refused.body.error.code).toBe('ATTEMPT_DEADLINE_PASSED')
     const done = await post(student, `${path}/complete`, {
       actionId: randomUUID(),
       expectedRevision: solved.revision,

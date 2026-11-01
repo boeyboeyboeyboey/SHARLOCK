@@ -1,5 +1,12 @@
 import { randomBytes } from 'node:crypto'
 import { test, expect } from './fixtures/admin.js'
+import { forceTown2d, newTown2dContext } from './fixtures/town.js'
+
+test.skip(
+  process.env.SHARLOCK_TEST_REPLICA_SET !== '1',
+  'This journey needs transactions; run with --replica-set.',
+)
+test.beforeEach(({ page }) => forceTown2d(page))
 
 const unavailable = 'This activation link is unavailable'
 
@@ -23,7 +30,7 @@ async function issueActivationLink(request, origin, suffix) {
 
 async function anonymousPage(browser, testInfo) {
   const { viewport, isMobile, hasTouch } = testInfo.project.use
-  const context = await browser.newContext({
+  const context = await newTown2dContext(browser, {
     storageState: { cookies: [], origins: [] },
     viewport,
     isMobile,

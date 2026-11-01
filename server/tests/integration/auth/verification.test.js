@@ -219,6 +219,77 @@ describe('email verification', () => {
     await login(agent, csrf.body.csrfToken, registration.email, 'Other-Horse-🔒-2026').expect(200)
   })
 
+  it('does not let an old pending session finish a registration someone else replaced', async () => {
+    const first = await startRegistration()
+    currentTime += CODE_TTL_MS + 1
+    const second = await startRegistration({
+      username: 'Reclaimed_Two',
+      password: 'Other-Horse-🔒-2026',
+    })
+    expect(second.response.status).toBe(202)
+
+    const stolen = await verify(first.agent, first.token, lastCode())
+    expect(stolen.status).toBe(409)
+    expect(stolen.body.error.code).toBe('VERIFICATION_NOT_PENDING')
+    const resent = await resend(first.agent, first.token)
+    expect(resent.status).toBe(409)
+    expect(resent.body.error.code).toBe('VERIFICATION_NOT_PENDING')
+    await first.agent.get('/api/auth/me').expect(401)
+
+    // the failed tries spent nothing: the real registrant still confirms normally
+    await verify(second.agent, second.token, lastCode()).expect(201)
+  })
+
+  it('restores a pending sign-up after a refresh without sending anything', async () => {
+    const { agent, response } = await startRegistration()
+    currentTime += 10_000
+
+    const probe = await agent.get('/api/auth/session').expect(200)
+    expect(probe.body.user).toBeNull()
+    expect(probe.body.verification).toEqual({
+      email: registration.email,
+      delivery: 'recent',
+      expiresAt: response.body.verification.expiresAt,
+      resendAvailableAt: response.body.verification.resendAvailableAt,
+      resendInSeconds: 20,
+    })
+  })
+
+  it('reports a failed send after a refresh instead of claiming a code went out', async () => {
+    const { agent } = await startRegistration()
+    await database.db
+      .collection('users')
+      .updateOne(
+        { emailNormalized: registration.email },
+        { $set: { 'emailVerification.lastSentAt': new Date(0) } },
+      )
+    const probe = await agent.get('/api/auth/session').expect(200)
+    expect(probe.body.verification.delivery).toBe('failed')
+    expect(probe.body.verification.resendInSeconds).toBe(0)
+  })
+
+  it('offers no pending state to a browser that never registered, or to one that cancelled', async () => {
+    const stranger = await request(app).get('/api/auth/session').expect(200)
+    expect(stranger.body).toEqual({ user: null })
+
+    const { agent, token } = await startRegistration()
+    await agent
+      .post('/api/auth/logout')
+      .set('Origin', origin())
+      .set('X-CSRF-Token', token)
+      .expect(204)
+    const cancelled = await agent.get('/api/auth/session').expect(200)
+    expect(cancelled.body).toEqual({ user: null })
+  })
+
+  it('stops offering the code screen once the replacement has taken the address', async () => {
+    const first = await startRegistration()
+    currentTime += CODE_TTL_MS + 1
+    await startRegistration({ username: 'Reclaimed_Three', password: 'Other-Horse-🔒-2026' })
+    const probe = await first.agent.get('/api/auth/session').expect(200)
+    expect(probe.body).toEqual({ user: null })
+  })
+
   it('treats accounts without a pending verification as verified', async () => {
     await database.db.collection('users').insertOne({
       emailNormalized: 'older@example.test',

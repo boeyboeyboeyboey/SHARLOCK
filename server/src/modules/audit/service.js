@@ -1,3 +1,7 @@
+import { cohortModel } from '../../models/Cohort.js'
+import { institutionModel } from '../../models/Institution.js'
+import { membershipModel } from '../../models/Membership.js'
+import { userModel } from '../../models/User.js'
 import { createPermissionService } from '../../services/permissions.js'
 import { auditEventModel } from './model.js'
 import { AuditError, auditRetentionMs, parseAuditQuery, parseAuditRecord } from './policy.js'
@@ -24,6 +28,45 @@ function eventDto(event) {
 export function createAuditService(database, { now = Date.now } = {}) {
   const AuditEvent = auditEventModel(database)
   const permissions = createPermissionService(database)
+
+  // rows store only ids; names are read here for the administrator, so a renamed or deleted record
+  // simply shows its current name or none. a target can be a user, class, institution or membership
+  async function loadEventNames(events) {
+    const idsOf = (field) => [
+      ...new Set(events.map((event) => event[field]?.toString()).filter(Boolean)),
+    ]
+    const targetIds = idsOf('targetId')
+    const memberships = await membershipModel(database)
+      .find({ _id: { $in: targetIds } }, { userId: 1, cohortId: 1 })
+      .lean()
+    const userIds = [
+      ...new Set([
+        ...idsOf('actorId'),
+        ...targetIds,
+        ...memberships.map(({ userId }) => userId.toString()),
+      ]),
+    ]
+    const cohortIds = [...new Set([...idsOf('scopeCohortId'), ...targetIds])]
+    const [users, cohorts, institutions] = await Promise.all([
+      userModel(database)
+        .find({ _id: { $in: userIds } }, { username: 1 })
+        .lean(),
+      cohortModel(database)
+        .find({ _id: { $in: cohortIds } }, { name: 1 })
+        .lean(),
+      institutionModel(database)
+        .find({ _id: { $in: targetIds } }, { name: 1 })
+        .lean(),
+    ])
+    const names = new Map()
+    for (const { _id, name } of [...cohorts, ...institutions]) names.set(_id.toString(), name)
+    for (const { _id, username } of users) names.set(_id.toString(), username)
+    for (const { _id, userId } of memberships) {
+      const username = names.get(userId.toString())
+      if (username) names.set(_id.toString(), username)
+    }
+    return names
+  }
 
   async function recordAuditEvent(input, { session } = {}) {
     const record = parseAuditRecord(input)
@@ -63,7 +106,18 @@ export function createAuditService(database, { now = Date.now } = {}) {
         .lean(),
       AuditEvent.countDocuments(filter),
     ])
-    return { events: events.map(eventDto), page: filters.page, total }
+    const names = await loadEventNames(events)
+    const nameOf = (id) => names.get(id?.toString()) ?? null
+    return {
+      events: events.map((event) => ({
+        ...eventDto(event),
+        actorName: nameOf(event.actorId),
+        targetName: nameOf(event.targetId),
+        cohortName: nameOf(event.scopeCohortId),
+      })),
+      page: filters.page,
+      total,
+    }
   }
 
   return Object.freeze({ recordAuditEvent, listEvents })

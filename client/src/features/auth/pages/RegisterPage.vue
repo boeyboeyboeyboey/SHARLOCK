@@ -84,6 +84,18 @@ async function resendCode() {
     pending.value = false
   }
 }
+
+async function cancelCode() {
+  if (pending.value) return
+  pending.value = true
+  try {
+    await auth.cancelVerification()
+  } catch {
+    // the store keeps only the safe message for the code screen
+  } finally {
+    pending.value = false
+  }
+}
 </script>
 
 <template>
@@ -120,7 +132,7 @@ async function resendCode() {
           :error="errorMessage"
           @submit="confirmCode"
           @resend="resendCode"
-          @cancel="auth.cancelVerification()"
+          @cancel="cancelCode"
         />
 
         <RegisterForm
@@ -144,8 +156,6 @@ async function resendCode() {
     </section>
     <aside class="auth-aside">
       <PixelIcon name="shield" :size="30" aria-hidden="true" />
-      <h2>Start with your own detective</h2>
-      <p>Registration signs you in. Join a class or skip ahead to personal play.</p>
       <RouterLink to="/about" class="auth-aside__link">
         About Sharlock <PixelIcon name="arrow" :size="16" aria-hidden="true" />
       </RouterLink>

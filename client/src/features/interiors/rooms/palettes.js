@@ -1,13 +1,5 @@
 // [top, bottom, accent] per game id, used for the still's gradient fallback
-export const ROOM_IDS = [
-  'cli-cyber-defender',
-  'phishing-post-mortem',
-  'sql-injection-arcade',
-  'social-engineering-simulator',
-  'clearance-tower',
-]
-
-const palettes = {
+export const palettes = {
   'cli-cyber-defender': ['#2b3a36', '#14100d', '#d69a2f'],
   'phishing-post-mortem': ['#6a4a3a', '#2c1c16', '#e0b04a'],
   'sql-injection-arcade': ['#1f3045', '#0e1620', '#4fc3d9'],
@@ -17,5 +9,5 @@ const palettes = {
 
 export function roomFor(id) {
   const palette = palettes[id]
-  return palette ? { id, palette } : null
+  return palette ? { palette } : null
 }

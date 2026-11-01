@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import { topicLabel } from '../progress/topicLabel.js'
 import { gameName } from './format.js'
 
 const props = defineProps({
@@ -31,7 +32,7 @@ const rows = computed(() =>
           <p>Average best score {{ Math.round(game.averageBestPercent) }}%</p>
           <ul v-if="game.topics?.length" class="class-results__topics" aria-label="Topics">
             <li v-for="topic in game.topics" :key="topic.topic">
-              <span>{{ topic.topic }}</span>
+              <span>{{ topicLabel(topic.topic) }}</span>
               <span>{{ topic.studentsPassed }} of {{ topic.studentsAttempted }} passed</span>
             </li>
           </ul>

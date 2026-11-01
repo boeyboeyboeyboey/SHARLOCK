@@ -4,8 +4,10 @@ import { AttemptError } from '../../../attempts/policy.js'
 import { GENERATOR_VERSION } from './generator/index.js'
 import {
   GAME_ID,
+  LEGACY_RULESET_VERSION,
   MAX_HINT_TIER,
   MAX_MISTAKES,
+  PAR_SCORE,
   PRACTICE_ROUNDS,
   RULESET_VERSION,
   TIMED_ROUND_CAP,
@@ -129,16 +131,22 @@ function currentHint(state, round) {
 }
 
 // randomSeed is a test-only seam, never reachable from a request
-export function createTriageRuleset({ randomSeed = () => randomBytes(16).toString('hex') } = {}) {
+// the rulesets differ only in their maximum: phish-4 stops at a par a player can reach
+export function createTriageRuleset({
+  randomSeed = () => randomBytes(16).toString('hex'),
+  rulesetVersion = RULESET_VERSION,
+  current = true,
+  maxScore = PAR_SCORE,
+} = {}) {
   return {
     id: GAME_ID,
-    rulesetVersion: RULESET_VERSION,
+    rulesetVersion,
     learningObjective:
       'Triage single emails under time pressure: spot lookalike and spoofed senders, mismatched reply-to and links, payment-change requests, risky attachments and QR codes, and trust genuine email.',
     topicTags: Object.values(PHISH_TYPE_TOPICS),
-    maxScore: maxTimedScore(),
+    maxScore,
     maxActions: TIMED_ROUND_CAP,
-    current: true,
+    current,
     competitive: true,
     serverRecorded: false,
     stateSchema,
@@ -193,7 +201,9 @@ export function createTriageRuleset({ randomSeed = () => randomBytes(16).toStrin
         totalRounds: timed ? null : PRACTICE_ROUNDS,
         maxMistakes: timed ? MAX_MISTAKES : null,
         roundsPlayed: state.rounds.length,
-        score: totals.score,
+        // the browser uses this to correct its countdown for a skewed device clock
+        serverNow: new Date(metadata.now).getTime(),
+        score: Math.min(totals.score, maxScore),
         streak: totals.streak,
         mistakes: totals.mistakes,
         maxHintTier: timed ? 0 : MAX_HINT_TIER,
@@ -208,7 +218,7 @@ export function createTriageRuleset({ randomSeed = () => randomBytes(16).toStrin
       const totals = tally(state.rounds)
       const breakdown = typeBreakdown(state)
       return {
-        score: Math.min(totals.score, maxTimedScore()),
+        score: Math.min(totals.score, maxScore),
         feedback: {
           verdictCode: mistakeLimitReached(state.rounds)
             ? 'PHISH_TRIAGE_MISTAKE_LIMIT'
@@ -228,3 +238,10 @@ export function createTriageRuleset({ randomSeed = () => randomBytes(16).toStrin
 }
 
 export const triageRuleset = createTriageRuleset()
+
+// attempts saved or still open under phish-3 keep their own maximum
+export const triageLegacyRuleset = createTriageRuleset({
+  rulesetVersion: LEGACY_RULESET_VERSION,
+  current: false,
+  maxScore: maxTimedScore(),
+})

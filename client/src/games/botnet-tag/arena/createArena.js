@@ -43,7 +43,6 @@ export function createArena({
   wardrobe = null,
   params = new URLSearchParams(),
   watch = true,
-  onTier = () => {},
 }) {
   const canvas = document.createElement('canvas')
   canvas.className = 'tag-canvas'
@@ -138,7 +137,16 @@ export function createArena({
     ip.exposure = 1.1
     ip.contrast = 1.1
 
-    let local = null
+    const makeLocal = (start, input = null) =>
+      createLocalPlayer({
+        spawn: start,
+        camera,
+        reduced,
+        onSprint: () => send.sprint?.(),
+        input,
+      })
+    // a tier rebuild replaces the player in the same tick, so no key release can fall in a gap
+    let local = resume?.input ? makeLocal(spawn, resume.input) : null
     let lastPose = { x: spawn.x, z: spawn.z, yaw: 0 }
     const goal = new Vector3()
     const clip = Matrix.Identity()
@@ -205,14 +213,7 @@ export function createArena({
       players.sync(st.players, st.sid, serverNow, wardrobe)
       world.setStations(st.stations, serverNow)
       const mine = players.entries.get(st.sid)
-      if (!local && mine) {
-        local = createLocalPlayer({
-          spawn: { x: mine.x, z: mine.z },
-          camera,
-          reduced,
-          onSprint: () => send.sprint?.(),
-        })
-      }
+      if (!local && mine) local = makeLocal({ x: mine.x, z: mine.z })
       const playing = st.phase === 'playing'
       if (local && mine) {
         local.setEnabled(inputEnabled && playing)
@@ -264,6 +265,7 @@ export function createArena({
         alpha: camera.alpha,
         beta: camera.beta,
         radius: camera.radius,
+        input: local?.inputState() ?? null,
       }),
       dispose() {
         local?.dispose()
@@ -283,7 +285,6 @@ export function createArena({
     rebuilds += 1
     built = assemble(resume)
     startSampler()
-    onTier(tier.name)
   }
 
   // same watch as the hub: median fps over a few seconds, lowering one tier per struggle; below low it stays on low

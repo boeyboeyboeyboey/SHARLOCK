@@ -13,6 +13,11 @@ vi.mock('../../../src/modules/audit/model.js', () => ({
 vi.mock('../../../src/services/permissions.js', () => ({
   createPermissionService: () => ({ requireCapability: mocks.requireCapability }),
 }))
+const noRows = { find: () => ({ lean: async () => [] }) }
+vi.mock('../../../src/models/Membership.js', () => ({ membershipModel: () => noRows }))
+vi.mock('../../../src/models/User.js', () => ({ userModel: () => noRows }))
+vi.mock('../../../src/models/Cohort.js', () => ({ cohortModel: () => noRows }))
+vi.mock('../../../src/models/Institution.js', () => ({ institutionModel: () => noRows }))
 
 import { createAuditService } from '../../../src/modules/audit/service.js'
 
@@ -129,6 +134,9 @@ describe('audit service', () => {
           outcome: 'success',
           occurredAt: new Date(now - 1000).toISOString(),
           requestId,
+          actorName: null,
+          targetName: null,
+          cohortName: null,
         },
       ],
       page: 2,

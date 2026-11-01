@@ -52,7 +52,7 @@ test('a class student saves a shift and appears on the class leaderboard', async
     await expect(page.getByText('Result saved to your account.', { exact: true })).toBeVisible()
 
     await page.goto('/leaderboard')
-    await expect(page.getByRole('heading', { level: 2, name: /Social Engineering/ })).toBeVisible()
+    await expect(page.getByRole('heading', { level: 2, name: 'Help Desk Shift' })).toBeVisible()
     const own = page.getByRole('row', { name: new RegExp(seeded.studentA.username) })
     await expect(own).toHaveCount(1)
     await expect(own).toContainText('(you)')

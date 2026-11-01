@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import { MAX_INPUT } from '../../../src/modules/games/sql-injection-arcade/policy.js'
 import {
   isTaken,
+  likeMatches,
   runBlind,
   runChange,
   runLogin,
@@ -68,7 +70,9 @@ describe('t1 login variants', () => {
     ["' OR 1=2 --", '', 'NO_MATCH'],
     ['guest', 'pw', 'NO_BREAKOUT'],
     ["'", '', 'SYNTAX_ERROR'],
-    ["' OR 1=1;", '', 'UNSUPPORTED'],
+    ["' OR 1=1;", '', 'STACKED_NOT_RUN'],
+    // the lecture's own payload (12a web security part ii, slide 20)
+    ["' OR '1'='1'; DROP TABLE Users; --", '', 'STACKED_NOT_RUN'],
     ["' OR 1=1 UNION SELECT 1 --", '', 'SYNTAX_ERROR'],
     ['x'.repeat(2), "' OR " + '1=1 OR '.repeat(10) + '1=1--', 'UNSUPPORTED'],
   ])('tautology %j %j is %s', (user, pass, expected) =>
@@ -112,7 +116,7 @@ describe('t2 union', () => {
     expect(code(run("zz' UNION SELECT username, secret FROM officers--"))).toBe('SYNTAX_ERROR')
     expect(code(run("zz' UNION SELECT username, passcode FROM officers"))).toBe('SYNTAX_ERROR')
     expect(code(run("zz' UNION SELECT * FROM officers--"))).toBe('UNSUPPORTED')
-    expect(code(run("zz'; DROP TABLE officers--"))).toBe('UNSUPPORTED')
+    expect(code(run("zz'; DROP TABLE officers--"))).toBe('STACKED_NOT_RUN')
     expect(code(run("zz' UNION SELECT username, passcode FROM officers WHERE 1=1--"))).toBe(
       'UNSUPPORTED',
     )
@@ -151,11 +155,94 @@ describe('t3 second order', () => {
     expect(code(runChange(users, "' OR 1=1--"))).toBe('TOO_BROAD')
     expect(code(runChange(users, "ghost'--"))).toBe('NO_MATCH')
     expect(code(runChange(users, "admin'--"))).toBe('WRONG_ACCOUNT')
-    expect(code(runChange(users, "x'; DROP TABLE officers--"))).toBe('UNSUPPORTED')
+    expect(code(runChange(users, "x'; DROP TABLE officers--"))).toBe('STACKED_NOT_RUN')
   })
   it('refuses a name that is already taken', () => {
     expect(isTaken(users, 'CLERK')).toBe(true)
     expect(isTaken(users, "clerk'--")).toBe(false)
+  })
+})
+
+describe('LIKE stays bounded', () => {
+  const evaluate = (subject, pattern) => runLogin(users, [`x' OR '${subject}' LIKE '${pattern}'--`])
+
+  it('does at most subject times pattern work on the worst input an api call can send', () => {
+    const subject = 'a'.repeat(50)
+    const pattern = `%${'a%'.repeat(24)}b`
+    const input = `x' OR '${subject}' LIKE '${pattern}'--`
+    expect(input.length).toBeLessThanOrEqual(MAX_INPUT)
+    expect(runLogin(users, [input]).code).toBe('NO_MATCH')
+
+    let steps = 0
+    expect(likeMatches(subject, pattern, () => (steps += 1))).toBe(false)
+    expect(steps).toBeLessThanOrEqual((subject.length + 1) * (pattern.length + 1))
+  })
+
+  it.each([
+    ['abc', 'abc', true],
+    ['ABC', 'abc', true],
+    ['abc', '', false],
+    ['abc', '%', true],
+    ['abc', '%%', true],
+    ['abc', 'a%', true],
+    ['abc', '%c', true],
+    ['abc', 'a%c', true],
+    ['abcabc', '%b%b%', true],
+    ['abc', 'b%', false],
+    ['abc', '%b', false],
+    ['abc', 'abcd', false],
+    ['a.c', 'a.c', true],
+    ['abc', 'a.c', false],
+    ['a(c', 'a(%', true],
+    ['', '', true],
+    ['', '%', true],
+    ['', '%%', true],
+    ['', 'a', false],
+    ['', '_', false],
+    ['abc', '_bc', true],
+    ['abc', 'a_c', true],
+    ['abc', '___', true],
+    ['abc', '__', false],
+    ['abc', '_%', true],
+    ['ß', 'SS', false],
+    ['SS', 'ß', false],
+    ['ß', 'ß', true],
+    ['é', 'É', true],
+    ['\u212A', 'k', false],
+  ])('%s LIKE %s is %s', (subject, pattern, expected) => {
+    expect(evaluate(subject, pattern).code).toBe(expected ? 'SUCCESS' : 'NO_MATCH')
+  })
+})
+
+describe('comparing a number with a string', () => {
+  it.each([
+    ["x' OR 10 > '9'--", 'SUCCESS'],
+    ["x' OR '9' < 10--", 'SUCCESS'],
+    ["x' OR 10 < '9'--", 'NO_MATCH'],
+    ["x' OR 1 = '1'--", 'SUCCESS'],
+    ["x' OR 'b' > 'a'--", 'SUCCESS'],
+    ["x' OR '10' > '9'--", 'NO_MATCH'],
+    ["x' OR 10 > 'a'--", 'NO_MATCH'],
+  ])('%s gives %s', (input, code) => {
+    expect(runLogin(users, [input]).code).toBe(code)
+  })
+})
+
+describe('a semicolon', () => {
+  it.each([["x' OR 1=1;--"], ["x' OR 1=1; -- gone"], ["x' OR 1=1;   #gone"]])(
+    'ends the statement in %s',
+    (input) => {
+      expect(runLogin(users, [input]).code).toBe('SUCCESS')
+    },
+  )
+
+  it.each([
+    ["x' OR 1=1; DROP TABLE users--"],
+    ["x'; DELETE FROM users;--"],
+    ["x' OR 1=1;;--"],
+    ["x' OR 1=1;"],
+  ])('stays refused as a second statement in %s', (input) => {
+    expect(runLogin(users, [input]).code).toBe('STACKED_NOT_RUN')
   })
 })
 
@@ -166,7 +253,7 @@ describe('no execution by design', () => {
       new URL('../../../src/modules/games/sql-injection-arcade/engine.js', import.meta.url),
       'utf8',
     )
-    expect(source).not.toMatch(/child_process|mongoose|\beval\b|new Function|require\(/)
+    expect(source).not.toMatch(/child_process|mongoose|\beval\b|new Function|new RegExp|require\(/)
     expect(source.match(/^import /gm) ?? []).toHaveLength(0)
   })
 })

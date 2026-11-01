@@ -125,7 +125,6 @@ async function cohortFor(student) {
   return cohort
 }
 
-const PART_IDS = /^p[0-9a-z]{4}$/
 const ACTION_FIELDS_FORBIDDEN = ['verdict', 'type', 'tellPartIds', 'explanation', 'seed']
 
 const triageAction = (snapshot, payload) => ({
@@ -167,7 +166,7 @@ describe('saved phishing triage journey', () => {
     const start = await startPersonal(student)
     expect(start).toMatchObject({
       gameId: 'phishing-post-mortem',
-      rulesetVersion: 'phish-3',
+      rulesetVersion: 'phish-4',
       mode: 'practice',
       deadlineAt: null,
     })
@@ -200,12 +199,12 @@ describe('saved phishing triage journey', () => {
     const wrongType = { ...triageAction(start, { roundId, call: 'trust' }), type: 'submit-verdict' }
     await post(student, path, wrongType).expect(400)
     // an unknown but well formed part is rejected by the server, not scored
-    expect(PART_IDS.test('pzz99')).toBe(true)
-    await post(
+    const unknown = await post(
       student,
       path,
       triageAction(start, { roundId, call: 'report', partId: 'pzz99' }),
     ).expect(400)
+    expect(unknown.body.error.code).toBe('PHISH_UNKNOWN_SELECTION')
   })
 
   it('refuses a stale round id', async () => {
@@ -251,7 +250,7 @@ describe('saved phishing triage journey', () => {
     const { start } = await startClass(student)
     expect(start).toMatchObject({
       mode: 'standard',
-      rulesetVersion: 'phish-3',
+      rulesetVersion: 'phish-4',
     })
     const stored = await database.db
       .collection('game_attempts')
@@ -315,6 +314,30 @@ describe('saved phishing triage journey', () => {
     expect(late.body.error.code).toBe('ATTEMPT_DEADLINE_PASSED')
     const done = await post(student, `${path}/complete`, completeBody(start)).expect(200)
     expect(done.body).toMatchObject({ status: 'completed', persisted: true })
+  })
+
+  it('saves against the par and reads an older phish-3 run against its own maximum', async () => {
+    const student = await registerStudent(app)
+    const start = await startPersonal(student)
+    expect(start.maxScore).toBe(1000)
+    expect(Number.isFinite(start.publicState.serverNow)).toBe(true)
+    const older = await startPersonal(student)
+    await database.db.collection('game_attempts').updateOne(
+      { _id: new Types.ObjectId(older.attemptId) },
+      {
+        $set: {
+          rulesetVersion: 'phish-3',
+          rulesetKey: 'phishing-post-mortem@phish-3',
+          maxScore: 6610,
+        },
+      },
+    )
+    const read = await student.agent
+      .get(`/api/attempts/${older.attemptId}`)
+      .set('Origin', origin)
+      .expect(200)
+    expect(read.body).toMatchObject({ rulesetVersion: 'phish-3', maxScore: 6610 })
+    expect(read.body.publicState.current.roundId).toBeTruthy()
   })
 
   it('hides another player attempt', async () => {

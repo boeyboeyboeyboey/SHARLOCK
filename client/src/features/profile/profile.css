@@ -53,58 +53,6 @@
   font-weight: 700;
 }
 
-.profile-view .profile-editor .auth-avatar-picker {
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-
-.profile-view .profile-editor .auth-avatar-picker legend {
-  margin-bottom: 0.3rem;
-}
-
-.profile-view .profile-editor .auth-avatar-picker__grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.75rem;
-  margin-top: 0.75rem;
-}
-
-.profile-view .profile-editor .auth-avatar-choice {
-  position: relative;
-  display: grid;
-  min-width: 0;
-  min-height: 116px;
-  justify-items: center;
-  align-content: center;
-  gap: 0.4rem;
-  padding: 0.5rem;
-  border: 2px solid var(--border-strong);
-  background: var(--surface);
-  box-shadow: var(--shadow-pixel);
-  cursor: pointer;
-  font-size: 0.9rem;
-  text-align: center;
-}
-
-.profile-view .profile-editor .auth-avatar-choice.is-selected {
-  background: var(--accent-secondary);
-}
-
-.profile-view .profile-editor .auth-avatar-choice__input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-}
-
-.profile-view .profile-editor .auth-avatar-choice img {
-  width: 64px;
-  height: 64px;
-  image-rendering: pixelated;
-}
-
 .profile-view .profile-editor__actions {
   display: flex;
   flex-wrap: wrap;

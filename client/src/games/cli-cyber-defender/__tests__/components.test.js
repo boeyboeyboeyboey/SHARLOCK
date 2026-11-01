@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount, RouterLinkStub } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
 import { listAttemptContexts } from '../../../features/attempts/api.js'
 import AttemptContextChooser from '../../../features/attempts/components/AttemptContextChooser.vue'
 import BriefingPanel from '../components/BriefingPanel.vue'
@@ -12,11 +13,22 @@ import ReviewNote from '../components/ReviewNote.vue'
 import ScoreHud from '../components/ScoreHud.vue'
 import ShiftDebrief from '../components/ShiftDebrief.vue'
 import TerminalPanel from '../components/TerminalPanel.vue'
+import { SHIFT_FACTS } from '../cliDefender.js'
+import {
+  INCIDENT_COUNT,
+  MAX_PAUSES_PER_RUN,
+  MAX_SCORE,
+  MAX_WINDOW_SECONDS,
+  MIN_WINDOW_SECONDS,
+  PAUSE_BUDGET_SECONDS,
+} from '../../../../../server/src/modules/games/cli-cyber-defender/policy.js'
 
 vi.mock('../../../features/attempts/api.js', () => ({
   listAttemptContexts: vi.fn().mockResolvedValue({ cohorts: [], total: 0 }),
   safeAttemptError: () => ({ message: 'error' }),
 }))
+
+beforeEach(() => setActivePinia(createPinia()))
 
 async function chooseContext(wrapper) {
   await flushPromises()
@@ -55,7 +67,9 @@ describe('cli defender components', () => {
     expect(wrapper.text()).not.toContain('Practice (no timer)')
     await chooseContext(wrapper)
     expect(wrapper.text()).toContain('Practice (no timer)')
-    const [timed, practice] = wrapper.findAll('section > div > button')
+    const buttonNamed = (name) => wrapper.findAll('button').find((item) => item.text() === name)
+    const timed = buttonNamed('Start game')
+    const practice = buttonNamed('Practice (no timer)')
     await practice.trigger('click')
     expect(wrapper.emitted('start')).toEqual([['practice', { kind: 'personal' }]])
     await timed.trigger('click')
@@ -150,9 +164,9 @@ describe('cli defender components', () => {
     const wrapper = mount(ScoreHud, {
       props: { remainingMs: 12_000, penalty: { key: 1, seconds: 5 } },
     })
-    expect(wrapper.get('.cli-penalty-cue').text()).toBe('-5 s')
+    expect(wrapper.get('[data-testid="cli-penalty-cue"]').text()).toBe('-5 s')
     expect(wrapper.get('[role="status"]').text()).toBe('5 seconds cut from the clock.')
-    expect(mount(ScoreHud).find('.cli-penalty-cue').exists()).toBe(false)
+    expect(mount(ScoreHud).find('[data-testid="cli-penalty-cue"]').exists()).toBe(false)
   })
 
   it('shows the decoy label in the last incident note', () => {
@@ -269,10 +283,10 @@ describe('cli defender components', () => {
 
   it('fills the streak meter up to three', async () => {
     const wrapper = mount(ScoreHud, { props: { streak: 2 } })
-    expect(wrapper.findAll('.cli-streak-pip.is-on')).toHaveLength(2)
+    expect(wrapper.findAll('[data-testid="cli-streak-on"]')).toHaveLength(2)
     await wrapper.setProps({ streak: 5 })
-    expect(wrapper.findAll('.cli-streak-pip.is-on')).toHaveLength(3)
-    expect(wrapper.get('.cli-streak-meter').classes()).toContain('is-max')
+    expect(wrapper.findAll('[data-testid="cli-streak-on"]')).toHaveLength(3)
+    expect(wrapper.get('[data-testid="cli-streak-meter"]').attributes('data-full')).toBe('true')
   })
 
   it('celebrates a perfect game and tallies topics in a table', () => {
@@ -312,9 +326,8 @@ describe('cli defender components', () => {
       global: { stubs: { RouterLink: RouterLinkStub } },
     })
     expect(wrapper.text()).toContain('Perfect game')
-    expect(wrapper.findAll('.cli-confetti-piece').length).toBeGreaterThan(0)
-    expect(wrapper.get('.cli-confetti').attributes('aria-hidden')).toBe('true')
-    const rows = wrapper.findAll('.cli-topic-table tbody tr').map((row) => row.text())
+    expect(wrapper.get('[data-testid="cli-confetti"]').attributes('aria-hidden')).toBe('true')
+    const rows = wrapper.findAll('tbody tr').map((row) => row.text())
     expect(rows[0]).toContain('Firewall blocking')
     expect(rows[0]).toContain('1/1')
     expect(rows[0]).toContain('Strong')
@@ -484,5 +497,134 @@ describe('cli defender components', () => {
       await flushPromises()
       expect(wrapper.text()).toContain('You have no active classes')
     })
+  })
+})
+
+describe('cli defender briefing facts', () => {
+  it('keeps its display facts equal to the server rules', () => {
+    expect(SHIFT_FACTS).toEqual({
+      challenges: INCIDENT_COUNT,
+      minWindowSeconds: MIN_WINDOW_SECONDS,
+      maxWindowSeconds: MAX_WINDOW_SECONDS,
+      maxScore: MAX_SCORE,
+      pausesPerGame: MAX_PAUSES_PER_RUN,
+      pauseSeconds: PAUSE_BUDGET_SECONDS,
+    })
+  })
+
+  it('states the real window and maximum on the briefing and the dialog', async () => {
+    const wrapper = mount(BriefingPanel)
+    await chooseContext(wrapper)
+    expect(wrapper.text()).toContain('Maximum score: 2,700')
+    expect(wrapper.text()).toContain('20\u201330 seconds per challenge')
+    expect(wrapper.getComponent(ConfirmDialog).text()).toContain(
+      '8 challenges, 20\u201330 seconds each.',
+    )
+    expect(wrapper.text()).not.toContain('2,100')
+    expect(wrapper.text()).not.toContain('10\u201315')
+  })
+
+  it('puts Start game and Practice before the command and scoring lists', async () => {
+    const wrapper = mount(BriefingPanel)
+    await chooseContext(wrapper)
+    const text = wrapper.text()
+    expect(text.indexOf('Practice (no timer)')).toBeLessThan(text.indexOf('Commands'))
+    expect(text.indexOf('Start game')).toBeLessThan(text.indexOf('Scoring'))
+  })
+})
+
+describe('cli defender debrief commands', () => {
+  it('renders each command of a multi-step incident as its own numbered item', () => {
+    const wrapper = mountDebrief({
+      result: {
+        ...debriefResult(),
+        debrief: [
+          {
+            incidentId: 'incident-07',
+            title: 'Internal SMB sweep',
+            outcome: 'wrong',
+            yourCommands: ['dismiss', 'isolate host kiosk-04'],
+            expectedCommands: ['isolate host kiosk-04', 'disable user svc-print'],
+            explanation: 'Both steps were needed.',
+            pointsAwarded: 0,
+            topic: 'incident-containment',
+            concepts: { attack: null, cia: [], stage: 'Containment' },
+          },
+        ],
+      },
+    })
+    const [yours, correct] = wrapper.findAll('dd ol')
+    expect(yours.findAll('li').map((item) => item.text())).toEqual([
+      'dismiss',
+      'isolate host kiosk-04',
+    ])
+    expect(correct.findAll('li').map((item) => item.text())).toEqual([
+      'isolate host kiosk-04',
+      'disable user svc-print',
+    ])
+  })
+
+  it('shows none when no command was tried', () => {
+    const wrapper = mountDebrief({
+      result: {
+        ...debriefResult(),
+        debrief: [
+          {
+            incidentId: 'incident-01',
+            title: 'Port sweep',
+            outcome: 'missed',
+            yourCommand: null,
+            yourCommands: [],
+            expectedCommands: ['block ip 192.0.2.66'],
+            explanation: 'Block it.',
+            pointsAwarded: 0,
+            topic: 'firewall-blocking',
+            concepts: { attack: null, cia: [], stage: 'Containment' },
+          },
+        ],
+      },
+    })
+    expect(wrapper.findAll('dd ol')[0].text()).toBe('none')
+  })
+})
+
+describe('cli defender confirm dialog focus', () => {
+  it('focuses the safe choice when asked and reports closing', async () => {
+    const wrapper = mount(ConfirmDialog, {
+      props: {
+        id: 'x',
+        title: 'Leave this game?',
+        confirmLabel: 'Leave game',
+        cancelLabel: 'Keep playing',
+        focus: 'cancel',
+      },
+      attachTo: document.body,
+    })
+    await wrapper.setProps({ open: true })
+    await flushPromises()
+    expect(document.activeElement.textContent.trim()).toBe('Keep playing')
+    await wrapper.setProps({ open: false })
+    await flushPromises()
+    expect(wrapper.emitted('closed')).toHaveLength(1)
+    wrapper.unmount()
+  })
+
+  it('focuses the confirm button by default', async () => {
+    const wrapper = mount(ConfirmDialog, {
+      props: { id: 'y', title: 'Ready to play?', confirmLabel: 'Start' },
+      attachTo: document.body,
+    })
+    await wrapper.setProps({ open: true })
+    await flushPromises()
+    expect(document.activeElement.textContent.trim()).toBe('Start')
+    wrapper.unmount()
+  })
+})
+
+describe('cli defender paused panel', () => {
+  it('says how long the pause lasts and how many are left', () => {
+    const wrapper = mount(PausedPanel, { props: { secondsLeft: 27, pausesLeft: 1 } })
+    expect(wrapper.text()).toContain('Pause time left: 27 s')
+    expect(wrapper.text()).toContain('Pauses left in this game: 1')
   })
 })

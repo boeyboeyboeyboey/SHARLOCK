@@ -21,7 +21,7 @@ function verdictLabel(value) {
   <section class="clear-card clear-debrief" aria-labelledby="clear-debrief-title">
     <p class="clear-eyebrow">Case file</p>
     <h2 id="clear-debrief-title" tabindex="-1" data-phase-heading>{{ level.title }}</h2>
-    <p class="clear-score">
+    <p class="clear-score" data-testid="clear-case-score">
       <span class="clear-number">{{ result.score }}</span> / 100
       <span class="clear-stars" :aria-label="`${result.stars} out of 3 stars`">
         {{ starText(result.stars) }}
@@ -34,7 +34,18 @@ function verdictLabel(value) {
     <ul class="clear-facts">
       <li v-if="result.hintsUsed">Hints: {{ result.hintsUsed }} (−{{ result.hintPenalty }})</li>
       <li>Leaks: {{ meters.leaks }}</li>
+      <li v-if="meters.topicBlockedByLeak">
+        A leak means this case's topic is not achieved, whatever the score.
+      </li>
       <li>Work completed: {{ meters.workDone }} of {{ meters.workTotal }}</li>
+      <li v-if="meters.workAllowance">
+        Every fix for this case blocks {{ meters.workAllowance }} tasks, so
+        {{ meters.workTotal - meters.workAllowance }} completed earns the full work row.
+      </li>
+      <li v-if="meters.securityShare < 1">
+        Too much work was blocked, so the security rows are scaled down: a locked tower gets nothing
+        done.
+      </li>
       <li v-if="level.model !== 'blp'">Rights nobody needed: {{ meters.excessRights }}</li>
       <li v-for="conflict in meters.dutyConflicts" :key="`${conflict.agent}-${conflict.reason}`">
         Separation of duties broken: {{ conflict.reason }}

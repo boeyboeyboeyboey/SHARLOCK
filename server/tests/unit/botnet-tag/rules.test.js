@@ -11,8 +11,8 @@ const {
   TAG_REACH,
   canStartSprint,
   canTag,
-  createRng,
   patientZeroCount,
+  pickSpawns,
   scoreFor,
   sprintActive,
   validateMove,
@@ -113,12 +113,68 @@ describe('tagging and scoring', () => {
     expect([3, 6, 7, 8].map(patientZeroCount)).toEqual([1, 1, 2, 2])
   })
 
-  it('seeds a repeatable rng', () => {
-    const a = createRng(7)
-    const b = createRng(7)
-    const run = [a(), a(), a()]
-    expect(run).toEqual([b(), b(), b()])
-    expect(run.every((n) => n >= 0 && n < 1)).toBe(true)
+  it('keeps survivors as far from patient zero as the spawns allow', () => {
+    const gap = (a, b) => Math.hypot(a.x - b.x, a.z - b.z)
+    const small = pickSpawns(ARENA.spawns, 3, 1)
+    expect(small.zeros).toHaveLength(1)
+    expect(small.others).toHaveLength(2)
+    expect(small.nearest).toBe(22)
+    // no other zero spawn does better
+    for (const spawn of ARENA.spawns) {
+      const rest = ARENA.spawns.filter((other) => other !== spawn).map((other) => gap(spawn, other))
+      expect(rest.sort((a, b) => b - a)[1]).toBeLessThanOrEqual(small.nearest)
+    }
+    const full = pickSpawns(ARENA.spawns, 8, 2)
+    expect(new Set([...full.zeros, ...full.others]).size).toBe(8)
+  })
+
+  it('has a reachable ceiling, worked out with the real scoring', () => {
+    expect(rules.MAX_SCORE).toBe(930)
+    expect(rules.MAX_SCORE).toBe(
+      scoreFor(
+        { survivalSeconds: 180, patches: rules.PAR_PATCHES, tags: rules.PAR_TAGS },
+        { sideWon: true },
+      ),
+    )
+    // nobody can tag more than the other survivors of a full round
+    expect(rules.PAR_TAGS).toBe(rules.MAX_PLAYERS - patientZeroCount(rules.MAX_PLAYERS) - 1)
+  })
+})
+
+describe('validateMove over a burst', () => {
+  // applies what round.move keeps between messages
+  function flood(player, steps, gapMs, stepSize) {
+    let travelled = 0
+    let now = player.lastMoveAt
+    for (let i = 0; i < steps; i += 1) {
+      now += gapMs
+      const verdict = validateMove(player, { x: player.x + stepSize, z: player.z }, now)
+      if (!verdict.ok) continue
+      travelled += stepSize
+      Object.assign(player, { x: verdict.x, lastMoveAt: now, moveCredit: verdict.credit })
+    }
+    return travelled
+  }
+
+  it('gives no extra travel to a client that floods the 25 messages a second', () => {
+    const travelled = flood(mover({ x: -21, z: -12 }), 25, 40, 0.86)
+    expect(travelled).toBeLessThanOrEqual(BASE_SPEED * 1.25 + 0.5)
+  })
+
+  it('accepts every step of a real client at full speed', () => {
+    const player = mover({ x: -21, z: -12 })
+    expect(flood(player, 40, 50, (BASE_SPEED * 50) / 1000)).toBeCloseTo(
+      (BASE_SPEED * 40 * 50) / 1000,
+    )
+  })
+
+  it('accepts a sprint at full sprint speed, and only while it lasts', () => {
+    const sprintStep = (BASE_SPEED * rules.SPRINT_MULT * 50) / 1000
+    const player = mover({ x: -21, z: -12, sprintStartedAt: 0, moveCredit: 0 })
+    expect(flood(player, 20, 50, sprintStep)).toBeCloseTo(sprintStep * 20)
+    const late = mover({ x: -21, z: -12, lastMoveAt: 20000, sprintStartedAt: 0, moveCredit: 0 })
+    const refused = flood(late, 30, 50, sprintStep)
+    expect(refused).toBeLessThan(sprintStep * 30)
   })
 })
 

@@ -46,6 +46,8 @@ const recoveryLink = ref(null)
 const recoveryIssueForm = ref(null)
 const recoveryPending = ref(false)
 const recoveryError = ref('')
+const rosterFailed = ref(false)
+const rosterHeading = ref(null)
 const canIssueRecovery = computed(() => {
   const roles = auth.user?.globalRoles || []
   return roles.includes('instructor') && !roles.includes('admin')
@@ -60,6 +62,13 @@ const currentCohort = computed(() =>
 const controllers = new Set()
 let generation = 0
 let recoveryController = null
+// these failures mean the page is out of date, so it reloads rather than repeat a stale revision
+const RELOAD_AFTER = new Set([
+  'COHORT_STALE_CODE',
+  'COHORT_STALE_REQUEST',
+  'COHORT_CONFLICT',
+  'COHORT_CODE_NOT_SHOWN',
+])
 
 function clearRecovery() {
   recoveryController?.abort()
@@ -122,7 +131,11 @@ async function issueRecoveryLink({ identityVerified }) {
     )
       return
     recoveryIssueForm.value?.focusSubmitButton()
-    recoveryLink.value = link
+    recoveryLink.value = {
+      ...link,
+      username: recoveryStudent.value.username,
+      email: recoveryStudent.value.email,
+    }
   } catch (cause) {
     if (!controller.signal.aborted && operation === generation) {
       recoveryError.value = safeRecoveryError(cause).message
@@ -192,10 +205,10 @@ async function loadSelected(nextPage = 1) {
   const operation = ++generation
   const cohortId = selectedId.value
   const controller = requestController()
-  clearOneTimeCode()
   page.value = nextPage
   loading.value = true
   error.value = ''
+  rosterFailed.value = false
   try {
     const [result, code] = await Promise.all([
       listCohortMemberships(cohortId, {
@@ -209,15 +222,41 @@ async function loadSelected(nextPage = 1) {
     if (operation !== generation) return
     memberships.value = result.memberships || []
     total.value = result.total || 0
+    // a code replaced or revoked elsewhere no longer works, so it must not stay on screen
+    if (code.code?.id !== codeInfo.value?.id || code.code?.revokedAt) clearOneTimeCode()
     codeInfo.value = code.code
     codeRevision.value = code.revision || 0
   } catch (cause) {
-    if (!controller.signal.aborted && operation === generation)
+    if (!controller.signal.aborted && operation === generation) {
+      // rows from the previous tab must not stand in for a list that failed to load
+      memberships.value = []
+      total.value = 0
+      rosterFailed.value = true
       error.value = safeError(cause).message
+    }
   } finally {
     controllers.delete(controller)
     if (operation === generation) loading.value = false
   }
+}
+
+async function focusRoster() {
+  await nextTick()
+  rosterHeading.value?.focus()
+}
+
+async function changePage(nextPage) {
+  await loadSelected(nextPage)
+  await focusRoster()
+}
+
+// reloads before showing the message, because a reload clears the page's error
+async function reportAfterReload(failure) {
+  if (RELOAD_AFTER.has(failure.code)) {
+    await loadSelected(page.value)
+    if (memberships.value.length === 0 && page.value > 1) await loadSelected(page.value - 1)
+  }
+  error.value = failure.message
 }
 
 // replaceState skips the router so the layout keeps focus and scroll on a class switch
@@ -269,8 +308,10 @@ async function changeMembership(member, nextStatus) {
     else if (status.value === 'active') notice.value = 'Class access removed.'
     else notice.value = 'Join request declined.'
     await loadSelected(page.value)
+    if (memberships.value.length === 0 && page.value > 1) await loadSelected(page.value - 1)
+    await focusRoster()
   } catch (cause) {
-    if (!controller.signal.aborted) error.value = safeError(cause).message
+    if (!controller.signal.aborted) await reportAfterReload(safeError(cause))
   } finally {
     controllers.delete(controller)
     const next = { ...pendingIds.value }
@@ -284,7 +325,10 @@ async function generateCode(expectedRevision) {
   if (savingCode.value) return
   const cohortId = selectedId.value
   const operation = generation
-  codeInfo.value = null
+  const replacedLiveCode =
+    Boolean(codeInfo.value) &&
+    !codeInfo.value.revokedAt &&
+    new Date(codeInfo.value.expiresAt).getTime() > Date.now()
   clearOneTimeCode()
   const controller = requestController()
   savingCode.value = true
@@ -297,9 +341,11 @@ async function generateCode(expectedRevision) {
     invitationUrl.value = result.invitationUrl
     await nextTick()
     codePanel.value?.receiveCode(result.rawCode)
-    notice.value = 'A new seven-day code is ready to share. The previous code has been revoked.'
+    notice.value = replacedLiveCode
+      ? 'A new seven-day code is ready to share. The previous code has been revoked.'
+      : 'A new seven-day code is ready to share.'
   } catch (cause) {
-    if (!controller.signal.aborted) error.value = safeError(cause).message
+    if (!controller.signal.aborted) await reportAfterReload(safeError(cause))
   } finally {
     controllers.delete(controller)
     savingCode.value = false
@@ -321,7 +367,7 @@ async function revokeCode({ id, revision }) {
     codeRevision.value = result.revision || 0
     notice.value = 'The invitation code was revoked.'
   } catch (cause) {
-    if (!controller.signal.aborted) error.value = safeError(cause).message
+    if (!controller.signal.aborted) await reportAfterReload(safeError(cause))
   } finally {
     controllers.delete(controller)
     savingCode.value = false
@@ -338,10 +384,14 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section class="cohort-page" aria-labelledby="class-management-title">
+  <section
+    class="cohort-page"
+    :class="{ 'cohort-page--wide': view === 'results' }"
+    aria-labelledby="class-management-title"
+  >
     <h1 id="class-management-title" tabindex="-1">Manage your classes</h1>
-    <p v-if="error" class="cohort-alert" role="alert">{{ error }}</p>
-    <p v-if="notice" class="cohort-notice" role="status">{{ notice }}</p>
+    <p v-if="error" class="cohort-alert cohort-feedback" role="alert">{{ error }}</p>
+    <p v-if="notice" class="cohort-notice cohort-feedback" role="status">{{ notice }}</p>
     <p v-if="loading && cohorts.length === 0" role="status">Loading your classes…</p>
     <p v-else-if="cohorts.length === 0" class="cohort-empty">
       No active classes are assigned to your account.
@@ -403,12 +453,13 @@ onBeforeUnmount(() => {
         :revision="codeRevision"
         :pending="savingCode"
         :loading="loading"
+        :unavailable="rosterFailed && !codeInfo"
         @generate="generateCode"
         @revoke="revokeCode"
         @clear="invitationUrl = ''"
       />
       <section v-show="view === 'roster'" class="cohort-panel" aria-labelledby="member-queue-title">
-        <h2 id="member-queue-title">Class access</h2>
+        <h2 id="member-queue-title" ref="rosterHeading" tabindex="-1">Class access</h2>
         <div class="cohort-tabs" role="group" aria-label="Membership status">
           <button
             v-for="option in ['pending', 'active', 'removed']"
@@ -424,6 +475,14 @@ onBeforeUnmount(() => {
           </button>
         </div>
         <p v-if="loading" role="status">Loading class members…</p>
+        <button
+          v-else-if="rosterFailed"
+          class="btn btn-secondary cohort-action"
+          type="button"
+          @click="loadSelected(page)"
+        >
+          Try again
+        </button>
         <EnrollmentQueue
           v-else
           :memberships="memberships"
@@ -433,11 +492,12 @@ onBeforeUnmount(() => {
           :total="total"
           :busy="workspaceBusy"
           :recovery-allowed="canIssueRecovery"
+          :class-name="currentCohort?.cohortName"
           @approve="changeMembership($event, 'active')"
           @reject="changeMembership($event, 'removed')"
           @remove="changeMembership($event, 'removed')"
           @recover="selectRecoveryStudent"
-          @page="loadSelected"
+          @page="changePage"
         />
         <RecoveryIssueForm
           v-if="recoveryStudent"

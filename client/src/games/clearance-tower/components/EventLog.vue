@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { describeStep, OUTCOME_LABELS } from '../clearanceTower.js'
+import { describeStep, OUTCOME_LABELS, stepVerdict } from '../clearanceTower.js'
 
 const props = defineProps({
   level: { type: Object, required: true },
@@ -23,14 +23,13 @@ const newestFirst = computed(() => [...props.events].reverse())
         :key="event.id"
         class="clear-log-entry"
         :class="`is-${event.outcome}`"
-        :data-event-id="event.id"
+        data-testid="clear-log-entry"
       >
         <span class="clear-outcome">{{ OUTCOME_LABELS[event.outcome] }}</span>
         <span class="clear-story">{{ event.story }}</span>
         <ul class="clear-steps">
           <li v-for="(step, index) in event.steps" :key="index">
-            {{ describeStep(level, step) }}:
-            <strong>{{ step.allowed ? 'allowed' : 'blocked' }}</strong
+            {{ describeStep(level, step) }}: <strong>{{ stepVerdict(step) }}</strong
             >.
             {{ step.reason }}
           </li>

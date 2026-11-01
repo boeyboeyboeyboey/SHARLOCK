@@ -1,5 +1,6 @@
 <script setup>
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useAuthStore } from '../../auth/store.js'
 import { listAttemptContexts, safeAttemptError } from '../api.js'
 defineProps({
   disabled: Boolean,
@@ -7,6 +8,10 @@ defineProps({
   submitLabel: { type: String, default: 'Open the case' },
 })
 const emit = defineEmits(['start'])
+const auth = useAuthStore()
+const isStaff = computed(() =>
+  (auth.user?.globalRoles ?? []).some((role) => role === 'instructor' || role === 'admin'),
+)
 const selected = ref('personal')
 const contexts = ref([])
 const loading = ref(true)
@@ -25,6 +30,8 @@ async function load() {
       page += 1
     } while (rows.length < result.total && result.cohorts.length && page <= 200)
     contexts.value = rows
+    // only class runs rank, so a student's one class is the default; the server still checks it
+    if (!isStaff.value && rows.length === 1) selected.value = rows[0].cohortId
   } catch (failure) {
     if (!controller.signal.aborted) error.value = safeAttemptError(failure).message
   } finally {
@@ -56,6 +63,9 @@ onBeforeUnmount(() => controller.abort())
         {{ context.institutionName }} · {{ context.cohortName }}
       </option>
     </select>
+    <p v-if="isStaff && contexts.length">
+      Staff runs are saved to your own history. They are not ranked or shown in class results.
+    </p>
     <p v-if="loading" role="status">Checking available classes…</p>
     <p v-if="error" role="alert">
       {{ error }} <button type="button" class="text-link" @click="load">Retry class list</button>

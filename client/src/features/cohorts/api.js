@@ -3,16 +3,18 @@ import { requestCsrfToken } from '../auth/api.js'
 
 const SAFE_MESSAGES = Object.freeze({
   COHORT_INVALID_CODE: 'That class code is invalid, expired, or no longer active.',
-  COHORT_CONFLICT: 'This class changed while you were viewing it. Refresh and try again.',
-  COHORT_ALREADY_IN_CLASS: "You're already in a class. Leave it before joining another.",
-  COHORT_STALE_REQUEST: 'This class request changed. Refresh the list and try again.',
-  COHORT_STALE_CODE: 'The invitation code changed. Refresh before making another change.',
-  COHORT_CODE_UNAVAILABLE: 'A class code could not be issued. Refresh and try again.',
+  COHORT_CONFLICT: 'This class changed while you were viewing it. Try again.',
+  COHORT_ALREADY_IN_CLASS:
+    "You're already in a class or waiting to join one. To change class, ask your instructor.",
+  COHORT_STALE_REQUEST: 'This class request changed. The list was refreshed; review it.',
+  COHORT_STALE_CODE: 'The invitation code changed. The panel was refreshed; review it.',
+  // only the join path answers with this code; it stays generic about why
+  COHORT_CODE_UNAVAILABLE:
+    "That class code isn't valid or has expired. Check it with your instructor.",
   COHORT_UNAVAILABLE: 'The class workspace is unavailable. Try again shortly.',
   VALIDATION_ERROR: 'Check the class code and try again.',
   COHORT_FORBIDDEN: 'You do not have permission to manage this class.',
   COHORT_NOT_FOUND: 'This class or request is no longer available. Refresh the list.',
-  AUTHENTICATION_REQUIRED: 'Your session ended. Sign in again to continue.',
   CSRF_INVALID: 'The security check expired. Review the form and try again.',
   ORIGIN_FORBIDDEN: 'This request could not be verified. Refresh and try again.',
 })
@@ -144,10 +146,11 @@ export async function issueValidatedEnrollmentCode(cohortId, expectedRevision, s
       throw new Error()
     return { ...result, rawCode, expiresAt: new Date(expiresAt).toISOString() }
   } catch {
+    // the server has already committed by now, so the previous code is gone either way
     throw new CohortApiError({
-      code: 'COHORT_CODE_UNAVAILABLE',
+      code: 'COHORT_CODE_NOT_SHOWN',
       status: 0,
-      message: SAFE_MESSAGES.COHORT_CODE_UNAVAILABLE,
+      message: 'A new code was made but could not be shown. Use Replace code to issue another.',
     })
   }
 }

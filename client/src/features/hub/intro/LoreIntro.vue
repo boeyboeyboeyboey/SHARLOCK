@@ -1,4 +1,5 @@
 <script setup>
+// font: libre baskerville (ofl-1.1), self-hosted; credited in credits.md
 import '@fontsource/libre-baskerville/400.css'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import PixelIcon from '../../../components/town/PixelIcon.vue'
@@ -191,6 +192,11 @@ async function toggleSound() {
 }
 
 function onKeydown(event) {
+  // space on a focused button presses that button, as it does everywhere else
+  if (event.key === ' ' && event.target instanceof HTMLButtonElement) {
+    event.stopPropagation()
+    return
+  }
   if (event.key === 'Escape' || event.key === ' ') {
     event.preventDefault()
     event.stopPropagation()
@@ -251,6 +257,8 @@ onMounted(async () => {
   } else showCard()
 })
 onBeforeUnmount(() => {
+  // a mount still waiting on play() must not start the card timers after this
+  finished = true
   clear()
   stopAudio()
 })
@@ -275,8 +283,8 @@ onBeforeUnmount(() => {
         type="button"
         class="lore-sound"
         data-testid="lore-intro-sound"
-        :aria-label="muted ? 'Turn on intro sound' : 'Mute intro sound'"
-        :aria-pressed="muted"
+        aria-label="Intro sound"
+        :aria-pressed="!muted"
         @click.stop="toggleSound"
       >
         <PixelIcon :name="muted ? 'mute' : 'sound'" :size="20" />
@@ -415,6 +423,16 @@ onBeforeUnmount(() => {
 .no-motion,
 .no-motion .lore-card {
   transition: none;
+}
+@media (pointer: coarse) {
+  .lore-sound,
+  .lore-skip,
+  .lore-continue {
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .lore-intro,

@@ -1,8 +1,9 @@
 <script setup>
 import { ref, computed, nextTick, onMounted, onBeforeUnmount, watch } from 'vue'
+// library: @panzoom/panzoom (mit), the 2d town camera; credited in credits.md
 import Panzoom from '@panzoom/panzoom'
 import { TOWN_SIZE } from '../../data/gameCatalog.js'
-import { clampPan, fitScale, panToCenter, stepZoom, viewCenter } from './townZoom.js'
+import { MAX_ZOOM, clampPan, fitScale, panToCenter, stepZoom, viewCenter } from './townZoom.js'
 import { sharlockMarkup, townFindMarkup, townNpcMarkup } from './townArt.js'
 import { createTownWalk, doorPoint } from './townWalk.js'
 import { useTownWalker } from './useTownWalker.js'
@@ -33,7 +34,7 @@ const scale = ref(1)
 const dragging = ref(false)
 // the floor is the scale at which the whole town fits the viewport
 const minScale = ref(1)
-const maxScale = 2
+const maxScale = MAX_ZOOM
 let correcting = false
 const activePointers = new Map()
 let camera
@@ -67,7 +68,11 @@ const talk = useNpcDialogue()
 const discoveries = useDiscoveries()
 const dialogue = ref(null)
 const talkNote = ref('')
-const npcArt = Object.fromEntries(townNpcs.map((npc) => [npc.id, townNpcMarkup(npc.style)]))
+// the two people among the finds are drawn like the townsfolk
+const personFinds = townFinds.filter((find) => find.kind === 'npc')
+const npcArt = Object.fromEntries(
+  [...townNpcs, ...personFinds].map((npc) => [npc.id, townNpcMarkup(npc.style)]),
+)
 const npcDefs = new Map(townNpcs.map((npc) => [npc.id, npc]))
 const findArt = townFindMarkup()
 const walker = useTownWalker({ walk, reducedMotion, afterMove: stepCamera })
@@ -108,6 +113,15 @@ const doorStyle = computed(() => {
   return { left: `${door.x}px`, top: `${door.y - 40}px` }
 })
 
+// a person among the finds is as wide as the townsfolk, so its art stays centred on its spot
+function findStyle(find) {
+  return {
+    left: `${find.x}px`,
+    top: `${find.y}px`,
+    zIndex: Math.round(find.y) + 1,
+    ...(find.kind === 'npc' && { width: '48px', marginLeft: '-24px' }),
+  }
+}
 function cancelClose() {
   clearTimeout(closeTimer)
 }
@@ -228,6 +242,11 @@ function goInFromTalk() {
   closeTalk(false)
   if (game) openBuilding(game)
 }
+// the wanderers' loop stops while nothing can move, so it comes back here
+watch(
+  () => [props.paused, talk.open.value],
+  () => npcState.start(),
+)
 watch(
   () => [nearTalk.value?.def.id, props.paused],
   ([id, isPaused]) => {
@@ -326,6 +345,19 @@ function groundClick(event) {
 }
 function viewSize() {
   return { width: viewport.value?.clientWidth ?? 0, height: viewport.value?.clientHeight ?? 0 }
+}
+// the camera's resting place: sharlock in the middle at the default zoom, used for the first paint and the reset button
+function startCamera(view, zoom) {
+  const here = { x: walker.x.value, y: walker.y.value }
+  return clampPan(panToCenter(here, zoom, view, TOWN_SIZE), zoom, view, TOWN_SIZE)
+}
+// escape belongs to an open card, then an open talk; otherwise it reaches the menu
+function frameEscape(event) {
+  if (!selectedId.value && !talk.open.value) return
+  event.stopPropagation()
+  event.preventDefault()
+  if (selectedId.value) dismiss(true)
+  else closeTalk()
 }
 function zoomStep(direction) {
   if (!camera) return
@@ -427,7 +459,9 @@ function syncFloor() {
   if (!camera || !viewport.value) return
   const fit = fitScale(viewSize(), FIT_WORLD)
   minScale.value = fit
-  camera.setOptions({ minScale: fit, startScale: Math.max(1, fit) })
+  const startScale = Math.max(1, fit)
+  const start = startCamera(viewSize(), startScale)
+  camera.setOptions({ minScale: fit, startScale, startX: start.x, startY: start.y })
   if (camera.getScale() < fit - 0.001) camera.zoom(fit, { animate: false, force: true })
   // a new viewport size can leave the old pan off the world, so pull it back in
   const pan = camera.getPan()
@@ -443,22 +477,32 @@ function resizeCamera() {
     camCenter = null
     const pan = camera.getPan()
     camera.pan(pan.x, pan.y, { force: true })
+    // turning a phone keeps sharlock in view
+    stepCamera(1)
     placeCard()
   })
 }
 onMounted(() => {
   // panzoom owns drag, pinch, focal zoom and boundary math for the town canvas
+  const view = viewSize()
+  const firstScale = Math.max(1, fitScale(view, FIT_WORLD))
+  const first = startCamera(view, firstScale)
   camera = Panzoom(world.value, {
     canvas: true,
     cursor: 'grab',
     minScale: minScale.value,
     maxScale,
+    startScale: firstScale,
+    startX: first.x,
+    startY: first.y,
     setTransform: applyTransform,
     animate: false,
     noBind: true,
     overflow: 'clip',
     handleStartEvent: (event) => event.preventDefault(),
   })
+  // the constructor only pans on a later timer, so the first frame could still show the corner
+  camera.pan(first.x, first.y, { force: true, animate: false })
   world.value.addEventListener('panzoomchange', cameraChanged)
   syncFloor()
   window.addEventListener('keydown', walkingKey)
@@ -536,7 +580,7 @@ onBeforeUnmount(() => {
       class="map-frame"
       @pointerleave="scheduleClose"
       @focusout="focusLeft"
-      @keydown.esc.stop.prevent="dismiss(true)"
+      @keydown.esc="frameEscape"
     >
       <div
         ref="viewport"
@@ -616,7 +660,7 @@ onBeforeUnmount(() => {
             class="town-find"
             :class="{ 'is-found': discoveries.has(find.id) }"
             :data-testid="`town-find-${find.id}`"
-            :style="{ left: `${find.x}px`, top: `${find.y}px`, zIndex: Math.round(find.y) + 1 }"
+            :style="findStyle(find)"
             aria-hidden="true"
           >
             <div

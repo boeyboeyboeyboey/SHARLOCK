@@ -19,7 +19,7 @@ const parentUnavailable = (membership) =>
 
 <template>
   <section class="cohort-panel" aria-labelledby="membership-list-title">
-    <h2 id="membership-list-title" class="visually-hidden">Your classes</h2>
+    <h2 id="membership-list-title" class="visually-hidden">Class memberships</h2>
     <p v-if="pending" role="status">Loading your classes…</p>
     <p v-else-if="memberships.length === 0" class="cohort-empty">
       You have not joined a class yet. Personal play is available while you learn.
@@ -29,6 +29,9 @@ const parentUnavailable = (membership) =>
         <div>
           <strong>{{ membership.cohortName || 'Unavailable class' }}</strong
           ><small>{{ membership.institutionName || 'Unavailable institution' }}</small>
+          <small v-if="membership.status === 'pending' && !parentUnavailable(membership)">
+            Waiting for your instructor to approve. You can still play personal practice.
+          </small>
         </div>
         <div class="cohort-status-details">
           <span class="cohort-status">{{ statusText(membership) }}</span>

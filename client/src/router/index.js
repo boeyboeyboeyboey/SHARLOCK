@@ -1,7 +1,8 @@
+// library: vue-router (mit); credited in credits.md
 import { createRouter, createWebHistory } from 'vue-router'
 import { reactive, readonly } from 'vue'
 import Dashboard from '../views/Dashboard.vue'
-import ComingSoon from '../views/ComingSoon.vue'
+import NoAccess from '../views/NoAccess.vue'
 
 const RESET_PASSWORD_PATH = '/reset-password'
 const RESET_TOKEN_PATTERN = /^[A-Za-z\d_-]{43}$/
@@ -140,7 +141,7 @@ export const routes = [
     path: '/instructor',
     component: () => import('../features/cohorts/pages/ClassManagementPage.vue'),
     meta: {
-      title: 'Class enrollment',
+      title: 'Manage your classes',
       requiresAccount: true,
       allowedRoles: ['instructor', 'admin'],
     },
@@ -165,7 +166,7 @@ export const routes = [
     path: `/games/${previous}`,
     redirect: `/games/${current}`,
   })),
-  // the five game routes render inside a Babylon room; /games alone is not a page
+  // the game routes render inside a room still; /games alone is not a page
   {
     path: '/games',
     redirect: '/',
@@ -186,7 +187,7 @@ export const routes = [
       {
         path: '/games/social-engineering-simulator',
         component: () => import('../games/social-engineering-simulator/SocialEngineeringSimulator.vue'),
-        meta: { interior: 'social-engineering-simulator', title: 'LLM Social Engineering Simulator', requiresAccount: true },
+        meta: { interior: 'social-engineering-simulator', title: 'Help Desk Shift', requiresAccount: true },
       },
       {
         path: '/games/cli-cyber-defender',
@@ -208,11 +209,7 @@ export const routes = [
   },
   {
     path: '/forbidden',
-    component: ComingSoon,
-    props: {
-      title: "You don't have access to this page.",
-      showMascot: false,
-    },
+    component: NoAccess,
     meta: { title: 'No access' },
   },
   {

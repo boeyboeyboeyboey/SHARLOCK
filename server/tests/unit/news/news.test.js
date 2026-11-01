@@ -4,6 +4,7 @@ import {
   editionWindow,
   FRESH_MS,
   LIFETIME_MS,
+  NewsError,
   parseNewsQuery,
 } from '../../../src/modules/news/policy.js'
 import {
@@ -12,6 +13,7 @@ import {
   normalizeGuardian,
 } from '../../../src/modules/news/providers/guardian.js'
 import { createNewsService } from '../../../src/modules/news/service.js'
+import { SAMPLE_PROVIDER, sampleEdition } from '../../../src/modules/news/sample.js'
 
 const now = Date.parse('2026-09-17T16:00:00Z')
 const edition = editionWindow('cybersecurity', 'week', now)
@@ -119,11 +121,9 @@ describe('news validation and provider normalization', () => {
       code: 'NEWS_UPSTREAM_UNAVAILABLE',
     })
     fetchImpl.mockRejectedValue(new Error('https://provider/?api-key=private-key'))
-    try {
-      await provider.fetchEdition(edition)
-    } catch (error) {
-      expect(error.message).not.toContain('private-key')
-    }
+    const error = await provider.fetchEdition(edition).catch((failure) => failure)
+    expect(error).toBeInstanceOf(NewsError)
+    expect(error.message).not.toContain('private-key')
   })
 })
 
@@ -181,9 +181,136 @@ describe('edition cache lifecycle', () => {
     const { service, provider, store } = setup()
     await service.get(parseNewsQuery({}))
     provider.configured = false
-    await expect(service.get(parseNewsQuery({ section: 'technology' }))).rejects.toMatchObject({
-      code: 'NEWS_NOT_CONFIGURED',
-    })
+    const technology = await service.get(parseNewsQuery({ section: 'technology' }))
+    expect(technology).toMatchObject({ sample: true, section: 'technology' })
     expect(store.reserve).toHaveBeenCalledTimes(1)
+  })
+  it('serves the labelled sample without a key and never caches or counts it', async () => {
+    const { service, provider, store } = setup()
+    provider.configured = false
+    const result = await service.get(parseNewsQuery({}))
+    expect(result).toMatchObject({ sample: true, provider: SAMPLE_PROVIDER, stale: false })
+    expect(result.articles.length).toBeGreaterThan(0)
+    expect(store.reserve).not.toHaveBeenCalled()
+    expect(store.write).not.toHaveBeenCalled()
+    expect(provider.fetchEdition).not.toHaveBeenCalled()
+  })
+  it('serves the sample when the publisher cannot be reached and nothing is cached', async () => {
+    const { service, provider, store } = setup()
+    provider.fetchEdition.mockRejectedValue(
+      new NewsError('NEWS_UPSTREAM_UNAVAILABLE', 'Could not reach the publisher.', now + 60000),
+    )
+    const result = await service.get(parseNewsQuery({}))
+    expect(result.sample).toBe(true)
+    expect(store.write).not.toHaveBeenCalled()
+    // the cooldown still applies, so a failing publisher is not asked again at once
+    await service.get(parseNewsQuery({}))
+    expect(provider.fetchEdition).toHaveBeenCalledTimes(1)
+  })
+  it('prefers a cached edition, labelled stale, to the sample', async () => {
+    const { service, provider, advance } = setup()
+    const query = parseNewsQuery({})
+    await service.get(query)
+    advance(FRESH_MS)
+    provider.fetchEdition.mockRejectedValue(
+      new NewsError('NEWS_UPSTREAM_UNAVAILABLE', 'Could not reach the publisher.', now + 60000),
+    )
+    const result = await service.get(query)
+    expect(result.stale).toBe(true)
+    expect(result.sample).toBeUndefined()
+    expect(result.provider).toBe('The Guardian')
+  })
+  it('serves the sample when the day quota is spent and nothing is cached', async () => {
+    const { service, provider, store } = setup()
+    const midnight = now + 3600000
+    store.reserve.mockRejectedValue(
+      new NewsError('NEWS_DAILY_LIMIT', 'Resting until tomorrow.', midnight),
+    )
+    const result = await service.get(parseNewsQuery({}))
+    expect(result).toMatchObject({ sample: true, provider: SAMPLE_PROVIDER })
+    expect(result.refreshAvailableAt).toBe(new Date(midnight).toISOString())
+    expect(store.write).not.toHaveBeenCalled()
+    expect(provider.fetchEdition).not.toHaveBeenCalled()
+  })
+  it('prefers the stale cached edition when the day quota is spent', async () => {
+    const { service, store, advance } = setup()
+    const query = parseNewsQuery({})
+    await service.get(query)
+    advance(FRESH_MS)
+    const midnight = now + FRESH_MS + 3600000
+    store.reserve.mockRejectedValue(
+      new NewsError('NEWS_DAILY_LIMIT', 'Resting until tomorrow.', midnight),
+    )
+    const result = await service.get(query)
+    expect(result.stale).toBe(true)
+    expect(result.sample).toBeUndefined()
+    expect(result.refreshAvailableAt).toBe(new Date(midnight).toISOString())
+  })
+  it('keeps the busy desk a retryable refusal, not the sample', async () => {
+    const { service, provider, advance } = setup()
+    // four refreshes hold the desk: every section and range of one day, none answered yet
+    let release
+    provider.fetchEdition.mockReturnValue(new Promise((_resolve, reject) => (release = reject)))
+    const queries = ['cybersecurity', 'technology'].flatMap((section) =>
+      ['week', 'month'].map((range) => parseNewsQuery({ section, range })),
+    )
+    const held = queries.map((query) => service.get(query))
+    await vi.waitFor(() => expect(provider.fetchEdition).toHaveBeenCalledTimes(4))
+    // the next day is another edition, and the desk has no room for it
+    advance(2 * 86400000)
+    const refused = await service.get(queries[0]).catch((error) => error)
+    expect(refused).toBeInstanceOf(NewsError)
+    expect(refused.code).toBe('NEWS_BUSY')
+    release(new Error('done'))
+    await Promise.allSettled(held)
+  })
+  it('keeps an unexpected failure as a refusal, not the sample', async () => {
+    const { service, provider } = setup()
+    provider.fetchEdition.mockRejectedValue(new Error('private detail'))
+    await expect(service.get(parseNewsQuery({}))).rejects.toMatchObject({
+      code: 'NEWS_UNAVAILABLE',
+    })
+  })
+})
+
+describe('sample edition content', () => {
+  const editions = ['cybersecurity', 'technology'].flatMap((section) =>
+    ['week', 'month'].map((range) => editionWindow(section, range, now)),
+  )
+  const realPublishers =
+    /guardian|reuters|bbc|new york times|associated press|bloomberg|microsoft|google|apple|amazon|meta\b|owasp/i
+
+  it.each(editions.map((edition) => [edition.section, edition.range, edition]))(
+    '%s %s is labelled, inert and inside its own window',
+    (_section, _range, edition) => {
+      const result = sampleEdition(edition, now)
+      expect(result).toMatchObject({ sample: true, provider: SAMPLE_PROVIDER })
+      expect(result.articles.length).toBeGreaterThan(0)
+      expect(new Set(result.articles.map((article) => article.id)).size).toBe(
+        result.articles.length,
+      )
+      for (const article of result.articles) {
+        expect(article.url).toBe('')
+        const time = Date.parse(article.publishedAt)
+        expect(time).toBeGreaterThanOrEqual(Date.parse(edition.window.from))
+        expect(time).toBeLessThan(now)
+        const inline = [...article.excerpt, ...article.byline]
+        expect(inline.every((node) => node.type === 'text')).toBe(true)
+        const text = [article.title, ...inline.map((node) => node.text)].join(' ')
+        expect(text).not.toMatch(realPublishers)
+        expect(text).not.toMatch(/https?:|www\.|<[a-z]/i)
+      }
+    },
+  )
+
+  it('adds older stories to the 30 day view only', () => {
+    const week = sampleEdition(editionWindow('cybersecurity', 'week', now), now)
+    const month = sampleEdition(editionWindow('cybersecurity', 'month', now), now)
+    expect(month.articles.length).toBeGreaterThan(week.articles.length)
+  })
+
+  it('expires later than now, so the browser accepts it', () => {
+    const result = sampleEdition(editionWindow('technology', 'week', now), now)
+    expect(Date.parse(result.expiresAt)).toBeGreaterThan(now)
   })
 })

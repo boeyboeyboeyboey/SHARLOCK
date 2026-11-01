@@ -7,7 +7,13 @@ const props = defineProps({
 })
 const emit = defineEmits(['request'])
 
+// aria-disabled keeps keyboard focus on the button while a request runs or once hints run out
+function request() {
+  if (!unavailable.value) emit('request')
+}
+
 const exhausted = computed(() => props.hints.used >= props.hints.max)
+const unavailable = computed(() => exhausted.value || props.disabled)
 const label = computed(() => {
   if (exhausted.value) return 'No more hints'
   return props.hints.used === 0 ? 'Hint' : 'Another hint'
@@ -25,8 +31,8 @@ const label = computed(() => {
     <button
       type="button"
       class="clear-button clear-hint-button"
-      :disabled="exhausted || disabled"
-      @click="emit('request')"
+      :aria-disabled="unavailable"
+      @click="request"
     >
       {{ label }}
       <span v-if="!exhausted" class="clear-hint-cost">−{{ hints.cost }} points</span>

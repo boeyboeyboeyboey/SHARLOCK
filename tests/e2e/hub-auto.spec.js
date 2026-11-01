@@ -3,8 +3,6 @@ import { test, expect } from './fixtures/auth.js'
 // no hub override here: headless chromium renders in software, so the device checks must pick the 2D map
 test.setTimeout(240000)
 const slow = { timeout: 120000 }
-const shots =
-  '/private/tmp/claude-501/-Users-boey-Documents-SMU-2-1-wad2-group-proj-IS216-GROUP7-SHARLOCK/096f058d-3b1d-428a-b555-066dffafadfc/scratchpad'
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('sharlock.hubWatchManual', '1'))
@@ -39,7 +37,6 @@ test('picks the 2D town automatically and remembers a dismissed notice', async (
     '/about#graphics',
   )
   expect(await stored(page, 'sharlock.townMode')).toBeNull()
-  await page.screenshot({ path: `${shots}/hub02-notice.png` })
 
   await page.getByTestId('town-mode-notice-close').click()
   await expect(notice).toHaveCount(0)
@@ -59,7 +56,12 @@ test('asks before trying 3D and persists a confirmed choice', async ({ page }) =
   await expect(warning).toBeVisible()
   await expect(warning).toContainText('This device may struggle to run the 3D town')
   await expect(page.getByTestId('hub-3d-cancel')).toBeFocused()
-  await page.screenshot({ path: `${shots}/hub02-warning.png` })
+  // a native dialog gets no bootstrap modal variables, so the panel has to supply its own
+  await expect(warning.locator('.modal-content')).toHaveCSS(
+    'background-color',
+    'rgb(255, 248, 223)',
+  )
+  await expect(warning.locator('.modal-body')).toHaveCSS('padding-top', '16px')
   await page.keyboard.press('Escape')
   await expect(warning).toHaveCount(0)
   await expect(page.getByRole('region', { name: 'Interactive town map' })).toBeVisible()
@@ -77,6 +79,27 @@ test('asks before trying 3D and persists a confirmed choice', async ({ page }) =
   await page.reload()
   await page.waitForFunction(() => window.__hub?.state.ready === true, null, slow)
   await expect(page.getByTestId('hub-3d-warning')).toHaveCount(0)
+})
+
+test('Settings > View on a 2D device shows the warning over the Settings dialog', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await expect(page.getByRole('region', { name: 'Interactive town map' })).toBeVisible()
+  await page.getByTestId('menu-button').click()
+  await page.getByRole('link', { name: 'Settings' }).click()
+  const settings = page.getByRole('dialog', { name: 'Settings' })
+  await expect(settings).toBeVisible()
+  await page.getByTestId('settings-view').click()
+  const warning = page.getByTestId('hub-3d-warning')
+  await expect(warning).toBeVisible()
+  const cancel = page.getByTestId('hub-3d-cancel')
+  await expect(cancel).toBeFocused()
+  // a real click lands on it, which proves it is not stuck behind the modal
+  await cancel.click()
+  await expect(warning).toHaveCount(0)
+  await expect(settings).toBeVisible()
+  await expect(page.getByTestId('settings-view')).toBeFocused()
 })
 
 test('explains the modes on the About page', async ({ page }) => {

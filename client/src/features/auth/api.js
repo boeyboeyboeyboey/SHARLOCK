@@ -13,15 +13,16 @@ const FIELD_NAMES = new Set([
 const SAFE_MESSAGES = Object.freeze({
   AUTHENTICATION_REQUIRED: 'Your session has ended. Sign in again to continue.',
   INVALID_CREDENTIALS: 'Email, username or password is incorrect.',
-  ACCOUNT_UNAVAILABLE: 'An account could not be created with those details.',
+  ACCOUNT_UNAVAILABLE:
+    'An account could not be created with those details. If you already have one, or started signing up, sign in to continue.',
   VALIDATION_ERROR: 'Check the highlighted fields and try again.',
   CSRF_INVALID: 'Your security check expired. Review the form and try again.',
   ORIGIN_FORBIDDEN: 'This request could not be verified. Refresh and try again.',
   RATE_LIMITED: 'Too many requests. Please try again later.',
   PASSWORD_SERVICE_BUSY: 'Sign-in is temporarily busy. Please try again shortly.',
   VERIFICATION_CODE_INVALID: 'That code is not right. Check it and try again.',
-  VERIFICATION_CODE_EXPIRED: 'That code has expired. Request a new one.',
-  VERIFICATION_ATTEMPTS_EXCEEDED: 'Too many wrong codes. Request a new code to try again.',
+  VERIFICATION_CODE_EXPIRED: 'That code has expired. Use Resend code to get a new one.',
+  VERIFICATION_ATTEMPTS_EXCEEDED: 'Too many wrong codes. Use Resend code to get a new one.',
   VERIFICATION_NOT_PENDING: 'Your sign-up session ended. Sign in to get a new code.',
 })
 
@@ -55,6 +56,16 @@ function safeFieldErrors(value) {
   return Object.freeze(errors)
 }
 
+// words a retry-after in seconds as the wait a person can act on
+function waitPhrase(seconds) {
+  if (seconds < 60) return 'in a moment'
+  const minutes = Math.ceil(seconds / 60)
+  if (minutes === 1) return 'in about a minute'
+  if (minutes < 60) return `in about ${minutes} minutes`
+  const hours = Math.ceil(minutes / 60)
+  return hours === 1 ? 'in about an hour' : `in about ${hours} hours`
+}
+
 export function toSafeAuthError(error) {
   if (error instanceof SafeAuthError) return error
 
@@ -66,7 +77,11 @@ export function toSafeAuthError(error) {
   const payload = error?.response?.data?.error || error
   const code = typeof payload?.code === 'string' ? payload.code : 'REQUEST_FAILED'
   const knownMessage = Object.hasOwn(SAFE_MESSAGES, code) ? SAFE_MESSAGES[code] : null
-  const message =
+  const retryAfterHeader = error?.response?.headers?.['retry-after']
+  const retryAfter = Number.isFinite(Number(retryAfterHeader))
+    ? Math.max(1, Number(retryAfterHeader))
+    : null
+  let message =
     knownMessage ||
     (status === 429
       ? SAFE_MESSAGES.RATE_LIMITED
@@ -75,10 +90,8 @@ export function toSafeAuthError(error) {
         : status === 0
           ? 'We could not reach Sharlock. Check your connection and try again.'
           : 'Sharlock could not complete that request. Please try again.')
-  const retryAfterHeader = error?.response?.headers?.['retry-after']
-  const retryAfter = Number.isFinite(Number(retryAfterHeader))
-    ? Math.max(1, Number(retryAfterHeader))
-    : null
+  if (status === 429 && retryAfter)
+    message = `Too many attempts. Try again ${waitPhrase(retryAfter)}.`
 
   return new SafeAuthError({
     code,
@@ -101,9 +114,10 @@ export async function requestCsrfToken() {
   return response.data.csrfToken
 }
 
-export async function requestCurrentUser() {
-  const response = await api.get('/auth/me')
-  return response.data?.user
+// the session probe answers 200 whether or not anyone is signed in
+export async function requestSession() {
+  const response = await api.get('/auth/session')
+  return response.data
 }
 
 export async function requestLogin(payload, csrfToken) {

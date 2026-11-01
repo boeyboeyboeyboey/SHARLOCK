@@ -19,7 +19,7 @@ import { isSolidHud } from './glass.js'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../auth/store.js'
 import { SPRINT } from './scenes/shared/sprint.js'
-import { usePresence } from './presence/usePresence.js'
+import { endSessionFromPresence, usePresence } from './presence/usePresence.js'
 
 const props = defineProps({
   games: { type: Array, required: true },
@@ -37,6 +37,8 @@ const emit = defineEmits(['enter', 'failed', 'slow'])
 const TIER_TO_GRAPHICS = Object.fromEntries(Object.entries(GRAPHICS_TO_TIER).map(([setting, tier]) => [tier, setting]))
 
 const isDev = import.meta.env.DEV
+// the frame counter only shows when asked for, so a demo on the dev server stays clean
+const showStats = isDev && typeof location !== 'undefined' && new URLSearchParams(location.search).has('stats')
 const returnKey = 'sharlock.hubReturn'
 const stage = ref(null)
 const pad = ref(null)
@@ -78,12 +80,9 @@ const presence = usePresence({
     latestPeers = peers
     hub?.setPeers(peers)
   },
-  // 4401: the session is gone server side (a newer sign-in wins), so drop it locally and show the login notice
-  onSessionEnded: (reason) => {
-    if (auth.status !== 'authenticated') return
-    auth.invalidateSession()
-    void router?.replace({ path: '/login', query: { reason: reason === 'replaced' ? 'elsewhere' : 'expired' } }).catch(() => {})
-  },
+  checkSession: () => auth.restoreSession({ force: true, quiet: true }),
+  // 4401 or a refused socket: the session is gone server side (a newer sign-in wins), so show the login notice
+  onSessionEnded: (reason) => endSessionFromPresence(auth, router, reason),
 })
 
 function drawLabels() {
@@ -118,6 +117,8 @@ function drawLabels() {
 
 const lore = useLoreIntro()
 const introPlaying = lore.playing
+// before the first render, so the controls hint and the ambience mount already held
+if (!lore.hasSeen()) lore.start()
 // the intro covers the hub, so its input is paused the same way as for the Times
 const paused = computed(() => props.inputPaused || introPlaying.value)
 const motionQuery = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null
@@ -148,7 +149,7 @@ const status = computed(() => {
   if (!view.ready) return view.lowering ? 'Lowering graphics for smoother play' : 'Loading the town'
   return announcement.value
 })
-const devStats = computed(() => (isDev && view.ready ? `Engine ${view.engine}, ${view.fps} fps, ${view.drawCalls} draws` : ''))
+const devStats = computed(() => (showStats && view.ready ? `Engine ${view.engine}, ${view.fps} fps, ${view.drawCalls} draws` : ''))
 const controlsHint = ref(null)
 // the destination list starts open on wide screens and collapsed below them
 const wideQuery = typeof matchMedia === 'function' ? matchMedia('(min-width: 992px)') : null
@@ -496,7 +497,6 @@ onMounted(() => {
   window.addEventListener('keydown', onInteractKey)
   window.addEventListener('keydown', onEnterKey)
   motionQuery?.addEventListener?.('change', onMotionChange)
-  if (!lore.hasSeen()) lore.start()
   mapTimer = setInterval(samplePlayer, 100)
   labelFrame = requestAnimationFrame(drawLabels)
   mountHub()
@@ -508,6 +508,8 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', onEnterKey)
   motionQuery?.removeEventListener?.('change', onMotionChange)
   gone = true
+  // an intro cut short by a failed engine must not keep owning the escape key in the 2d town
+  lore.stop()
   clearInterval(mapTimer)
   cancelAnimationFrame(labelFrame)
   clearTimeout(announceTimer)
@@ -736,7 +738,7 @@ defineExpose({
 }
 .hub-peer-labels :deep(.hub-peer-label small) {
   color: #f9bd38;
-  font-size: 10px;
+  font-size: 12px;
   text-transform: uppercase;
 }
 .hub-fade {
@@ -804,7 +806,7 @@ defineExpose({
   border-radius: 4px;
   background: rgb(255 255 255 / 10%);
   color: inherit;
-  font: 600 11px/18px ui-monospace, monospace;
+  font: 600 12px/18px ui-monospace, monospace;
 }
 @media (hover: none) and (pointer: coarse) {
   .hub-key {
@@ -955,6 +957,21 @@ defineExpose({
     bottom: 30px;
   }
 }
+/* the touch cluster owns the bottom left corner, so the action bar and the talk panel sit above it */
+@media (pointer: coarse) and (min-width: 576px) {
+  .hub-actions {
+    bottom: 148px;
+  }
+  .hub-talk-panel {
+    bottom: 204px;
+  }
+}
+/* a narrow window with a mouse: the bar stays between the sprint pill and the minimap, and wraps */
+@media (pointer: fine) and (min-width: 576px) and (max-width: 700px) {
+  .hub-actions {
+    max-width: calc(100% - 300px);
+  }
+}
 @media (max-width: 575.98px) {
   /* destinations and Enter stack along the bottom edge, the HUD sits at the top */
   .hub-dock {
@@ -1012,6 +1029,34 @@ defineExpose({
     right: 24px;
     bottom: auto;
     left: auto;
+  }
+}
+/* short, narrow touch screens: a talk takes the free space between the touch controls and the map, and the bar, which does nothing during a talk, steps aside */
+@media (pointer: coarse) and (max-width: 843.98px) and (max-height: 500px) {
+  .hub-talk-panel + .hub-actions {
+    display: none;
+  }
+  .hub-talk-panel.npc-dialogue {
+    right: 76px;
+    bottom: 8px;
+    left: 286px;
+    width: auto;
+    max-height: calc(100% - 130px);
+    transform: none;
+  }
+}
+/* below 576px the touch controls sit on the right, so the panel and the bar stay in the bottom stack, left of them */
+@media (pointer: coarse) and (max-width: 575.98px) and (max-height: 500px) {
+  .hub-dock {
+    top: 64px;
+  }
+  .hub-talk-panel.npc-dialogue {
+    width: calc(100% - 104px);
+    max-height: none;
+  }
+  .hub-actions {
+    align-self: flex-start;
+    max-width: calc(100% - 104px);
   }
 }
 @media (min-width: 768px) and (min-height: 600px) {

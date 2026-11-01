@@ -14,6 +14,9 @@ const fresh = () => ({
   sid: '',
   phase: '',
   phaseEndsAt: 0,
+  graceEndsAt: 0,
+  watching: false,
+  roundLost: false,
   offset: 0,
   roundMs: 0,
   sideWon: null,
@@ -61,11 +64,17 @@ export function createTagSocket({
       failures = 0
       const leavingResults = state.phase === 'results' && message.phase !== 'results'
       if (leavingResults) Object.assign(state, { results: null, saved: null, events: [] })
+      // a new sid means the server replaced this connection, so a round in progress went on without us
+      const replaced = Boolean(state.sid && message.sid && message.sid !== state.sid)
+      if (replaced && ['countdown', 'playing'].includes(state.phase)) state.roundLost = true
+      else if (message.phase === 'playing') state.roundLost = false
       Object.assign(state, {
         status: 'open',
         sid: message.sid ?? state.sid,
         phase: message.phase,
         phaseEndsAt: message.phaseEndsAt ?? 0,
+        graceEndsAt: message.graceEndsAt ?? 0,
+        watching: message.watching === true,
         offset: typeof message.now === 'number' ? message.now - now() : state.offset,
         roundMs: message.roundMs ?? 0,
         sideWon: message.sideWon ?? null,
@@ -76,12 +85,17 @@ export function createTagSocket({
     } else if (message?.type === 'events' && Array.isArray(message.events)) {
       state.events = [...state.events, ...message.events].slice(-MAX_EVENTS)
     } else if (message?.type === 'results' && Array.isArray(message.results)) {
-      state.results = { sideWon: message.sideWon ?? null, rows: message.results }
+      state.results = {
+        sideWon: message.sideWon ?? null,
+        unsaved: message.unsaved ?? null,
+        rows: message.results,
+      }
     } else if (message?.type === 'saved') {
       state.saved = {
         saved: Boolean(message.saved),
         score: message.score ?? null,
         maxScore: message.maxScore ?? null,
+        reason: message.reason ?? null,
       }
     }
   }
@@ -145,10 +159,10 @@ export function createTagSocket({
     start()
   }
 
-  function leave() {
+  function leave(reason = 'left') {
     send({ type: 'leave' })
     stop()
-    state.blocked = 'left'
+    state.blocked = reason
   }
 
   function stop() {

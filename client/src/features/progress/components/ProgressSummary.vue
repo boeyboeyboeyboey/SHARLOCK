@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import GlobalProgressBar from '../../../components/portal/GlobalProgressBar.vue'
 import { gameCatalog } from '../../../data/gameCatalog.js'
+import { topicLabel } from '../topicLabel.js'
 
 const props = defineProps({
   games: { type: Array, default: () => [] },
@@ -68,7 +69,7 @@ function formatDate(value) {
     <h2 id="progress-topics-heading">Topics</h2>
     <ul class="progress-topics">
       <li v-for="outcome in topicOutcomes" :key="outcome.topic">
-        <span>{{ outcome.topic }}</span>
+        <span>{{ topicLabel(outcome.topic) }}</span>
         <span>{{ outcome.passed }} of {{ outcome.attempted }} passed</span>
       </li>
     </ul>

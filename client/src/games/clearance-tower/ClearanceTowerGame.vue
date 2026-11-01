@@ -1,9 +1,10 @@
 <script setup>
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AttemptContextChooser from '../../features/attempts/components/AttemptContextChooser.vue'
 import SavedAttemptResult from '../../features/attempts/components/SavedAttemptResult.vue'
 import HowToPlayDialog from '../../components/common/HowToPlayDialog.vue'
+import { useAuthStore } from '../../features/auth/store.js'
 import { useHowToPlay } from '../../composables/useHowToPlay.js'
 import { playSfx } from '../../composables/playSfx.js'
 import AccessMatrix from './components/AccessMatrix.vue'
@@ -19,7 +20,7 @@ import PredictionPanel from './components/PredictionPanel.vue'
 import RoleDesigner from './components/RoleDesigner.vue'
 import TowerView from './components/TowerView.vue'
 import { describeStep, starText } from './clearanceTower.js'
-import { HOW_TO_PLAY } from './howToPlay.js'
+import { howToPlayFor } from './howToPlay.js'
 import { useClearanceTower } from './composables/useClearanceTower.js'
 import { useDayPlayback } from './composables/useDayPlayback.js'
 import './clearance.css'
@@ -44,6 +45,8 @@ const {
   load,
   complete,
   retry,
+  reload,
+  draftRestored,
   openLevel,
   runDay,
   takeHint,
@@ -52,6 +55,8 @@ const {
 } = useClearanceTower()
 const initializing = ref(true)
 const { open: howToOpen, show: showHowTo } = useHowToPlay('clearance-tower')
+const howToPlay = computed(() => howToPlayFor(snapshot.value?.rulesetVersion))
+const auth = useAuthStore()
 
 const events = computed(() => result.value?.events ?? [])
 const {
@@ -70,7 +75,7 @@ const {
 } = useDayPlayback(events)
 const matrixView = ref('matrix')
 const root = ref(null)
-const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+const motionQuery = window.matchMedia?.('(prefers-reduced-motion: reduce)') ?? null
 
 const showingTower = computed(() => ['design', 'predict', 'day', 'debrief'].includes(phase.value))
 
@@ -96,7 +101,7 @@ watch(phase, async (current) => {
   matrixView.value = 'matrix'
   if (current === 'day') {
     resetPlayback()
-    if (!reducedMotion) play()
+    if (!motionQuery?.matches) play()
   }
   await focusHeading()
 })
@@ -120,9 +125,19 @@ async function replay() {
   reset()
 }
 
+// the os setting can change mid day, so a running autoplay stops as soon as it does
+function stopAutoplayWhenReduced(event) {
+  if (event.matches) pause()
+}
+
 onMounted(async () => {
+  motionQuery?.addEventListener?.('change', stopAutoplayWhenReduced)
   if (typeof route.query.attempt === 'string') await load(route.query.attempt)
   initializing.value = false
+})
+
+onBeforeUnmount(() => {
+  motionQuery?.removeEventListener?.('change', stopAutoplayWhenReduced)
 })
 </script>
 
@@ -135,9 +150,31 @@ onMounted(async () => {
 
     <div v-if="error" class="clear-alert" role="alert">
       {{ error }}
-      <button v-if="retryable" type="button" class="clear-button" :disabled="busy" @click="retry">
+      <button
+        v-if="retryable"
+        type="button"
+        class="clear-button"
+        :aria-disabled="busy"
+        @click="retry"
+      >
         Retry same request
       </button>
+      <button
+        v-else-if="snapshot"
+        type="button"
+        class="clear-button"
+        :aria-disabled="busy"
+        @click="reload"
+      >
+        Reload climb
+      </button>
+      <RouterLink
+        v-if="!retryable && !auth.user"
+        class="clear-back"
+        :to="{ path: '/login', query: { returnTo: route.fullPath } }"
+      >
+        Sign in
+      </RouterLink>
     </div>
     <p v-if="busy || initializing" role="status">Checking the climb with the server…</p>
 
@@ -176,6 +213,18 @@ onMounted(async () => {
       </SavedAttemptResult>
     </div>
 
+    <section
+      v-else-if="snapshot && snapshot.status !== 'active'"
+      class="clear-card"
+      aria-labelledby="clear-ended-title"
+    >
+      <h2 id="clear-ended-title" tabindex="-1" data-phase-heading>This climb has ended</h2>
+      <p>It can no longer be played or saved. Start another climb to keep going.</p>
+      <button type="button" class="clear-button is-primary" @click="replay">
+        Start another climb
+      </button>
+    </section>
+
     <LevelSelect
       v-else-if="snapshot && phase === 'levels'"
       :levels="levels"
@@ -205,6 +254,9 @@ onMounted(async () => {
           <h2 id="clear-design-title" tabindex="-1" data-phase-heading>
             Policy desk · {{ level.title }}
           </h2>
+          <p v-if="draftRestored" class="clear-hint">
+            Your unsaved policy and calls for this case were restored.
+          </p>
           <AccessMatrix
             v-if="level.model === 'dac'"
             v-model="policy.grants"
@@ -267,7 +319,8 @@ onMounted(async () => {
             <button
               type="button"
               class="clear-button is-primary"
-              :disabled="!allPredicted || busy || retryable"
+              :disabled="!allPredicted"
+              :aria-disabled="busy || retryable"
               @click="runDay"
             >
               {{ busy ? 'Running…' : 'Run the day' }}
@@ -312,7 +365,7 @@ onMounted(async () => {
         />
       </div>
     </div>
-    <HowToPlayDialog v-model:open="howToOpen" game-id="clearance-tower" v-bind="HOW_TO_PLAY">
+    <HowToPlayDialog v-model:open="howToOpen" game-id="clearance-tower" v-bind="howToPlay">
       <template #scene="scene">
         <HowToPlayScene
           :step="scene.step"

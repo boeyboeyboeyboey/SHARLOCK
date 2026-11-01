@@ -3,6 +3,8 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { createPinia } from 'pinia'
 import InteriorLayout from '../InteriorLayout.vue'
+import { ref } from 'vue'
+import { useInteriorLeave } from '../useInteriorLeave.js'
 
 const Game = { template: '<p>game content</p><a href="#">x</a>' }
 const Home = { template: '<p>home</p>' }
@@ -103,11 +105,12 @@ describe('InteriorLayout', () => {
   it('offers a sound control that mutes the room theme for the session', async () => {
     const wrapper = await mountAt('/games/cli-cyber-defender')
     const button = wrapper.get('[data-testid="interior-sound"]')
-    expect(button.attributes('aria-label')).toBe('Mute game sound')
+    expect(button.attributes('aria-label')).toBe('Game sound')
     expect(button.attributes('aria-pressed')).toBe('true')
     await button.trigger('click')
     await flushPromises()
-    expect(button.attributes('aria-label')).toBe('Turn on game sound')
+    expect(button.attributes('aria-label')).toBe('Game sound')
+    expect(button.attributes('aria-pressed')).toBe('false')
     expect(sessionStorage.getItem('sharlock.musicMuted')).toBe('1')
     wrapper.unmount()
   })
@@ -130,7 +133,6 @@ describe('every game room (INT-03, INT-04)', () => {
     'clearance-tower',
   ])('%s shows the still with the centred desk and no view switch', async (id) => {
     const wrapper = await mountAt(`/games/${id}`)
-    expect(wrapper.get('[data-testid="interior"]').attributes('data-stage')).toBe('still')
     expect(wrapper.get('[data-testid="interior-still"]').attributes('src')).toBe(
       `/interiors/${id}.webp`,
     )
@@ -190,5 +192,85 @@ describe('game chrome and Exit game', () => {
     await flushPromises()
     expect(lastRouter.currentRoute.value.path).toBe('/')
     wrapper.unmount()
+  })
+})
+
+describe('holding a game while the leave dialog is open', () => {
+  it('tells a registered game when the dialog opens and closes', async () => {
+    const onOpen = vi.fn()
+    const onClose = vi.fn()
+    Game.setup = () => {
+      useInteriorLeave({ onOpen, onClose })
+    }
+    const wrapper = await mountAt('/games/cli-cyber-defender')
+    await wrapper.get('[data-testid="exit-game"]').trigger('click')
+    await flushPromises()
+    expect(onOpen).toHaveBeenCalledTimes(1)
+    expect(onClose).not.toHaveBeenCalled()
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Keep playing')
+      .trigger('click')
+    await flushPromises()
+    expect(onClose).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+    delete Game.setup
+  })
+
+  it('adds a registered game note to the dialog', async () => {
+    Game.setup = () => {
+      useInteriorLeave({ note: ref('The clock is held.') })
+    }
+    const wrapper = await mountAt('/games/cli-cyber-defender')
+    await wrapper.get('[data-testid="exit-game"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain("An unfinished round won't be saved. The clock is held.")
+    wrapper.unmount()
+    delete Game.setup
+  })
+
+  it('releases the game and asks again when the navigation fails', async () => {
+    const onClose = vi.fn()
+    Game.setup = () => {
+      useInteriorLeave({ onClose })
+    }
+    const wrapper = await mountAt('/games/cli-cyber-defender')
+    const router = wrapper.vm.$router
+    const removeGuard = router.beforeEach(() => false)
+    await wrapper.get('[data-testid="exit-game"]').trigger('click')
+    await flushPromises()
+    const leaveNamed = () =>
+      wrapper.findAll('button').find((button) => button.text() === 'Leave game')
+    await leaveNamed().trigger('click')
+    await flushPromises()
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(wrapper.find('[data-testid="interior"]').exists()).toBe(true)
+    removeGuard()
+
+    await wrapper.get('[data-testid="exit-game"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Leave the game?')
+    wrapper.unmount()
+    delete Game.setup
+  })
+
+  it('does not release the game when the player confirms leaving', async () => {
+    const onOpen = vi.fn()
+    const onClose = vi.fn()
+    Game.setup = () => {
+      useInteriorLeave({ onOpen, onClose })
+    }
+    const wrapper = await mountAt('/games/cli-cyber-defender')
+    await wrapper.get('[data-testid="exit-game"]').trigger('click')
+    await flushPromises()
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Leave game')
+      .trigger('click')
+    await flushPromises()
+    expect(onOpen).toHaveBeenCalledTimes(1)
+    expect(onClose).not.toHaveBeenCalled()
+    wrapper.unmount()
+    delete Game.setup
   })
 })

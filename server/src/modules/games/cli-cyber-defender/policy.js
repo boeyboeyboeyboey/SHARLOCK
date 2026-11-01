@@ -10,6 +10,10 @@ export const TOTAL_STEPS = INCIDENT_COUNT + TWO_STEP_INCIDENTS
 export const MAX_LOOKUPS_PER_INCIDENT = 6
 export const MAX_MISTAKES_PER_INCIDENT = 3
 export const MAX_HINT_TIER = 2
+export const MAX_PAUSES_PER_RUN = 2
+export const PAUSE_BUDGET_SECONDS = 30
+// the clock held while a leave dialog is open: its own fixed total, so it spends no pause
+export const LEAVE_HOLD_SECONDS = 30
 export const TIME_PENALTY_SECONDS = 5
 export const MIN_PENALISED_WINDOW_SECONDS = 5
 export const POINTS_PER_STEP = 100
@@ -87,6 +91,13 @@ export function parseCommandBody(body) {
   return { actionId, incidentId, command }
 }
 
+// the pause route takes nothing, or the one reason that holds the clock for a leave dialog
+export function parsePauseBody(body) {
+  if (body?.reason === 'leave' && Object.keys(body).length === 1) return { forLeave: true }
+  parseEmptyBody(body)
+  return { forLeave: false }
+}
+
 export function parseEmptyBody(body) {
   const fieldErrors = readObject(body, [])
   if (Object.keys(fieldErrors).length) throw invalid(fieldErrors)
@@ -152,6 +163,30 @@ export function pauseUnavailable() {
     'CLI_PAUSE_UNAVAILABLE',
     'Only a timed game that is still running can be paused.',
     409,
+  )
+}
+
+export function pausesSpent() {
+  return new CliError(
+    'CLI_PAUSE_UNAVAILABLE',
+    'This game has used all its pauses, so the clock keeps running.',
+    409,
+  )
+}
+
+export function leaveHoldSpent() {
+  return new CliError(
+    'CLI_PAUSE_UNAVAILABLE',
+    'This game has used its time for deciding whether to leave, so the clock keeps running.',
+    409,
+  )
+}
+
+export function terminalFull() {
+  return new CliError(
+    'CLI_UNAVAILABLE',
+    'The terminal is full right now. Try again in a few minutes.',
+    503,
   )
 }
 

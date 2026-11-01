@@ -39,7 +39,6 @@ const discoveries = useDiscoveries()
 }
 .discoveries-list h3 {
   margin: 0 0 4px;
-  font-size: 1rem;
 }
 .discoveries-list p {
   margin: 0 0 4px;

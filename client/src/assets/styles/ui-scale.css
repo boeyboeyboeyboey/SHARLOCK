@@ -6,6 +6,6 @@
 @media (pointer: coarse) {
   .town-map .map-zoom-controls,
   .hub-scene :is(.hub-hud, .hub-dest, .hub-actions, .hub-talk-panel, .hub-map, .controls-hint) {
-    zoom: max(1, var(--ui-scale, 1));
+    zoom: 1;
   }
 }

@@ -71,9 +71,35 @@ test('first entry shows the intro, Skip intro reveals the hub and a reload skips
   await expect(intro(page)).toHaveCount(0)
 })
 
+test('the controls hint waits for the intro on a first visit, then shows', async ({ page }) => {
+  await page.goto('/')
+  await expect(intro(page).getByText(FIRST_CARD)).toBeVisible()
+  await expect(page.getByTestId('controls-hint')).toHaveCount(0)
+  expect(await page.evaluate(() => localStorage.getItem('sharlock.controlsHintSeen'))).toBeNull()
+  await intro(page)
+    .getByRole('button', { name: /skip intro/i })
+    .click()
+  await expect(intro(page)).toHaveCount(0)
+  await expect(page.getByTestId('controls-hint')).toBeVisible()
+  expect(await page.evaluate(() => localStorage.getItem('sharlock.controlsHintSeen'))).toBe('1')
+})
+
+test('the intro controls are full size on touch', async ({ page }, testInfo) => {
+  test.skip(!testInfo.project.name.includes('mobile'), 'touch only')
+  await page.goto('/')
+  await expect(intro(page).getByText(FIRST_CARD)).toBeVisible()
+  for (const name of [/skip intro/i, 'Intro sound']) {
+    const box = await intro(page).getByRole('button', { name }).boundingBox()
+    expect(box.height).toBeGreaterThanOrEqual(44)
+    expect(box.width).toBeGreaterThanOrEqual(44)
+  }
+})
+
 test('Enter advances a card and Space skips the intro', async ({ page }) => {
   await page.goto('/')
   await expect(intro(page).getByText(FIRST_CARD)).toBeVisible()
+  // the text is in the page before the sound has started; enter only counts once the card has faded in
+  await expect(page.getByTestId('lore-intro-card')).toHaveCSS('opacity', '1')
   await intro(page).focus()
   await page.keyboard.press('Enter')
   await expect(intro(page).getByText(SECOND_CARD)).toBeVisible()

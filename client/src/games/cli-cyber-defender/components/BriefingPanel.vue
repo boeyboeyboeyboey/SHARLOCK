@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue'
 import AttemptContextChooser from '../../../features/attempts/components/AttemptContextChooser.vue'
-import { COMMAND_TEMPLATES } from '../cliDefender.js'
+import { COMMAND_TEMPLATES, SHIFT_FACTS } from '../cliDefender.js'
 import CliIcon from './CliIcon.vue'
 import ConfirmDialog from './ConfirmDialog.vue'
 import DemoTerminal from './DemoTerminal.vue'
@@ -14,6 +14,8 @@ const emit = defineEmits(['start', 'how-to-play'])
 
 const confirmingTimed = ref(false)
 const context = ref(null)
+const windowRange = `${SHIFT_FACTS.minWindowSeconds}\u2013${SHIFT_FACTS.maxWindowSeconds} seconds`
+const maxScoreLabel = SHIFT_FACTS.maxScore.toLocaleString('en')
 
 function startTimed() {
   confirmingTimed.value = false
@@ -39,6 +41,27 @@ function startTimed() {
         company's security operations centre.
       </p>
       <p class="cli-lead">Read each alert, then type the one command that contains it.</p>
+      <p v-if="error" class="cli-alert" role="alert">{{ error }}</p>
+      <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+        <button
+          type="button"
+          class="btn cli-btn-primary"
+          :disabled="pending"
+          @click="confirmingTimed = true"
+        >
+          <CliIcon name="play" :size="18" />Start game
+        </button>
+        <button
+          type="button"
+          class="btn"
+          :disabled="pending"
+          @click="emit('start', 'practice', context)"
+        >
+          <CliIcon name="hint" :size="18" />
+          Practice (no timer)
+        </button>
+      </div>
+      <p v-if="pending" class="cli-note mb-3" role="status">Connecting to the terminal&hellip;</p>
       <DemoTerminal />
       <div class="row g-3">
         <div class="col-12 col-lg-6">
@@ -72,36 +95,16 @@ function startTimed() {
             </li>
             <li>
               <CliIcon name="score" :size="18" /><span class="cli-brief-text"
-                >Maximum score: 2,100</span
+                >Maximum score: {{ maxScoreLabel }}</span
               >
             </li>
           </ul>
         </div>
       </div>
       <p class="cli-note cli-brief-modes">
-        A game gives you 10&ndash;15 seconds per challenge. Practice has no timer and offers hints.
+        A game gives you {{ windowRange }} per challenge and {{ SHIFT_FACTS.pausesPerGame }} pauses
+        of {{ SHIFT_FACTS.pauseSeconds }} seconds in total. Practice has no timer and offers hints.
       </p>
-      <p v-if="error" class="cli-alert" role="alert">{{ error }}</p>
-      <div class="d-flex flex-wrap align-items-center gap-3 mt-3">
-        <button
-          type="button"
-          class="btn cli-btn-primary"
-          :disabled="pending"
-          @click="confirmingTimed = true"
-        >
-          <CliIcon name="play" :size="18" />Start game
-        </button>
-        <button
-          type="button"
-          class="btn"
-          :disabled="pending"
-          @click="emit('start', 'practice', context)"
-        >
-          <CliIcon name="hint" :size="18" />
-          Practice (no timer)
-        </button>
-      </div>
-      <p v-if="pending" class="cli-note mt-3" role="status">Connecting to the terminal&hellip;</p>
     </template>
     <ConfirmDialog
       id="cli-timed-confirm"
@@ -111,7 +114,7 @@ function startTimed() {
       @confirm="startTimed"
       @cancel="confirmingTimed = false"
     >
-      <p>8 challenges, 10&ndash;15 seconds each.</p>
+      <p>{{ SHIFT_FACTS.challenges }} challenges, {{ windowRange }} each.</p>
       <p class="cli-note">Your score is saved to your account when the game ends.</p>
     </ConfirmDialog>
   </section>

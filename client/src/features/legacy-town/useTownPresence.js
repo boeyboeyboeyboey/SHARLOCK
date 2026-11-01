@@ -1,7 +1,7 @@
-import { getCurrentInstance, onBeforeUnmount, ref } from 'vue'
+import { getCurrentInstance, ref } from 'vue'
 import { getActivePinia } from 'pinia'
 import { useAuthStore } from '../auth/store.js'
-import { usePresence } from '../hub/presence/usePresence.js'
+import { endSessionFromPresence, usePresence } from '../hub/presence/usePresence.js'
 import { approachTownPeer, syncTownPeers } from './townPeers.js'
 
 // classmates in the 2d town: one 2d-mode presence socket, drawn peers eased by a frame loop (snapped under reduced motion)
@@ -11,7 +11,6 @@ export function useTownPresence({ getPlayer, reducedMotion = () => false }) {
   const pinia = getActivePinia()
   const auth = pinia ? useAuthStore(pinia) : null
   const router = getCurrentInstance()?.appContext.config.globalProperties.$router
-  let latest = new Map()
   let raf = null
   let last = null
 
@@ -26,7 +25,6 @@ export function useTownPresence({ getPlayer, reducedMotion = () => false }) {
   }
 
   function onPeers(peers) {
-    latest = peers
     const from = getPlayer() ?? { x: 0, y: 0 }
     list.value = syncTownPeers(list.value, peers, from, reducedMotion())
     if (reducedMotion()) for (const peer of list.value) approachTownPeer(peer, 0, true)
@@ -38,17 +36,9 @@ export function useTownPresence({ getPlayer, reducedMotion = () => false }) {
     getPlayer,
     staff: (auth?.user?.globalRoles ?? []).some((role) => ['instructor', 'admin'].includes(role)),
     onPeers,
-    // 4401: the session is gone server side, so drop it locally and show the login notice
-    onSessionEnded: (reason) => {
-      if (auth?.status !== 'authenticated') return
-      auth.invalidateSession()
-      void router
-        ?.replace({
-          path: '/login',
-          query: { reason: reason === 'replaced' ? 'elsewhere' : 'expired' },
-        })
-        .catch(() => {})
-    },
+    checkSession: () => auth?.restoreSession({ force: true, quiet: true }),
+    // 4401 or a refused socket: the session is gone server side, so show the login notice
+    onSessionEnded: (reason) => endSessionFromPresence(auth, router, reason),
   })
 
   function start() {
@@ -59,9 +49,7 @@ export function useTownPresence({ getPlayer, reducedMotion = () => false }) {
     raf = null
     presence.stop()
     list.value = []
-    latest = new Map()
   }
-  onBeforeUnmount(dispose)
 
-  return { list, start, dispose, peers: () => latest }
+  return { list, start, dispose }
 }

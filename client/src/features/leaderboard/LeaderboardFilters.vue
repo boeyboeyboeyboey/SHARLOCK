@@ -12,6 +12,10 @@ function update(key, value) {
   emit('update:modelValue', { ...props.modelValue, [key]: value })
 }
 
+// two institutions can both have a class 1a
+const cohortLabel = ({ institutionName, cohortName }) =>
+  institutionName ? `${institutionName} · ${cohortName}` : cohortName
+
 const gameTabs = ref(null)
 
 // arrows, home and end move focus only; enter or space activates the focused tab
@@ -48,7 +52,7 @@ function onGameKey(event) {
         @change="update('cohortId', $event.target.value)"
       >
         <option v-for="cohort in cohorts" :key="cohort.cohortId" :value="cohort.cohortId">
-          {{ cohort.cohortName }}
+          {{ cohortLabel(cohort) }}
         </option>
       </select>
     </div>

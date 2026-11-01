@@ -5,8 +5,8 @@
   "type": "module",
   "packageManager": "pnpm@12.3.4",
   "engines": {
-    "node": ">=24.12.0 <25",
-    "pnpm": "12.3.4"
+    "node": ">=24.12.0",
+    "pnpm": ">=12.3.4"
   },
   "scripts": {
     "setup:env": "node scripts/setup-env.mjs",
@@ -20,7 +20,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test:unit": "vitest run --project client --project server",
-    "test:integration": "node scripts/run-with-test-db.mjs integration --replica-set --no-file-parallelism",
+    "test:integration": "node scripts/run-with-test-db.mjs integration --replica-set",
     "test:e2e": "node scripts/run-with-test-db.mjs e2e --replica-set",
     "test": "pnpm test:unit && pnpm test:integration && pnpm test:e2e"
   },

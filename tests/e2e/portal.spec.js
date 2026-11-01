@@ -182,21 +182,21 @@ test('starts the soundtrack on arrival or the first interaction, remembers a mut
     autoplay: false,
   })
   // browsers may block audible autoplay; the first click anywhere then starts the music
-  const playing = page.getByRole('button', { name: 'Mute town sound' })
+  const playing = page.getByRole('button', { name: 'Town sound', pressed: true })
   if (!(await playing.isVisible())) await page.mouse.click(1, 1)
-  await expect(playing).toHaveAttribute('aria-pressed', 'true')
+  await expect(playing).toBeVisible()
   await expect.poll(() => audio.evaluate((el) => el.currentTime)).toBeGreaterThan(0)
   expect(await audio.evaluate((el) => el.muted || el.paused)).toBe(false)
   await playing.click()
   expect(await audio.evaluate((el) => el.muted && el.paused)).toBe(true)
   expect(await page.evaluate(() => sessionStorage.getItem('sharlock.musicMuted'))).toBe('1')
   await page.reload()
-  await expect(page.getByRole('button', { name: 'Turn on town sound' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Town sound', pressed: false })).toBeVisible()
   await page.mouse.click(1, 1)
   expect(await audio.evaluate((el) => el.paused)).toBe(true)
-  await expect(page.getByRole('button', { name: 'Turn on town sound' })).toBeVisible()
-  await page.getByRole('button', { name: 'Turn on town sound' }).click()
-  await expect(page.getByRole('button', { name: 'Mute town sound' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Town sound', pressed: false })).toBeVisible()
+  await page.getByRole('button', { name: 'Town sound', pressed: false }).click()
+  await expect(page.getByRole('button', { name: 'Town sound', pressed: true })).toBeVisible()
   expect(await page.evaluate(() => sessionStorage.getItem('sharlock.musicMuted'))).toBeNull()
   const handle = await audio.elementHandle()
   await page.getByRole('button', { name: /^Menu/ }).click()
@@ -234,12 +234,15 @@ test('opens the profile from the menu and handles focus and dismissal', async ({
   await expect(menu).toBeHidden()
   await expect(page).toHaveURL(/\/profile$/)
   await expect(page.getByRole('heading', { name: 'Profile & progress' })).toBeFocused()
+  // the profile tab points to the badges instead of showing an empty copy of them
+  await expect(page.getByText('No badges yet')).toBeHidden()
+  await page.getByRole('link', { name: 'Progress tab' }).click()
+  await expect(page).toHaveURL(/\/profile\?tab=progress$/)
   await expect(page.getByRole('heading', { name: 'Your trophy case' })).toBeVisible()
-  await expect(page.getByText('No badges yet')).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(page).toHaveURL(/\/$/)
   await expect(opener).toBeFocused()
-  await page.goto('/profile')
+  await page.goto('/profile?tab=progress')
   await expect(page.getByRole('heading', { name: 'Your trophy case' })).toBeVisible()
 })
 
@@ -324,7 +327,7 @@ test('fits supported breakpoints with readable pixel buildings and responsive me
         clip: 'rect(0px, 0px, 0px, 0px)',
       })
     } else await expect(hint).toBeVisible()
-    await expect(page.getByRole('button', { name: /^(Turn on|Mute) town sound$/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Town sound' })).toBeVisible()
   }
 })
 
@@ -405,9 +408,10 @@ test('drags without opening a building and still selects with a fresh tap or cli
   await page.goto('/dashboard')
   const map = page.getByRole('region', { name: 'Interactive town map' })
   await map.scrollIntoViewIfNeeded()
-  const building = page.getByRole('button', { name: 'Explore CLI Cyber Defender', exact: true })
+  // the camera opens on sharlock, so this building is the one beside him at every size
+  const building = page.getByRole('button', { name: 'Explore Botnet Tag', exact: true })
   const before = await building.boundingBox()
-  const start = { x: before.x + before.width / 2, y: before.y + before.height / 2 }
+  const start = { x: before.x + 30, y: before.y + before.height / 2 }
   const mobile = testInfo.project.name === 'mobile-chromium'
   if (mobile) {
     const session = await page.context().newCDPSession(page)
@@ -429,11 +433,12 @@ test('drags without opening a building and still selects with a fresh tap or cli
     await page.mouse.move(start.x - 60, start.y - 60, { steps: 6 })
     await page.mouse.up()
   }
-  await expect.poll(async () => (await building.boundingBox()).y).toBeLessThan(before.y - 40)
+  // the camera opens on sharlock near the bottom edge of the town, so the drag shows on the x axis
+  await expect.poll(async () => (await building.boundingBox()).x).toBeLessThan(before.x - 40)
   await expect(page.locator('.game-info-card')).toHaveCount(0)
   if (mobile) await building.tap()
   else await building.click()
-  await expect(page.getByRole('heading', { name: 'CLI Cyber Defender', exact: true })).toBeFocused()
+  await expect(page.getByRole('heading', { name: 'Botnet Tag', exact: true })).toBeFocused()
 })
 
 test('supports pinch zoom and wheel panning while retaining camera bounds after resize', async ({

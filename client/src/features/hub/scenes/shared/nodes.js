@@ -4,7 +4,6 @@ import { MultiplyBlock } from '@babylonjs/core/Materials/Node/Blocks/multiplyBlo
 import { ScaleBlock } from '@babylonjs/core/Materials/Node/Blocks/scaleBlock.js';
 import { LerpBlock } from '@babylonjs/core/Materials/Node/Blocks/lerpBlock.js';
 import { SmoothStepBlock } from '@babylonjs/core/Materials/Node/Blocks/smoothStepBlock.js';
-import { OneMinusBlock } from '@babylonjs/core/Materials/Node/Blocks/oneMinusBlock.js';
 import { DotBlock } from '@babylonjs/core/Materials/Node/Blocks/dotBlock.js';
 import { TrigonometryBlock, TrigonometryBlockOperations } from '@babylonjs/core/Materials/Node/Blocks/trigonometryBlock.js';
 import { NodeMaterialBlockConnectionPointTypes as T } from '@babylonjs/core/Materials/Node/Enums/nodeMaterialBlockConnectionPointTypes.js';
@@ -51,7 +50,6 @@ export const trig = (op, a) => {
   return block.output;
 };
 export const sin = (a) => trig(TrigonometryBlockOperations.Sin, a);
-export const exp2 = (a) => trig(TrigonometryBlockOperations.Exp2, a);
 export const lerp = (a, b, t) => {
   const block = new LerpBlock('lerp');
   a.connectTo(block.left);
@@ -64,11 +62,6 @@ export const smooth = (value, e0, e1) => {
   value.connectTo(block.value);
   e0.connectTo(block.edge0);
   e1.connectTo(block.edge1);
-  return block.output;
-};
-export const oneMinus = (a) => {
-  const block = new OneMinusBlock('oneMinus');
-  a.connectTo(block.input);
   return block.output;
 };
 

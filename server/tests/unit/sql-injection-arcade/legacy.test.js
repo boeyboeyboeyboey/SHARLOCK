@@ -32,7 +32,7 @@ describe('SQL rules and private state', () => {
   it('registers strict bounded state and awards 80 plus 20 only on the server', () => {
     const registry = createProductionAttemptRegistry()
     expect(registry.get(sqlLegacyRuleset.id, 'sql-1').current).toBe(false)
-    expect(registry.getCurrent(sqlLegacyRuleset.id).rulesetVersion).toBe('sql-2')
+    expect(registry.getCurrent(sqlLegacyRuleset.id).rulesetVersion).toBe('sql-3')
     let { state, mode, deadlineAt } = sqlLegacyRuleset.createState()
     expect(mode).toBe('practice')
     expect(deadlineAt).toBeNull()

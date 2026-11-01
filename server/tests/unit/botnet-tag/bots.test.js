@@ -5,9 +5,10 @@ import { walkable } from '../../../src/modules/games/botnet-tag/arena.js'
 import {
   BASE_SPEED,
   COUNTDOWN_MS,
+  GRACE_MS,
   ROUND_MS,
-  createRng,
 } from '../../../src/modules/games/botnet-tag/rules.js'
+import { createRng } from './rng.js'
 
 const TICK = 1000 / 15
 
@@ -49,6 +50,22 @@ describe('bots', () => {
     expect(seen.maxStep).toBeLessThanOrEqual((BASE_SPEED * 250 * 1.25) / 1000 + 0.5)
   })
 
+  it('a bot patient zero holds still through the grace period', () => {
+    const round = createRound({ id: 'r', cohortId: 'c', rng: createRng(9), withBots: true })
+    round.join({ sid: 'h1', username: 'Human', avatarId: 'a', isStaff: false }, 0)
+    round.setReady('h1', true, 0)
+    round.tick(COUNTDOWN_MS)
+    const [human, botA] = ['h1', 'bot-1'].map((sid) => round.getPlayer(sid))
+    human.infected = false
+    Object.assign(botA, { infected: true, infectedAt: COUNTDOWN_MS, x: -8, z: 0 })
+    Object.assign(human, { x: -7, z: 0, immuneUntil: 0 })
+    stepBot(round, botA, COUNTDOWN_MS + GRACE_MS - 1, createRng(1))
+    expect(human.infected).toBe(false)
+    expect(botA.x).toBe(-8)
+    stepBot(round, botA, COUNTDOWN_MS + GRACE_MS, createRng(1))
+    expect(human.infected).toBe(true)
+  })
+
   it('infected bots tag a nearby clean player', () => {
     const round = createRound({ id: 'r', cohortId: 'c', rng: createRng(9), withBots: true })
     round.join({ sid: 'h1', username: 'Human', avatarId: 'a', isStaff: false }, 0)
@@ -60,7 +77,7 @@ describe('bots', () => {
     botA.infectedAt = COUNTDOWN_MS
     Object.assign(botA, { x: 8, z: 0.0 })
     Object.assign(human, { x: 9, z: 0 })
-    stepBot(round, botA, COUNTDOWN_MS + 100, createRng(1))
+    stepBot(round, botA, COUNTDOWN_MS + GRACE_MS + 100, createRng(1))
     expect(human.infected).toBe(true)
     expect(botA.tags).toBe(1)
   })
@@ -75,7 +92,7 @@ describe('bots', () => {
     human.infected = true
     Object.assign(human, { x: 5, z: 0 })
     Object.assign(botA, { x: 8, z: 0, lastMoveAt: COUNTDOWN_MS })
-    stepBot(round, botA, COUNTDOWN_MS + 100, createRng(1))
+    stepBot(round, botA, COUNTDOWN_MS + GRACE_MS + 100, createRng(1))
     expect(botA.x).toBeGreaterThan(8)
     expect(() => stepBot(null, botA, 0, createRng(1))).not.toThrow()
     expect(() => stepBot(round, human, 0, createRng(1))).not.toThrow()

@@ -10,10 +10,16 @@ const props = defineProps({
 const emit = defineEmits(['hint'])
 
 const exhausted = computed(() => props.tier >= props.maxTier)
+const unavailable = computed(() => props.disabled || exhausted.value)
 const label = computed(() => {
   if (exhausted.value) return 'No more hints'
   return props.tier === 0 ? 'Hint' : 'Another hint'
 })
+
+// the button stays focusable while unavailable, so a keyboard user keeps their place
+function askForHint() {
+  if (!unavailable.value) emit('hint')
+}
 </script>
 
 <template>
@@ -21,13 +27,15 @@ const label = computed(() => {
     <button
       type="button"
       class="triage-hint-button"
-      :disabled="disabled || exhausted"
-      @click="emit('hint')"
+      :aria-disabled="unavailable"
+      @click="askForHint"
     >
       {{ label }}
     </button>
-    <ul v-if="lines.length" class="triage-hint-lines" aria-live="polite">
-      <li v-for="line in lines" :key="line">{{ line }}</li>
-    </ul>
+    <div aria-live="polite">
+      <ul v-if="lines.length" class="triage-hint-lines">
+        <li v-for="line in lines" :key="line">{{ line }}</li>
+      </ul>
+    </div>
   </section>
 </template>

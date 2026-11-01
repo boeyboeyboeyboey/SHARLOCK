@@ -1,27 +1,29 @@
 <script setup>
 import { avatarPresets } from '../avatars.js'
+import '../avatar-picker.css'
 
 defineProps({
   selected: { type: String, default: 'mint' },
+  heading: { type: String, default: 'Choose your capybara' },
   disabled: { type: Boolean, default: false },
+  idPrefix: { type: String, default: 'auth-avatar' },
 })
 defineEmits(['update:selected'])
 </script>
 
 <template>
   <fieldset class="auth-avatar-picker" :disabled="disabled">
-    <legend>Choose your capybara</legend>
-    <p class="auth-field-hint">Pick one portrait. You can recognize your account by this avatar.</p>
+    <legend>{{ heading }}</legend>
     <div class="auth-avatar-picker__grid">
       <label
         v-for="preset in avatarPresets"
         :key="preset.id"
         class="auth-avatar-choice"
         :class="{ 'is-selected': selected === preset.id }"
-        :for="`auth-avatar-${preset.id}`"
+        :for="`${idPrefix}-${preset.id}`"
       >
         <input
-          :id="`auth-avatar-${preset.id}`"
+          :id="`${idPrefix}-${preset.id}`"
           class="auth-avatar-choice__input"
           type="radio"
           name="avatarId"

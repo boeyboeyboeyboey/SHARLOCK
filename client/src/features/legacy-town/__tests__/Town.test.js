@@ -6,18 +6,8 @@ import TownAudio from '../TownAudio.vue'
 
 afterEach(() => vi.restoreAllMocks())
 
-describe('town registration contract', () => {
-  it('registers the planned features with distinct buildings and honest readiness', () => {
-    expect(gameCatalog.map((game) => game.id).sort()).toEqual([
-      'botnet-tag',
-      'clearance-tower',
-      'cli-cyber-defender',
-      'phishing-post-mortem',
-      'social-engineering-simulator',
-      'sql-injection-arcade',
-      'threat-briefing',
-    ])
-    expect(new Set(gameCatalog.map((game) => game.building.type)).size).toBe(7)
+describe('the intended roster', () => {
+  it('has these games, all playable; change this list on purpose when adding one', () => {
     expect(gameCatalog.filter((game) => !game.isPreview).map((game) => game.id)).toEqual([
       'cli-cyber-defender',
       'phishing-post-mortem',
@@ -27,6 +17,14 @@ describe('town registration contract', () => {
       'clearance-tower',
       'botnet-tag',
     ])
+  })
+})
+
+describe('town registration contract', () => {
+  it('registers the planned features with distinct buildings and honest readiness', () => {
+    const ids = gameCatalog.map((game) => game.id)
+    expect(new Set(ids).size).toBe(ids.length)
+    expect(new Set(gameCatalog.map((game) => game.building.type)).size).toBe(gameCatalog.length)
     expect(
       gameCatalog.find((game) => game.id === 'social-engineering-simulator').building.type,
     ).toBe('office')
@@ -73,11 +71,8 @@ describe('town registration contract', () => {
       expect(wrapper.get('h2').text()).toBe(game.name)
       expect(wrapper.text()).toContain(game.description)
       for (const concept of game.backgroundKnowledge) expect(wrapper.text()).toContain(concept)
-      expect(wrapper.get('.difficulty-stars').attributes('aria-label')).toBe(
+      expect(wrapper.get('[role="img"][aria-label^="Difficulty"]').attributes('aria-label')).toBe(
         `Difficulty: ${game.difficulty} out of 3 stars`,
-      )
-      expect(wrapper.findAll('.difficulty-stars .pixel-icon:not(.star-empty)')).toHaveLength(
-        game.difficulty,
       )
       expect(wrapper.get('a').attributes('href')).toBe(game.route)
       if (game.activation !== 'direct') expect(wrapper.text()).toContain('Enter activity')

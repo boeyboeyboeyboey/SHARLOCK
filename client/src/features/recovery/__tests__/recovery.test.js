@@ -78,15 +78,59 @@ describe('recovery components and reset flow', () => {
     expect(wrapper.emitted('issue')).toEqual([[{ identityVerified: true }]])
   })
 
-  it('normalizes the lookup email and selects only the returned match', async () => {
-    const wrapper = mount(RecoveryStudentLookup, {
-      props: { match: { ...student, email: 'casey@example.test' } },
-    })
+  it('normalizes the lookup email and selects the one exact match without another click', async () => {
+    const wrapper = mount(RecoveryStudentLookup, { props: { match: undefined } })
     await wrapper.get('#recovery-student-email').setValue('  casey@example.test  ')
     await wrapper.get('form').trigger('submit')
     expect(wrapper.emitted('lookup')).toEqual([[{ email: 'casey@example.test' }]])
-    await wrapper.get('button[type="button"]').trigger('click')
-    expect(wrapper.emitted('select')).toEqual([[{ ...student, email: 'casey@example.test' }]])
+    expect(wrapper.emitted('select')).toBeUndefined()
+
+    const match = { ...student, email: 'casey@example.test' }
+    await wrapper.setProps({ match })
+    expect(wrapper.emitted('select')).toEqual([[match]])
+    expect(wrapper.find('button[type="button"]').exists()).toBe(false)
+  })
+
+  it('reports no match without selecting anyone', async () => {
+    const wrapper = mount(RecoveryStudentLookup, { props: { match: undefined } })
+    await wrapper.get('#recovery-student-email').setValue('nobody@example.test')
+    await wrapper.get('form').trigger('submit')
+    await wrapper.setProps({ match: null })
+    expect(wrapper.get('[role="status"]').text()).toContain('No eligible student')
+    expect(wrapper.emitted('select')).toBeUndefined()
+  })
+
+  it('separates the student name from the email in the issue sentence', () => {
+    const wrapper = mount(RecoveryIssueForm, {
+      props: { eligibleStudent: { ...student, username: 'Casey', email: 'casey@example.test' } },
+    })
+    expect(wrapper.text()).toContain('Casey (casey@example.test)')
+  })
+
+  it('names the password rule that is still missing before any request', async () => {
+    const wrapper = mount(ResetPasswordForm)
+    const attempt = async (value) => {
+      await wrapper.get('#reset-password').setValue(value)
+      await wrapper.get('#reset-password-confirmation').setValue(value)
+      await wrapper.get('form').trigger('submit')
+      return wrapper.get('#reset-password-error').text()
+    }
+    expect(await attempt('Short1!')).toContain('Use at least 12 characters.')
+    expect(await attempt('alllowercase12!!')).toContain('uppercase letter')
+    expect(await attempt('NoSymbolHere1234')).toContain('punctuation or symbol')
+    expect(wrapper.emitted('submit')).toBeUndefined()
+  })
+
+  it('shows and hides the new password with a keyboard-reachable button', async () => {
+    const wrapper = mount(ResetPasswordForm)
+    const toggle = wrapper.get('button[aria-label="Show password"]')
+    expect(toggle.attributes('tabindex')).toBeUndefined()
+    expect(wrapper.get('#reset-password').attributes('type')).toBe('password')
+    await toggle.trigger('click')
+    expect(wrapper.get('#reset-password').attributes('type')).toBe('text')
+    expect(wrapper.get('button[aria-label="Hide password"]').attributes('aria-pressed')).toBe(
+      'true',
+    )
   })
 
   it('keeps reset secrets in memory and redirects to normal sign-in after a 204', async () => {
@@ -129,6 +173,33 @@ describe('recovery components and reset flow', () => {
     expect(mocks.auth.logout).toHaveBeenCalledOnce()
     expect(wrapper.find('#reset-password').exists()).toBe(true)
     expect(mocks.resetLinkCaptureState.token).toBe('T'.repeat(43))
+    wrapper.unmount()
+  })
+
+  it('sends a reloaded page back to the message rather than straight to staff', async () => {
+    mocks.resetLinkCaptureState.status = 'missing'
+    mocks.resetLinkCaptureState.token = ''
+    const wrapper = mount(ResetPasswordPage)
+    await flushPromises()
+    expect(wrapper.get('[role="alert"]').text()).toContain(
+      'Open the reset link from your message again.',
+    )
+    expect(wrapper.find('#reset-password').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('opens the form when a link is pasted into the page already open', async () => {
+    mocks.resetLinkCaptureState.status = 'missing'
+    mocks.resetLinkCaptureState.token = ''
+    const wrapper = mount(ResetPasswordPage)
+    await flushPromises()
+    expect(mocks.auth.restoreSession).not.toHaveBeenCalled()
+
+    setValidResetLink()
+    await flushPromises()
+    expect(mocks.auth.restoreSession).toHaveBeenCalledOnce()
+    expect(wrapper.find('#reset-password').exists()).toBe(true)
+    expect(wrapper.text()).not.toContain('signed out')
     wrapper.unmount()
   })
 

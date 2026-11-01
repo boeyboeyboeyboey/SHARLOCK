@@ -11,6 +11,7 @@ import { instructorAssignmentModel } from '../../../src/models/InstructorAssignm
 import { membershipModel } from '../../../src/models/Membership.js'
 import { userModel } from '../../../src/models/User.js'
 import {
+  agentCookieHeader,
   createTestApp,
   disposeTestAuthApps,
   initializeTestAuth,
@@ -46,20 +47,32 @@ beforeEach(async () => {
       'instructor_assignments',
     ].map((name) => database.db.collection(name).deleteMany({})),
   )
-  app = createTestApp(database, authOptions)
+  await startServer()
+})
+
+async function startServer(presence = {}) {
+  app = createTestApp(database, authOptions, { presence })
   server = createServer(app)
   server.on('upgrade', (request, socket, head) =>
     app.locals.presence.handleUpgrade(request, socket, head),
   )
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
   port = server.address().port
-})
+}
 
-afterEach(async () => {
+async function stopServer() {
   for (const socket of sockets.splice(0)) socket.terminate()
   app.locals.presence.close()
   await new Promise((resolve) => server.close(resolve))
-})
+}
+
+// for a test that needs its own recheck, heartbeat or connect limits
+async function restartServer(presence) {
+  await stopServer()
+  await startServer(presence)
+}
+
+afterEach(stopServer)
 
 afterAll(async () => {
   await disposeTestAuthApps()
@@ -112,23 +125,18 @@ async function staff(role, assignedTo) {
   return account
 }
 
-function cookieOf(account) {
-  const jar = account.agent.jar.getCookies({
-    domain: '127.0.0.1',
-    path: '/api',
-    secure: false,
-    script: false,
-  })
-  return jar.map((cookie) => `${cookie.name}=${cookie.value}`).join('; ')
-}
+const cookieOf = (account) => agentCookieHeader(account.agent)
 
 // resolves with the open socket, or { status } when the upgrade is refused
-function connect(account, { origin = authOptions.clientOrigin, cookie = cookieOf(account) } = {}) {
+function connect(
+  account,
+  { origin = authOptions.clientOrigin, cookie = cookieOf(account), ...options } = {},
+) {
   return new Promise((resolve) => {
     const headers = {}
     if (origin) headers.Origin = origin
     if (cookie) headers.Cookie = cookie
-    const ws = new WebSocket(`ws://127.0.0.1:${port}/api/presence`, { headers })
+    const ws = new WebSocket(`ws://127.0.0.1:${port}/api/presence`, { headers, ...options })
     ws.messages = []
     ws.on('message', (raw) => ws.messages.push(JSON.parse(raw.toString())))
     ws.closed = new Promise((done) =>
@@ -156,6 +164,19 @@ async function until(check, label = 'condition') {
   }
   throw new Error(`Timed out waiting for ${label}.`)
 }
+
+// the server answers a ping in order, so once its pong is back it has handled every frame this
+// socket sent and everything it had already written to this socket has arrived
+const flush = (...targets) =>
+  Promise.all(
+    targets.map(
+      (ws) =>
+        new Promise((resolve) => {
+          ws.once('pong', resolve)
+          ws.ping()
+        }),
+    ),
+  )
 
 const find = (ws, type) => ws.messages.find((message) => message.type === type)
 const move = (ws, x = 3, z = 4) =>
@@ -217,7 +238,7 @@ describe('presence rooms', () => {
     expect(seen.sid).toBe(find(wsOne, 'snapshot').you)
     move(wsTwo)
     await until(() => find(wsOne, 'state'), 'reverse state')
-    await new Promise((resolve) => setTimeout(resolve, 150))
+    await flush(wsOther)
     expect(wsOther.messages.filter((message) => message.type === 'state')).toEqual([])
     wsOne.close()
     expect(await until(() => find(wsTwo, 'leave'), 'leave')).toEqual({
@@ -231,7 +252,7 @@ describe('presence rooms', () => {
     const [one, two] = [await student(cohort), await student(cohort)]
     const wsOne = await connect(one)
     move(wsOne)
-    await new Promise((resolve) => setTimeout(resolve, 120))
+    await flush(wsOne)
     const wsTwo = await connect(two)
     const snapshot = await until(() => find(wsTwo, 'snapshot'), 'snapshot')
     expect(snapshot.peers).toHaveLength(1)
@@ -288,7 +309,8 @@ describe('presence rooms', () => {
     const wsTwo = await connect(two)
     wsOne.send('{nope')
     wsOne.send(JSON.stringify({ type: 'move', x: 'a', z: 0, yaw: 0, moving: true }))
-    await new Promise((resolve) => setTimeout(resolve, 100))
+    await flush(wsOne)
+    await flush(wsTwo)
     expect(find(wsTwo, 'state')).toBeUndefined()
     for (let index = 0; index < 40; index += 1) wsOne.send('{nope')
     expect(await wsOne.closed).toBe(4408)
@@ -303,14 +325,14 @@ describe('presence rooms', () => {
     const wsOne = await connect(one)
     const wsTwo = await connect(two)
     for (let index = 0; index < 5; index += 1) move(wsOne, index, 0)
-    await new Promise((resolve) => setTimeout(resolve, 200))
+    await flush(wsOne)
+    await flush(wsTwo)
     expect(wsTwo.messages.filter((message) => message.type === 'state')).toHaveLength(1)
   })
 })
 
 const move2d = (ws, x = 300, y = 400) =>
   ws.send(JSON.stringify({ type: 'move', mode: '2d', x, y, moving: true }))
-const settle = () => new Promise((resolve) => setTimeout(resolve, 150))
 
 describe('presence 2d mode', () => {
   it('shows positions only to the same mode while everyone counts in the roster', async () => {
@@ -326,7 +348,7 @@ describe('presence 2d mode', () => {
     await until(() => find(wsDeep, 'snapshot'), 'snapshot')
     move2d(wsFlatToo, 10, 20)
     move2d(wsFlat)
-    await settle()
+    await flush(wsFlatToo, wsFlat)
     move(wsDeep)
     await until(
       () => wsFlatToo.messages.some((m) => m.type === 'state' && m.x === 300),
@@ -343,7 +365,8 @@ describe('presence 2d mode', () => {
       expect(state).not.toHaveProperty('x')
       expect(state).not.toHaveProperty('y')
     }
-    await settle()
+    await flush(wsDeep)
+    await flush(wsFlat)
     const seenByFlat = wsFlat.messages.filter(
       (m) => m.type === 'state' && m.sid === find(wsDeep, 'snapshot').you,
     )
@@ -361,7 +384,8 @@ describe('presence 2d mode', () => {
     const wsTwo = await connect(two)
     await until(() => find(wsTwo, 'snapshot'), 'snapshot')
     wsOne.send(JSON.stringify({ type: 'move', mode: '2d', x: 'a', y: 1 }))
-    await settle()
+    await flush(wsOne)
+    await flush(wsTwo)
     expect(wsTwo.messages.filter((m) => m.type === 'state')).toEqual([])
     move2d(wsTwo)
     move2d(wsOne, 5000, -50)
@@ -379,7 +403,6 @@ describe('presence 2d mode', () => {
     await until(() => find(wsTwo, 'snapshot'), 'snapshot')
     move(wsOne)
     await until(() => find(wsTwo, 'state'), 'first state')
-    await new Promise((resolve) => setTimeout(resolve, 120))
     move2d(wsTwo)
     await until(
       () => wsTwo.messages.filter((m) => m.type === 'snapshot').length === 2,
@@ -390,7 +413,8 @@ describe('presence 2d mode', () => {
     expect(again.peers[0]).toMatchObject({ username: one.user.username, mode: '3d' })
     expect(again.peers[0]).not.toHaveProperty('x')
     move2d(wsOther)
-    await settle()
+    await flush(wsOther)
+    await flush(wsOne, wsTwo)
     expect(wsOne.messages.filter((m) => m.username === other.user.username)).toEqual([])
     expect(wsTwo.messages.filter((m) => m.username === other.user.username)).toEqual([])
   })
@@ -489,14 +513,98 @@ describe('presence disconnects', () => {
   })
 
   it('destroys upgrade requests for other paths', async () => {
+    const account = await student(await makeClass('a'))
+    // the same request does open on the presence path, so the refusal below is about the path
+    const allowed = await connect(account)
+    expect(allowed.readyState).toBe(WebSocket.OPEN)
     const ws = new WebSocket(`ws://127.0.0.1:${port}/api/other`, {
-      headers: { Origin: authOptions.clientOrigin },
+      headers: { Origin: authOptions.clientOrigin, Cookie: cookieOf(account) },
     })
     sockets.push(ws)
     const result = await new Promise((resolve) => {
       ws.on('error', (error) => resolve(error.message))
       ws.on('open', () => resolve('open'))
+      ws.on('unexpected-response', (_request, response) => resolve(response.statusCode))
     })
-    expect(result).not.toBe('open')
+    expect(result).toBe('socket hang up')
+  })
+})
+
+describe('presence connect limits', () => {
+  it('refuses scripted reconnects per user with a 429 and leaves other students alone', async () => {
+    await restartServer({ connectLimits: { user: 2 } })
+    const cohort = await makeClass('a')
+    const [one, two] = [await student(cohort), await student(cohort)]
+    expect((await connect(one)).readyState).toBe(WebSocket.OPEN)
+    expect((await connect(one)).readyState).toBe(WebSocket.OPEN)
+    expect(await connect(one)).toEqual({ status: 429 })
+    expect((await connect(two)).readyState).toBe(WebSocket.OPEN)
+  })
+
+  it('counts every attempt from one address before reading the session', async () => {
+    await restartServer({ connectLimits: { ip: 2 } })
+    const cohort = await makeClass('a')
+    const [one, two] = [await student(cohort), await student(cohort)]
+    expect(await connect(null, { cookie: 'sid=forged' })).toEqual({ status: 401 })
+    expect((await connect(one)).readyState).toBe(WebSocket.OPEN)
+    expect(await connect(two)).toEqual({ status: 429 })
+  })
+
+  it('lets a class reconnect normally under the default limits', async () => {
+    const cohort = await makeClass('a')
+    const accounts = await Promise.all(Array.from({ length: 3 }, () => student(cohort)))
+    for (const account of [...accounts, ...accounts]) {
+      expect((await connect(account)).readyState).toBe(WebSocket.OPEN)
+    }
+  })
+
+  it('closes a staff socket that floods valid joins', async () => {
+    const cohort = await makeClass('a')
+    const ws = await connect(await staff('admin'))
+    for (let index = 0; index < 40; index += 1) {
+      ws.send(JSON.stringify({ type: 'join', cohortId: String(cohort._id) }))
+    }
+    expect(await ws.closed).toBe(4408)
+  })
+})
+
+describe('presence timers', () => {
+  it('closes a removed student on the recheck timer without a manual refresh', async () => {
+    await restartServer({ recheckMs: 40 })
+    const cohort = await makeClass('a')
+    const account = await student(cohort)
+    const ws = await connect(account)
+    await until(() => find(ws, 'snapshot'), 'snapshot')
+    await membershipModel(database).updateOne(
+      { userId: new Types.ObjectId(account.user.id) },
+      { $set: { status: 'removed' } },
+    )
+    expect(await ws.closed).toBe(4403)
+    expect(ws.closeReason).toBe('class changed')
+  })
+
+  it('closes a joined instructor whose assignment is removed', async () => {
+    await restartServer({ recheckMs: 40 })
+    const cohort = await makeClass('a')
+    const account = await staff('instructor', cohort)
+    const ws = await connect(account)
+    ws.send(JSON.stringify({ type: 'join', cohortId: String(cohort._id) }))
+    await until(() => find(ws, 'snapshot'), 'snapshot')
+    await instructorAssignmentModel(database).updateOne(
+      { userId: new Types.ObjectId(account.user.id) },
+      { $set: { status: 'removed' } },
+    )
+    expect(await ws.closed).toBe(4403)
+    expect(ws.closeReason).toBe('class not available')
+  })
+
+  it('terminates a socket that stops answering pings and keeps one that answers', async () => {
+    await restartServer({ heartbeatMs: 30 })
+    const cohort = await makeClass('a')
+    const [silent, awake] = [await student(cohort), await student(cohort)]
+    const live = await connect(awake)
+    const dead = await connect(silent, { autoPong: false })
+    expect(await dead.closed).toBe(1006)
+    expect(live.readyState).toBe(WebSocket.OPEN)
   })
 })

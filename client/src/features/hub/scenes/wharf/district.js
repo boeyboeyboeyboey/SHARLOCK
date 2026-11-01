@@ -16,9 +16,6 @@ export function buildDistrict({ world, signs }) {
   const { house, fbox, b, windowAt } = B;
   const lampHeads = [];
   const crates = [];
-  const smokePoints = [];
-  const hoistPoints = [];
-  const doorWalls = new Map();
 
   // ---- west side of the main street, facing east ----
   const telegraph = house({ x: -10, z: 20, yaw: E, W: 15, D: 12, floors: 3, wall: 'brickRed', color: [1.0, 0.94, 0.9, 1], nChimney: 2, litBias: 0.1, fascia: 'telegraph-fascia', signScale: 0.6, hang: { id: 'telegraph-hang', u: -5.4 }, awn: stripes([0.12, 0.2, 0.38, 1], [0.95, 0.9, 0.78, 1]), doorColor: [0.1, 0.16, 0.3, 1] });
@@ -192,7 +189,6 @@ export function buildDistrict({ world, signs }) {
       fbox(b.wash, f, u, v + 1.1, 0.07, 1.7, 2.2, 0.1, [0.32, 0.2, 0.14, 1]);
       fbox(b.stone, f, u, v + 2.35, 0.13, 2.1, 0.24, 0.22, [0.9, 0.86, 0.8, 1]);
     }
-    hoistPoints.push(f.point(u, H - 1.4, 2.9));
   };
   const warehouse = (spec, hoistU = null) => {
     const w = house({ roof: 'along', rise: 0.2, floors: 5, gf: 5, fh: 3.6, litBias: -0.3, shopFronts: false, nChimney: 1, ...spec });
@@ -203,10 +199,8 @@ export function buildDistrict({ world, signs }) {
   warehouse({ x: 41.5, z: 2, yaw: W_, W: 24, D: 14, wall: 'brickRed', color: [0.88, 0.76, 0.72, 1], fascia: 'tea', doorColor: [0.3, 0.2, 0.14, 1] }, -5);
   warehouse({ x: 41.5, z: 20.5, yaw: W_, W: 13, D: 14, wall: 'brickYellow', color: [0.92, 0.82, 0.76, 1], fascia: 'server-fascia', doorColor: [0.12, 0.3, 0.2, 1] });
   // quayside warehouses with the hoist over the water side
-  const westWh = warehouse({ x: -30, z: 38, yaw: E, W: 14, D: 14, floors: 4, wall: 'brickRed', color: [0.9, 0.78, 0.74, 1], fascia: 'wharfinger', back: true, doorColor: [0.3, 0.2, 0.14, 1] }, 3);
-  const eastWh = warehouse({ x: 42, z: 38, yaw: W_, W: 14, D: 14, floors: 4, wall: 'brickYellow', color: [0.94, 0.84, 0.76, 1], fascia: 'cooper', back: true, doorColor: [0.3, 0.2, 0.14, 1] }, -3);
-  void westWh;
-  void eastWh;
+  warehouse({ x: -30, z: 38, yaw: E, W: 14, D: 14, floors: 4, wall: 'brickRed', color: [0.9, 0.78, 0.74, 1], fascia: 'wharfinger', back: true, doorColor: [0.3, 0.2, 0.14, 1] }, 3);
+  warehouse({ x: 42, z: 38, yaw: W_, W: 14, D: 14, floors: 4, wall: 'brickYellow', color: [0.94, 0.84, 0.76, 1], fascia: 'cooper', back: true, doorColor: [0.3, 0.2, 0.14, 1] }, -3);
   // ---- telegraph poles and wires leading to the office ----
   const poles = [];
   poles.push([-29, 32.8], [-21.5, 32], [-13.5, 31.4]);
@@ -242,5 +236,5 @@ export function buildDistrict({ world, signs }) {
     }
   }
 
-  return { B, lampHeads, crates, smokePoints, hoistPoints, doorWalls, chimneys: B.chimneys, telegraph, customs, police, post, pub };
+  return { B, lampHeads, crates, chimneys: B.chimneys };
 }

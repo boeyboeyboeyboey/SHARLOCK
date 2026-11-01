@@ -1,6 +1,14 @@
 import { randomBytes } from 'node:crypto'
 import { expect, test } from './fixtures/admin.js'
 import { readVerificationCode } from './fixtures/mail.js'
+import { closeLinkDialog, openAddStaff, openAssignments } from './fixtures/staff.js'
+import { forceTown2d, newTown2dContext } from './fixtures/town.js'
+
+test.skip(
+  process.env.SHARLOCK_TEST_REPLICA_SET !== '1',
+  'This journey needs transactions; run with --replica-set.',
+)
+test.beforeEach(({ page }) => forceTown2d(page))
 
 test.use({ trace: 'off', screenshot: 'off', video: 'off' })
 
@@ -67,6 +75,18 @@ function watchSafePageRequests(page, events) {
   })
 }
 
+// a reset token must never reach a query string or a request url
+function expectNoSecretsInUrls(events) {
+  const leaks = events.filter(
+    (event) =>
+      event.pageHasQuery ||
+      event.pageHasFragment ||
+      event.requestHasQuery ||
+      event.requestHasFragment,
+  )
+  expect(leaks).toEqual([])
+}
+
 async function navigateToSensitiveUrl(page, value) {
   await page.evaluate((url) => window.location.assign(url), value)
 }
@@ -108,7 +128,7 @@ async function signInWithUi(page, identity) {
 async function selectAdminStudent(page, identity) {
   await page.getByLabel('Student email').fill(identity.email)
   await page.getByRole('button', { name: 'Find student' }).click()
-  await page.getByRole('button', { name: 'Select student' }).click()
+  // one exact match selects itself, so the confirmation appears straight away
   await page.getByLabel(identityCheckLabel).check()
 }
 
@@ -165,11 +185,11 @@ test('admin recovery revokes sessions and requires normal sign-in', async ({
   let loginContext
 
   try {
-    oldSessionContext = await browser.newContext(isolatedContextOptions(testInfo))
+    oldSessionContext = await newTown2dContext(browser, isolatedContextOptions(testInfo))
     const registrationPage = await oldSessionContext.newPage()
     await createStudentThroughRegistration(registrationPage, student)
 
-    gateContext = await browser.newContext(isolatedContextOptions(testInfo))
+    gateContext = await newTown2dContext(browser, isolatedContextOptions(testInfo))
     const gatePage = await gateContext.newPage()
     await signInWithUi(gatePage, student)
 
@@ -187,6 +207,8 @@ test('admin recovery revokes sessions and requires normal sign-in', async ({
     await assertNoHorizontalOverflow(page, 812, 375, 'landscape')
     await page.setViewportSize(testInfo.project.use.viewport)
     await page.keyboard.press('Escape')
+    await expect(firstDialog).toContainText('Close without copying?')
+    await firstDialog.getByRole('button', { name: 'Yes, close' }).click()
     await expect(firstDialog).toHaveCount(0)
     await expect(page.locator('#recovery-link-value')).toHaveCount(0)
     await expect(prepareButton).toBeFocused()
@@ -207,7 +229,7 @@ test('admin recovery revokes sessions and requires normal sign-in', async ({
     }))
     expect(pageBoundary).toEqual({ recoveryControls: 0, hasHorizontalOverflow: false })
 
-    queryContext = await browser.newContext(isolatedContextOptions(testInfo))
+    queryContext = await newTown2dContext(browser, isolatedContextOptions(testInfo))
     const queryPage = await queryContext.newPage()
     await queryPage.goto('/about')
     const queryEvents = []
@@ -228,17 +250,9 @@ test('admin recovery revokes sessions and requires normal sign-in', async ({
       hasFragment: false,
     })
     expect(queryEvents.some((event) => event.path === '/api/auth/reset-password')).toBe(false)
-    expect(
-      queryEvents.every(
-        (event) =>
-          !event.pageHasQuery &&
-          !event.pageHasFragment &&
-          !event.requestHasQuery &&
-          !event.requestHasFragment,
-      ),
-    ).toBe(true)
+    expectNoSecretsInUrls(queryEvents)
 
-    replacedContext = await browser.newContext(isolatedContextOptions(testInfo))
+    replacedContext = await newTown2dContext(browser, isolatedContextOptions(testInfo))
     const replacedPage = await replacedContext.newPage()
     const replacedEvents = []
     const replacedResponses = []
@@ -256,15 +270,7 @@ test('admin recovery revokes sessions and requires normal sign-in', async ({
     await replacedPage.getByRole('button', { name: 'Set password' }).click()
     await expect(replacedPage.locator('#reset-password-error')).toHaveText(unavailableMessage)
     expect(replacedResponses).toEqual([400])
-    expect(
-      replacedEvents.every(
-        (event) =>
-          !event.pageHasQuery &&
-          !event.pageHasFragment &&
-          !event.requestHasQuery &&
-          !event.requestHasFragment,
-      ),
-    ).toBe(true)
+    expectNoSecretsInUrls(replacedEvents)
 
     const gateEvents = []
     const gateResponses = []
@@ -304,15 +310,7 @@ test('admin recovery revokes sessions and requires normal sign-in', async ({
     )
     expect(persistedToken).toBe(false)
     expect(gateEvents.length).toBeGreaterThan(0)
-    expect(
-      gateEvents.every(
-        (event) =>
-          !event.pageHasQuery &&
-          !event.pageHasFragment &&
-          !event.requestHasQuery &&
-          !event.requestHasFragment,
-      ),
-    ).toBe(true)
+    expectNoSecretsInUrls(gateEvents)
 
     await gatePage.getByRole('button', { name: 'Sign out before resetting password' }).click()
     await expect(gatePage.locator('#reset-password')).toBeVisible()
@@ -329,17 +327,9 @@ test('admin recovery revokes sessions and requires normal sign-in', async ({
       (event) => event.path === '/api/auth/reset-password',
     )
     expect(redemptionRequests).toHaveLength(1)
-    expect(
-      redemptionRequests.every(
-        (event) =>
-          !event.pageHasQuery &&
-          !event.pageHasFragment &&
-          !event.requestHasQuery &&
-          !event.requestHasFragment,
-      ),
-    ).toBe(true)
+    expectNoSecretsInUrls(redemptionRequests)
 
-    reuseContext = await browser.newContext(isolatedContextOptions(testInfo))
+    reuseContext = await newTown2dContext(browser, isolatedContextOptions(testInfo))
     const reusePage = await reuseContext.newPage()
     const reuseEvents = []
     const reuseResponses = []
@@ -357,15 +347,7 @@ test('admin recovery revokes sessions and requires normal sign-in', async ({
     await reusePage.getByRole('button', { name: 'Set password' }).click()
     await expect(reusePage.locator('#reset-password-error')).toHaveText(unavailableMessage)
     expect(reuseResponses).toEqual([400])
-    expect(
-      reuseEvents.every(
-        (event) =>
-          !event.pageHasQuery &&
-          !event.pageHasFragment &&
-          !event.requestHasQuery &&
-          !event.requestHasFragment,
-      ),
-    ).toBe(true)
+    expectNoSecretsInUrls(reuseEvents)
 
     const originHeader = { Origin: origin }
     const staleSessionResponse = await oldSessionContext.request.get(`${baseURL}/api/auth/me`, {
@@ -373,7 +355,7 @@ test('admin recovery revokes sessions and requires normal sign-in', async ({
     })
     expect(staleSessionResponse.status()).toBe(401)
 
-    loginContext = await browser.newContext(isolatedContextOptions(testInfo))
+    loginContext = await newTown2dContext(browser, isolatedContextOptions(testInfo))
     const loginPage = await loginContext.newPage()
     await loginPage.goto('/login')
     await loginPage.getByLabel('Email or username').fill(student.email)
@@ -447,14 +429,15 @@ test('instructors issue links; admin-only roles have no roster recovery control'
     expect(cohort?.id).toMatch(/^[a-f\d]{24}$/i)
 
     await page.getByRole('tab', { name: 'Instructors', exact: true }).click()
+    await openAddStaff(page)
     await page.getByLabel('Instructor email').fill(instructor.email)
     await page.getByLabel('Instructor username').fill(instructor.username)
     await page.getByRole('button', { name: 'Create instructor and activation link' }).click()
     const activationUrl = await page.getByLabel('Activation link', { exact: true }).inputValue()
-    await page.getByRole('button', { name: 'Close', exact: true }).click()
+    await closeLinkDialog(page)
     await expect(page.getByLabel('Activation link', { exact: true })).toHaveCount(0)
 
-    instructorContext = await browser.newContext(isolated)
+    instructorContext = await newTown2dContext(browser, isolated)
     const instructorPage = await instructorContext.newPage()
     await instructorPage.goto(activationUrl)
     await expect(
@@ -474,6 +457,7 @@ test('instructors issue links; admin-only roles have no roster recovery control'
 
     await page.getByRole('button', { name: 'Refresh instructors' }).click()
     const instructorEditor = page.getByRole('article', { name: instructor.username, exact: true })
+    await openAssignments(instructorEditor)
     await instructorEditor
       .getByRole('checkbox', { name: `${cohortName}, ${institutionName}, Synthetic Recovery Term` })
       .check()
@@ -498,7 +482,7 @@ test('instructors issue links; admin-only roles have no roster recovery control'
     await instructorPage.getByRole('button', { name: 'Close and clear code' }).click()
     await expect(instructorPage.getByLabel('Invitation link')).toHaveCount(0)
 
-    studentContext = await browser.newContext(isolated)
+    studentContext = await newTown2dContext(browser, isolated)
     const studentPage = await studentContext.newPage()
     await studentPage.goto(invitationUrl)
     await studentPage.getByRole('button', { name: 'Sign in' }).click()
@@ -552,7 +536,9 @@ test('instructors issue links; admin-only roles have no roster recovery control'
     await expect
       .poll(() => dialog.evaluate((node) => node.contains(document.activeElement)))
       .toBe(true)
+    await expect(dialog).toContainText(`Link for ${studentIdentity.username}`)
     await instructorPage.keyboard.press('Escape')
+    await dialog.getByRole('button', { name: 'Yes, close' }).click()
     await expect(dialog).toHaveCount(0)
     await expect(instructorPage.locator('#recovery-link-value')).toHaveCount(0)
     await expect(instructorIssueButton).toBeFocused()

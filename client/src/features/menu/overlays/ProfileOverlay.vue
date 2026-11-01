@@ -2,18 +2,22 @@
 import { computed, nextTick, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import OverlayPanel from '../OverlayPanel.vue'
+import { useAuthStore } from '../../auth/store.js'
 import ProfilePage from '../../profile/ProfilePage.vue'
 import ProgressPage from '../../progress/ProgressPage.vue'
 
 defineEmits(['request-close'])
 const route = useRoute()
 const router = useRouter()
+const auth = useAuthStore()
 const tabs = [
   { id: 'profile', label: 'Profile' },
   { id: 'progress', label: 'Progress' },
 ]
 const active = computed(() => (route.query.tab === 'progress' ? 'progress' : 'profile'))
 const tabButtons = ref([])
+// both pages show their own notice only when the account could not be checked at all
+const pageShowsSessionNotice = computed(() => auth.status === 'unknown')
 
 function select(id) {
   if (id !== active.value) router.replace({ path: '/profile', query: { tab: id } })
@@ -31,7 +35,11 @@ async function onKey(event, index) {
 </script>
 
 <template>
-  <OverlayPanel title="Profile & progress" @request-close="$emit('request-close')">
+  <OverlayPanel
+    title="Profile & progress"
+    :session-notice="!pageShowsSessionNotice"
+    @request-close="$emit('request-close')"
+  >
     <template #tabs>
       <div class="overlay-tabs" role="tablist" aria-label="Profile and progress">
         <button
@@ -54,8 +62,8 @@ async function onKey(event, index) {
       </div>
     </template>
     <div :id="`profile-panel-${active}`" role="tabpanel" :aria-labelledby="`profile-tab-${active}`">
-      <ProfilePage v-if="active === 'profile'" embedded />
-      <ProgressPage v-else embedded />
+      <ProfilePage v-if="active === 'profile'" />
+      <ProgressPage v-else />
     </div>
   </OverlayPanel>
 </template>

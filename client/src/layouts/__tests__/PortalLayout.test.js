@@ -36,6 +36,24 @@ describe('portal layout', () => {
     expect(wrapper.find('#portal-menu').exists()).toBe(false)
   })
 
+  it('shows no Menu button until the first route has resolved, so no click on it is lost', async () => {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/forbidden', component: { template: '<h1>Page</h1>' } }],
+    })
+    const wrapper = mount(PortalLayout, {
+      attachTo: document.body,
+      global: { plugins: [pinia, router] },
+    })
+    wrappers.push(wrapper)
+    expect(wrapper.find('[data-testid="menu-button"]').exists()).toBe(false)
+    await router.push('/forbidden')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="menu-button"]').exists()).toBe(true)
+  })
+
   it('opens the site menu drawer from the Menu button', async () => {
     const { wrapper } = await mountAt('/forbidden')
     await wrapper.get('[data-testid="menu-button"]').trigger('click')

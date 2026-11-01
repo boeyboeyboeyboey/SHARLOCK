@@ -12,6 +12,7 @@ import { membershipModel } from '../../models/Membership.js'
 import { passwordResetModel } from '../recovery/model.js'
 import {
   AdminError,
+  reactivationConflict,
   parseAdminListQuery,
   parseAdminObjectId,
   assertEmptyAdminQuery,
@@ -96,13 +97,14 @@ function cohortDto(cohort, institutions) {
   }
 }
 
-function instructorDto(instructor, cohortIds = [], assignedCohorts = []) {
+function instructorDto(instructor, cohortIds = [], assignedCohorts = [], pendingIds = new Set()) {
   return {
     id: idString(instructor._id),
     email: instructor.emailNormalized,
     username: instructor.username,
     avatarId: instructor.avatarId,
     accountStatus: instructor.accountStatus,
+    pendingActivation: pendingIds.has(idString(instructor._id)),
     assignmentRevision: instructor.instructorAssignmentRevision ?? 0,
     cohortIds: cohortIds.map(idString),
     assignedCohorts,
@@ -113,6 +115,19 @@ function duplicateConflict(error) {
   return error?.code === 11000
 }
 
+// the router logs the cause name, because the 503 itself deliberately says nothing about the failure
+function unavailableFrom(cause) {
+  const error = new AdminError('ADMIN_UNAVAILABLE')
+  error.causeName = cause?.name
+  return error
+}
+
+// names the status change in the audit log; a plain rename stays an update
+function classEventType(prefix, previousStatus, nextStatus) {
+  if (previousStatus === nextStatus) return `${prefix}.update`
+  return nextStatus === 'inactive' ? `${prefix}.deactivate` : `${prefix}.reactivate`
+}
+
 export function createAdminService(
   database,
   {
@@ -120,6 +135,7 @@ export function createAdminService(
     clientOrigin = 'http://localhost:5173',
     recordAuditEvent,
     activationService: providedActivationService,
+    onSessionsEnded = () => {},
   } = {},
 ) {
   const User = userModel(database)
@@ -147,6 +163,7 @@ export function createAdminService(
   }
 
   async function recordAdminEvent(actor, eventType, targetId, session, details = {}) {
+    const { requestId, ...fields } = details
     await auditWriter(
       {
         eventType,
@@ -155,8 +172,8 @@ export function createAdminService(
         targetId: idString(targetId),
         scopeCohortId: null,
         outcome: 'success',
-        requestId: randomUUID(),
-        ...details,
+        requestId: requestId ?? randomUUID(),
+        ...fields,
       },
       { session },
     )
@@ -174,24 +191,29 @@ export function createAdminService(
     return activationService.issueActivation(input, { session })
   }
 
-  async function withTransaction(work, prepare) {
+  async function withTransaction(work, prepare, { duplicateCode = 'ADMIN_CONFLICT' } = {}) {
     let session
     let result
     let preparation
     let cleanupFailed = false
+    // a retried transaction starts this list again; sockets are told only after it commits
+    const endedSessions = []
     try {
       await assertTransactionSupport(database)
-    } catch {
-      throw new AdminError('ADMIN_UNAVAILABLE')
+    } catch (error) {
+      throw unavailableFrom(error)
     }
     try {
       preparation = await prepare?.()
       session = await database.startSession()
-      result = await session.withTransaction(() => work(session, preparation), transactionOptions)
+      result = await session.withTransaction(() => {
+        endedSessions.length = 0
+        return work(session, preparation, endedSessions)
+      }, transactionOptions)
     } catch (error) {
       if (error instanceof AdminError) throw error
-      if (duplicateConflict(error)) throw new AdminError('ADMIN_CONFLICT')
-      throw new AdminError('ADMIN_UNAVAILABLE')
+      if (duplicateConflict(error)) throw new AdminError(duplicateCode)
+      throw unavailableFrom(error)
     } finally {
       try {
         await session?.endSession()
@@ -200,60 +222,112 @@ export function createAdminService(
       }
     }
     if (cleanupFailed) throw new AdminError('ADMIN_UNAVAILABLE')
+    if (endedSessions.length > 0) onSessionsEnded([...endedSessions])
     return result
   }
 
+  async function endUserSessions(userId, session, endedSessions) {
+    const sessions = database.db.collection('auth_sessions')
+    const filter = { 'session.userId': idString(userId) }
+    const found = await sessions.find(filter, { session, projection: { _id: 1 } }).toArray()
+    endedSessions.push(...found.map((doc) => doc._id))
+    await sessions.deleteMany(filter, { session })
+  }
+
+  // every admin list is newest first, so a record the admin just created is on page 1
   async function listInstitutions(actor, query) {
     await requireAdmin(actor, 'admin:classes:manage')
     const { page, limit } = parseAdminListQuery(query)
     const skip = (page - 1) * limit
     const [institutions, total] = await Promise.all([
-      Institution.find({}).sort({ _id: 1 }).skip(skip).limit(limit).lean(),
+      Institution.find({}).sort({ _id: -1 }).skip(skip).limit(limit).lean(),
       Institution.countDocuments({}),
     ])
     return { institutions: institutions.map(institutionDto), page, total }
   }
 
-  function accountDto(account) {
+  // an instructor is pending until activation replaces the password set at provisioning; a used
+  // token alone cannot show this, because tokens expire out of the collection
+  function passwordUntouched(account) {
+    const created = account.createdAt ?? account._id.getTimestamp()
+    return account.passwordChangedAt?.getTime() <= created.getTime()
+  }
+
+  async function pendingInstructorIds(accounts, session) {
+    const candidates = accounts
+      .filter(
+        (account) =>
+          account.globalRoles.length === 1 &&
+          account.globalRoles[0] === 'instructor' &&
+          account.accountStatus === 'disabled' &&
+          passwordUntouched(account),
+      )
+      .map(({ _id }) => _id)
+    if (!candidates.length) return new Set()
+    const usedToken = await PasswordReset.distinct(
+      'userId',
+      { userId: { $in: candidates }, purpose: 'activation', consumedAt: { $ne: null } },
+      { session },
+    )
+    const assigned = await InstructorAssignment.distinct(
+      'userId',
+      { userId: { $in: candidates } },
+      { session },
+    )
+    const settled = new Set([...usedToken, ...assigned].map(idString))
+    return new Set(candidates.map(idString).filter((id) => !settled.has(id)))
+  }
+
+  function accountDto(account, pendingIds = new Set()) {
     return {
       id: idString(account._id),
       username: account.username,
+      email: account.emailNormalized,
       avatarId: account.avatarId,
       globalRoles: [...account.globalRoles],
       accountStatus: account.accountStatus,
+      pendingActivation: pendingIds.has(idString(account._id)),
       revision: account.authVersion ?? 0,
     }
   }
 
   async function listUsers(actor, query) {
     await requireAdmin(actor, 'admin:accounts:manage')
-    const { page, limit, role, accountStatus } = parseAdminListQuery(query, { users: true })
+    const { page, limit, role, accountStatus, search } = parseAdminListQuery(query, { users: true })
+    // a range query matches a prefix without building a regular expression from the input
+    const prefix = search && { $gte: search, $lt: `${search}\uffff` }
     const filter = {
       ...(role
         ? { globalRoles: [role] }
         : { $or: [{ globalRoles: ['student'] }, { globalRoles: ['instructor'] }] }),
       accountStatus: accountStatus || { $ne: 'deleted' },
+      ...(prefix && {
+        $and: [{ $or: [{ usernameNormalized: prefix }, { emailNormalized: prefix }] }],
+      }),
     }
     const skip = (page - 1) * limit
     const [users, total] = await Promise.all([
       User.find(filter)
-        .select('_id username avatarId globalRoles accountStatus authVersion')
-        .sort({ _id: 1 })
+        .select(
+          '_id username emailNormalized avatarId globalRoles accountStatus authVersion createdAt passwordChangedAt',
+        )
+        .sort({ _id: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
       User.countDocuments(filter),
     ])
-    return { users: users.map(accountDto), page, total }
+    const pendingIds = await pendingInstructorIds(users)
+    return { users: users.map((user) => accountDto(user, pendingIds)), page, total }
   }
 
-  async function updateUserStatus(actor, userId, input, query = {}) {
+  async function updateUserStatus(actor, userId, input, query = {}, { requestId } = {}) {
     const currentActor = await requireAdmin(actor, 'admin:accounts:manage')
     assertEmptyAdminQuery(query)
     const targetId = objectId(parseAdminObjectId(userId, 'userId'))
     const parsed = parseAccountStatusInput(input)
     if (currentActor.id === idString(targetId)) throw new AdminError('ADMIN_FORBIDDEN')
-    return withTransaction(async (session) => {
+    return withTransaction(async (session, _preparation, endedSessions) => {
       await assertTransactionAdministrator(currentActor, session)
       const target = await User.findById(targetId)
         .select('_id username avatarId globalRoles accountStatus authVersion +recoveryRevision')
@@ -309,20 +383,19 @@ export function createAdminService(
         { $set: { revokedAt: occurredAt } },
         { session },
       )
-      await database.db
-        .collection('auth_sessions')
-        .deleteMany({ 'session.userId': idString(targetId) }, { session })
+      await endUserSessions(targetId, session, endedSessions)
       await recordAdminEvent(
         currentActor,
         parsed.accountStatus === 'disabled' ? 'admin.user.disable' : 'admin.user.enable',
         targetId,
         session,
+        { requestId },
       )
       return { user: accountDto(updated) }
     })
   }
 
-  async function deleteStudentAccount(actor, userId, input, query = {}) {
+  async function deleteStudentAccount(actor, userId, input, query = {}, { requestId } = {}) {
     const currentActor = await requireAdmin(actor, 'admin:accounts:manage')
     assertEmptyAdminQuery(query)
     const targetId = objectId(parseAdminObjectId(userId, 'userId'))
@@ -342,7 +415,7 @@ export function createAdminService(
     if (!passwordMatches) throw new AdminError('ADMIN_PASSWORD_INVALID')
 
     return withTransaction(
-      async (session, unusableHash) => {
+      async (session, unusableHash, endedSessions) => {
         await assertTransactionAdministrator(currentActor, session)
         const target = await User.findById(targetId)
           .select('_id username globalRoles accountStatus authVersion +recoveryRevision')
@@ -421,11 +494,10 @@ export function createAdminService(
           await Membership.deleteMany({ userId: targetId }, { session })
           await PasswordReset.deleteMany({ userId: targetId }, { session })
         }
-        await database.db
-          .collection('auth_sessions')
-          .deleteMany({ 'session.userId': idString(targetId) }, { session })
+        await endUserSessions(targetId, session, endedSessions)
         const outcome = hasAttempts ? 'anonymised' : 'deleted'
         await recordAdminEvent(currentActor, 'admin.account.delete', targetId, session, {
+          requestId,
           targetRole: 'student',
           accountOutcome: outcome,
           reasonCategory: parsed.reasonCategory,
@@ -438,16 +510,24 @@ export function createAdminService(
     )
   }
 
-  async function createInstitution(actor, input, query = {}) {
+  async function createInstitution(actor, input, query = {}, { requestId } = {}) {
     const currentActor = await requireAdmin(actor, 'admin:classes:manage')
     assertEmptyAdminQuery(query)
     const parsed = parseInstitutionInput(input)
-    return withTransaction(async (session) => {
-      await assertTransactionAdministrator(currentActor, session)
-      const [institution] = await Institution.create([{ ...parsed, status: 'active' }], { session })
-      await recordAdminEvent(currentActor, 'admin.institution.create', institution._id, session)
-      return institutionDto(institution.toObject())
-    })
+    return withTransaction(
+      async (session) => {
+        await assertTransactionAdministrator(currentActor, session)
+        const [institution] = await Institution.create([{ ...parsed, status: 'active' }], {
+          session,
+        })
+        await recordAdminEvent(currentActor, 'admin.institution.create', institution._id, session, {
+          requestId,
+        })
+        return institutionDto(institution.toObject())
+      },
+      undefined,
+      { duplicateCode: 'ADMIN_SLUG_TAKEN' },
+    )
   }
 
   async function listCohorts(actor, query) {
@@ -456,7 +536,7 @@ export function createAdminService(
     const filter = institutionId ? { institutionId: objectId(institutionId) } : {}
     const skip = (page - 1) * limit
     const [cohorts, total] = await Promise.all([
-      Cohort.find(filter).sort({ _id: 1 }).skip(skip).limit(limit).lean(),
+      Cohort.find(filter).sort({ _id: -1 }).skip(skip).limit(limit).lean(),
       Cohort.countDocuments(filter),
     ])
     const institutionIds = [...new Set(cohorts.map(({ institutionId: id }) => idString(id)))]
@@ -471,36 +551,88 @@ export function createAdminService(
     return { cohorts: cohorts.map((cohort) => cohortDto(cohort, institutionById)), page, total }
   }
 
-  async function createCohort(actor, input, query = {}) {
+  async function createCohort(actor, input, query = {}, { requestId } = {}) {
     const currentActor = await requireAdmin(actor, 'admin:classes:manage')
     assertEmptyAdminQuery(query)
     const parsed = parseCohortInput(input)
-    return withTransaction(async (session) => {
-      await assertTransactionAdministrator(currentActor, session)
-      const institutionId = objectId(parsed.institutionId)
-      const institution = await Institution.findOne({ _id: institutionId, status: 'active' })
-        .select('_id name slug status adminRevision +recoveryRevision')
-        .session(session)
-        .lean()
-      if (!institution) throw new AdminError('ADMIN_NOT_FOUND')
-      await touchRecoveryGuard(Institution, institution, { status: 'active' }, session)
-      const [cohort] = await Cohort.create(
-        [
-          {
-            institutionId,
-            name: parsed.name,
-            term: parsed.term,
-            status: 'active',
-          },
-        ],
-        { session },
-      )
-      await recordAdminEvent(currentActor, 'admin.cohort.create', cohort._id, session)
-      return cohortDto(cohort.toObject(), new Map([[idString(institution._id), institution]]))
-    })
+    return withTransaction(
+      async (session) => {
+        await assertTransactionAdministrator(currentActor, session)
+        const institutionId = objectId(parsed.institutionId)
+        const institution = await Institution.findOne({ _id: institutionId, status: 'active' })
+          .select('_id name slug status adminRevision +recoveryRevision')
+          .session(session)
+          .lean()
+        if (!institution) throw new AdminError('ADMIN_NOT_FOUND')
+        await touchRecoveryGuard(Institution, institution, { status: 'active' }, session)
+        const [cohort] = await Cohort.create(
+          [
+            {
+              institutionId,
+              name: parsed.name,
+              term: parsed.term,
+              status: 'active',
+            },
+          ],
+          { session },
+        )
+        await recordAdminEvent(currentActor, 'admin.cohort.create', cohort._id, session, {
+          requestId,
+        })
+        return cohortDto(cohort.toObject(), new Map([[idString(institution._id), institution]]))
+      },
+      undefined,
+      { duplicateCode: 'ADMIN_CLASS_EXISTS' },
+    )
   }
 
-  async function updateInstitution(actor, institutionId, input, query = {}) {
+  // a reactivated class counts again for the one-class rule, so a student who joined another class
+  // while it was off would hold two. this refuses and counts them; it never changes a membership
+  async function assertReactivationKeepsOneClass(revivedCohortIds, session) {
+    if (!revivedCohortIds.length) return
+    const held = { $in: ['active', 'pending'] }
+    const studentIds = await Membership.distinct('userId', {
+      cohortId: { $in: revivedCohortIds },
+      status: held,
+    }).session(session)
+    if (!studentIds.length) return
+    const holdings = await Membership.find({ userId: { $in: studentIds }, status: held })
+      .select('userId cohortId')
+      .session(session)
+      .lean()
+    const revived = new Set(revivedCohortIds.map(idString))
+    const otherIds = [
+      ...new Set(
+        holdings.map(({ cohortId }) => idString(cohortId)).filter((id) => !revived.has(id)),
+      ),
+    ]
+    const otherCohorts = await Cohort.find({ _id: { $in: otherIds }, status: 'active' })
+      .select('institutionId')
+      .session(session)
+      .lean()
+    const liveInstitutions = await Institution.find({
+      _id: { $in: otherCohorts.map((cohort) => cohort.institutionId) },
+      status: 'active',
+    })
+      .select('_id')
+      .session(session)
+      .lean()
+    const liveInstitutionIds = new Set(liveInstitutions.map(({ _id }) => idString(_id)))
+    const live = new Set(revived)
+    for (const cohort of otherCohorts) {
+      if (liveInstitutionIds.has(idString(cohort.institutionId))) live.add(idString(cohort._id))
+    }
+    const liveClassesPerStudent = new Map()
+    for (const { userId, cohortId } of holdings) {
+      if (!live.has(idString(cohortId))) continue
+      const student = idString(userId)
+      liveClassesPerStudent.set(student, (liveClassesPerStudent.get(student) ?? 0) + 1)
+    }
+    const affected = [...liveClassesPerStudent.values()].filter((count) => count > 1).length
+    if (affected > 0) throw reactivationConflict(affected)
+  }
+
+  async function updateInstitution(actor, institutionId, input, query = {}, { requestId } = {}) {
     const currentActor = await requireAdmin(actor, 'admin:classes:manage')
     assertEmptyAdminQuery(query)
     const id = parseAdminObjectId(institutionId)
@@ -516,15 +648,26 @@ export function createAdminService(
       if (revision !== parsed.expectedRevision) throw new AdminError('ADMIN_STALE_INSTITUTION')
       const name = parsed.name ?? current.name
       const status = parsed.status ?? current.status
-      if (current.name === name && current.status === status) throw new AdminError('ADMIN_CONFLICT')
+      if (current.name === name && current.status === status)
+        throw new AdminError('ADMIN_NO_CHANGE')
       if (current.status !== status && status === 'inactive') {
         const activeCohort = await Cohort.exists({
           institutionId: current._id,
           status: 'active',
         }).session(session)
-        if (activeCohort) throw new AdminError('ADMIN_CONFLICT')
+        if (activeCohort) throw new AdminError('ADMIN_INSTITUTION_HAS_CLASSES')
       }
       const changesStatus = current.status !== status
+      if (changesStatus && status === 'active') {
+        const liveAgain = await Cohort.find({ institutionId: current._id, status: 'active' })
+          .select('_id')
+          .session(session)
+          .lean()
+        await assertReactivationKeepsOneClass(
+          liveAgain.map((cohort) => cohort._id),
+          session,
+        )
+      }
       const nextAdminRevision = nextRevision(revision)
       const expectedRecoveryRevision = current.recoveryRevision ?? 0
       const filter = revisionConditions(
@@ -546,17 +689,23 @@ export function createAdminService(
         runValidators: true,
       }).lean()
       if (!changed) throw new AdminError('ADMIN_STALE_INSTITUTION')
-      await recordAdminEvent(currentActor, 'admin.institution.update', changed._id, session)
+      await recordAdminEvent(
+        currentActor,
+        classEventType('admin.institution', current.status, status),
+        changed._id,
+        session,
+        { requestId },
+      )
       return { institution: institutionDto(changed) }
     })
   }
 
-  async function updateCohort(actor, cohortId, input, query = {}) {
+  async function updateCohort(actor, cohortId, input, query = {}, { requestId } = {}) {
     const currentActor = await requireAdmin(actor, 'admin:classes:manage')
     assertEmptyAdminQuery(query)
     const id = parseAdminObjectId(cohortId)
     const parsed = parseCohortUpdateInput(input)
-    return withTransaction(async (session) => {
+    const work = async (session) => {
       await assertTransactionAdministrator(currentActor, session)
       const current = await Cohort.findOne({ _id: objectId(id) })
         .select('_id institutionId name term status adminRevision +recoveryRevision')
@@ -569,7 +718,7 @@ export function createAdminService(
       const term = parsed.term ?? current.term
       const status = parsed.status ?? current.status
       if (current.name === name && current.term === term && current.status === status)
-        throw new AdminError('ADMIN_CONFLICT')
+        throw new AdminError('ADMIN_NO_CHANGE')
       const changesStatus = current.status !== status
       const institutionId = current.institutionId
       const parent = await Institution.findById(institutionId)
@@ -579,6 +728,9 @@ export function createAdminService(
       if (!parent) throw new AdminError('ADMIN_NOT_FOUND')
       if (changesStatus && status === 'active' && parent.status !== 'active') {
         throw new AdminError('ADMIN_NOT_FOUND')
+      }
+      if (changesStatus && status === 'active') {
+        await assertReactivationKeepsOneClass([current._id], session)
       }
       if (changesStatus && parent.status === 'active') {
         const parentGuard = await Institution.updateOne(
@@ -639,13 +791,20 @@ export function createAdminService(
           if (!revoked.modifiedCount) throw new AdminError('ADMIN_CONFLICT')
         }
       }
-      await recordAdminEvent(currentActor, 'admin.cohort.update', changed._id, session)
+      await recordAdminEvent(
+        currentActor,
+        classEventType('admin.cohort', current.status, status),
+        changed._id,
+        session,
+        { requestId },
+      )
       const institution = await Institution.findById(institutionId)
         .select('_id name status')
         .session(session)
         .lean()
       return { cohort: cohortDto(changed, new Map([[idString(institutionId), institution]])) }
-    })
+    }
+    return withTransaction(work, undefined, { duplicateCode: 'ADMIN_CLASS_EXISTS' })
   }
 
   async function listInstructors(actor, query) {
@@ -655,13 +814,16 @@ export function createAdminService(
     const skip = (page - 1) * limit
     const [instructors, total] = await Promise.all([
       User.find(filter)
-        .select('_id emailNormalized username avatarId accountStatus instructorAssignmentRevision')
-        .sort({ _id: 1 })
+        .select(
+          '_id emailNormalized username avatarId globalRoles accountStatus instructorAssignmentRevision createdAt passwordChangedAt',
+        )
+        .sort({ _id: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
       User.countDocuments(filter),
     ])
+    const pendingIds = await pendingInstructorIds(instructors)
     const ids = instructors.map(({ _id }) => _id)
     const assignmentCounts = ids.length
       ? await InstructorAssignment.aggregate([
@@ -714,6 +876,7 @@ export function createAdminService(
           instructor,
           cohortIdsByUser.get(idString(instructor._id)),
           assignedCohortsByUser.get(idString(instructor._id)),
+          pendingIds,
         ),
       ),
       page,
@@ -721,7 +884,7 @@ export function createAdminService(
     }
   }
 
-  async function provisionInstructor(actor, input, query = {}) {
+  async function provisionInstructor(actor, input, query = {}, { requestId } = {}) {
     const currentActor = await requireAdmin(actor, 'admin:instructors:manage')
     assertEmptyAdminQuery(query)
     const parsed = parseInstructorInput(input)
@@ -734,7 +897,7 @@ export function createAdminService(
             { usernameNormalized: parsed.username.normalized },
           ],
         }).session(session)
-        if (collision) throw new AdminError('ADMIN_CONFLICT')
+        if (collision) throw new AdminError('ADMIN_ACCOUNT_EXISTS')
         const [instructor] = await User.create(
           [
             {
@@ -753,21 +916,38 @@ export function createAdminService(
           { session },
         )
         const activation = await issueActivation(
-          { userId: idString(instructor._id), actorId: currentActor.id },
+          { userId: idString(instructor._id), actorId: currentActor.id, requestId },
           { session },
         )
-        await recordAdminEvent(currentActor, 'admin.instructor.provision', instructor._id, session)
-        return { instructor: instructorDto(instructor.toObject()), ...activation }
+        await recordAdminEvent(
+          currentActor,
+          'admin.instructor.provision',
+          instructor._id,
+          session,
+          {
+            requestId,
+          },
+        )
+        return {
+          instructor: instructorDto(
+            instructor.toObject(),
+            [],
+            [],
+            new Set([idString(instructor._id)]),
+          ),
+          ...activation,
+        }
       },
       async () => {
         const randomPassword = randomBytes(32).toString('hex')
         return hashPassword(randomPassword)
       },
+      { duplicateCode: 'ADMIN_ACCOUNT_EXISTS' },
     )
     return created
   }
 
-  async function provisionAdministrator(actor, input, query = {}) {
+  async function provisionAdministrator(actor, input, query = {}, { requestId } = {}) {
     const currentActor = await requireAdmin(actor, 'admin:instructors:manage')
     assertEmptyAdminQuery(query)
     const parsed = parseInstructorInput(input)
@@ -780,7 +960,7 @@ export function createAdminService(
             { usernameNormalized: parsed.username.normalized },
           ],
         }).session(session)
-        if (collision) throw new AdminError('ADMIN_CONFLICT')
+        if (collision) throw new AdminError('ADMIN_ACCOUNT_EXISTS')
         const [administrator] = await User.create(
           [
             {
@@ -799,7 +979,7 @@ export function createAdminService(
           { session },
         )
         const activation = await issueActivation(
-          { userId: idString(administrator._id), actorId: currentActor.id },
+          { userId: idString(administrator._id), actorId: currentActor.id, requestId },
           { session },
         )
         await recordAdminEvent(
@@ -807,6 +987,7 @@ export function createAdminService(
           'admin.administrator.provision',
           administrator._id,
           session,
+          { requestId },
         )
         return {
           administrator: {
@@ -820,6 +1001,7 @@ export function createAdminService(
         }
       },
       async () => hashPassword(randomBytes(32).toString('hex')),
+      { duplicateCode: 'ADMIN_ACCOUNT_EXISTS' },
     )
   }
 
@@ -858,7 +1040,7 @@ export function createAdminService(
     const [rows, total] = await Promise.all([
       User.find(filter)
         .select('_id emailNormalized username createdAt')
-        .sort({ _id: 1 })
+        .sort({ _id: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
@@ -899,7 +1081,13 @@ export function createAdminService(
     }
   }
 
-  async function reissueAdministratorActivation(actor, userId, input, query = {}) {
+  async function reissueAdministratorActivation(
+    actor,
+    userId,
+    input,
+    query = {},
+    { requestId } = {},
+  ) {
     const currentActor = await requireAdmin(actor, 'admin:instructors:manage')
     assertEmptyAdminQuery(query)
     assertEmptyAdminBody(input)
@@ -907,16 +1095,16 @@ export function createAdminService(
     return withTransaction(async (session) => {
       await assertTransactionAdministrator(currentActor, session)
       if (!(await findPendingAdministrator(id, session))) throw new AdminError('ADMIN_NOT_FOUND')
-      return issueActivation({ userId: id, actorId: currentActor.id }, { session })
+      return issueActivation({ userId: id, actorId: currentActor.id, requestId }, { session })
     })
   }
 
-  async function cancelPendingAdministrator(actor, userId, input, query = {}) {
+  async function cancelPendingAdministrator(actor, userId, input, query = {}, { requestId } = {}) {
     const currentActor = await requireAdmin(actor, 'admin:instructors:manage')
     assertEmptyAdminQuery(query)
     assertEmptyAdminBody(input)
     const id = parseAdminObjectId(userId)
-    return withTransaction(async (session) => {
+    return withTransaction(async (session, _preparation, endedSessions) => {
       await assertTransactionAdministrator(currentActor, session)
       const target = await findPendingAdministrator(id, session)
       if (!target) throw new AdminError('ADMIN_NOT_FOUND')
@@ -926,15 +1114,47 @@ export function createAdminService(
       )
       if (removed.deletedCount !== 1) throw new AdminError('ADMIN_NOT_FOUND')
       await PasswordReset.deleteMany({ userId: target._id }, { session })
-      await database.db
-        .collection('auth_sessions')
-        .deleteMany({ 'session.userId': idString(target._id) }, { session })
-      await recordAdminEvent(currentActor, 'admin.administrator.cancel', target._id, session)
+      await endUserSessions(target._id, session, endedSessions)
+      await recordAdminEvent(currentActor, 'admin.administrator.cancel', target._id, session, {
+        requestId,
+      })
       return { outcome: 'cancelled' }
     })
   }
 
-  async function reissueActivation(actor, userId, input, query = {}) {
+  async function cancelPendingInstructor(actor, userId, input, query = {}, { requestId } = {}) {
+    const currentActor = await requireAdmin(actor, 'admin:instructors:manage')
+    assertEmptyAdminQuery(query)
+    assertEmptyAdminBody(input)
+    const id = parseAdminObjectId(userId)
+    return withTransaction(async (session, _preparation, endedSessions) => {
+      await assertTransactionAdministrator(currentActor, session)
+      const target = await User.findOne({
+        _id: objectId(id),
+        globalRoles: ['instructor'],
+        accountStatus: 'disabled',
+      })
+        .select('_id globalRoles accountStatus createdAt passwordChangedAt')
+        .session(session)
+        .lean()
+      if (!target || !(await pendingInstructorIds([target], session)).has(id)) {
+        throw new AdminError('ADMIN_NOT_FOUND')
+      }
+      const removed = await User.deleteOne(
+        { _id: target._id, globalRoles: ['instructor'], accountStatus: 'disabled' },
+        { session },
+      )
+      if (removed.deletedCount !== 1) throw new AdminError('ADMIN_NOT_FOUND')
+      await PasswordReset.deleteMany({ userId: target._id }, { session })
+      await endUserSessions(target._id, session, endedSessions)
+      await recordAdminEvent(currentActor, 'admin.instructor.cancel', target._id, session, {
+        requestId,
+      })
+      return { outcome: 'cancelled' }
+    })
+  }
+
+  async function reissueActivation(actor, userId, input, query = {}, { requestId } = {}) {
     const currentActor = await requireAdmin(actor, 'admin:instructors:manage')
     assertEmptyAdminQuery(query)
     assertEmptyAdminBody(input)
@@ -947,11 +1167,11 @@ export function createAdminService(
         .lean()
       if (!instructor) throw new AdminError('ADMIN_NOT_FOUND')
       if (instructor.accountStatus !== 'disabled') throw new AdminError('ADMIN_CONFLICT')
-      return issueActivation({ userId: id, actorId: currentActor.id }, { session })
+      return issueActivation({ userId: id, actorId: currentActor.id, requestId }, { session })
     })
   }
 
-  async function setAssignments(actor, userId, input, query = {}) {
+  async function setAssignments(actor, userId, input, query = {}, { requestId } = {}) {
     const currentActor = await requireAdmin(actor, 'admin:instructors:manage')
     assertEmptyAdminQuery(query)
     const id = parseAdminObjectId(userId)
@@ -1081,6 +1301,7 @@ export function createAdminService(
         'admin.instructor.assignments.update',
         instructorId,
         session,
+        { requestId },
       )
       return {
         instructor: instructorDto(
@@ -1111,6 +1332,7 @@ export function createAdminService(
     listPendingAdministrators,
     reissueAdministratorActivation,
     cancelPendingAdministrator,
+    cancelPendingInstructor,
     setAssignments,
   })
 }

@@ -2,6 +2,9 @@ import { test, expect } from './fixtures/auth.js'
 import { randomBytes } from 'node:crypto'
 import { seedClass, signedInPage } from './fixtures/class.js'
 import { jumpToBuilding } from './fixtures/town.js'
+import { connectDatabase } from '../../server/src/config/database.js'
+import { assertSafeTestDatabaseUri } from '../../server/src/config/database-uri.js'
+import { generateRound } from '../../server/src/modules/games/phishing-post-mortem/triage/generator/index.js'
 
 const ACTIONS = /\/api\/attempts\/[^/]+\/actions$/
 const START = /\/api\/games\/phishing-post-mortem\/attempts$/
@@ -22,7 +25,47 @@ const partButtons = (page) =>
   page.getByRole('button', {
     name: /^Report (sender|reply-to|link|attachment|QR code|request|message text):/,
   })
-const runComplete = (page) => page.getByRole('heading', { name: 'Run complete' })
+const runComplete = (page) => page.getByRole('heading', { name: 'Case closed' })
+const attemptIdOf = (page) => new URL(page.url()).searchParams.get('attempt')
+
+// the disposable test database is the seam for a run's seed and for moving its deadline
+async function withAttempts(work) {
+  const testUri = process.env.TEST_MONGODB_URI
+  if (process.env.NODE_ENV !== 'test' || !testUri)
+    throw new Error('Phishing E2E requires the guarded test database.')
+  assertSafeTestDatabaseUri(testUri)
+  const database = await connectDatabase(testUri)
+  try {
+    return await work(database.db.collection('game_attempts'), database.base.Types.ObjectId)
+  } finally {
+    await database.close()
+  }
+}
+
+const readSeed = (attemptId) =>
+  withAttempts(
+    async (attempts, ObjectId) =>
+      (await attempts.findOne({ _id: new ObjectId(attemptId) })).state.seed,
+  )
+
+const expireDeadline = (attemptId) =>
+  withAttempts((attempts, ObjectId) => {
+    const past = Date.now() - 1000
+    return attempts.updateOne(
+      { _id: new ObjectId(attemptId) },
+      { $set: { startedAt: new Date(past - 180000), deadlineAt: new Date(past) } },
+    )
+  })
+
+const PART_LABELS = {
+  sender: 'sender',
+  replyTo: 'reply-to',
+  link: 'link',
+  attachment: 'attachment',
+  qr: 'QR code',
+  request: 'request',
+  body: 'message text',
+}
 
 async function startRun(page, contextOption = 'personal') {
   await page.goto('/games/phishing-post-mortem')
@@ -54,7 +97,6 @@ async function playPractice(page, rounds) {
   for (let round = 0; round < rounds; round += 1) {
     await call(page, round % 2 === 0 ? 'trust' : 'report')
     await expect(nextButton(page)).toBeVisible()
-    if (round === 11) await expect(page.getByRole('button', { name: 'See results' })).toBeVisible()
     await nextButton(page).click()
   }
 }
@@ -72,13 +114,15 @@ test('a personal practice run plays 12 emails, shows the debrief and saves', asy
   await call(page, 'trust')
   await nextButton(page).click()
 
-  await playPractice(page, 10)
+  await playPractice(page, 9)
+  await call(page, 'trust')
+  await page.getByRole('button', { name: 'See results' }).click()
   await expect(runComplete(page)).toBeVisible()
+  await expect(runComplete(page)).toBeInViewport()
   await expect(page.getByText('All 12 emails checked')).toBeVisible()
   await expect(page.getByText('Result saved to your account.')).toBeVisible()
-  await expect(page.getByText('Case closed')).toBeVisible()
-
-  await page.getByRole('button', { name: 'Play again' }).click()
+  // the review list can be long, so play again also sits above it
+  await page.getByRole('button', { name: 'Play again' }).first().click()
   await expect(page).not.toHaveURL(/attempt=/)
   await expect(page.getByRole('heading', { name: 'Start a run' })).toBeVisible()
 })
@@ -207,9 +251,131 @@ test('opens How to play from the start screen', async ({ page }) => {
   await expect(guide).toBeHidden()
 })
 
+test('a class run that reaches its deadline saves as Time up and reopens on its debrief', async ({
+  browser,
+  baseURL,
+}) => {
+  const seeded = await seedClass(randomBytes(4).toString('hex'))
+  const { context, page } = await signedInPage(browser, baseURL, seeded.studentA)
+  try {
+    await startRun(page, seeded.classId)
+    await expireDeadline(attemptIdOf(page))
+    await page.reload()
+    await expect(page.getByText("Time's up")).toBeVisible()
+    await expect(page.getByText('Result saved to your account.')).toBeVisible()
+    await page.reload()
+    await expect(runComplete(page)).toBeVisible()
+    await expect(page.getByText("Time's up")).toBeVisible()
+    await expect(reportButton(page)).toHaveCount(0)
+  } finally {
+    await context.close()
+  }
+})
+
+test('reporting the real tell earns the bonus and marks what gave it away', async ({ page }) => {
+  await startRun(page)
+  const seed = await readSeed(attemptIdOf(page))
+  for (let roundIndex = 0; roundIndex < 12; roundIndex += 1) {
+    const { email, answer } = generateRound({ seed, roundIndex })
+    if (answer.verdict !== 'phish') {
+      await call(page, 'trust')
+      await nextButton(page).click()
+      continue
+    }
+    const tell = email.parts.find((part) => answer.tellPartIds.includes(part.id))
+    await reportButton(page).click()
+    const responded = page.waitForResponse((response) => ACTIONS.test(response.url()))
+    await page
+      .getByRole('button', { name: new RegExp(`^Report ${PART_LABELS[tell.kind]}:`) })
+      .first()
+      .click()
+    const body = await (await responded).json()
+    expect(body.publicState.last.tellHit).toBe(true)
+    // an email can have two tells, and each one is marked
+    await expect(page.getByText('What gave it away', { exact: true }).first()).toBeVisible()
+    await expect(page.getByText(`+${body.publicState.last.points} points`)).toBeVisible()
+    return
+  }
+  throw new Error('no phish in twelve rounds')
+})
+
+test('keyboard focus stays on the hint button while a hint loads', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chromium', 'keyboard journey')
+  await startRun(page)
+  const hint = page.getByRole('button', { name: 'Hint', exact: true })
+  await hint.focus()
+  await page.keyboard.press('Enter')
+  const another = page.getByRole('button', { name: 'Another hint' })
+  await expect(another).toBeFocused()
+  await expect(page.getByRole('region', { name: 'Hints' }).getByRole('listitem')).toHaveCount(1)
+  await page.keyboard.press('Enter')
+  const spent = page.getByRole('button', { name: 'No more hints' })
+  await expect(spent).toBeFocused()
+  await expect(page.getByRole('region', { name: 'Hints' }).getByRole('listitem')).toHaveCount(2)
+  // the hint stays readable while the player picks the part
+  await reportButton(page).click()
+  await expect(page.getByRole('region', { name: 'Hints' }).getByRole('listitem')).toHaveCount(2)
+})
+
+for (const size of [
+  { width: 375, height: 667 },
+  { width: 1200, height: 800 },
+]) {
+  test.describe(`at ${size.width}x${size.height}`, () => {
+    test('the clock, sender and decision stay on screen email after email', async ({
+      browser,
+      baseURL,
+    }, testInfo) => {
+      test.skip(
+        testInfo.project.name !== 'desktop-chromium',
+        'the size is set here, one run is enough',
+      )
+      const seeded = await seedClass(randomBytes(4).toString('hex'))
+      const { context, page } = await signedInPage(browser, baseURL, seeded.studentA)
+      try {
+        await page.setViewportSize(size)
+        await startRun(page, seeded.classId)
+        const clock = page.getByRole('timer')
+        const sender = page.getByText('From', { exact: true })
+        const emailTop = () => sender.evaluate((element) => element.getBoundingClientRect().top)
+        const clockBottom = () =>
+          clock.evaluate(
+            (element) => element.closest('.triage-status').getBoundingClientRect().bottom,
+          )
+        await page.screenshot({
+          path: testInfo.outputPath(`phish-${size.width}x${size.height}.png`),
+          animations: 'disabled',
+        })
+        for (let round = 0; round < 3; round += 1) {
+          await expect(clock).toBeInViewport()
+          await expect(sender).toBeInViewport()
+          await expect(reportButton(page)).toBeInViewport()
+          await expect(trustButton(page)).toBeInViewport()
+          // read to the end of the email; the clock and the decision do not move away
+          await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+          await expect(clock).toBeInViewport()
+          await expect(trustButton(page)).toBeInViewport()
+          const responded = page.waitForResponse((response) => ACTIONS.test(response.url()))
+          await trustButton(page).click()
+          const body = await (await responded).json()
+          if (!body.publicState.current) break
+          await expect(page.getByRole('article').getByRole('heading')).toHaveText(
+            body.publicState.current.subject,
+          )
+          await expect.poll(emailTop).toBeGreaterThanOrEqual(await clockBottom())
+        }
+      } finally {
+        await context.close()
+      }
+    })
+  })
+}
+
 test('fits a 375px screen without a horizontal scrollbar mid-run', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 700 })
   await startRun(page)
+  await expect(reportButton(page)).toBeInViewport()
+  await expect(trustButton(page)).toBeInViewport()
   await reportButton(page).click()
   const overflow = () =>
     page.evaluate(

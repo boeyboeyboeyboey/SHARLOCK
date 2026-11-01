@@ -4,17 +4,19 @@
 
 - What it is: the `/profile` page where a signed-in learner changes their username and preset avatar.
 - Security concept: input validation and preventing mass assignment. The client sends exactly `{ username, avatarId }`; the server validates, normalises and applies only those two fields, so email, role, membership and scores cannot be edited here. Course link: web security (11a, 12a decks) in the [course reference index](../../../../TASKS.md#course-reference-index).
-- Using it: open Profile, press "Edit profile", change the username or avatar, save; Cancel discards the draft.
-- Components: `ProfilePage.vue` (the `/profile` route page); `ProfileEditor.vue` (draft values) reusing the shared `AvatarPicker`; `api.js` for `GET /me/profile` and `PATCH /me/profile` with a fresh CSRF token.
+- Using it: open Menu > Profile & progress, press "Edit profile", change the username or avatar, save; Cancel discards the draft.
+- Components: `ProfilePage.vue` (the Profile tab, rendered inside `features/menu/overlays/ProfileOverlay.vue` at `/profile`); `ProfileEditor.vue` (draft values) reusing the shared `AvatarPicker`; `api.js` for `GET /me/profile` and `PATCH /me/profile` with a fresh CSRF token.
 - Data: after saving, the auth store refreshes the session so the navbar shows the new identity; nothing is stored in the browser.
 - Status: see the profile record in [TASKS.md](../../../../TASKS.md).
 - Limits: only username and six preset avatars; no email or password change here (password recovery is a separate feature); signed-out visitors see sign-in prompts.
 
-The existing `/profile` page lets a signed-in learner change only their username and one of the six preset avatars. `/progress` has its own page in `features/progress`. `ProfileEditor.vue` owns the temporary form values and reuses the existing `AvatarPicker` without changing its interface.
+The Profile tab lets a signed-in learner change only their username and one of the six preset avatars. Results, points and badges live on the Progress tab (`features/progress`, `/profile?tab=progress`; `/progress` redirects there), and this tab links to it rather than showing a second trophy case. `ProfileEditor.vue` owns the temporary form values and reuses the existing `AvatarPicker` without changing its interface.
 
-`api.js` uses the shared credentialed Axios client, whose base URL already includes `/api`. It reads `GET /me/profile` and sends `PATCH /me/profile` with exactly `{ username, avatarId }`, obtaining a fresh CSRF token before the mutation. The server response is expected to contain exactly `{ username, avatarId }`. Only safe, known feedback is displayed.
+`api.js` uses the shared credentialed Axios client, whose base URL already includes `/api`. It reads `GET /me/profile`, sends `PATCH /me/profile` with exactly `{ username, avatarId }` (obtaining a fresh CSRF token before the mutation), and also holds the wardrobe calls and `setHowToPlayDismissed`. The server response is expected to contain exactly `{ username, avatarId }`. Only safe, known feedback is displayed.
 
 After a successful save, the page applies the returned identity immediately and calls the existing auth store's forced session refresh so the shared shell gets the current username and avatar. If that refresh fails, the page keeps the saved values and offers a separate retry. A failed save keeps the edit draft available for correction; Cancel discards it and returns focus to Edit profile.
+
+When a session ends while this tab is open, the shared 401 interceptor signs the store out and the tab stays open on its sign-in view, with the reason (a newer sign-in or an ended session). A draft that could not be saved is not shown there: the page says the changes were not saved and need entering again after sign-in.
 
 The server owns authorization, exact-field validation, username normalization and uniqueness, and the avatar preset allowlist. The feature does not edit email, role, class membership, scores, awards or learning data. Its styles stay under `.profile-view` and use the existing shared design tokens.
 

@@ -40,7 +40,7 @@ describe('presence rules', () => {
 
   it('decides what each close code means', () => {
     expect(closeDecision(4401)).toBe('stop-quiet')
-    expect(closeDecision(4403, true)).toBe('stop')
+    expect(closeDecision(4403, true)).toBe('wait-for-pick')
     expect(closeDecision(4403)).toBe('slow-retry')
     expect(closeDecision(4409)).toBe('superseded')
     expect(closeDecision(4408)).toBe('stop')

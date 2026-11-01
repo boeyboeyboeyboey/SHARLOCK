@@ -13,7 +13,12 @@ export default defineConfig({
       },
       {
         extends: true,
-        test: { name: 'server', environment: 'node', include: ['server/tests/unit/**/*.test.js'] },
+        test: {
+          name: 'server',
+          environment: 'node',
+          include: ['server/tests/unit/**/*.test.js'],
+          setupFiles: ['server/tests/support/supertest-loopback.js'],
+        },
       },
       {
         extends: true,
@@ -21,7 +26,12 @@ export default defineConfig({
           name: 'integration',
           environment: 'node',
           include: ['server/tests/integration/**/*.test.js'],
-          setupFiles: ['server/tests/integration/setup-database.js'],
+          setupFiles: [
+            'server/tests/support/supertest-loopback.js',
+            'server/tests/integration/setup-database.js',
+          ],
+          // each file has its own database, so this is about load: argon2 and one shared mongod slow tests under parallel files
+          fileParallelism: false,
           testTimeout: 20000,
           hookTimeout: 30000,
         },

@@ -30,6 +30,9 @@ describe('town capybara variants', () => {
   it('keeps sharlock-only items out of the townsfolk wardrobe', () => {
     const names = Object.keys(capyProps).join(' ').toLowerCase()
     expect(names).not.toMatch(/deerstalker|monocle|scarf/)
+    // the name can be harmless while the drawing is not, so the colours of sharlock's own look are checked too
+    const drawn = JSON.stringify(capyProps).toLowerCase()
+    for (const color of ['#c4443a', '#9a3028', '#8c7a4e']) expect(drawn).not.toContain(color)
   })
 
   it('renders one capybara per variant and two gulls', () => {

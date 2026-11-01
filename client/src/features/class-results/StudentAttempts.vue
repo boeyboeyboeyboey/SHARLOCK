@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { avatarFor } from '../auth/avatars.js'
+import { topicLabel } from '../progress/topicLabel.js'
 import { formatDateTime, gameName } from './format.js'
 
 const props = defineProps({
@@ -21,7 +22,9 @@ const pageCount = computed(() => Math.max(1, Math.ceil(props.total / props.pageS
 
 function topicsPassed(attempt) {
   const outcomes = attempt.topicOutcomes || []
-  const passed = outcomes.filter((outcome) => outcome.achieved).map((outcome) => outcome.topic)
+  const passed = outcomes
+    .filter((outcome) => outcome.achieved)
+    .map((outcome) => topicLabel(outcome.topic))
   if (!outcomes.length) return 'None recorded'
   return passed.length ? passed.join(', ') : 'None passed'
 }
@@ -63,7 +66,7 @@ onMounted(() => heading.value?.focus())
     </div>
     <p v-else-if="!attempts.length">No class attempts yet</p>
     <template v-else>
-      <div class="class-results__scroll">
+      <div class="class-results__scroll" tabindex="0" role="region" aria-label="Student attempts">
         <table>
           <caption class="visually-hidden">
             Completed class attempts for
@@ -83,7 +86,7 @@ onMounted(() => heading.value?.focus())
             <tr v-for="attempt in attempts" :key="attempt.id">
               <th scope="row">{{ gameName(attempt.gameId) }}</th>
               <td>{{ attempt.score }} / {{ attempt.maxScore }}</td>
-              <td>{{ topicsPassed(attempt) }}</td>
+              <td class="class-results__wrap">{{ topicsPassed(attempt) }}</td>
               <td>{{ formatDateTime(attempt.completedAt) }}</td>
             </tr>
           </tbody>

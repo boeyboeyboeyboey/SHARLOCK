@@ -46,6 +46,7 @@ const urgent = computed(() => props.remainingMs != null && props.remainingMs <= 
           v-for="(parts, index) in lines"
           :key="index"
           :class="{ 'cli-hint-line': incident.hintLine === index }"
+          :data-testid="incident.hintLine === index ? 'cli-hint-line' : null"
         >
           <template v-for="(part, partIndex) in parts" :key="partIndex">
             <button
@@ -62,7 +63,7 @@ const urgent = computed(() => props.remainingMs != null && props.remainingMs <= 
           <span v-if="incident.hintLine === index" class="cli-hint-tag">hint</span>
         </li>
       </ul>
-      <p v-if="incident.hintConcept" class="cli-hint-concept">
+      <p v-if="incident.hintConcept" class="cli-hint-concept" data-testid="cli-hint-concept">
         <span class="cli-hint-tag">hint 2</span> {{ incident.hintConcept }}
       </p>
       <p v-if="incident.lookups" class="cli-banner-status">

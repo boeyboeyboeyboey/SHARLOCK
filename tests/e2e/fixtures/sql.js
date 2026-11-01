@@ -2,7 +2,10 @@ import { expect } from '@playwright/test'
 import { connectDatabase } from '../../../server/src/config/database.js'
 import { assertSafeTestDatabaseUri } from '../../../server/src/config/database-uri.js'
 import { generateCase } from '../../../server/src/modules/games/sql-injection-arcade/generator/index.js'
-import { isRepairSlot } from '../../../server/src/modules/games/sql-injection-arcade/policy.js'
+import {
+  isRepairSlot,
+  PRACTICE_SLOTS,
+} from '../../../server/src/modules/games/sql-injection-arcade/policy.js'
 import { junkAction, solutionFor } from '../../../server/tests/unit/sql-injection-arcade/helpers.js'
 
 export { generateCase, junkAction, solutionFor }
@@ -24,15 +27,54 @@ export async function readSeed(attemptId) {
   }
 }
 
+export async function expireDeadline(attemptId) {
+  const testUri = process.env.TEST_MONGODB_URI
+  if (process.env.NODE_ENV !== 'test' || !testUri)
+    throw new Error('SQL E2E requires the guarded test database.')
+  assertSafeTestDatabaseUri(testUri)
+  const database = await connectDatabase(testUri)
+  try {
+    const past = Date.now() - 1000
+    await database.db
+      .collection('game_attempts')
+      .updateOne(
+        { _id: new database.base.Types.ObjectId(attemptId) },
+        { $set: { startedAt: new Date(past - 180000), deadlineAt: new Date(past) } },
+      )
+  } finally {
+    await database.close()
+  }
+}
+
 export const attemptIdOf = (page) => new URL(page.url()).searchParams.get('attempt')
 
 export async function openRun(page, contextOption = 'personal') {
   await page.goto('/games/sql-injection-arcade')
-  if (contextOption !== 'personal')
-    await page.getByLabel('Save this case to').selectOption(contextOption)
+  await page.getByLabel('Save this case to').selectOption(contextOption)
   await page.getByRole('button', { name: 'Open the case' }).click()
   await expect(page).toHaveURL(/attempt=/)
   return readSeed(attemptIdOf(page))
+}
+
+// a seed may not draw every kind, so open runs until one reaches the case this test needs
+export async function openRunWithCase(page, kind) {
+  for (let tries = 0; tries < 20; tries += 1) {
+    const seed = await openRun(page)
+    for (let index = 0; index < PRACTICE_SLOTS; index += 1) {
+      if (generateCase({ seed, index }).private.kind === kind) return { seed, index }
+    }
+  }
+  throw new Error(`no seed drew a ${kind} case`)
+}
+
+// plays every case before the one a test needs and leaves that one open
+export async function playUpTo(page, seed, target) {
+  for (let index = 0; index < target; index += 1) {
+    const c = generateCase({ seed, index })
+    await playCase(page, c, solutionFor(c))
+    await page.getByRole('button', { name: 'Next case' }).click()
+  }
+  return generateCase({ seed, index: target })
 }
 
 // three taken-name registrations spend a second-order case's tries without solving it
@@ -65,7 +107,7 @@ export async function waitForCase(page, c) {
 
 // plays one server action through the real controls
 export async function playStep(page, c, step) {
-  const inputs = page.locator('.sql-case-form input[type="text"], .sql-case-form input:not([type])')
+  const inputs = page.getByRole('region', { name: 'Case actions' }).getByRole('textbox')
   const { type, payload } = step
   if (type === 'attempt') {
     for (const [position, value] of payload.inputs.entries()) await inputs.nth(position).fill(value)
@@ -74,8 +116,12 @@ export async function playStep(page, c, step) {
     await inputs.first().fill(payload.inputs[0])
     await press(page, 'Register')
   } else if (type === 'change-password') await press(page, 'Change password')
-  else if (type === 'answer') await press(page, payload.value === 'yes' ? 'Yes' : 'No')
-  else if (type === 'hint') await press(page, 'Show a hint')
+  else if (type === 'answer') {
+    await page
+      .getByRole('button', { name: payload.value === 'yes' ? 'Yes' : 'No', exact: true })
+      .click()
+    await press(page, 'Confirm answer')
+  } else if (type === 'hint') await press(page, 'Show a hint')
   else if (type === 'choose-fix') {
     const option = c.public.options.find((item) => item.id === payload.optionId)
     await page.getByRole('radio', { name: option.text }).check()

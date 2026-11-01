@@ -1,5 +1,6 @@
 <script setup>
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import InlineConfirm from '../../cohorts/components/InlineConfirm.vue'
 
 const props = defineProps({
   link: { type: Object, required: true },
@@ -8,6 +9,7 @@ const emit = defineEmits(['close'])
 const dialog = ref(null)
 const copied = ref(false)
 const copyError = ref('')
+const confirmingClose = ref(false)
 
 function expirationLabel(value) {
   const timestamp = Date.parse(value)
@@ -30,9 +32,22 @@ function closeDialog() {
   }
 }
 
+function requestClose() {
+  if (copied.value) closeDialog()
+  else confirmingClose.value = true
+}
+
+// escape must not lose an uncopied link either
+function handleCancel(event) {
+  if (copied.value) return
+  event.preventDefault()
+  confirmingClose.value = true
+}
+
 async function copyLink() {
   copied.value = false
   copyError.value = ''
+  confirmingClose.value = false
   try {
     await navigator.clipboard.writeText(props.link.activationUrl)
     copied.value = true
@@ -60,14 +75,16 @@ onBeforeUnmount(() => {
     ref="dialog"
     class="admin-workspace__dialog"
     aria-labelledby="activation-link-title"
+    @cancel="handleCancel"
     @close="handleClose"
   >
     <div class="admin-workspace__dialog-card">
-      <p class="admin-workspace__eyebrow">PRIVATE STAFF LINK</p>
       <h2 id="activation-link-title">Deliver this link privately</h2>
-      <p>
-        Copy this link now. It won't be shown again; it still works once and expires in 24 hours.
+      <p v-if="link.username">
+        Link for <strong>{{ link.username }}</strong
+        ><template v-if="link.email"> ({{ link.email }})</template>
       </p>
+      <p>Copy this link now. It won't be shown again. It works once and expires in 24 hours.</p>
       <label for="admin-activation-link">Activation link</label>
       <input
         id="admin-activation-link"
@@ -84,10 +101,18 @@ onBeforeUnmount(() => {
         <button class="admin-workspace__button" type="button" @click="copyLink">
           Copy activation link
         </button>
-        <button class="admin-workspace__text-button" type="button" @click="closeDialog">
+        <button class="admin-workspace__text-button" type="button" @click="requestClose">
           Close
         </button>
       </div>
+      <InlineConfirm
+        v-if="confirmingClose"
+        message="Close without copying? You would have to issue a new link."
+        confirm-label="Yes, close"
+        cancel-label="Keep open"
+        @confirm="closeDialog"
+        @cancel="confirmingClose = false"
+      />
     </div>
   </dialog>
 </template>

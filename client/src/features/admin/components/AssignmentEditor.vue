@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 
 const props = defineProps({
   instructor: { type: Object, required: true },
@@ -8,15 +8,21 @@ const props = defineProps({
   cohortTotal: { type: Number, default: 0 },
   pending: { type: Boolean, default: false },
   error: { type: String, default: '' },
+  open: { type: Boolean, default: false },
 })
-const emit = defineEmits(['save', 'reload', 'cohort-page'])
+const emit = defineEmits(['save', 'reload', 'cohort-page', 'toggle'])
 const draftIds = ref([])
+const editButton = ref(null)
 const displayedCohorts = computed(() => props.cohorts.filter(cohortIsEligible))
-const retainedAssignments = computed(() => {
-  const assigned = Array.isArray(props.instructor.assignedCohorts)
+const assignedCohorts = computed(() =>
+  Array.isArray(props.instructor.assignedCohorts)
     ? props.instructor.assignedCohorts
-    : props.cohorts.filter((cohort) => props.instructor.cohortIds?.includes(cohort.id))
-  return assigned.filter((cohort) => !cohortIsEligible(cohort))
+    : props.cohorts.filter((cohort) => props.instructor.cohortIds?.includes(cohort.id)),
+)
+const isActive = computed(() => props.instructor.accountStatus === 'active')
+const draftUnsaved = computed(() => {
+  const saved = props.instructor.cohortIds || []
+  return draftIds.value.length !== saved.length || draftIds.value.some((id) => !saved.includes(id))
 })
 
 function cohortIsEligible(cohort) {
@@ -37,6 +43,17 @@ watch(
   { immediate: true },
 )
 
+// closing removes the button that had focus, so it moves to the one that reopens the checklist
+watch(
+  () => props.open,
+  async (isOpen, wasOpen) => {
+    if (isOpen || !wasOpen) return
+    await nextTick()
+    if (document.activeElement === document.body) editButton.value?.focus()
+  },
+  { flush: 'post' },
+)
+
 function setSelected(cohortId, selected) {
   const selectedIds = new Set(draftIds.value)
   if (selected) selectedIds.add(cohortId)
@@ -54,103 +71,112 @@ function save() {
   })
 }
 
-function statusLabel(status) {
-  return status === 'active'
-    ? 'Active'
-    : status === 'disabled'
-      ? 'Awaiting activation'
-      : 'Unavailable'
+function cancelEdit() {
+  resetDraft()
+  emit('toggle', props.instructor.id)
 }
 </script>
 
 <template>
-  <article class="admin-workspace__instructor" :aria-labelledby="`instructor-${instructor.id}`">
-    <div class="admin-workspace__instructor-heading">
-      <div>
-        <h3 :id="`instructor-${instructor.id}`">{{ instructor.username }}</h3>
-        <p>{{ instructor.email }}</p>
-      </div>
-      <span class="admin-workspace__status">{{ statusLabel(instructor.accountStatus) }}</span>
-    </div>
-
+  <article class="admin-workspace__instructor" :aria-label="instructor.username">
     <p v-if="error" class="admin-workspace__alert" role="alert">{{ error }}</p>
-    <p v-if="instructor.accountStatus !== 'active'" class="admin-workspace__empty">
+    <p v-if="instructor.pendingActivation" class="admin-workspace__empty">
       The instructor must activate their account before class access can be assigned.
     </p>
-    <fieldset
-      class="admin-workspace__assignment-list"
-      :disabled="pending || instructor.accountStatus !== 'active'"
-    >
-      <legend>Available and retained classes</legend>
-      <p v-if="displayedCohorts.length === 0" class="admin-workspace__empty">
-        No active classes or retained assignments are available on this page.
-      </p>
-      <label
-        v-for="cohort in displayedCohorts"
-        :key="cohort.id"
-        class="admin-workspace__assignment"
-      >
-        <input
-          type="checkbox"
-          :checked="draftIds.includes(cohort.id)"
-          :disabled="!cohortIsEligible(cohort)"
-          :aria-label="`${cohort.name}, ${cohort.institutionName}, ${cohort.term}`"
-          @change="setSelected(cohort.id, $event.target.checked)"
-        />
-        <span>
-          <strong>{{ cohort.name }}</strong>
-          <small>{{ cohort.institutionName }} · {{ cohort.term }}</small>
-        </span>
-      </label>
-    </fieldset>
+    <p v-else-if="!isActive" class="admin-workspace__empty">
+      A disabled instructor cannot be given classes. Reissue their link to restore access.
+    </p>
 
-    <ul v-if="retainedAssignments.length" class="admin-workspace__retained-assignments">
-      <li v-for="cohort in retainedAssignments" :key="cohort.id">
+    <ul v-if="assignedCohorts.length" class="admin-workspace__retained-assignments">
+      <li v-for="cohort in assignedCohorts" :key="cohort.id">
         <strong>{{ cohort.name }}</strong>
         <span>{{ cohort.institutionName }} · {{ cohort.term }}</span>
-        <small>Inactive; retained assignment</small>
+        <small v-if="!cohortIsEligible(cohort)">Inactive; retained assignment</small>
       </li>
     </ul>
+    <p v-else-if="isActive" class="admin-workspace__empty">No classes assigned yet.</p>
 
-    <div class="admin-workspace__pagination" aria-label="Assignment class pages">
-      <button
-        class="admin-workspace__text-button"
-        type="button"
-        :disabled="cohortPage <= 1 || pending"
-        @click="emit('cohort-page', cohortPage - 1)"
-      >
-        Previous classes
-      </button>
-      <span>Page {{ cohortPage }} of {{ Math.max(1, Math.ceil(cohortTotal / 50)) }}</span>
-      <button
-        class="admin-workspace__text-button"
-        type="button"
-        :disabled="cohortPage * 50 >= cohortTotal || pending"
-        @click="emit('cohort-page', cohortPage + 1)"
-      >
-        Next classes
-      </button>
-    </div>
+    <button
+      v-if="isActive"
+      ref="editButton"
+      class="admin-workspace__text-button admin-workspace__edit-toggle"
+      type="button"
+      :aria-expanded="open"
+      :disabled="pending"
+      @click="emit('toggle', instructor.id)"
+    >
+      Edit assignments
+    </button>
 
-    <div class="admin-workspace__actions">
-      <button
-        class="admin-workspace__button"
-        type="button"
-        :disabled="pending || instructor.accountStatus !== 'active'"
-        @click="save"
-      >
-        {{ pending ? 'Saving assignments…' : 'Save assignments' }}
-      </button>
-      <button
-        v-if="error"
-        class="admin-workspace__text-button"
-        type="button"
-        :disabled="pending"
-        @click="emit('reload', instructor.id)"
-      >
-        Reload assignments
-      </button>
-    </div>
-    <p class="admin-workspace__assignment-count">{{ draftIds.length }} assigned classes selected</p>
+    <template v-if="open && isActive">
+      <fieldset class="admin-workspace__assignment-list" :disabled="pending">
+        <legend>Available classes</legend>
+        <p v-if="displayedCohorts.length === 0" class="admin-workspace__empty">
+          No active classes are available on this page.
+        </p>
+        <label
+          v-for="cohort in displayedCohorts"
+          :key="cohort.id"
+          class="admin-workspace__assignment"
+        >
+          <input
+            type="checkbox"
+            :checked="draftIds.includes(cohort.id)"
+            :aria-label="`${cohort.name}, ${cohort.institutionName}, ${cohort.term}`"
+            @change="setSelected(cohort.id, $event.target.checked)"
+          />
+          <span>
+            <strong>{{ cohort.name }}</strong>
+            <small>{{ cohort.institutionName }} · {{ cohort.term }}</small>
+          </span>
+        </label>
+      </fieldset>
+
+      <div class="admin-workspace__pagination" aria-label="Assignment class pages">
+        <button
+          class="admin-workspace__text-button"
+          type="button"
+          :disabled="cohortPage <= 1 || pending"
+          @click="emit('cohort-page', cohortPage - 1)"
+        >
+          Previous classes
+        </button>
+        <span>Page {{ cohortPage }} of {{ Math.max(1, Math.ceil(cohortTotal / 50)) }}</span>
+        <button
+          class="admin-workspace__text-button"
+          type="button"
+          :disabled="cohortPage * 50 >= cohortTotal || pending"
+          @click="emit('cohort-page', cohortPage + 1)"
+        >
+          Next classes
+        </button>
+      </div>
+
+      <div class="admin-workspace__actions">
+        <button class="admin-workspace__button" type="button" :disabled="pending" @click="save">
+          {{ pending ? 'Saving assignments…' : 'Save assignments' }}
+        </button>
+        <button
+          class="admin-workspace__text-button"
+          type="button"
+          :disabled="pending"
+          @click="cancelEdit"
+        >
+          Cancel
+        </button>
+        <button
+          v-if="error"
+          class="admin-workspace__text-button"
+          type="button"
+          :disabled="pending"
+          @click="emit('reload', instructor.id)"
+        >
+          Reload assignments
+        </button>
+      </div>
+      <p class="admin-workspace__assignment-count">
+        {{ draftIds.length }} selected{{ draftUnsaved ? ', not saved yet' : ' (saved)' }}
+      </p>
+    </template>
   </article>
 </template>

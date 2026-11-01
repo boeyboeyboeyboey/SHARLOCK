@@ -17,7 +17,11 @@ function mountMenu(props = {}) {
     global: { stubs: { RouterLink: RouterLinkStub } },
   })
 }
-const labels = (wrapper) => wrapper.findAll('.menu-link').map((node) => node.text())
+const labels = (wrapper) =>
+  wrapper
+    .get('nav[aria-label="Site menu"]')
+    .findAll('a, button')
+    .map((node) => node.text())
 
 describe('site menu', () => {
   it('shows the discoveries count', async () => {
@@ -41,7 +45,7 @@ describe('site menu', () => {
     await wrapper.setProps({ open: true })
     expect(wrapper.get('dialog').element.open).toBe(true)
     expect(wrapper.get('#site-menu-title').text()).toBe('Sharlock Hub')
-    expect(wrapper.get('.menu-user').text()).toContain('detective_boey')
+    expect(wrapper.text()).toContain('detective_boey')
     wrapper.unmount()
   })
 
@@ -66,15 +70,15 @@ describe('site menu', () => {
       'Sign out',
     ])
     const instructorMenu = mountMenu({ user: instructor })
-    expect(labels(instructorMenu)).toContain('Instructor desk')
+    expect(labels(instructorMenu)).toContain('Manage your classes')
     expect(labels(instructorMenu)).not.toContain('Your classes')
     expect(labels(instructorMenu)).not.toContain('Admin')
     const adminMenu = mountMenu({ user: admin })
     expect(labels(adminMenu)).toContain('Admin')
-    expect(labels(adminMenu)).toContain('Instructor desk')
+    expect(labels(adminMenu)).toContain('Manage your classes')
     const adminOnlyMenu = mountMenu({ user: { ...student, globalRoles: ['admin'] } })
     expect(labels(adminOnlyMenu)).toContain('Admin')
-    expect(labels(adminOnlyMenu)).toContain('Instructor desk')
+    expect(labels(adminOnlyMenu)).toContain('Manage your classes')
     ;[studentMenu, instructorMenu, adminMenu, adminOnlyMenu].forEach((wrapper) => wrapper.unmount())
   })
 
@@ -83,14 +87,28 @@ describe('site menu', () => {
     const targets = Object.fromEntries(
       wrapper.findAllComponents(RouterLinkStub).map((link) => [link.text(), link.props('to')]),
     )
-    expect(targets['Instructor desk']).toBe('/instructor')
+    expect(targets['Manage your classes']).toBe('/instructor')
     expect(targets.Admin).toBe('/admin')
+    wrapper.unmount()
+  })
+
+  it('applies the stored interface size on any page, not only the town', () => {
+    document.documentElement.style.removeProperty('--ui-scale')
+    const wrapper = mountMenu()
+    expect(document.documentElement.style.getPropertyValue('--ui-scale')).toBe('1')
+    wrapper.unmount()
+  })
+
+  it('offers no account-only links when signed out', () => {
+    const wrapper = mountMenu({ user: null })
+    expect(wrapper.find('[data-testid="menu-discoveries"]').exists()).toBe(false)
+    expect(labels(wrapper)).not.toContain('Settings')
     wrapper.unmount()
   })
 
   it('offers sign in and create account when signed out', () => {
     const wrapper = mountMenu({ user: null })
-    expect(labels(wrapper)).toEqual(['Settings', 'About Sharlock', 'Sign in', 'Create account'])
+    expect(labels(wrapper)).toEqual(['About Sharlock', 'Sign in', 'Create account'])
     wrapper.unmount()
   })
 
@@ -189,7 +207,7 @@ describe('places', () => {
     const jump = vi.fn()
     const wrapper = mountWithControls({ jumpTo: shallowRef(jump) })
     const places = wrapper.get('nav[aria-label="Places"]')
-    expect(places.find('h3').text()).toBe('Places')
+    expect(places.text()).toContain('Places')
     const buttons = places.findAll('button')
     expect(buttons.map((node) => node.attributes('aria-label'))).toEqual(
       gameCatalog.map((game) => (game.needs3d ? `${game.name}, needs 3D` : game.name)),

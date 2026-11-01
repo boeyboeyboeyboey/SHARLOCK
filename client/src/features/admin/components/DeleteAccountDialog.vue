@@ -5,7 +5,7 @@ import { AdminApiError, deleteAdminUser } from '../api.js'
 const props = defineProps({
   account: { type: Object, required: true },
 })
-const emit = defineEmits(['deleted', 'close'])
+const emit = defineEmits(['deleted', 'stale', 'close'])
 
 const REASONS = [
   ['wrong-name', 'Wrong name'],
@@ -83,6 +83,11 @@ async function submit() {
   } catch (error) {
     if (controller.signal.aborted) return
     password.value = ''
+    if (error instanceof AdminApiError && error.code === 'ADMIN_STALE_ACCOUNT') {
+      completed = true
+      emit('stale')
+      return
+    }
     if (error instanceof AdminApiError) {
       fieldErrors.value = error.fieldErrors || {}
       errorMessage.value = error.message
@@ -119,7 +124,6 @@ onBeforeUnmount(() => {
     @cancel="handleCancel"
   >
     <form class="admin-workspace__dialog-card" @submit.prevent="submit">
-      <p class="admin-workspace__eyebrow">PERMANENT ACTION</p>
       <h2 id="delete-account-title">Delete {{ account.username }}?</h2>
       <p class="admin-workspace__alert" role="note">
         This cannot be undone. The student is signed out and can no longer sign in.

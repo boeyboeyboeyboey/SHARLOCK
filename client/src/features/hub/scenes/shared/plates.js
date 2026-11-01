@@ -1,7 +1,5 @@
 import { Mesh } from '@babylonjs/core/Meshes/mesh.js';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData.js';
-import { DynamicTexture } from '@babylonjs/core/Materials/Textures/dynamicTexture.js';
-import { Texture } from '@babylonjs/core/Materials/Textures/texture.js';
 
 // open strip of a cylinder seen from inside; uv2.y carries the edge fade, azimuth 0 is north
 export function arcStrip(scene, name, { r, y0, y1, az0, az1, columns = 32, rows = 1, fadeLeft = 0, fadeRight = 0, fadeTop = 0, fadeBottom = 0, flip = false }) {
@@ -57,16 +55,3 @@ export function arcStrip(scene, name, { r, y0, y1, az0, az1, columns = 32, rows 
   return mesh;
 }
 
-export function gradientTexture(scene, name, stops, w = 4, h = 256) {
-  const texture = new DynamicTexture(name, { width: w, height: h }, scene, true);
-  const ctx = texture.getContext();
-  const g = ctx.createLinearGradient(0, h, 0, 0);
-  for (const [t, color] of stops) g.addColorStop(t, color);
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, w, h);
-  texture.update();
-  texture.hasAlpha = true;
-  texture.wrapU = Texture.CLAMP_ADDRESSMODE;
-  texture.wrapV = Texture.CLAMP_ADDRESSMODE;
-  return texture;
-}

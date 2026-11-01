@@ -5,6 +5,16 @@ const BASE = '/games/cli-cyber-defender/runs'
 
 export const MAX_COMMAND_LENGTH = 120
 
+// display copies of the server rules in policy.js; a unit test fails if the two drift apart
+export const SHIFT_FACTS = Object.freeze({
+  challenges: 8,
+  minWindowSeconds: 20,
+  maxWindowSeconds: 30,
+  maxScore: 2700,
+  pausesPerGame: 2,
+  pauseSeconds: 30,
+})
+
 export const COMMAND_TEMPLATES = [
   {
     id: 'block-ip',
@@ -83,8 +93,8 @@ export function requestHint(runId, incidentId, signal) {
   return writeAttempt(`${BASE}/${runId}/hint`, { incidentId }, signal)
 }
 
-export function pauseRun(runId, signal) {
-  return writeAttempt(`${BASE}/${runId}/pause`, {}, signal)
+export function pauseRun(runId, signal, body = {}) {
+  return writeAttempt(`${BASE}/${runId}/pause`, body, signal)
 }
 
 export function resumeRun(runId, signal) {

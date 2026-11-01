@@ -5,9 +5,22 @@ import { gameCatalog } from '../../../client/src/data/gameCatalog.js'
 export async function jumpToBuilding(page, id) {
   const game = gameCatalog.find((item) => item.id === id)
   await page.getByTestId('menu-button').click()
-  await page
-    .getByRole('navigation', { name: 'Places' })
+  const places = page.getByRole('navigation', { name: 'Places' })
+  await expect(places).toBeVisible()
+  await places
     .getByRole('button', { name: game.needs3d ? `${game.name}, needs 3D` : game.name, exact: true })
     .click()
   await expect(page.getByTestId('site-menu')).toBeHidden()
+}
+
+// only the hub specs may render 3d; everything else pins the 2d town so a headed run on a
+// laptop with a real gpu behaves the same as headless chromium
+export function forceTown2d(target) {
+  return target.addInitScript(() => localStorage.setItem('sharlock.townMode', '2d'))
+}
+
+export async function newTown2dContext(browser, options) {
+  const context = await browser.newContext(options)
+  await forceTown2d(context)
+  return context
 }

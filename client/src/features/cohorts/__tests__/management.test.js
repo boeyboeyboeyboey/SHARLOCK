@@ -35,6 +35,7 @@ const activeStudent = {
   studentId: '111111111111111111111111',
   username: 'Casey_Student',
   email: 'casey@example.test',
+  status: 'active',
   revision: 1,
 }
 
@@ -82,6 +83,236 @@ describe('instructor class management', () => {
     expect(wrapper.text()).not.toContain('ABCD-EFGH-JKLM-PQRS')
     expect(mocks.getEnrollmentCode).toHaveBeenLastCalledWith('class-b', expect.any(AbortSignal))
     wrapper.unmount()
+  })
+
+  const press = (wrapper, label) =>
+    wrapper
+      .findAll('button')
+      .find((button) => button.text() === label)
+      .trigger('click')
+
+  it('keeps a new code on screen through roster actions until it is cleared', async () => {
+    const wrapper = mount(ClassManagementPage)
+    await flushPromises()
+    await press(wrapper, 'Generate code')
+    await flushPromises()
+    expect(wrapper.text()).toContain('ABCD-EFGH-JKLM-PQRS')
+    mocks.getEnrollmentCode.mockResolvedValue({
+      code: { id: 'code-a', expiresAt: '2099-01-01T00:00:00.000Z', revokedAt: null },
+      revision: 1,
+    })
+
+    await press(wrapper, 'Active')
+    await flushPromises()
+    expect(wrapper.text()).toContain('ABCD-EFGH-JKLM-PQRS')
+
+    await wrapper.get(`[aria-label="Remove ${activeStudent.username}"]`).trigger('click')
+    mocks.updateMembership.mockResolvedValue({})
+    await press(wrapper, 'Yes, remove')
+    await flushPromises()
+    expect(wrapper.text()).toContain('ABCD-EFGH-JKLM-PQRS')
+
+    await press(wrapper, 'Close and clear code')
+    expect(wrapper.text()).not.toContain('ABCD-EFGH-JKLM-PQRS')
+    wrapper.unmount()
+  })
+
+  it('clears a shown code when a reload finds it replaced or revoked elsewhere', async () => {
+    const wrapper = mount(ClassManagementPage)
+    await flushPromises()
+    await press(wrapper, 'Generate code')
+    await flushPromises()
+    expect(wrapper.text()).toContain('ABCD-EFGH-JKLM-PQRS')
+
+    const shownCode = { id: 'code-a', expiresAt: '2099-01-01T00:00:00.000Z', revokedAt: null }
+    mocks.getEnrollmentCode.mockResolvedValue({ code: shownCode, revision: 1 })
+    await press(wrapper, 'Active')
+    await flushPromises()
+    expect(wrapper.text()).toContain('ABCD-EFGH-JKLM-PQRS')
+
+    mocks.getEnrollmentCode.mockResolvedValue({
+      code: { ...shownCode, id: 'code-b' },
+      revision: 2,
+    })
+    await press(wrapper, 'Requests')
+    await flushPromises()
+    expect(wrapper.text()).not.toContain('ABCD-EFGH-JKLM-PQRS')
+    wrapper.unmount()
+  })
+
+  it('clears a shown code when a reload finds it revoked', async () => {
+    const wrapper = mount(ClassManagementPage)
+    await flushPromises()
+    await press(wrapper, 'Generate code')
+    await flushPromises()
+    mocks.getEnrollmentCode.mockResolvedValue({
+      code: {
+        id: 'code-a',
+        expiresAt: '2099-01-01T00:00:00.000Z',
+        revokedAt: '2026-11-01T00:00:00.000Z',
+      },
+      revision: 2,
+    })
+    await press(wrapper, 'Active')
+    await flushPromises()
+    expect(wrapper.text()).not.toContain('ABCD-EFGH-JKLM-PQRS')
+    wrapper.unmount()
+  })
+
+  it('steps back from an empty last page after a stale decision reloads the list', async () => {
+    mocks.listCohortMemberships.mockImplementation(async (_cohort, { page }) =>
+      page === 1
+        ? {
+            memberships: Array(20)
+              .fill(activeStudent)
+              .map((row, i) => ({ ...row, id: `m-${i}` })),
+            total: 21,
+          }
+        : { memberships: page === 2 ? [activeStudent] : [], total: 21 },
+    )
+    const wrapper = mount(ClassManagementPage)
+    await flushPromises()
+    await press(wrapper, 'Active')
+    await flushPromises()
+    await press(wrapper, 'Next')
+    await flushPromises()
+    mocks.listCohortMemberships.mockImplementation(async (_cohort, { page }) =>
+      page === 1
+        ? { memberships: [{ ...activeStudent, id: 'm-0' }], total: 20 }
+        : { memberships: [], total: 20 },
+    )
+    mocks.updateMembership.mockRejectedValueOnce({
+      code: 'COHORT_STALE_REQUEST',
+      message: 'This class request changed.',
+    })
+    await wrapper.get(`[aria-label="Remove ${activeStudent.username}"]`).trigger('click')
+    await press(wrapper, 'Yes, remove')
+    await flushPromises()
+    expect(mocks.listCohortMemberships).toHaveBeenLastCalledWith(
+      'class-a',
+      expect.objectContaining({ page: 1 }),
+    )
+    expect(wrapper.text()).toContain('This class request changed.')
+    wrapper.unmount()
+  })
+
+  it('asks before removing a student and moves focus to the list afterwards', async () => {
+    mocks.updateMembership.mockResolvedValue({})
+    const wrapper = mount(ClassManagementPage, { attachTo: document.body })
+    await flushPromises()
+    await press(wrapper, 'Active')
+    await flushPromises()
+
+    const remove = wrapper.get(`[aria-label="Remove ${activeStudent.username}"]`)
+    await remove.trigger('click')
+    expect(mocks.updateMembership).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain(`Remove ${activeStudent.username} from Blue Class?`)
+    await press(wrapper, 'Cancel')
+    expect(mocks.updateMembership).not.toHaveBeenCalled()
+
+    await remove.trigger('click')
+    await press(wrapper, 'Yes, remove')
+    await flushPromises()
+    expect(mocks.updateMembership).toHaveBeenCalledTimes(1)
+    expect(wrapper.text()).toContain('Class access removed.')
+    expect(document.activeElement?.id).toBe('member-queue-title')
+    wrapper.unmount()
+  })
+
+  it('shows no rows and offers a retry when a tab fails to load', async () => {
+    const wrapper = mount(ClassManagementPage)
+    await flushPromises()
+    await press(wrapper, 'Active')
+    await flushPromises()
+    expect(wrapper.text()).toContain(activeStudent.username)
+
+    mocks.listCohortMemberships.mockRejectedValueOnce({ message: 'Could not load.' })
+    await press(wrapper, 'Removed')
+    await flushPromises()
+    expect(wrapper.text()).not.toContain(activeStudent.username)
+    expect(wrapper.text()).toContain('Could not load.')
+    expect(wrapper.text()).not.toContain('class members on this page')
+
+    await press(wrapper, 'Try again')
+    await flushPromises()
+    expect(wrapper.text()).toContain('No removed class members on this page.')
+    expect(wrapper.text()).not.toContain('Could not load.')
+    wrapper.unmount()
+  })
+
+  it('does not claim there is no code when the code could not be read', async () => {
+    mocks.getEnrollmentCode.mockRejectedValueOnce({ message: 'Could not load.' })
+    const wrapper = mount(ClassManagementPage)
+    await flushPromises()
+    expect(wrapper.text()).toContain("This class's code could not be checked.")
+    expect(wrapper.text()).not.toContain('No active class code')
+    wrapper.unmount()
+  })
+
+  it('rereads the code after a stale replace, so the next try sends the new revision', async () => {
+    const live = { id: 'code-a', expiresAt: '2099-01-01T00:00:00.000Z', revokedAt: null }
+    mocks.getEnrollmentCode.mockResolvedValueOnce({ code: live, revision: 1 })
+    mocks.getEnrollmentCode.mockResolvedValueOnce({ code: live, revision: 2 })
+    mocks.issueValidatedEnrollmentCode.mockRejectedValueOnce({
+      code: 'COHORT_STALE_CODE',
+      message: 'The invitation code changed.',
+    })
+    const wrapper = mount(ClassManagementPage)
+    await flushPromises()
+    await press(wrapper, 'Replace code')
+    await press(wrapper, 'Yes, replace it')
+    await flushPromises()
+
+    expect(mocks.getEnrollmentCode).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).toContain('The invitation code changed.')
+    expect(wrapper.text()).toContain('Code active until')
+
+    await press(wrapper, 'Replace code')
+    await press(wrapper, 'Yes, replace it')
+    await flushPromises()
+    expect(mocks.issueValidatedEnrollmentCode.mock.calls.at(-1)[1]).toBe(2)
+    wrapper.unmount()
+  })
+
+  it('reloads after a stale membership decision', async () => {
+    mocks.updateMembership.mockRejectedValueOnce({
+      code: 'COHORT_STALE_REQUEST',
+      message: 'This class request changed.',
+    })
+    const wrapper = mount(ClassManagementPage)
+    await flushPromises()
+    await press(wrapper, 'Active')
+    await flushPromises()
+    mocks.listCohortMemberships.mockClear()
+    await wrapper.get(`[aria-label="Remove ${activeStudent.username}"]`).trigger('click')
+    await press(wrapper, 'Yes, remove')
+    await flushPromises()
+    expect(mocks.listCohortMemberships).toHaveBeenCalled()
+    expect(wrapper.text()).toContain('This class request changed.')
+    wrapper.unmount()
+  })
+
+  it('mentions a revoked code only when one was really replaced', async () => {
+    const wrapper = mount(ClassManagementPage)
+    await flushPromises()
+    await press(wrapper, 'Generate code')
+    await flushPromises()
+    expect(wrapper.get('.cohort-notice').text()).toBe('A new seven-day code is ready to share.')
+    await wrapper.get('#managed-class').setValue('class-b')
+    await flushPromises()
+    wrapper.unmount()
+
+    mocks.getEnrollmentCode.mockResolvedValueOnce({
+      code: { id: 'code-a', expiresAt: '2099-01-01T00:00:00.000Z', revokedAt: null },
+      revision: 1,
+    })
+    const replacing = mount(ClassManagementPage)
+    await flushPromises()
+    await press(replacing, 'Replace code')
+    await press(replacing, 'Yes, replace it')
+    await flushPromises()
+    expect(replacing.get('.cohort-notice').text()).toContain('The previous code has been revoked.')
+    replacing.unmount()
   })
 
   it('switches to results, keeps the class in the address and defaults to the roster', async () => {
@@ -152,9 +383,14 @@ describe('instructor class management', () => {
       expect.any(AbortSignal),
     )
     expect(wrapper.get('dialog').text()).toContain('Deliver this reset link privately')
+    expect(wrapper.get('dialog').text()).toContain(`Link for ${activeStudent.username}`)
     await wrapper
       .findAll('button')
       .find((button) => button.text() === 'Close')
+      .trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Yes, close')
       .trigger('click')
     expect(wrapper.find('dialog').exists()).toBe(false)
     wrapper.unmount()

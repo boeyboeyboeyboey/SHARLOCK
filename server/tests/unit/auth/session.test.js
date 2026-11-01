@@ -64,7 +64,7 @@ function makeAdapter(now) {
 }
 
 describe('Mongo auth session adapter', () => {
-  it('allows insecure cookies only for validated loopback development and test origins', () => {
+  it('accepts only validated loopback development and test origins', () => {
     const secret = 'a'.repeat(64)
     expect(
       validateAuthSettings({
@@ -73,13 +73,13 @@ describe('Mongo auth session adapter', () => {
         sessionSecret: secret,
       }).secureCookie,
     ).toBe(false)
-    expect(
+    expect(() =>
       validateAuthSettings({
-        nodeEnv: 'production',
-        clientOrigin: 'https://sharlock.example',
+        nodeEnv: 'test',
+        clientOrigin: 'https://localhost:5173',
         sessionSecret: secret,
-      }).secureCookie,
-    ).toBe(true)
+      }),
+    ).toThrow(/exact validated origin/)
     expect(() =>
       validateAuthSettings({
         nodeEnv: 'development',
@@ -93,7 +93,7 @@ describe('Mongo auth session adapter', () => {
         clientOrigin: 'http://localhost:5173',
         sessionSecret: secret,
       }),
-    ).toThrow(/exact validated origin/)
+    ).toThrow(/development or test/)
   })
 
   it('does not recreate a revoked session when stale save or touch completes later', async () => {

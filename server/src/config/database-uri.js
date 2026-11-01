@@ -1,3 +1,4 @@
+// library: mongodb-connection-string-url (apache-2.0); credited in credits.md
 import ConnectionString from 'mongodb-connection-string-url'
 
 export function databaseNameFromUri(uri, label = 'MONGO_URI', fallbackName) {

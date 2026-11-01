@@ -1,4 +1,11 @@
 import { expect, test } from './fixtures/admin.js'
+import { forceTown2d, newTown2dContext } from './fixtures/town.js'
+
+test.skip(
+  process.env.SHARLOCK_TEST_REPLICA_SET !== '1',
+  'This journey needs transactions; run with --replica-set.',
+)
+test.beforeEach(({ page }) => forceTown2d(page))
 
 async function csrf(request, baseURL) {
   const origin = new URL(baseURL).origin
@@ -68,17 +75,16 @@ test('learner follows a class link and gets access after instructor approval', a
     codeLength: code.length,
     codeValid: /^[A-HJ-NP-Z2-9]{16}$/.test(code),
   }
-  expect(
-    linkChecks.originMatches &&
-      linkChecks.path === '/join-class' &&
-      !linkChecks.hasQuery &&
-      linkChecks.fragmentKeys.length === 1 &&
-      linkChecks.fragmentKeys[0] === 'code' &&
-      linkChecks.codeValid,
-    `Instructor invitation link metadata is invalid: ${JSON.stringify(linkChecks)}`,
-  ).toBe(true)
+  expect(linkChecks).toEqual({
+    originMatches: true,
+    path: '/join-class',
+    hasQuery: false,
+    fragmentKeys: ['code'],
+    codeLength: 16,
+    codeValid: true,
+  })
 
-  const studentContext = await browser.newContext({
+  const studentContext = await newTown2dContext(browser, {
     storageState: { cookies: [], origins: [] },
     viewport: testInfo.project.use.viewport,
     isMobile: testInfo.project.use.isMobile,
@@ -86,28 +92,6 @@ test('learner follows a class link and gets access after instructor approval', a
   })
   try {
     const studentPage = await studentContext.newPage()
-    const invitationCaptureResponses = []
-    const journeyResponses = []
-    studentPage.on('response', (response) => {
-      const path = new URL(response.url()).pathname
-      if (path === '/api/auth/csrf' || path === '/api/auth/class-invitation') {
-        invitationCaptureResponses.push({ path, status: response.status() })
-      }
-      if (['/api/auth/me', '/api/me/enrollment', '/api/cohorts/join-requests'].includes(path)) {
-        journeyResponses.push(
-          response.json().then(
-            (body) => ({
-              path,
-              status: response.status(),
-              hasInvitation: body?.hasInvitation,
-              onboardingCompleted: body?.onboardingCompleted,
-              code: body?.error?.code,
-            }),
-            () => ({ path, status: response.status() }),
-          ),
-        )
-      }
-    })
     await studentPage.goto(invitationUrl)
     await expect(studentPage).toHaveURL(/\/join-class$/)
     await studentPage.getByRole('button', { name: 'Sign in' }).click()
@@ -115,21 +99,7 @@ test('learner follows a class link and gets access after instructor approval', a
     await studentPage.getByLabel('Email or username').fill(studentIdentity.email)
     await studentPage.getByLabel('Password', { exact: true }).fill(studentIdentity.password)
     await studentPage.getByRole('button', { name: 'Sign in' }).click()
-    try {
-      await expect(studentPage).toHaveURL(/\/\?classRequest=pending$/, { timeout: 10000 })
-    } catch {
-      const enrollmentResponse = await studentContext.request.get(`${baseURL}/api/me/enrollment`)
-      const enrollment = enrollmentResponse.ok() ? await enrollmentResponse.json() : {}
-      const safeAlerts = await studentPage.getByRole('alert').allTextContents()
-      const sendButtonVisible = await studentPage
-        .getByRole('button', { name: 'Send class request' })
-        .isVisible()
-        .catch(() => false)
-      const responseState = await Promise.all(journeyResponses)
-      throw new Error(
-        `Invitation handoff did not reach the town; server hasInvitation=${Boolean(enrollment.hasInvitation)}; sendButtonVisible=${sendButtonVisible}; alerts=${JSON.stringify(safeAlerts)}; captureResponses=${JSON.stringify(invitationCaptureResponses)}; journeyResponses=${JSON.stringify(responseState)}.`,
-      )
-    }
+    await expect(studentPage).toHaveURL(/\/\?classRequest=pending$/, { timeout: 10000 })
     await expect(studentPage.getByText(/Class request pending staff approval/)).toBeVisible()
 
     await studentPage.goto('/classes')
@@ -150,7 +120,9 @@ test('learner follows a class link and gets access after instructor approval', a
     await studentPage.goto('/join-class')
     const alreadyIn = studentPage.getByTestId('already-in-class')
     await expect(alreadyIn).toContainText("You're already in Synthetic Blue Class.")
-    await expect(alreadyIn).toContainText('Leave it first to join another.')
+    await expect(alreadyIn).toContainText(
+      'To join another, ask your instructor to remove you from this class first.',
+    )
     await expect(studentPage.getByRole('button', { name: 'Join class' })).toHaveCount(0)
     await alreadyIn.getByRole('link', { name: 'Your classes' }).click()
     await expect(studentPage).toHaveURL(/\/classes$/)

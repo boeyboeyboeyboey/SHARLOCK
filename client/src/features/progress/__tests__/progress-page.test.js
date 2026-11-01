@@ -99,14 +99,14 @@ describe('progress page', () => {
     mocks.getProgress.mockResolvedValue(progress)
     const wrapper = mountPage()
     await flushPromises()
-    const locked = wrapper.findAll('.achievement-badge--locked')
+    const lockedList = wrapper.get('ul[aria-labelledby="locked-heading"]')
+    const locked = lockedList.findAll('li')
     expect(locked).toHaveLength(1)
     expect(locked[0].text()).toContain('Perfect case')
     expect(locked[0].text()).toContain('Locked')
     expect(locked[0].text()).toContain('Earn the maximum score.')
-    const earned = wrapper.findAll('.achievement-badge:not(.achievement-badge--locked)')
-    expect(earned).toHaveLength(1)
-    expect(earned[0].text()).not.toContain('Locked')
+    const earned = wrapper.findAll('li').find((item) => item.text().includes('First clue'))
+    expect(earned.text()).not.toContain('Locked')
   })
 
   it('shows every badge as locked when none are earned', async () => {
@@ -114,7 +114,7 @@ describe('progress page', () => {
     const wrapper = mountPage()
     await flushPromises()
     expect(wrapper.text()).toContain('No badges yet')
-    expect(wrapper.findAll('.achievement-badge--locked')).toHaveLength(2)
+    expect(wrapper.findAll('ul[aria-labelledby="locked-heading"] li')).toHaveLength(2)
   })
 
   it('shows an error and retries', async () => {

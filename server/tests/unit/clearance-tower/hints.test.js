@@ -59,7 +59,7 @@ describe('clearance tower hints', () => {
 
   it('keeps the maximum score unchanged', () => {
     expect(clearanceRuleset.maxScore).toBe(600)
-    expect(RULESET_VERSION).toBe('clear-3')
+    expect(RULESET_VERSION).toBe('clear-4')
   })
 
   it('allows two hints then refuses a third', () => {

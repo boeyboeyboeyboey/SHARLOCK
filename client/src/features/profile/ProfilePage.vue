@@ -2,8 +2,6 @@
 defineOptions({ name: 'SharlockProfile' })
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import PixelIcon from '../../components/town/PixelIcon.vue'
-import TrophyCase from '../../components/portal/TrophyCase.vue'
 import SessionNotice from '../auth/components/SessionNotice.vue'
 import { avatarFor } from '../auth/avatars.js'
 import { useAuthStore } from '../auth/store.js'
@@ -12,8 +10,6 @@ import ProfileEditor from './components/ProfileEditor.vue'
 import { getOwnProfile, safeError, updateOwnProfile } from './api.js'
 import './profile.css'
 
-// embedded: shown inside the profile overlay, which has its own way back to town
-defineProps({ embedded: { type: Boolean, default: false } })
 const route = useRoute()
 const auth = useAuthStore()
 const shownUsername = computed(() => profile.value?.username || auth.user?.username || '')
@@ -177,13 +173,9 @@ async function retrySession() {
           />
         </div>
         <div>
-          <span class="title-pill">YOUR ACCOUNT</span>
           <h2>{{ shownUsername }}</h2>
           <p>{{ auth.user.email }}</p>
         </div>
-        <RouterLink v-if="!embedded" to="/" class="btn btn-secondary">
-          Town map <PixelIcon name="arrow" :size="18" aria-hidden="true" />
-        </RouterLink>
         <button
           ref="editButton"
           class="btn btn-primary profile-edit-button"
@@ -217,19 +209,26 @@ async function retrySession() {
         </button>
       </div>
       <WardrobePicker />
-      <p class="preview-notice">Results, points and badges: see Learning progress.</p>
-      <TrophyCase />
+      <p class="preview-notice">
+        Results, points and badges are on the
+        <RouterLink :to="{ path: '/profile', query: { tab: 'progress' } }" replace
+          >Progress tab</RouterLink
+        >.
+      </p>
     </template>
 
     <section v-else-if="auth.status === 'anonymous'" class="profile-overview" aria-label="Sign in">
       <div>
         <h2>Sign in to see your profile.</h2>
+        <p v-if="auth.sessionEnd === 'elsewhere'" role="status">
+          You were signed out because your account signed in somewhere else.
+        </p>
+        <p v-else-if="auth.sessionEnd === 'expired'" role="status">Your session has ended.</p>
         <p v-if="saveSessionExpired" role="status">
           Your profile was saved, but your session ended. Sign in again to see the changes.
         </p>
         <p v-if="retainedDraft" role="status">
-          Your unsaved changes are still here for now. If you leave this page to sign in, you will
-          need to re-enter them.
+          Your changes were not saved. Sign in and enter them again.
         </p>
         <div class="d-flex flex-wrap gap-3">
           <RouterLink to="/login" class="btn btn-primary">Sign in</RouterLink>

@@ -34,6 +34,11 @@ function finish() {
   playing.value = false
 }
 
+// the intro was cut off, not watched, so it stays unseen
+function stop() {
+  playing.value = false
+}
+
 export function _resetLoreIntroForTests() {
   seenInMemory = false
   playing.value = false
@@ -45,5 +50,5 @@ export function _resetLoreIntroForTests() {
 }
 
 export function useLoreIntro() {
-  return { playing: readonly(playing), hasSeen, start, replay: start, finish }
+  return { playing: readonly(playing), hasSeen, start, replay: start, finish, stop }
 }

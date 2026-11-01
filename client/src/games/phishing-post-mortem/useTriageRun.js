@@ -4,6 +4,7 @@ import { useAttempt } from '../../features/attempts/useAttempt.js'
 const TICK_MS = 250
 const COMPLETE_RETRY_MS = 1000
 const COMPLETE_TRIES = 6
+const TRIAGE_RULESETS = ['phish-3', 'phish-4']
 
 export function useTriageRun({ now = Date.now } = {}) {
   const attempt = useAttempt('phishing-post-mortem')
@@ -11,6 +12,8 @@ export function useTriageRun({ now = Date.now } = {}) {
   const secondsLeft = ref(null)
   const previousEmail = ref(null)
   const finishing = ref(false)
+  // server time minus device time, so a skewed device clock cannot end a run early
+  let clockOffset = 0
   let ticker = null
   let waitTimer = null
   let disposed = false
@@ -34,7 +37,7 @@ export function useTriageRun({ now = Date.now } = {}) {
   // attempts saved under an earlier ruleset have no triage state and are only summarised
   const legacy = computed(() => {
     const version = snapshot.value?.rulesetVersion
-    return Boolean(version) && version !== 'phish-3'
+    return Boolean(version) && !TRIAGE_RULESETS.includes(version)
   })
   // the run has ended on the server or on the clock but the result is not saved yet
   const needsCompletion = computed(
@@ -53,7 +56,7 @@ export function useTriageRun({ now = Date.now } = {}) {
       secondsLeft.value = null
       return
     }
-    const remaining = Math.ceil((new Date(deadline).getTime() - now()) / 1000)
+    const remaining = Math.ceil((new Date(deadline).getTime() - (now() + clockOffset)) / 1000)
     secondsLeft.value = Math.max(0, remaining)
   }
 
@@ -79,6 +82,11 @@ export function useTriageRun({ now = Date.now } = {}) {
       const after = next?.publicState?.current
       if (!sameAttempt) previousEmail.value = null
       else if (before && (!after || after.roundId !== before.roundId)) previousEmail.value = before
+      const serverNow = next?.publicState?.serverNow
+      // a replayed retry carries the time of its first answer, which can only read low, so within
+      // one run the highest offset seen is the true one
+      const known = sameAttempt ? clockOffset : -Infinity
+      if (Number.isFinite(serverNow)) clockOffset = Math.max(known, serverNow - now())
       syncTicker()
     },
     { flush: 'sync' },
@@ -90,7 +98,7 @@ export function useTriageRun({ now = Date.now } = {}) {
     })
   }
 
-  // the browser's clock may run ahead of the server, so a refused save is retried briefly
+  // a request can land just before the server's deadline, so a refused save is retried briefly
   async function finish() {
     if (finishing.value || disposed) return false
     finishing.value = true

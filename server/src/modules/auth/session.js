@@ -1,3 +1,4 @@
+// libraries (mit): express-session, connect-mongo; credited in credits.md
 import session from 'express-session'
 import MongoStore from 'connect-mongo'
 
@@ -5,12 +6,11 @@ export const SESSION_COOKIE_NAME = 'sharlock.sid'
 export const AUTH_IDLE_MS = 30 * 60 * 1000
 export const AUTH_ABSOLUTE_MS = 8 * 60 * 60 * 1000
 export const CSRF_ABSOLUTE_MS = 10 * 60 * 1000
-// an anonymous session that is waiting for an emailed code outlives that code, so an expired
-// code is reported as such and can be replaced with Resend.
+// outlives the emailed code, so an expired code is reported as such and can be resent
 export const VERIFICATION_SESSION_MS = 30 * 60 * 1000
 
 function idleWindowFor(sessionData) {
-  if (sessionData.userId) return AUTH_IDLE_MS
+  if (sessionData.userId || sessionData.replacedAt) return AUTH_IDLE_MS
   return sessionData.pendingVerificationUserId ? VERIFICATION_SESSION_MS : CSRF_ABSOLUTE_MS
 }
 
@@ -23,8 +23,8 @@ function safeSettings(settings) {
   if (Object.keys(settings).some((key) => !allowedKeys.has(key))) {
     throw new TypeError('Auth settings contain an unsupported field.')
   }
-  if (!['development', 'test', 'production'].includes(settings.nodeEnv)) {
-    throw new TypeError('Auth nodeEnv must be development, test or production.')
+  if (!['development', 'test'].includes(settings.nodeEnv)) {
+    throw new TypeError('Auth nodeEnv must be development or test.')
   }
   if (
     typeof settings.sessionSecret !== 'string' ||
@@ -40,12 +40,9 @@ function safeSettings(settings) {
   try {
     origin = new URL(settings.clientOrigin)
   } catch {
-    throw new TypeError('Auth clientOrigin must be an exact HTTP(S) origin.')
+    throw new TypeError('Auth clientOrigin must be an exact HTTP origin.')
   }
   const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(origin.hostname)
-  const localHttp =
-    ['development', 'test'].includes(settings.nodeEnv) && origin.protocol === 'http:' && loopback
-  const validProductionOrigin = settings.nodeEnv === 'production' && origin.protocol === 'https:'
   if (
     origin.origin !== settings.clientOrigin ||
     origin.username ||
@@ -53,7 +50,8 @@ function safeSettings(settings) {
     origin.pathname !== '/' ||
     origin.search ||
     origin.hash ||
-    (!localHttp && !validProductionOrigin)
+    origin.protocol !== 'http:' ||
+    !loopback
   ) {
     throw new TypeError('Auth clientOrigin must be an exact validated origin.')
   }
@@ -63,7 +61,8 @@ function safeSettings(settings) {
     clientOrigin: settings.clientOrigin,
     sessionSecret: settings.sessionSecret,
     now: settings.now || Date.now,
-    secureCookie: !localHttp,
+    // only a validated loopback http origin reaches here
+    secureCookie: false,
   })
 }
 
@@ -119,6 +118,8 @@ export class AuthMongoStore extends session.Store {
           _id: sessionId,
           expires: { $gt: new Date(currentTime) },
           'session.absoluteExpiresAt': { $gt: new Date(currentTime) },
+          // a request still in flight when its session was replaced must not restore it
+          'session.replacedAt': { $exists: false },
         },
         {
           $set: {
@@ -161,6 +162,7 @@ export class AuthMongoStore extends session.Store {
           _id: sessionId,
           expires: { $gt: new Date(touchedAt) },
           'session.absoluteExpiresAt': { $gt: new Date(touchedAt) },
+          'session.replacedAt': { $exists: false },
         },
         {
           $set: {
@@ -257,12 +259,13 @@ export function createAnonymousSessionValues(now = Date.now) {
   }
 }
 
-export function createPendingVerificationSessionValues(userId, now = Date.now) {
+export function createPendingVerificationSessionValues(userId, authVersion, now = Date.now) {
   const currentTime = now()
   return {
     ...createAnonymousSessionValues(() => currentTime),
     absoluteExpiresAt: new Date(currentTime + VERIFICATION_SESSION_MS),
     pendingVerificationUserId: userId,
+    pendingVerificationAuthVersion: authVersion,
   }
 }
 

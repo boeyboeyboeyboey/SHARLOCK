@@ -4,6 +4,14 @@
   padding: clamp(1rem, 4vw, 2.5rem);
 }
 
+/* the results tables need more room than the roster */
+@media (min-width: 992px) {
+  .cohort-page--wide {
+    width: min(100%, 1280px);
+    padding-inline: 0;
+  }
+}
+
 .cohort-page h1,
 .cohort-panel h2 {
   font-weight: 700;
@@ -61,6 +69,18 @@
   outline-offset: 3px;
 }
 
+/* a heading takes focus only so the next tab starts from it; a ring would make it look like a field */
+.cohort-page [tabindex='-1']:focus-visible {
+  outline: none;
+}
+
+/* feedback stays on screen after an action far down the page */
+.cohort-feedback {
+  position: sticky;
+  top: calc(var(--header-height) + 0.5rem);
+  z-index: 5;
+}
+
 .cohort-list {
   display: grid;
   gap: 0.75rem;
@@ -77,6 +97,10 @@
   padding: 0.85rem;
   border: 2px solid var(--border-strong);
   background: var(--bg-primary);
+}
+
+.cohort-list li > .inline-confirm {
+  grid-column: 1 / -1;
 }
 
 .cohort-list li > div:first-child {

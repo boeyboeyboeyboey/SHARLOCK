@@ -41,4 +41,12 @@ describe('lore intro state', () => {
     expect(lore.hasSeen()).toBe(true)
     expect(lore.playing.value).toBe(false)
   })
+
+  it('stops without counting the intro as seen', () => {
+    const lore = useLoreIntro()
+    lore.start()
+    lore.stop()
+    expect(lore.playing.value).toBe(false)
+    expect(lore.hasSeen()).toBe(false)
+  })
 })

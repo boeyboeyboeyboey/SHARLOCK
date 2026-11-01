@@ -37,3 +37,21 @@ export async function postFixtureLogin(
     await delay(BACKOFF_STEP_MS * (attempt + 1) + Math.floor(Math.random() * 100))
   }
 }
+
+// signs an existing browser context in, so every spec shares the busy retry above
+export async function signInContext(context, baseURL, identity) {
+  const origin = new URL(baseURL).origin
+  const csrfResponse = await context.request.get(new URL('/api/auth/csrf', baseURL).href, {
+    headers: { Origin: origin },
+  })
+  if (!csrfResponse.ok()) throw new Error('Could not initialize the E2E session.')
+  const { csrfToken } = await csrfResponse.json()
+  await postFixtureLogin(context.request, {
+    loginUrl: new URL('/api/auth/login', baseURL).href,
+    origin,
+    csrfToken,
+    email: identity.email,
+    password: identity.password,
+    message: 'Could not authenticate the E2E session',
+  })
+}

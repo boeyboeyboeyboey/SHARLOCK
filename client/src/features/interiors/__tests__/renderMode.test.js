@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { fallbackGradient, stillUrl } from '../renderMode.js'
-import { ROOM_IDS, roomFor } from '../rooms/palettes.js'
+import { palettes, roomFor } from '../rooms/palettes.js'
 
 describe('still fallback', () => {
   it('points at the plate for a room id', () => {
@@ -15,12 +15,9 @@ describe('still fallback', () => {
 
 describe('room palettes', () => {
   it('has a three colour palette for each of the five game ids', () => {
-    expect(ROOM_IDS).toHaveLength(5)
-    for (const id of ROOM_IDS) {
-      const room = roomFor(id)
-      expect(room.id).toBe(id)
-      expect(room.palette).toHaveLength(3)
-    }
+    const ids = Object.keys(palettes)
+    expect(ids).toHaveLength(5)
+    for (const id of ids) expect(roomFor(id).palette).toHaveLength(3)
   })
 
   it('knows nothing about other ids', () => {

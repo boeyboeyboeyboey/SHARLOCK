@@ -25,10 +25,11 @@ const typing = (target) =>
 
 // the hub player is welded to the wharf (havok capsule, lane graph, ground picking), so the arena gets a slim kinematic one:
 // same keys, same sprint and jump modules, movement checked against the server's own walkable test
-export function createLocalPlayer({ spawn, camera, reduced, onSprint = () => {} }) {
-  const keys = new Set()
+// input: what the previous player was holding when the arena rebuilt
+export function createLocalPlayer({ spawn, camera, reduced, onSprint = () => {}, input = null }) {
+  const keys = new Set(input?.keys)
   const pos = { x: spawn.x, z: spawn.z }
-  const pad = { x: 0, y: 0 }
+  const pad = { x: input?.pad.x ?? 0, y: input?.pad.y ?? 0 }
   const sprint = createSprint()
   const jump = createJump()
   let enabled = true
@@ -37,9 +38,9 @@ export function createLocalPlayer({ spawn, camera, reduced, onSprint = () => {} 
   let y = 0
   let vy = 0
   const lastDir = { x: 0, z: 1 }
-  let sprintPhase = 'ready'
   // dev and test only: walk straight at a spot through the normal movement rules
-  let auto = null
+  let auto = input?.auto ?? null
+  let synced = input?.synced ?? false
 
   const startSprint = () => {
     if (!enabled || !sprint.start()) return false
@@ -78,7 +79,6 @@ export function createLocalPlayer({ spawn, camera, reduced, onSprint = () => {} 
 
   function update(dt, server) {
     const top = BASE_SPEED * sprint.multiplier()
-    sprintPhase = sprint.state()
     const ix = (keys.has('r') ? 1 : 0) - (keys.has('l') ? 1 : 0) + pad.x
     const iy = (keys.has('f') ? 1 : 0) - (keys.has('b') ? 1 : 0) + pad.y
     const manual = enabled && (Math.abs(ix) > 0.05 || Math.abs(iy) > 0.05)
@@ -129,14 +129,19 @@ export function createLocalPlayer({ spawn, camera, reduced, onSprint = () => {} 
     else vy -= GRAVITY * dt
     y = Math.max(0, y + vy * dt)
 
-    // a rejected move: the snapshot spot is far from here, so ease back to it
-    if (server && needsCorrection(pos, server)) {
+    // the first server spot of a round is the real spawn, which easing could miss or never reach
+    if (server && !synced) {
+      pos.x = server.x
+      pos.z = server.z
+    } else if (server && needsCorrection(pos, server)) {
+      // a rejected move: the snapshot spot is far from here, so ease back to it
       const fixed = correctPosition(pos, server, dt)
       if (walkable(fixed.x, fixed.z)) {
         pos.x = fixed.x
         pos.z = fixed.z
       }
     }
+    synced = Boolean(server)
 
     const before = heading
     if (moving) heading += diff * (1 - Math.exp(-dt * 10))
@@ -158,7 +163,6 @@ export function createLocalPlayer({ spawn, camera, reduced, onSprint = () => {} 
     update,
     jump: () => enabled && jump.request(),
     sprint: startSprint,
-    sprintState: () => ({ phase: sprintPhase, left: sprint.cooldownLeft() }),
     setJoystick(x, yv) {
       pad.x = x
       pad.y = yv
@@ -174,12 +178,8 @@ export function createLocalPlayer({ spawn, camera, reduced, onSprint = () => {} 
     walkTo(x, z) {
       auto = x === null ? null : { x, z }
     },
-    teleport(x, z) {
-      pos.x = x
-      pos.z = z
-      curSpeed = 0
-    },
     position: () => ({ x: pos.x, z: pos.z }),
+    inputState: () => ({ keys: [...keys], pad: { ...pad }, auto, synced }),
     dispose() {
       window.removeEventListener('keydown', down)
       window.removeEventListener('keyup', up)

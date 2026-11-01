@@ -9,6 +9,8 @@ const props = defineProps({
   fetchedAt: { type: String, default: '' },
   refreshAvailableAt: { type: Number, default: 0 },
   canRefresh: Boolean,
+  // a sample edition is labelled on the page and never reads as an update
+  sample: Boolean,
 })
 defineEmits(['retry'])
 const nextCheck = computed(() =>
@@ -26,6 +28,7 @@ const nextCheck = computed(() =>
         Try again
       </button>
     </p>
+    <p v-else-if="sample">No live stories right now.</p>
     <p v-else-if="stale">
       A cached edition · check for a fresh update. Last successful update:
       {{ newsDate(fetchedAt, true) }} SGT
@@ -34,7 +37,7 @@ const nextCheck = computed(() =>
       Updated {{ newsStamp(fetchedAt) }} SGT{{ nextCheck ? ` · next ${nextCheck}` : '' }}
     </p>
     <p v-if="partial">Some stories could not be included in this edition.</p>
-    <small v-if="nextCheck && (error || stale || !fetchedAt)"
+    <small v-if="nextCheck && (error || stale || sample || !fetchedAt)"
       >Next update check available {{ nextCheck }} SGT</small
     >
   </div>

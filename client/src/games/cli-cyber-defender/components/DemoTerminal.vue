@@ -104,7 +104,7 @@ onBeforeUnmount(() => {
 
 <template>
   <figure ref="root" class="cli-demo">
-    <div class="cli-demo-window" aria-hidden="true">
+    <div class="cli-demo-window" data-testid="cli-demo-window" aria-hidden="true">
       <div class="cli-demo-bar">
         <span></span><span></span><span></span>
         <strong>demo</strong>
@@ -116,11 +116,12 @@ onBeforeUnmount(() => {
           :style="{ visibility: stage === 'alert' ? 'hidden' : 'visible' }"
         >
           <span class="cli-demo-host">soc@sharlock:~$</span>
-          <span class="cli-demo-lookup">{{ typedLookup }}</span
+          <span class="cli-demo-lookup" data-testid="cli-demo-lookup">{{ typedLookup }}</span
           ><span v-if="stage === 'lookup'" class="cli-demo-caret">_</span>
         </p>
         <p
           class="cli-demo-found"
+          data-testid="cli-demo-found"
           :style="{ visibility: ['alert', 'lookup'].includes(stage) ? 'hidden' : 'visible' }"
         >
           &gt; {{ scene.found }}
@@ -130,10 +131,10 @@ onBeforeUnmount(() => {
           :style="{ visibility: ['typing', 'done'].includes(stage) ? 'visible' : 'hidden' }"
         >
           <span class="cli-demo-host">soc@sharlock:~$</span>
-          <span class="cli-demo-typed">{{ typed }}</span
+          <span class="cli-demo-typed" data-testid="cli-demo-typed">{{ typed }}</span
           ><span v-if="stage !== 'done'" class="cli-demo-caret">_</span>
         </p>
-        <p v-if="stage === 'done'" class="cli-demo-ok">
+        <p v-if="stage === 'done'" class="cli-demo-ok" data-testid="cli-demo-ok">
           <CliIcon name="check" :size="16" />{{ scene.result }}
         </p>
       </div>

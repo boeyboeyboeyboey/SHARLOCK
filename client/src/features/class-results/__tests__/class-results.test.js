@@ -67,6 +67,34 @@ const attemptsResult = {
   total: 1,
 }
 
+describe('class results limits', () => {
+  it('blames old attempts only when the attempt bound was reached', async () => {
+    apiMocks.get.mockResolvedValue({
+      data: { ...results, truncated: true, truncatedAttempts: true },
+    })
+    const wrapper = mount(ClassResults, { props: { cohortId: 'c1' } })
+    await flushPromises()
+    expect(wrapper.get('[role="status"]').text()).toContain('oldest attempts are not counted')
+    expect(wrapper.text()).not.toContain('some students are not counted')
+    wrapper.unmount()
+  })
+
+  it('says students are missing when the roster bound was reached', async () => {
+    apiMocks.get.mockResolvedValue({
+      data: { ...results, truncated: true, truncatedStudents: true },
+    })
+    const wrapper = mount(ClassResults, { props: { cohortId: 'c1' } })
+    await flushPromises()
+    expect(wrapper.get('[role="status"]').text()).toContain('some students are not counted')
+    expect(wrapper.text()).not.toContain('oldest attempts')
+    wrapper.unmount()
+  })
+
+  it('makes up no session wording of its own for a 401', () => {
+    expect(resultsErrorMessage({ response: { status: 401 } })).not.toMatch(/session/i)
+  })
+})
+
 describe('class results api', () => {
   beforeEach(() => {
     apiMocks.get.mockReset()
@@ -143,7 +171,7 @@ describe('class results container', () => {
       signal: expect.any(AbortSignal),
     })
     expect(wrapper.text()).toContain('8 / 10')
-    expect(wrapper.text()).toContain('sql-injection')
+    expect(wrapper.text()).toContain('SQL injection')
     await wrapper.get('select').setValue('sql-injection-arcade')
     await flushPromises()
     expect(apiMocks.get.mock.calls.at(-1)[1].params.gameId).toBe('sql-injection-arcade')

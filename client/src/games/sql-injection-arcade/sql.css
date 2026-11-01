@@ -400,6 +400,12 @@
 .sql-game [tabindex='-1']:focus {
   outline: none;
 }
+/* focus moves here after every action, so a keyboard user must be able to see it */
+.sql-game .sql-result-region:focus,
+.sql-game .sql-hint-text:focus {
+  outline: 3px solid var(--game-amber);
+  outline-offset: 3px;
+}
 .sql-game .sql-scroll,
 .sql-game .sql-form-fields,
 .sql-game .attempt-result-content {

@@ -16,6 +16,7 @@ const CAPTIONS = [
   <div
     class="tag-howto"
     :class="[`is-step-${step}`, { 'is-static': reducedMotion }]"
+    :data-motion="reducedMotion ? 'still' : 'live'"
     data-testid="tag-howto-scene"
   >
     <svg viewBox="0 0 200 120" class="tag-howto-arena" role="presentation">

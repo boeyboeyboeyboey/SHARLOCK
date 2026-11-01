@@ -3,7 +3,7 @@ import { Texture } from '@babylonjs/core/Materials/Textures/texture.js';
 import { glowMaterial } from './toon.js';
 import { arcStrip } from '../shared/plates.js';
 import { loadPlateTexture } from '../shared/plate-texture.js';
-import { groundFrac, groundY, pieceRings, rings } from './plategeo.js';
+import { groundFrac, groundY, pieceRings } from './plategeo.js';
 import { rng } from '../shared/random.js';
 
 const rad = (deg) => (deg * Math.PI) / 180;
@@ -117,17 +117,17 @@ export function paintSkyline(ctx, w, h, { seed, arc, radius, dome = null, spires
 
 export const plateBase = `${import.meta.env.BASE_URL}hub/plates/`;
 
-// the painted stand-ins, the single file plates of the first kit, or numbered pieces per ring; any png dropped into
-// assets/plates with the documented names replaces the painted stand-in. loadFile is swappable so a test can feed synthetic textures
-export async function buildSkyline({ scene, indexes, tier, loadFile = loadPlateTexture }) {
+// numbered pieces per ring, with a painted stand-in for any piece whose file is absent; the loader is swappable so a test can feed synthetic textures
+// isdisposed: true once the hub was left; what loaded so far is released and the result is null
+export async function buildSkyline({ scene, indexes, tier, loadFile = loadPlateTexture, isDisposed = () => false }) {
   const meshes = [];
   const textures = [];
   const materials = [];
   const have = (name) => Boolean(name) && indexes.plates.has(name);
   const scale = tier.desktop ? 1 : 0.5;
 
-  const strip = async (name, file, { az0, az1, r, paint, alphaIndex, groundFrac: frac = groundFrac, fadeLeft = 0, fadeRight = 0, columns = 16, cropTo = null }) => {
-    let texture = have(file) ? await loadFile(scene, `${plateBase}${file}`, { cropTo, cutBelow: cropTo ? 1 - frac : null }) : null;
+  const strip = (name, loaded, { az0, az1, r, paint, alphaIndex, groundFrac: frac = groundFrac, fadeLeft = 0, fadeRight = 0, columns = 16 }) => {
+    let texture = loaded;
     const fromFile = Boolean(texture);
     if (!texture) {
       // a stand-in for a partial arc keeps the pixel density of the full 100 degree strip
@@ -163,37 +163,23 @@ export async function buildSkyline({ scene, indexes, tier, loadFile = loadPlateT
 
   const midLayers = [{ color: 'rgba(190,118,140,0.9)', hMin: 6, hMax: 15, step: 9 }, { color: 'rgba(130,78,118,0.96)', hMin: 6, hMax: 17, step: 10 }, { color: 'rgba(86,54,100,1)', hMin: 5, hMax: 14, step: 12 }];
   const pieces = (set) => Object.entries(pieceRings).filter(([, p]) => p.set === set);
-  const hasPieces = (set) => pieces(set).some(([, p]) => have(p.file));
+  const paintFor = ({ set, index, az0, az1, r }) => {
+    const arc = az1 - az0;
+    if (set === 'mid') return (ctx, w, h) => paintSkyline(ctx, w, h, { seed: 91 + index, arc, radius: r, spires: 1, density: 1.5, layers: midLayers });
+    const dome = -72 > az0 && -72 < az1 ? (-72 - az0) / arc : null;
+    return (ctx, w, h) => paintSkyline(ctx, w, h, { seed: 30 + index, arc, radius: r, dome, spires: 3 });
+  };
 
-  // far ring
-  if (hasPieces('far')) {
-    for (const [name, p] of pieces('far')) {
-      const arc = p.az1 - p.az0;
-      const dome = -72 > p.az0 && -72 < p.az1 ? (-72 - p.az0) / arc : null;
-      await strip(name, p.file, { ...p, paint: (ctx, w, h) => paintSkyline(ctx, w, h, { seed: 30 + p.index, arc, radius: p.r, dome, spires: 3 }) });
-    }
-  } else {
-    const r = rings['thames-far-left'].r;
-    const arc = 100;
-    await strip('thames-far-left', 'thames-far-left.png', { ...rings['thames-far-left'], paint: (ctx, w, h) => paintSkyline(ctx, w, h, { seed: 21, arc, radius: r, dome: 0.78, spires: 6 }) });
-    await strip('thames-far-center', 'thames-far-center.png', { ...rings['thames-far-center'], paint: (ctx, w, h) => paintSkyline(ctx, w, h, { seed: 22, arc, radius: r, spires: 4 }) });
-    await strip('thames-far-right', 'thames-far-right.png', { ...rings['thames-far-right'], paint: (ctx, w, h) => paintSkyline(ctx, w, h, { seed: 23, arc, radius: r, spires: 5 }) });
+  // decode and key every plate at once, then place them in ring order so draw order never depends on which file arrived first
+  const list = [...pieces('far'), ...pieces('mid')];
+  const loaded = await Promise.all(
+    list.map(([, p]) => (have(p.file) ? loadFile(scene, `${plateBase}${p.file}`, { cropTo: p.cropTo, cutBelow: p.cropTo ? 1 - p.groundFrac : null, scale: tier.plateScale }) : null)),
+  );
+  if (isDisposed()) {
+    for (const texture of loaded) texture?.dispose();
+    return null;
   }
-
-  // mid band
-  if (hasPieces('mid')) {
-    for (const [name, p] of pieces('mid')) {
-      const arc = p.az1 - p.az0;
-      await strip(name, p.file, { ...p, paint: (ctx, w, h) => paintSkyline(ctx, w, h, { seed: 91 + p.index, arc, radius: p.r, spires: 1, density: 1.5, layers: midLayers }) });
-    }
-  } else {
-    const midR = rings['thames-mid-band'].r;
-    const midArc = 170;
-    await strip('thames-mid-band', 'thames-mid-band.png', {
-      ...rings['thames-mid-band'],
-      paint: (ctx, w, h) => paintSkyline(ctx, w, h, { seed: 91, arc: midArc, radius: midR, spires: 2, density: 1.5, layers: midLayers }),
-    });
-  }
+  list.forEach(([name, p], i) => strip(name, loaded[i], { ...p, paint: paintFor(p) }));
 
   return {
     meshes,

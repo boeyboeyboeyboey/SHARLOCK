@@ -9,6 +9,8 @@ const props = defineProps({
   // the panel sits inside the portal shell so the shared page rules still reach its content
   teleport: { type: Boolean, default: true },
   paper: { type: Boolean, default: true },
+  // pages that show their own session notice turn this off, so a failed session check is not reported twice
+  sessionNotice: { type: Boolean, default: true },
 })
 const emit = defineEmits(['request-close'])
 const dialog = ref(null)
@@ -49,8 +51,9 @@ onBeforeUnmount(() => dialog.value?.close?.())
         </button>
       </div>
       <slot name="tabs"></slot>
-      <div class="overlay-body">
-        <SessionNotice />
+      <!-- focusable so a keyboard user can scroll a panel with no link or button in it -->
+      <div class="overlay-body" role="region" :aria-label="title" tabindex="0">
+        <SessionNotice v-if="sessionNotice" />
         <div :class="{ 'overlay-paper': paper }"><slot></slot></div>
       </div>
     </dialog>

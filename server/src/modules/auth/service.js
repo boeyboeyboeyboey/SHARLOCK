@@ -69,7 +69,13 @@ export function createAuthService(database, { now = Date.now } = {}) {
     if (!passwordMatches || user.accountStatus !== 'active') throw invalidCredentialsError()
 
     // correct password but the email address was never confirmed: no session yet
-    if (user.emailVerification) return { pendingVerification: true, userId: user._id.toString() }
+    if (user.emailVerification) {
+      return {
+        pendingVerification: true,
+        userId: user._id.toString(),
+        authVersion: user.authVersion,
+      }
+    }
 
     const currentUser = await User.findById(user._id)
     if (

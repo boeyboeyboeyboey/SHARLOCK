@@ -12,6 +12,7 @@ import { userModel } from '../../../src/models/User.js'
 import { membershipModel } from '../../../src/models/Membership.js'
 import { initializeCohortStorage } from '../../../src/modules/cohorts/storage.js'
 import { initializeAttemptStorage } from '../../../src/modules/attempts/storage.js'
+import { createLeaderboardService } from '../../../src/modules/leaderboards/service.js'
 import {
   createTestApp,
   disposeTestAuthApps,
@@ -248,6 +249,36 @@ async function setupClass() {
 }
 
 describe('class leaderboard API', () => {
+  it('counts the newest plays past the read cap and says it did', async () => {
+    const { cohortId, ann, bob } = await setupClass()
+    currentTime += 1000
+    await completeOne(bob, inClass(cohortId), true)
+    currentTime += 1000
+    await completeOne(ann, inClass(cohortId), true)
+    currentTime += 1000
+    await completeOne(ann, inClass(cohortId), false)
+    const service = createLeaderboardService(database, { registry, maxBoardAttempts: 2 })
+    const capped = await service.getBoard({ id: ann.user.id }, cohortId, {
+      gameId: syntheticGameId,
+      view: 'all-time',
+      page: 1,
+    })
+    expect(capped.truncated).toBe(true)
+    expect(capped.rows.map((row) => [row.username, row.plays])).toEqual([[ann.user.username, 2]])
+
+    const whole = await board(ann, cohortId, q('&view=all-time')).expect(200)
+    expect(whole.body.truncated).toBe(false)
+  })
+
+  it('limits each user to 120 reads a minute without touching another user', async () => {
+    const { cohortId, ann, bob } = await setupClass()
+    for (let count = 0; count < 120; count += 1) await games(ann, cohortId).expect(200)
+    const limited = await games(ann, cohortId).expect(429)
+    expect(limited.body.error.code).toBe('LEADERBOARD_RATE_LIMITED')
+    expect(limited.headers['retry-after']).toBe('60')
+    await games(bob, cohortId).expect(200)
+  }, 30000)
+
   it('ranks best scores for a student in the class and hides private fields', async () => {
     const { cohortId, ann, bob } = await setupClass()
     currentTime += 1000
@@ -269,6 +300,7 @@ describe('class leaderboard API', () => {
         'rows',
         'rulesetVersion',
         'total',
+        'truncated',
         'view',
       ].sort(),
     )
@@ -400,24 +432,40 @@ describe('class leaderboard API', () => {
     })
   })
 
-  it('does not mix rulesets and defaults to the latest', async () => {
+  it('does not mix rulesets and defaults to the current one over a late old finish', async () => {
     const { cohortId, ann, bob } = await setupClass()
     currentTime += 1000
     await completeOne(ann, inClass(cohortId), true)
     currentTime += 1000
+    // the newest finish in the class is on another ruleset, as a late old climb would be
     const second = await completeOne(bob, inClass(cohortId), true)
-    await setAttempt(second, { rulesetVersion: 'fixture-2' })
+    await setAttempt(second, { rulesetVersion: 'fixture-old' })
 
     const latest = await board(ann, cohortId, q()).expect(200)
-    expect(latest.body.rulesetVersion).toBe('fixture-2')
-    expect(latest.body.rows.map((row) => row.username)).toEqual([bob.user.username])
-    const old = await board(ann, cohortId, q('&rulesetVersion=fixture-1')).expect(200)
-    expect(old.body.rows.map((row) => row.username)).toEqual([ann.user.username])
-    expect(old.body.me).toMatchObject({ username: ann.user.username })
+    expect(latest.body.rulesetVersion).toBe('fixture-1')
+    expect(latest.body.rows.map((row) => row.username)).toEqual([ann.user.username])
+    const old = await board(ann, cohortId, q('&rulesetVersion=fixture-old')).expect(200)
+    expect(old.body.rows.map((row) => row.username)).toEqual([bob.user.username])
     const listed = await games(ann, cohortId).expect(200)
     expect(listed.body.games).toEqual([
-      { gameId: syntheticGameId, rulesetVersion: 'fixture-2', competitive: false },
+      { gameId: syntheticGameId, rulesetVersion: 'fixture-1', competitive: true },
     ])
+  })
+
+  it('falls back to the newest ruleset while the current one has no finishes', async () => {
+    const { cohortId, ann, bob } = await setupClass()
+    currentTime += 1000
+    const first = await completeOne(ann, inClass(cohortId), true)
+    await setAttempt(first, { rulesetVersion: 'fixture-older' })
+    currentTime += 1000
+    const second = await completeOne(bob, inClass(cohortId), true)
+    await setAttempt(second, { rulesetVersion: 'fixture-old' })
+
+    const latest = await board(ann, cohortId, q()).expect(200)
+    expect(latest.body.rulesetVersion).toBe('fixture-old')
+    expect(latest.body.rows.map((row) => row.username)).toEqual([bob.user.username])
+    const listed = await games(ann, cohortId).expect(200)
+    expect(listed.body.games[0].rulesetVersion).toBe('fixture-old')
   })
 
   it('counts only competitive attempts in the best view of a competitive ruleset', async () => {

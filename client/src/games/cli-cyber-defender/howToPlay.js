@@ -22,7 +22,7 @@ export const HOW_TO_PLAY = Object.freeze({
     'incident triage and containment: blocking hostile addresses, securing accounts and isolating hosts, tagged with the CIA triad and attack stages (CS440 security operations and network security topics). Nothing real is ever executed.',
   rules: [
     'Eight challenges per shift, up to 2,700 points.',
-    'Game mode gives 20 to 30 seconds per challenge. Practice has no timer and its hints name a lookup to run.',
+    'Game mode gives 20 to 30 seconds per challenge, with 2 pauses of 30 seconds in total. Practice has no timer and its hints name a lookup to run.',
     'You get 6 lookups per challenge. They never score and never break your streak, but the clock keeps running.',
     'Mistyped commands do not count. Fix them and try again.',
     'Timed class runs rank on the Best board. Practice counts toward all-time.',
@@ -30,7 +30,7 @@ export const HOW_TO_PLAY = Object.freeze({
   controls: [
     { keys: 'Type, then Enter', action: 'send a command or lookup' },
     { keys: 'ArrowUp and ArrowDown', action: 'recall earlier commands' },
-    { keys: 'Menu, then Pause', action: 'pause a timed game' },
+    { keys: 'Options, then Pause', action: 'pause a timed game' },
     { keys: 'Escape', action: 'close the menu or this guide' },
   ],
 })

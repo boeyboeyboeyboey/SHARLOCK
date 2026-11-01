@@ -13,6 +13,8 @@ const navbar = ref(null)
 const isTown = computed(() => route.meta.theme === 'town')
 // the town, its overlays and the game rooms carry their own menu instead of the top bar
 const immersive = computed(() => Boolean(route.meta.immersive))
+// the first route resolves after mount; until then its meta is empty and a click on this bar's menu would be lost
+const routeResolved = computed(() => route.matched.length > 0)
 const isOverlayRoute = (target) => Boolean(target.meta.overlay || target.meta.newsDialog)
 const menuOpen = ref(false)
 async function signOut() {
@@ -54,7 +56,7 @@ watch(
   >
     <a href="#main-content" class="skip-link">Skip to content</a>
     <Navbar
-      v-if="!immersive"
+      v-if="routeResolved && !immersive"
       ref="navbar"
       v-model:menu-open="menuOpen"
       :user="auth.user"

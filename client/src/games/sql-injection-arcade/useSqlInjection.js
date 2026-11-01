@@ -2,7 +2,6 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useAttempt } from '../../features/attempts/useAttempt.js'
 
 const AUTO_FINISH_DELAY_MS = 800
-const AUTO_FINISH_RETRY_MS = 2000
 
 export function useSqlInjection() {
   const attempt = useAttempt('sql-injection-arcade')
@@ -23,28 +22,34 @@ export function useSqlInjection() {
   )
   const runOver = computed(() => snapshot.value?.status === 'active' && current.value === null)
 
-  let lastFinishTry = 0
+  // server time minus device time, so a skewed device clock neither misstates the countdown nor
+  // ends a run early
+  let clockOffset = 0
+  // one automatic finish per snapshot: a refused one waits for new state instead of looping
+  let finishTriedOn = null
   function tick() {
     const deadline = snapshot.value?.deadlineAt
     if (!deadline || snapshot.value.status !== 'active') {
       secondsLeft.value = null
       return
     }
-    const left = new Date(deadline).getTime() - Date.now()
+    const left = new Date(deadline).getTime() - (Date.now() + clockOffset)
     secondsLeft.value = Math.max(0, Math.ceil(left / 1000))
-    const due = Date.now() - new Date(deadline).getTime() - AUTO_FINISH_DELAY_MS
-    if (
-      due > 0 &&
-      !busy.value &&
-      !retryable.value &&
-      Date.now() - lastFinishTry > AUTO_FINISH_RETRY_MS
-    ) {
-      lastFinishTry = Date.now()
+    const due = -left - AUTO_FINISH_DELAY_MS
+    if (due > 0 && !busy.value && !retryable.value && finishTriedOn !== snapshot.value) {
+      finishTriedOn = snapshot.value
       attempt.complete()
     }
   }
   const timer = setInterval(tick, 250)
-  watch(snapshot, tick)
+  watch(snapshot, (next, previous) => {
+    const serverNow = next?.publicState?.serverNow
+    // a replayed retry carries the time of its first answer, which can only read low, so within one
+    // run the highest offset seen is the true one
+    const known = next?.attemptId === previous?.attemptId ? clockOffset : -Infinity
+    if (Number.isFinite(serverNow)) clockOffset = Math.max(known, serverNow - Date.now())
+    tick()
+  })
   onBeforeUnmount(() => clearInterval(timer))
 
   function send(type, payload = {}) {

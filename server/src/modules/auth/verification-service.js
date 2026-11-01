@@ -31,8 +31,7 @@ export function createVerificationService(database, { now = Date.now, secret, ma
   }
   const User = userModel(database)
 
-  // mail failure never rolls back the account: the learner can use Resend.
-  // the state already stored is kept, but a failed send must not start the cooldown.
+  // mail failure never rolls back the account: the learner can use resend
   async function deliver(user, code) {
     try {
       await mailer.sendVerificationCode({
@@ -48,7 +47,7 @@ export function createVerificationService(database, { now = Date.now, secret, ma
     }
   }
 
-  // a failed send must not start the resend cooldown, so Resend stays available straight away.
+  // a failed send must not start the resend cooldown
   async function deliverAndDescribe(user, state, code) {
     const delivery = await deliver(user, code)
     if (delivery === 'failed') {
@@ -60,9 +59,10 @@ export function createVerificationService(database, { now = Date.now, secret, ma
         user.emailNormalized,
         { expiresAt: state.expiresAt, lastSentAt: new Date(0) },
         delivery,
+        now(),
       )
     }
-    return publicVerification(user.emailNormalized, state, delivery)
+    return publicVerification(user.emailNormalized, state, delivery, now())
   }
 
   async function registerPending(input) {
@@ -101,14 +101,12 @@ export function createVerificationService(database, { now = Date.now, secret, ma
 
     return {
       userId: user._id.toString(),
+      authVersion: user.authVersion,
       verification: await deliverAndDescribe(user, user.emailVerification, sentCode),
     }
   }
 
-  // An abandoned, never-verified registration must not lock its email address for ever. It has
-  // no session, no data and no proof of ownership, so a new registration may replace it, but
-  // only once its code has expired. Replacing a live one would let anyone swap the password
-  // under someone who is still confirming their own sign-up.
+  // an abandoned registration may be replaced once its code has expired, never while it is live
   async function takeOverUnverified(input, passwordHash, currentTime) {
     const existing = await User.findOne({ emailNormalized: input.emailNormalized }).select(
       '+emailVerification',
@@ -154,14 +152,23 @@ export function createVerificationService(database, { now = Date.now, secret, ma
     }
   }
 
-  // shared by Resend (strict: surfaces limits) and by sign-in of an unverified account
-  // (lenient: reuses the code already sent when a limit applies).
-  async function issue(userId, { strict }) {
-    if (!Types.ObjectId.isValid(userId)) throw notPendingError()
+  const isPendingReference = (userId, authVersion) =>
+    Types.ObjectId.isValid(userId) && Number.isInteger(authVersion)
+
+  // the session's auth version goes stale when a takeover replaces the registration it started
+  function isPending(user, authVersion) {
+    return (
+      user?.accountStatus === 'active' &&
+      Boolean(user.emailVerification) &&
+      user.authVersion === authVersion
+    )
+  }
+
+  // strict for resend (surfaces limits), lenient for sign-in (reuses the code already sent)
+  async function issue({ userId, authVersion }, { strict }) {
+    if (!isPendingReference(userId, authVersion)) throw notPendingError()
     const user = await User.findById(userId).select('+emailVerification')
-    if (!user || user.accountStatus !== 'active' || !user.emailVerification) {
-      throw notPendingError()
-    }
+    if (!isPending(user, authVersion)) throw notPendingError()
 
     const currentTime = now()
     const previous = user.emailVerification
@@ -169,7 +176,7 @@ export function createVerificationService(database, { now = Date.now, secret, ma
     const expired = new Date(previous.expiresAt).getTime() <= currentTime
     if (blockedFor !== null && (strict || !expired)) {
       if (strict) throw resendLimitedError(blockedFor)
-      return publicVerification(user.emailNormalized, previous, 'recent')
+      return publicVerification(user.emailNormalized, previous, 'recent', currentTime)
     }
     if (blockedFor !== null) throw resendLimitedError(blockedFor)
 
@@ -196,17 +203,29 @@ export function createVerificationService(database, { now = Date.now, secret, ma
     return deliverAndDescribe(user, swapped.emailVerification, code)
   }
 
-  const resend = (userId) => issue(userId, { strict: true })
-  const issueForLogin = (userId) => issue(userId, { strict: false })
+  const resend = (pending) => issue(pending, { strict: true })
+  const issueForLogin = (pending) => issue(pending, { strict: false })
 
-  async function verify(userId, code) {
-    if (!Types.ObjectId.isValid(userId)) throw notPendingError()
+  // what a refreshed code screen needs; sends nothing and spends no attempt
+  async function describePending({ userId, authVersion }) {
+    if (!isPendingReference(userId, authVersion)) return null
+    const user = await User.findById(userId).select('+emailVerification')
+    if (!isPending(user, authVersion)) return null
+    // a failed send leaves the last-sent time at epoch 0 so it does not start the cooldown
+    const lastSent = new Date(user.emailVerification.lastSentAt).getTime()
+    const delivery = lastSent === 0 ? 'failed' : 'recent'
+    return publicVerification(user.emailNormalized, user.emailVerification, delivery, now())
+  }
 
-    // reserve an attempt atomically before comparing, so parallel guesses all count.
+  async function verify({ userId, authVersion }, code) {
+    if (!isPendingReference(userId, authVersion)) throw notPendingError()
+
+    // reserve an attempt atomically before comparing, so parallel guesses all count
     const reserved = await User.findOneAndUpdate(
       {
         _id: userId,
         accountStatus: 'active',
+        authVersion,
         emailVerification: { $ne: null },
         'emailVerification.attempts': { $lt: MAX_ATTEMPTS },
       },
@@ -216,9 +235,7 @@ export function createVerificationService(database, { now = Date.now, secret, ma
 
     if (!reserved) {
       const current = await User.findById(userId).select('+emailVerification')
-      if (!current || current.accountStatus !== 'active' || !current.emailVerification) {
-        throw notPendingError()
-      }
+      if (!isPending(current, authVersion)) throw notPendingError()
       throw attemptsExceededError()
     }
 
@@ -247,5 +264,5 @@ export function createVerificationService(database, { now = Date.now, secret, ma
     }
   }
 
-  return Object.freeze({ registerPending, issueForLogin, resend, verify })
+  return Object.freeze({ registerPending, issueForLogin, resend, verify, describePending })
 }

@@ -19,7 +19,7 @@ Only `status: completed` attempts are read. Completed class-context attempts sta
 
 ## Points
 
-Per game, the best attempt is the highest `score / maxScore` among attempts on the latest ruleset version the player completed; points = `round(100 * best)`, 0 with none. `totalPoints` is the sum; `maxPoints` is `100 * savingGameIds.length`. Raw scores from different games are never summed.
+Per game, the best attempt is the highest `score / maxScore` among attempts on the registry's current ruleset once the player has completed it, otherwise on the ruleset of their newest attempt; points = `round(100 * best)`, 0 with none. `totalPoints` is the sum; `maxPoints` is `100 * savingGameIds.length`. Raw scores from different games are never summed.
 
 ## Topic outcomes
 
@@ -36,6 +36,8 @@ Per game, the best attempt is the highest `score / maxScore` among attempts on t
 | `well-rounded`          | completed attempts across 3 different games                 |
 | `persistent-detective`  | 5 completed attempts                                        |
 | `topic-expert`          | one attempt with at least one topic outcome, all `achieved` |
+| `first-close-<gameId>`  | a completed attempt in that game, one badge per saved game  |
+| `timed-run`             | a completed standard-mode attempt on a competitive ruleset  |
 | `tag-untouchable`       | a Botnet Tag round ended clean (`state.outcome` survived)   |
 | `tag-last-one-clean`    | Botnet Tag: survived, survivors won and `cleanAtEnd` is 1   |
 | `tag-super-spreader`    | Botnet Tag: 3 or more tags in one round                     |

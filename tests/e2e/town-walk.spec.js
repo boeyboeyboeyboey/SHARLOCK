@@ -17,12 +17,63 @@ const feet = (page) =>
 
 // holds a key until the feet are within reach of the target on that axis
 async function hold(page, key, axis, sign, target) {
+  // a key pressed before the walker mounts is never seen, and down does not repeat
+  await expect(page.getByTestId('town-player')).toBeVisible()
   await page.keyboard.down(key)
   await expect
     .poll(async () => sign * ((await feet(page))[axis] - target), { timeout: 20_000 })
     .toBeGreaterThanOrEqual(0)
   await page.keyboard.up(key)
 }
+
+for (const size of [
+  { width: 375, height: 667 },
+  { width: 667, height: 375 },
+  { width: 390, height: 844 },
+  { width: 1200, height: 800 },
+]) {
+  test(`opens with Sharlock in view at ${size.width} x ${size.height}, and keeps him there on a turn`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(size)
+    await page.goto('/')
+    const inView = async () => {
+      const player = await page.getByTestId('town-player').boundingBox()
+      const view = await page.locator('.town-viewport').boundingBox()
+      return (
+        player.x >= view.x &&
+        player.y >= view.y &&
+        player.x + player.width <= view.x + view.width &&
+        player.y + player.height <= view.y + view.height
+      )
+    }
+    await expect.poll(inView).toBe(true)
+    await page.setViewportSize({ width: size.height, height: size.width })
+    await expect.poll(inView).toBe(true)
+  })
+}
+
+test('Escape opens the menu after a click on the map, and closes a card first', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chromium', 'needs a physical keyboard')
+  await page.goto('/')
+  const map = page.getByRole('region', { name: 'Interactive town map' })
+  await expect(map).toBeVisible()
+  const box = await map.boundingBox()
+  await page.mouse.click(box.x + 40, box.y + box.height - 40)
+  await expect(map).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('site-menu')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('site-menu')).toBeHidden()
+
+  await page.getByRole('button', { name: 'Explore Clearance Tower' }).focus()
+  await expect(page.getByRole('region', { name: 'Clearance Tower', exact: true })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('region', { name: 'Clearance Tower', exact: true })).toBeHidden()
+  await expect(page.getByTestId('site-menu')).toBeHidden()
+})
 
 test('walks with the keys to a door and opens the building with E', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop-chromium', 'needs a physical keyboard')

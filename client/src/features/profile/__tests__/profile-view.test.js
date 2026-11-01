@@ -35,7 +35,6 @@ function mountProfile() {
       stubs: {
         RouterLink: { props: ['to'], template: '<a :href="to"><slot /></a>' },
         PixelIcon: true,
-        TrophyCase: true,
         SessionNotice: { template: '<div><slot /></div>' },
       },
     },
@@ -47,6 +46,7 @@ describe('profile view', () => {
     vi.clearAllMocks()
     mocks.route = reactive({ path: '/profile' })
     mocks.auth = reactive({
+      sessionEnd: null,
       status: 'authenticated',
       user: { ...currentUser },
       requestError: null,
@@ -164,10 +164,44 @@ describe('profile view', () => {
     await wrapper.get('form[aria-label="Edit profile"]').trigger('submit')
     await flushPromises()
 
-    expect(wrapper.get('[role="status"]').text()).toContain(
-      'Your unsaved changes are still here for now',
+    expect(wrapper.get('[role="status"]').text()).toBe(
+      'Your changes were not saved. Sign in and enter them again.',
     )
-    expect(wrapper.get('[role="status"]').text()).toContain('you will need to re-enter them')
     expect(wrapper.text()).not.toContain('Draft_Name')
+  })
+
+  it('falls into the sign-in view with a reason when the session ends during a load', async () => {
+    mocks.getOwnProfile.mockImplementation(async () => {
+      // the shared 401 interceptor has already ended the session by the time the caller sees it
+      mocks.auth.status = 'anonymous'
+      mocks.auth.user = null
+      mocks.auth.sessionEnd = 'expired'
+      throw { status: 401, code: 'AUTHENTICATION_REQUIRED', message: 'Your session has ended.' }
+    })
+    const wrapper = mountProfile()
+    await flushPromises()
+
+    expect(wrapper.get('[role="status"]').text()).toBe('Your session has ended.')
+    expect(wrapper.get('a[href="/login"]').text()).toBe('Sign in')
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+  })
+
+  it('says when a newer sign-in ended the session', async () => {
+    mocks.auth.status = 'anonymous'
+    mocks.auth.user = null
+    mocks.auth.sessionEnd = 'elsewhere'
+    const wrapper = mountProfile()
+    await flushPromises()
+
+    expect(wrapper.get('[role="status"]').text()).toContain('signed in somewhere else')
+    expect(wrapper.get('a[href="/login"]').text()).toBe('Sign in')
+  })
+
+  it('points to the progress tab instead of showing an empty trophy case', async () => {
+    const wrapper = mountProfile()
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('No badges yet')
+    expect(wrapper.text()).toContain('Progress tab')
   })
 })

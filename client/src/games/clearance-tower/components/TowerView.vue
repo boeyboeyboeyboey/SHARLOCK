@@ -11,8 +11,11 @@ const props = defineProps({
 
 const floors = computed(() => floorsFor(props.level, props.policy))
 
-const activeAgents = computed(
-  () => new Set(props.currentEvent?.steps.map((step) => step.agent) ?? []),
+const activeAgents = computed(() => new Set(reachedSteps.value.map((step) => step.agent)))
+
+// steps a blocked chain never reached did not visit anyone's room
+const reachedSteps = computed(() =>
+  (props.currentEvent?.steps ?? []).filter((step) => step.allowed !== null),
 )
 
 // a leak or tampering marks the file at the end of its chain
@@ -27,8 +30,9 @@ const flaggedFiles = computed(() => {
 })
 
 function visitsTo(fileId) {
-  const steps = props.currentEvent?.steps ?? []
-  return steps.map((step, order) => ({ ...step, order })).filter((step) => step.file === fileId)
+  return reachedSteps.value
+    .map((step, order) => ({ ...step, order }))
+    .filter((step) => step.file === fileId)
 }
 
 function fileLabel(fileId) {
@@ -47,7 +51,7 @@ function roomClass(fileId) {
 <template>
   <section class="clear-tower" aria-label="Tower floor plan">
     <ol class="clear-floors">
-      <li v-for="floor in floors" :key="floor.id" class="clear-floor">
+      <li v-for="floor in floors" :key="floor.id" class="clear-floor" data-testid="clear-floor">
         <span class="clear-floor-name">{{ floor.name }}</span>
         <div class="clear-rooms">
           <span v-if="!floor.rooms.length" class="clear-room is-empty">Empty floor</span>
@@ -56,6 +60,7 @@ function roomClass(fileId) {
             :key="file.id"
             class="clear-room"
             :class="roomClass(file.id)"
+            :data-testid="flaggedFiles[file.id] ? 'clear-flagged-room' : undefined"
           >
             <span class="clear-room-name">{{ file.name }}</span>
             <span v-if="fileLabel(file.id)" class="clear-tag">{{ fileLabel(file.id) }}</span>
@@ -64,6 +69,7 @@ function roomClass(fileId) {
               v-for="visit in visitsTo(file.id)"
               :key="`${currentEvent.id}-${visit.order}`"
               class="clear-visitor"
+              data-testid="clear-visitor"
               :class="visit.allowed ? 'is-allowed' : 'is-denied'"
             >
               {{ nameOf(level.agents, visit.agent) }} {{ visit.action }}s
@@ -81,6 +87,7 @@ function roomClass(fileId) {
           :key="agent.id"
           class="clear-agent"
           :class="{ 'is-active': activeAgents.has(agent.id) }"
+          :aria-current="activeAgents.has(agent.id) ? 'true' : undefined"
         >
           <span class="clear-agent-figure" aria-hidden="true"></span>
           <span>{{ agent.name }}</span>

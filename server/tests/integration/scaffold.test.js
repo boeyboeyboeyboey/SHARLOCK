@@ -31,6 +31,18 @@ describe('Express and MongoDB scaffold', () => {
     expect(response.headers['x-powered-by']).toBeUndefined()
   })
 
+  it('limits the health check per address without the normal limit getting in a readiness wait', async () => {
+    const limited = createTestApp(database, authOptions, { health: { rateLimitPerMinute: 2 } })
+    await request(limited).get('/api/health').expect(200)
+    await request(limited).get('/api/health').expect(200)
+    const refused = await request(limited).get('/api/health').expect(429)
+    expect(refused.headers['retry-after']).toBe('60')
+    expect(refused.body).toEqual({ status: 'rate-limited' })
+    // a poll about once a second for the whole 30 s startup window stays well under the default
+    const normal = createTestApp(database, authOptions)
+    for (let poll = 0; poll < 30; poll += 1) await request(normal).get('/api/health').expect(200)
+  })
+
   it('round-trips a document in the disposable database', async () => {
     const collection = database.db.collection('scaffold_checks')
     const record = { _id: randomUUID(), purpose: 'connection verification' }

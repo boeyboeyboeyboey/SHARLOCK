@@ -6,7 +6,7 @@ import { createAuthService } from '../../../server/src/modules/auth/service.js'
 import { parseRegistrationInput } from '../../../server/src/modules/auth/policy.js'
 import { userModel } from '../../../server/src/models/User.js'
 import { HOW_TO_PLAY_GAME_IDS } from '../../../server/src/modules/profile/how-to-play.js'
-import { postFixtureLogin } from './sign-in.js'
+import { signInContext } from './sign-in.js'
 
 const test = base.extend({
   workerStorageState: [
@@ -18,7 +18,6 @@ const test = base.extend({
 
       const baseURL = workerInfo.project.use.baseURL
       if (typeof baseURL !== 'string') throw new Error('E2E base URL is required.')
-      const clientOrigin = new URL(baseURL).origin
       const workerId = workerInfo.workerIndex.toString(36)
       const email = `e2e-${workerId}@example.test`
       const password = `${randomBytes(24).toString('base64url')}A!`
@@ -42,19 +41,7 @@ const test = base.extend({
         )
 
         context = await browser.newContext()
-        const csrfResponse = await context.request.get(new URL('/api/auth/csrf', baseURL).href, {
-          headers: { Origin: clientOrigin },
-        })
-        if (!csrfResponse.ok()) throw new Error('Could not initialize the E2E session.')
-        const { csrfToken } = await csrfResponse.json()
-        await postFixtureLogin(context.request, {
-          loginUrl: new URL('/api/auth/login', baseURL).href,
-          origin: clientOrigin,
-          csrfToken,
-          email,
-          password,
-          message: 'Could not authenticate the E2E session',
-        })
+        await signInContext(context, baseURL, { email, password })
 
         await use(await context.storageState())
       } finally {
@@ -69,4 +56,40 @@ const test = base.extend({
   },
 })
 
-export { expect, test }
+// for a spec whose assertions depend on what this account has never done
+const testWithOwnStudent = test.extend({
+  storageState: async ({ browser, baseURL }, use, testInfo) => {
+    const testUri = process.env.TEST_MONGODB_URI
+    assertSafeTestDatabaseUri(testUri)
+    const database = await connectDatabase(testUri)
+    const suffix = randomBytes(6).toString('hex')
+    const identity = {
+      email: `e2e-own-${suffix}@example.test`,
+      password: `${randomBytes(24).toString('base64url')}A!`,
+    }
+    try {
+      await createAuthService(database).register(
+        parseRegistrationInput({
+          ...identity,
+          username: `e2e-own-${testInfo.workerIndex.toString(36)}-${suffix}`,
+          avatarId: 'mint',
+        }),
+      )
+      await userModel(database).updateOne(
+        { emailNormalized: identity.email },
+        { $set: { howToPlayDismissed: [...HOW_TO_PLAY_GAME_IDS] } },
+      )
+    } finally {
+      await database.close()
+    }
+    const context = await browser.newContext()
+    try {
+      await signInContext(context, baseURL, identity)
+      await use(await context.storageState())
+    } finally {
+      await context.close()
+    }
+  },
+})
+
+export { expect, test, testWithOwnStudent }

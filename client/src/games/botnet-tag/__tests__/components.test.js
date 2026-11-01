@@ -42,6 +42,33 @@ describe('lobby', () => {
     expect(wrapper.emitted('ready').at(-1)).toEqual([false])
   })
 
+  it('warns how long a student has to press ready, and that an old round ended', () => {
+    const wrapper = mount(TagLobby, {
+      props: { players, sid: 'p2', readyMs: 12_100, roundLost: true },
+    })
+    expect(wrapper.get('[data-testid="tag-ready-by"]').text()).toBe(
+      'Press Ready within 12s or you leave the lobby',
+    )
+    expect(wrapper.get('[data-testid="tag-round-lost"]').text()).toBe(
+      'Your round ended while you were away',
+    )
+  })
+
+  it('tells staff they can watch without holding students up', async () => {
+    const wrapper = mount(TagLobby, { props: { players, sid: 'p2', staff: true } })
+    expect(wrapper.get('[data-testid="tag-watch-note"]').text()).toContain('do not wait for you')
+    await wrapper.setProps({ sid: 'me' })
+    expect(wrapper.find('[data-testid="tag-watch-note"]').exists()).toBe(false)
+  })
+
+  it('disables ready while the connection is down', async () => {
+    const wrapper = mount(TagLobby, { props: { players, sid: 'p2', offline: true } })
+    const button = wrapper.get('[data-testid="tag-ready"]')
+    expect(button.attributes('disabled')).toBeDefined()
+    await button.trigger('click')
+    expect(wrapper.emitted('ready')).toBeUndefined()
+  })
+
   it('shows no countdown before the start', () => {
     const wrapper = mount(TagLobby, { props: { players, sid: 'me' } })
     expect(wrapper.get('[data-testid="tag-countdown"]').text()).toBe('')
@@ -84,7 +111,8 @@ describe('results', () => {
     const body = wrapper.findAll('tbody tr')
     expect(body).toHaveLength(2)
     expect(body[0].text()).toContain('ada')
-    expect(body[0].text()).not.toContain('You')
+    expect(body[0].get('th').text()).toContain('(you)')
+    expect(body[1].get('th').text()).not.toContain('(you)')
     expect(body[0].text()).toContain('✓ Survived')
     expect(body[0].text()).toContain('3:00')
     expect(body[1].text()).toContain('✕ Infected')
@@ -97,6 +125,33 @@ describe('results', () => {
     })
     expect(wrapper.get('h1').text()).toContain('Botnet wins')
     expect(wrapper.get('[data-testid="tag-saved"]').text()).toBe('Not saved')
+  })
+
+  it('says why a round was not saved', () => {
+    const short = mount(TagResults, {
+      props: {
+        results: { sideWon: 'botnet', unsaved: 'short', rows },
+        saved: { saved: false, reason: 'short' },
+      },
+    })
+    expect(short.get('h1').text()).toContain('Botnet wins')
+    expect(short.get('[data-testid="tag-saved"]').text()).toBe('Not saved: under 20 seconds')
+    const left = mount(TagResults, {
+      props: {
+        results: { sideWon: null, unsaved: 'abandoned', rows },
+        saved: { saved: false, reason: 'abandoned' },
+      },
+    })
+    expect(left.get('h1').text()).toContain('Round ended: not enough players')
+    expect(left.get('h1').text()).not.toContain('wins')
+    expect(left.get('[data-testid="tag-saved"]').text()).toBe('Not saved: round abandoned')
+  })
+
+  it('repeats the hidden phone columns under the name', () => {
+    const wrapper = mount(TagResults, { props: { results: { sideWon: 'survivors', rows } } })
+    const names = wrapper.findAll('tbody th')
+    expect(names[0].text()).toContain('2 patches · 0 tags · Won')
+    expect(names[1].text()).toContain('0 patches · 1 tag · Lost')
   })
 
   it('emits play again and leave', async () => {
@@ -115,7 +170,7 @@ describe('hud', () => {
     expect(wrapper.get('[data-testid="tag-timer"]').text()).toContain('2:05')
     expect(wrapper.find('[data-testid="tag-urgent"]').exists()).toBe(false)
     expect(wrapper.get('[data-testid="tag-botnet-count"]').text()).toContain('2/6')
-    expect(wrapper.findAll('.tag-pips i.is-on')).toHaveLength(2)
+    expect(wrapper.get('[aria-label="2 of 6 infected"]').text()).toBe('2/6')
     expect(wrapper.get('[data-testid="tag-status"]').text()).toBe('Clean')
     expect(wrapper.find('[data-testid="tag-immunity"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="tag-toast"]').exists()).toBe(false)
@@ -135,6 +190,16 @@ describe('hud', () => {
     expect(wrapper.get('[data-testid="tag-status"]').text()).toBe('Immune')
     expect(wrapper.get('[data-testid="tag-immunity"]').text()).toContain('10s')
     expect(wrapper.get('[data-testid="tag-toast"]').text()).toBe('Pip tagged Nori')
+  })
+
+  it('counts down the grace period and shows when the player only watches', () => {
+    const wrapper = mount(TagHud, {
+      props: { msLeft: 178_000, infected: 1, total: 3, graceMs: 3_200, watching: true },
+    })
+    expect(wrapper.get('[data-testid="tag-grace"]').text()).toBe('Get ready: tagging starts in 4s')
+    expect(wrapper.get('[data-testid="tag-status"]').text()).toBe('Watching')
+    const after = mount(TagHud, { props: { msLeft: 170_000, infected: 1, total: 3 } })
+    expect(after.find('[data-testid="tag-grace"]').exists()).toBe(false)
   })
 
   it('shows infected over immune', () => {

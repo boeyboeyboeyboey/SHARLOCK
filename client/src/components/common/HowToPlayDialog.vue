@@ -336,11 +336,19 @@ onBeforeUnmount(stopTimer)
 }
 
 .howto-foot {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: 0.25rem 0.75rem;
   align-items: center;
   justify-content: space-between;
+  /* the footer stays in reach while the guide scrolls, so it spans the body padding */
+  margin: 0 -1rem -1rem;
+  padding: 0.5rem 1rem;
+  background: var(--game-howto-surface, var(--surface, #fff8df));
+  border-top: 2px solid var(--game-howto-edge, var(--border-strong, #50634d));
 }
 
 .howto-check {

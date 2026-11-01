@@ -26,6 +26,23 @@ function seeded(seed) {
 const sample = (kind) => generatePuzzle(kind, seeded(7))
 const last = (wrapper) => wrapper.emitted('change').at(-1)[0]
 
+describe('puzzle result', () => {
+  it('tells a late solver that the station was taken', () => {
+    const wrapper = mount(PuzzleResult, {
+      props: { notice: 'Someone patched this station first' },
+    })
+    expect(wrapper.get('[data-testid="puzzle-notice"]').text()).toBe(
+      'Someone patched this station first',
+    )
+  })
+
+  it('shows a lockout over the notice', () => {
+    const wrapper = mount(PuzzleResult, { props: { lockMs: 2000, notice: 'taken' } })
+    expect(wrapper.find('[data-testid="puzzle-notice"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="puzzle-locked"]').text()).toContain('2s')
+  })
+})
+
 describe('firewall', () => {
   it('stays incomplete until every row is set, then emits choices the server accepts', async () => {
     const puzzle = sample('firewall')
@@ -123,10 +140,61 @@ describe('puzzle panel', () => {
   })
 
   it('closes on Escape and on the Close button', async () => {
-    const wrapper = mount(PuzzlePanel, { props: props() })
+    const wrapper = mount(PuzzlePanel, { props: props(), attachTo: document.body })
     await wrapper.get('[role="dialog"]').trigger('keydown', { key: 'Escape' })
     await wrapper.get('[data-testid="puzzle-close"]').trigger('click')
     expect(wrapper.emitted('close')).toHaveLength(2)
+    wrapper.unmount()
+  })
+
+  it('closes on Escape when focus has left the panel, and stops listening once gone', async () => {
+    const wrapper = mount(PuzzlePanel, { props: props(), attachTo: document.body })
+    document.body.focus()
+    const escape = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+    document.body.dispatchEvent(escape)
+    const closes = wrapper.emitted('close')
+    expect(closes).toHaveLength(1)
+    expect(escape.defaultPrevented).toBe(true)
+    wrapper.unmount()
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    expect(closes).toHaveLength(1)
+  })
+
+  it('leaves Escape to an open dialog such as the site menu', () => {
+    const wrapper = mount(PuzzlePanel, { props: props(), attachTo: document.body })
+    const dialog = document.createElement('dialog')
+    dialog.setAttribute('open', '')
+    document.body.append(dialog)
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    expect(wrapper.emitted('close')).toBeUndefined()
+    dialog.remove()
+    wrapper.unmount()
+  })
+
+  it('is a modal dialog that keeps Tab inside', async () => {
+    const wrapper = mount(PuzzlePanel, { props: props(), attachTo: document.body })
+    const panel = wrapper.get('[role="dialog"]')
+    expect(panel.attributes('aria-modal')).toBe('true')
+    const tab = (shiftKey = false) =>
+      document.body.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Tab', shiftKey, bubbles: true, cancelable: true }),
+      )
+    const close = wrapper.get('[data-testid="puzzle-close"]').element
+    const focusable = [...panel.element.querySelectorAll('button, input')].filter(
+      (item) => !item.disabled,
+    )
+    // submit is disabled until an answer is chosen, so close is the last stop
+    expect(focusable.at(-1)).toBe(close)
+    close.focus()
+    tab()
+    expect(document.activeElement).toBe(focusable[0])
+    tab(true)
+    expect(document.activeElement).toBe(close)
+    document.body.focus()
+    document.activeElement.blur()
+    tab()
+    expect(document.activeElement).toBe(focusable[0])
+    wrapper.unmount()
   })
 
   it('moves focus in on open and back to the opener on close', async () => {

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { createProductionAttemptRegistry } from '../../../src/modules/attempts/production-registry.js'
 import { generateCase } from '../../../src/modules/games/sql-injection-arcade/generator/index.js'
+import { messageFor } from '../../../src/modules/games/sql-injection-arcade/feedback.js'
 import {
+  PAR_SCORE,
   PRACTICE_SLOTS,
   TIMED_SLOT_CAP,
   maxTimedActions,
@@ -9,6 +11,7 @@ import {
 } from '../../../src/modules/games/sql-injection-arcade/policy.js'
 import {
   createSqlRuleset,
+  sqlPreviousRuleset,
   sqlRuleset,
 } from '../../../src/modules/games/sql-injection-arcade/ruleset.js'
 import { SEED, junkAction, solutionFor } from './helpers.js'
@@ -63,11 +66,13 @@ function failCurrent(run) {
 }
 
 describe('registration and createState', () => {
-  it('registers sql-2 as current and sql-1 as legacy', () => {
+  it('registers sql-3 as current and keeps sql-2 and sql-1', () => {
     const registry = createProductionAttemptRegistry()
-    expect(registry.getCurrent(sqlRuleset.id).rulesetVersion).toBe('sql-2')
+    expect(registry.getCurrent(sqlRuleset.id).rulesetVersion).toBe('sql-3')
     expect(registry.get(sqlRuleset.id, 'sql-1').current).toBe(false)
-    expect(registry.get(sqlRuleset.id, 'sql-2').competitive).toBe(true)
+    expect(registry.get(sqlRuleset.id, 'sql-2').current).toBe(false)
+    expect(registry.get(sqlRuleset.id, 'sql-2').maxScore).toBe(1130)
+    expect(registry.get(sqlRuleset.id, 'sql-3').competitive).toBe(true)
     expect(registry.getCurrent(sqlRuleset.id).maxActions).toBe(maxTimedActions())
     expect(maxTimedActions()).toBeLessThanOrEqual(255)
   })
@@ -105,8 +110,9 @@ describe('scoring and run end', () => {
       solveCase(run)
     }
     expect(ruleset.canComplete(run.state, run.meta)).toBe(true)
-    expect(ruleset.summarize(run.state).score).toBe(expected)
-    expect(ruleset.summarize(run.state).score).toBeLessThanOrEqual(maxTimedScore())
+    expect(expected).toBeGreaterThanOrEqual(PAR_SCORE)
+    expect(ruleset.summarize(run.state).score).toBe(PAR_SCORE)
+    expect(sqlPreviousRuleset.summarize(run.state).score).toBe(expected)
     expect(() => solveCase(run)).toThrow(/ended/)
     const topics = ruleset.summarize(run.state).topicOutcomes.map((t) => t.topic)
     expect(topics).toContain('parameterized-queries')
@@ -159,7 +165,122 @@ describe('scoring and run end', () => {
     const capped = start()
     for (let slot = 0; slot < TIMED_SLOT_CAP; slot += 1) solveCase(capped)
     expect(ruleset.canComplete(capped.state, capped.meta)).toBe(true)
-    expect(ruleset.summarize(capped.state).score).toBeLessThanOrEqual(maxTimedScore())
+    expect(ruleset.summarize(capped.state).score).toBe(PAR_SCORE)
+    expect(sqlPreviousRuleset.summarize(capped.state).score).toBeLessThanOrEqual(maxTimedScore())
+  })
+})
+
+describe('the par maximum', () => {
+  const flawlessPractice = (seed) => {
+    const seeded = createSqlRuleset({ randomSeed: () => seed })
+    const run = { ...start(personalContext), state: { seed, generatorVersion: 'x', cases: [] } }
+    let raw = 0
+    for (let slot = 0; slot < PRACTICE_SLOTS; slot += 1) {
+      const c = caseOf(run)
+      raw += c.private.kind === 'repair' ? 10 : c.private.tier * 10 + 10
+      for (const action of solutionFor(c)) {
+        const payload = seeded.validateAction(action.type, action.payload)
+        run.state = seeded.applyAction(run.state, { type: action.type, payload }, run.meta)
+      }
+    }
+    return { raw, saved: seeded.summarize(run.state, run.meta).score, run, seeded }
+  }
+
+  it('is reached by every flawless practice run, whatever the seed', () => {
+    const raws = []
+    for (let index = 0; index < 300; index += 1) {
+      const seed = index.toString(16).padStart(32, '0')
+      const { raw, saved } = flawlessPractice(seed)
+      raws.push(raw)
+      expect(saved, seed).toBe(320)
+    }
+    expect(Math.min(...raws)).toBeGreaterThanOrEqual(320)
+    expect(Math.max(...raws)).toBeLessThanOrEqual(410)
+  })
+
+  it('stops the public score at par as well', () => {
+    const { run, seeded } = flawlessPractice(SEED)
+    expect(seeded.serializePublicState(run.state, run.meta).score).toBe(320)
+  })
+
+  it('leaves a class run below par at its real score', () => {
+    const run = start()
+    solveCase(run)
+    expect(ruleset.summarize(run.state, run.meta).score).toBe(20)
+  })
+
+  it('reports the server time for the browser countdown', () => {
+    const run = start()
+    expect(ruleset.serializePublicState(run.state, run.meta).serverNow).toBe(NOW.getTime())
+  })
+})
+
+describe('the end-of-run verdict', () => {
+  const failThree = (run) => {
+    for (let failed = 0; failed < 3;) {
+      const c = caseOf(run)
+      if (c.private.kind === 'repair') {
+        solveCase(run)
+        continue
+      }
+      failCurrentCase(run, c)
+      failed += 1
+    }
+  }
+  const failCurrentCase = (run, c) => {
+    const { caseId } = c.public
+    if (c.private.kind === 'second-order') {
+      for (let i = 0; i < 3; i += 1)
+        send(run, { type: 'register', payload: { caseId, inputs: [c.private.model.rows[0].user] } })
+    } else {
+      const count = c.private.kind === 'blind' ? 6 : 3
+      for (let i = 0; i < count; i += 1) send(run, junkAction(c))
+    }
+  }
+
+  it('says lives ran out only in a class run', () => {
+    const timed = start()
+    failThree(timed)
+    expect(ruleset.summarize(timed.state, timed.meta).feedback.verdictCode).toBe(
+      'SQL_RUN_LIVES_OUT',
+    )
+    const practice = start(personalContext)
+    failThree(practice)
+    expect(ruleset.summarize(practice.state, practice.meta).feedback.verdictCode).toBe(
+      'SQL_RUN_FINISHED',
+    )
+  })
+})
+
+describe('stacked statements', () => {
+  const toLogin = () => {
+    const run = start(personalContext)
+    for (let guard = 0; guard < 15 && !caseOf(run).private.kind.startsWith('login-t'); guard += 1)
+      solveCase(run)
+    return run
+  }
+
+  it('teach, spend a try but keep the first-try bonus', () => {
+    const run = toLogin()
+    const c = caseOf(run)
+    expect(c.private.kind).toBe('login-tautology')
+    const { caseId } = c.public
+    const payload = { caseId, inputs: ["' OR '1'='1'; DROP TABLE Users; --", 'x'] }
+    send(run, { type: 'attempt', payload })
+    const view = ruleset.serializePublicState(run.state, run.meta)
+    expect(run.state.cases.at(-1)).toMatchObject({ tries: 1, slips: 0, last: 'STACKED_NOT_RUN' })
+    expect(view.last.message).toBe(messageFor('login-tautology', 'STACKED_NOT_RUN'))
+    expect(view.last.message).toContain('never run')
+    solutionFor(c).forEach((action) => send(run, action))
+    expect(run.state.cases.at(-1)).toMatchObject({ outcome: 'solved', points: 20 })
+  })
+
+  it('stay an unsupported slip for an attempt still open under sql-2', () => {
+    const run = toLogin()
+    const c = caseOf(run)
+    const payload = { caseId: c.public.caseId, inputs: ["' OR 1=1; DROP TABLE Users; --", 'x'] }
+    run.state = sqlPreviousRuleset.applyAction(run.state, { type: 'attempt', payload }, run.meta)
+    expect(run.state.cases.at(-1)).toMatchObject({ tries: 1, slips: 1, last: 'UNSUPPORTED' })
   })
 })
 
@@ -211,6 +332,56 @@ describe('hints, stages and validation', () => {
       payload: { ...w[3].payload, value: w[3].payload.value === 'yes' ? 'no' : 'yes' },
     })
     expect(wrongRun.state.cases.at(-1).outcome).toBe('failed')
+  })
+  it('says a blind probe of another column or letter is not evidence', () => {
+    const run = start(personalContext)
+    for (let guard = 0; guard < 15 && caseOf(run).private.kind !== 'blind'; guard += 1)
+      solveCase(run)
+    const c = caseOf(run)
+    const { hiddenCol, known } = c.private.model
+    const input = `${known}' AND SUBSTRING(${hiddenCol},2,1) = 'A`
+    send(run, { type: 'attempt', payload: { caseId: c.public.caseId, inputs: [input] } })
+    const view = ruleset.serializePublicState(run.state, run.meta)
+    expect(run.state.cases.at(-1).last).toMatch(/^(YES|NO)_OFF_TARGET$/)
+    expect(view.last.message).toContain('not evidence')
+    expect(view.last.message).not.toContain(c.private.model.hiddenValue)
+  })
+
+  it('a blind answer needs a probe of the first letter of the hidden column', () => {
+    const toBlind = () => {
+      const run = start(personalContext)
+      for (let guard = 0; guard < 15 && caseOf(run).private.kind !== 'blind'; guard += 1)
+        solveCase(run)
+      return run
+    }
+    const run = toBlind()
+    const c = caseOf(run)
+    const { known, col, hiddenCol } = c.private.model
+    const [yes, no, , answer] = solutionFor(c)
+    const probe = (inputs) => ({ type: 'attempt', payload: { caseId: c.public.caseId, inputs } })
+    send(run, yes)
+    send(run, no)
+    // a throwaway substring proves nothing about the question
+    send(run, probe([`${known}' AND SUBSTRING(${hiddenCol},2,1) > 'M'--`]))
+    send(run, probe([`${known}' AND SUBSTRING(${col},1,1) > 'M'--`]))
+    expect(ruleset.serializePublicState(run.state, run.meta).current.canAnswer).toBe(false)
+    expect(() => send(run, answer)).toThrow(/Prove/)
+    send(run, probe([`${known}' AND SUBSTRING(${hiddenCol},1,1) > 'M'--`]))
+    expect(ruleset.serializePublicState(run.state, run.meta).current.canAnswer).toBe(true)
+    // sql-2 attempts keep the looser rule they started with
+    const old = toBlind()
+    const oldCase = caseOf(old)
+    const oldSteps = solutionFor(oldCase)
+    for (const step of oldSteps.slice(0, 2))
+      old.state = sqlPreviousRuleset.applyAction(old.state, step, old.meta)
+    old.state = sqlPreviousRuleset.applyAction(
+      old.state,
+      probe([`${known}' AND SUBSTRING(${hiddenCol},2,1) > 'M'--`]),
+      old.meta,
+    )
+    expect(sqlPreviousRuleset.serializePublicState(old.state, old.meta).current.canAnswer).toBe(
+      true,
+    )
   })
   it('a blind case fails after 6 probes without proof, and a second-order case needs both steps', () => {
     const run = start(personalContext)

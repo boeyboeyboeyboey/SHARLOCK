@@ -1,3 +1,4 @@
+/* fonts (ofl-1.1), self-hosted through @fontsource; credited in credits.md */
 @import '@fontsource/dotgothic16/latin-400.css';
 @import '@fontsource/dotgothic16/latin-ext-400.css';
 @import '@fontsource/pixelify-sans/latin-400.css';
@@ -60,14 +61,13 @@ h2,
 h3,
 h4,
 h5,
-h6,
-.game-title {
+h6 {
   font-weight: 700;
   color: var(--text-main);
   line-height: 1.2;
 }
 /* pixel headings on shared pages only; games and utility pages keep their own inherited font */
-:where(h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6, .game-title):not(
+:where(h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6):not(
   .is-utility *,
   .phish-game *,
   .sql-game *,
@@ -113,7 +113,7 @@ svg {
   outline: 3px solid var(--text-main);
   outline-offset: 5px;
 }
-.portal-shell .nav-link:focus-visible,
+
 .portal-shell .btn:focus-visible {
   outline: 3px solid var(--text-main);
   outline-offset: 3px;
@@ -150,8 +150,7 @@ main:focus {
   transform: translate(2px, 2px);
   box-shadow: 2px 2px 0 var(--border-strong);
 }
-.portal-shell .btn-primary,
-.portal-shell .btn-success {
+.portal-shell .btn-primary {
   --bs-btn-bg: var(--accent-primary);
   --bs-btn-hover-bg: var(--accent-primary);
   --bs-btn-active-bg: var(--accent-primary);
@@ -172,19 +171,6 @@ main:focus {
   --bs-btn-active-color: var(--text-main);
   --bs-btn-hover-border-color: var(--text-main);
   --bs-btn-active-border-color: var(--text-main);
-}
-.portal-shell .btn-warning,
-.portal-shell .btn-danger {
-  background: var(--alert-warning);
-  color: var(--text-main);
-}
-.portal-shell .alert-warning,
-.portal-shell .alert-danger {
-  --bs-alert-bg: var(--alert-warning);
-  --bs-alert-color: var(--text-main);
-  --bs-alert-border-color: var(--alert-warning);
-  background: var(--alert-warning);
-  color: var(--text-main);
 }
 .portal-shell .alert-success {
   --bs-alert-bg: var(--accent-primary);
@@ -247,27 +233,6 @@ main:focus {
 .brand-mark:hover {
   color: var(--text-main);
 }
-.brand-symbol {
-  display: grid;
-  place-items: center;
-  width: 43px;
-  height: 43px;
-  border-radius: 0;
-  background: var(--accent-primary);
-}
-.brand-dot {
-  display: inline-block;
-  margin-left: 1px;
-}
-.tiny-dot {
-  width: 8px;
-  height: 8px;
-  display: inline-block;
-  flex-shrink: 0;
-  border: 1px solid rgb(51 65 85 / 22%);
-  background: var(--accent-primary);
-  border-radius: 0;
-}
 .text-link {
   display: inline-flex;
   align-items: center;
@@ -291,60 +256,9 @@ main:focus {
   text-decoration: underline;
   text-underline-offset: 5px;
 }
-.preview-tag {
-  font-size: 1rem;
-  gap: 0.4rem;
-  align-items: center;
-  background: var(--bg-primary);
-  border: 2px solid var(--border-strong);
-  padding: 0.35rem 0.7rem;
-  border-radius: 0;
-}
-.profile-widget {
-  text-align: center;
-}
-.avatar-ring {
-  display: grid;
-  place-items: center;
-  background: var(--bg-primary);
-  border: 2px solid var(--border-strong);
-  box-shadow: 3px 3px 0 var(--border-strong);
-  border-radius: 0;
-  width: 82px;
-  height: 82px;
-  margin: 0 auto 1.1rem;
-}
 .avatar-image {
   object-fit: contain;
   border-radius: 0;
-}
-.profile-name {
-  font-size: 1rem;
-  font-weight: 700;
-  margin-bottom: 0.2rem;
-  line-height: 1.5;
-}
-.points-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.35rem 0.85rem;
-  background: var(--accent-secondary);
-  border-radius: 0;
-  font-size: 1rem;
-}
-.profile-link {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 0.25rem;
-  margin-top: 0.6rem;
-  font-size: 1rem;
-  min-height: 36px;
-  text-underline-offset: 4px;
-}
-.preview-caption {
-  font-size: 1rem;
 }
 .portal-main {
   padding: 1.6rem 1.15rem 3rem;
@@ -376,41 +290,6 @@ main:focus {
   letter-spacing: 0.12em;
   margin-bottom: 0.6rem;
 }
-.page-kicker {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 0.5rem;
-  font-size: 1rem;
-  letter-spacing: 0.09em;
-  margin-bottom: 1.5rem;
-}
-.page-kicker > span:first-child {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-.sample-label {
-  letter-spacing: 0;
-  font-size: 1rem;
-  padding: 0.2rem 0.6rem;
-  border: 2px solid var(--border-strong);
-  border-radius: 0;
-}
-.dashboard-welcome {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-.dashboard-welcome h1 {
-  font-size: clamp(1.9rem, 3vw, 2.9rem);
-}
-.dashboard-welcome p {
-  font-size: 1rem;
-  margin: 1.2rem 0 1.5rem;
-  max-width: 450px;
-}
 .pixel-underline {
   background: linear-gradient(
     transparent 73%,
@@ -424,22 +303,6 @@ main:focus {
   object-fit: contain;
   height: auto;
 }
-.welcome-mascot {
-  display: none;
-  flex-shrink: 0;
-  position: relative;
-  width: 195px;
-}
-.mascot-greeting {
-  position: absolute;
-  top: 0;
-  left: 10px;
-  background: var(--surface);
-  border: 2px solid var(--border-strong);
-  border-radius: 0;
-  padding: 0.35rem 0.75rem;
-  font-size: 1rem;
-}
 .curriculum-progress {
   display: flex;
   align-items: center;
@@ -449,11 +312,6 @@ main:focus {
   border: 2px solid var(--border-strong);
   background: var(--surface);
   box-shadow: var(--shadow-pixel);
-}
-.dashboard-view > .curriculum-progress {
-  position: sticky;
-  top: calc(var(--header-height) + 12px);
-  z-index: 10;
 }
 .curriculum-progress .small {
   font-size: 1rem;
@@ -473,13 +331,6 @@ main:focus {
 }
 .progress-icon {
   flex-shrink: 0;
-}
-.node-detail {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  font-size: 1rem;
-  line-height: 1.5;
 }
 .sharlock-tip {
   position: relative;
@@ -523,12 +374,6 @@ main:focus {
 .tip-bubble.is-open {
   display: flex;
 }
-.landing-eyebrow {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  margin: 1rem 0 2rem;
-}
 .landing-copy h1 {
   font-size: clamp(2.25rem, 4vw, 4rem);
 }
@@ -542,11 +387,6 @@ main:focus {
   font-size: 1rem;
   margin: 1.5rem 0;
 }
-.landing-preview-note {
-  display: block;
-  font-size: 1rem;
-  margin: 1rem 0;
-}
 .hero-art {
   position: relative;
   width: min(100%, 384px);
@@ -558,26 +398,6 @@ main:focus {
 }
 .hero-mascot {
   width: 100%;
-}
-.art-label {
-  position: absolute;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 1rem;
-  border: 2px solid var(--border-strong);
-  background: var(--surface);
-  padding: 0.65rem 0.85rem;
-  border-radius: 0;
-  box-shadow: var(--shadow-pixel);
-}
-.art-label-top {
-  top: -8px;
-  left: 0;
-}
-.art-label-bottom {
-  bottom: 5px;
-  right: 0;
 }
 .landing-intro {
   padding: 2rem 0;
@@ -608,12 +428,7 @@ main:focus {
   font-size: 1rem;
   margin: 0;
 }
-.page-description {
-  max-width: 700px;
-  margin: 1rem 0 1.5rem;
-}
-.profile-view,
-.about-view {
+.profile-view {
   padding-top: 1rem;
 }
 .profile-view h1 {
@@ -723,20 +538,6 @@ main:focus {
   margin: 1rem auto;
   text-align: center;
 }
-.case-status {
-  padding: 1.6rem;
-  border-radius: 0;
-  margin: 2rem 0;
-  background: var(--accent-secondary);
-}
-.case-status h2 {
-  font-size: 1.3rem;
-  margin-top: 0.5rem;
-}
-.case-status p {
-  margin: 1rem 0 0;
-  font-size: 1rem;
-}
 .not-found .mascot-image {
   margin: 1.5rem auto;
 }
@@ -755,8 +556,7 @@ main:focus {
   background: var(--accent-secondary);
   margin: 0 auto 2rem;
 }
-.about-details,
-.connection-status {
+.about-details {
   background: var(--surface);
   border: 2px solid var(--border-strong);
   border-radius: 0;
@@ -766,20 +566,10 @@ main:focus {
 .about-details p {
   font-size: 1rem;
 }
-.connection-status h2 {
-  font-size: 1.2rem;
-}
-.connection-status p {
-  font-size: 1rem;
-}
 
 @media (min-width: 576px) {
   .portal-main {
     padding: 2rem 2rem 3rem;
-  }
-  .welcome-mascot {
-    display: block;
-    width: 160px;
   }
   .progress-count {
     display: inline;
@@ -799,15 +589,6 @@ main:focus {
     padding-left: 1.8rem;
     padding-right: 1.8rem;
   }
-  .profile-name {
-    font-size: 1rem;
-  }
-  .welcome-mascot {
-    width: 142px;
-  }
-  .dashboard-welcome p {
-    font-size: 1rem;
-  }
   .curriculum-progress {
     padding: 1rem 1.3rem;
   }
@@ -825,12 +606,6 @@ main:focus {
   .portal-footer {
     padding-left: 2.8rem;
     padding-right: 2.8rem;
-  }
-  .welcome-mascot {
-    width: 205px;
-  }
-  .dashboard-welcome p {
-    font-size: 1rem;
   }
   .landing-hero {
     display: grid;
@@ -862,9 +637,6 @@ main:focus {
     padding-left: 3.5rem;
     padding-right: 3.5rem;
   }
-  .welcome-mascot {
-    margin-right: 1.4rem;
-  }
   .landing-hero {
     min-height: 460px;
   }
@@ -888,9 +660,6 @@ main:focus {
   font-family: var(--font-pixel);
   font-size: 1.5rem;
   white-space: nowrap;
-}
-.auth-mascot {
-  margin: 0 auto 1.5rem;
 }
 .mascot-image,
 .avatar-image,
@@ -962,87 +731,83 @@ main:focus {
     padding-bottom: 1rem;
     min-height: 0;
   }
-  .case-status {
-    padding: 0.75rem 1.25rem;
-    margin: 0.75rem 0;
-  }
-  .case-status p {
-    margin-top: 0.5rem;
-  }
 }
 
-/* pixel block scrollbar, shared by every scroll area (chrome, edge, safari); firefox gets color and width only */
-::-webkit-scrollbar {
-  width: 18px;
-  height: 18px;
-}
-::-webkit-scrollbar-track {
-  background: var(--surface);
-}
-::-webkit-scrollbar-track:vertical {
-  border-left: 2px solid var(--border-strong);
-}
-::-webkit-scrollbar-track:horizontal {
-  border-top: 2px solid var(--border-strong);
-}
-::-webkit-scrollbar-corner {
-  background: var(--accent-secondary);
-}
-::-webkit-scrollbar-thumb {
-  min-height: 36px;
-  min-width: 36px;
-  border: 2px solid var(--border-strong);
-  background-color: var(--accent-primary);
-  background-repeat: no-repeat;
-  box-shadow:
-    inset -2px -2px 0 var(--town-grass-dark),
-    2px 2px 0 var(--border-strong);
-}
-::-webkit-scrollbar-thumb:vertical {
-  background-image:
-    linear-gradient(var(--border-strong), var(--border-strong)),
-    linear-gradient(var(--border-strong), var(--border-strong)),
-    linear-gradient(var(--border-strong), var(--border-strong));
-  background-position:
-    50% 38%,
-    50% 50%,
-    50% 62%;
-  background-size: 6px 2px;
-}
-::-webkit-scrollbar-thumb:horizontal {
-  background-image:
-    linear-gradient(var(--border-strong), var(--border-strong)),
-    linear-gradient(var(--border-strong), var(--border-strong)),
-    linear-gradient(var(--border-strong), var(--border-strong));
-  background-position:
-    38% 50%,
-    50% 50%,
-    62% 50%;
-  background-size: 2px 6px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background-color: var(--accent-secondary);
-}
-::-webkit-scrollbar-button:single-button {
-  width: 18px;
-  height: 18px;
-  border: 2px solid var(--border-strong);
-  background-color: var(--accent-secondary);
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: 10px 10px;
-}
-::-webkit-scrollbar-button:single-button:vertical:decrement {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath fill='%23334155' d='M4 2h2v1h1v1h1v1h1v1H1V5h1V4h1V3h1z'/%3E%3C/svg%3E");
-}
-::-webkit-scrollbar-button:single-button:vertical:increment {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath fill='%23334155' d='M1 3h8v1H8v1H7v1H6v1H4V7H3V6H2V5H1z'/%3E%3C/svg%3E");
-}
-::-webkit-scrollbar-button:single-button:horizontal:decrement {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath fill='%23334155' d='M2 4h1V3h1V2h1v6H4V7H3V6H2z'/%3E%3C/svg%3E");
-}
-::-webkit-scrollbar-button:single-button:horizontal:increment {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath fill='%23334155' d='M8 4H7V3H6V2H5v6h1V7h1V6h1z'/%3E%3C/svg%3E");
+/* pixel block scrollbar, shared by every scroll area (chrome, edge, safari); firefox gets color and width only.
+   a fine pointer only: on touch it would take 18px from every inner scroller, so touch keeps overlay bars */
+@media (hover: hover) and (pointer: fine) {
+  ::-webkit-scrollbar {
+    width: 18px;
+    height: 18px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--surface);
+  }
+  ::-webkit-scrollbar-track:vertical {
+    border-left: 2px solid var(--border-strong);
+  }
+  ::-webkit-scrollbar-track:horizontal {
+    border-top: 2px solid var(--border-strong);
+  }
+  ::-webkit-scrollbar-corner {
+    background: var(--accent-secondary);
+  }
+  ::-webkit-scrollbar-thumb {
+    min-height: 36px;
+    min-width: 36px;
+    border: 2px solid var(--border-strong);
+    background-color: var(--accent-primary);
+    background-repeat: no-repeat;
+    box-shadow:
+      inset -2px -2px 0 var(--town-grass-dark),
+      2px 2px 0 var(--border-strong);
+  }
+  ::-webkit-scrollbar-thumb:vertical {
+    background-image:
+      linear-gradient(var(--border-strong), var(--border-strong)),
+      linear-gradient(var(--border-strong), var(--border-strong)),
+      linear-gradient(var(--border-strong), var(--border-strong));
+    background-position:
+      50% 38%,
+      50% 50%,
+      50% 62%;
+    background-size: 6px 2px;
+  }
+  ::-webkit-scrollbar-thumb:horizontal {
+    background-image:
+      linear-gradient(var(--border-strong), var(--border-strong)),
+      linear-gradient(var(--border-strong), var(--border-strong)),
+      linear-gradient(var(--border-strong), var(--border-strong));
+    background-position:
+      38% 50%,
+      50% 50%,
+      62% 50%;
+    background-size: 2px 6px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--accent-secondary);
+  }
+  ::-webkit-scrollbar-button:single-button {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--border-strong);
+    background-color: var(--accent-secondary);
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 10px 10px;
+  }
+  ::-webkit-scrollbar-button:single-button:vertical:decrement {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath fill='%23334155' d='M4 2h2v1h1v1h1v1h1v1H1V5h1V4h1V3h1z'/%3E%3C/svg%3E");
+  }
+  ::-webkit-scrollbar-button:single-button:vertical:increment {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath fill='%23334155' d='M1 3h8v1H8v1H7v1H6v1H4V7H3V6H2V5H1z'/%3E%3C/svg%3E");
+  }
+  ::-webkit-scrollbar-button:single-button:horizontal:decrement {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath fill='%23334155' d='M2 4h1V3h1V2h1v6H4V7H3V6H2z'/%3E%3C/svg%3E");
+  }
+  ::-webkit-scrollbar-button:single-button:horizontal:increment {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath fill='%23334155' d='M8 4H7V3H6V2H5v6h1V7h1V6h1z'/%3E%3C/svg%3E");
+  }
 }
 @supports not selector(::-webkit-scrollbar) {
   * {
@@ -1081,9 +846,6 @@ main:focus {
     max-width: none;
     margin-bottom: 0;
     font-size: clamp(2rem, 4dvh, 2.6rem);
-  }
-  .profile-view .page-description {
-    margin: clamp(0.5rem, 1.5dvh, 1rem) 0 clamp(1rem, 3dvh, 1.3rem);
   }
   .profile-view .profile-overview {
     gap: 1rem;

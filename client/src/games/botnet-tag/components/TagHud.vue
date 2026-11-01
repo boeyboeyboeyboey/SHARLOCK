@@ -8,6 +8,8 @@ const props = defineProps({
   total: { type: Number, default: 0 },
   immunityMs: { type: Number, default: 0 },
   selfInfected: { type: Boolean, default: false },
+  watching: { type: Boolean, default: false },
+  graceMs: { type: Number, default: 0 },
   toast: { type: String, default: '' },
   toastKey: { type: Number, default: 0 },
 })
@@ -15,7 +17,11 @@ const props = defineProps({
 const urgent = computed(() => isUrgent(props.msLeft))
 const immune = computed(() => props.immunityMs > 0)
 const immunePct = computed(() => Math.min(100, (props.immunityMs / IMMUNITY_MS) * 100))
-const status = computed(() => (props.selfInfected ? 'Infected' : immune.value ? 'Immune' : 'Clean'))
+const status = computed(() => {
+  if (props.watching) return 'Watching'
+  if (props.selfInfected) return 'Infected'
+  return immune.value ? 'Immune' : 'Clean'
+})
 </script>
 
 <template>
@@ -42,6 +48,9 @@ const status = computed(() => (props.selfInfected ? 'Infected' : immune.value ? 
       </div>
     </div>
     <div class="tag-status tag-glass" data-testid="tag-status">{{ status }}</div>
+    <p v-if="graceMs > 0" class="tag-grace tag-glass" role="status" data-testid="tag-grace">
+      Get ready: tagging starts in {{ Math.ceil(graceMs / 1000) }}s
+    </p>
     <div v-if="immune" class="tag-immunity tag-glass" role="status" data-testid="tag-immunity">
       <b>
         <span>Immune</span><span>{{ Math.ceil(immunityMs / 1000) }}s</span>

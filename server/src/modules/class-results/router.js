@@ -54,6 +54,15 @@ function sendError(error, response) {
     message = 'Sign in to continue.'
   } else if (error instanceof CohortError && [401, 404].includes(error.status)) {
     ;({ status, code, message } = error)
+  } else {
+    // same single line as the shared handler: the id and error name, never a message or stack
+    console.error(
+      JSON.stringify({
+        event: 'request_failed',
+        requestId: response.locals.requestId,
+        errorName: error?.name,
+      }),
+    )
   }
   response.set('Cache-Control', 'no-store')
   response.status(status).json({ error: { code, message }, requestId: response.locals.requestId })

@@ -14,7 +14,7 @@ const down = new Vector3(0, -1, 0);
 const ease = (t) => t * t * (3 - 2 * t);
 
 // graph over the lane polylines, used to auto-walk along them
-function pathGraph(paths) {
+export function pathGraph(paths) {
   const nodes = [];
   const link = new Map();
   const find = (p) => {
@@ -37,6 +37,39 @@ function pathGraph(paths) {
   return { nodes, link };
 }
 
+// shortest lane route between the walkable nodes nearest to from and to (dijkstra over the graph), ending at to
+export function planRoute({ nodes, link }, from, to, walkable) {
+  // lane ends can sit inside a prop's collider, so only walkable nodes can start or end a route
+  const usable = nodes.map((n, i) => i).filter((i) => walkable(nodes[i][0], nodes[i][1]));
+  const nearest = (x, z) => (usable.length ? usable : nodes.map((n, i) => i)).reduce((best, i) => (Math.hypot(nodes[i][0] - x, nodes[i][1] - z) < Math.hypot(nodes[best][0] - x, nodes[best][1] - z) ? i : best));
+  const start = nearest(from.x, from.z);
+  const goal = nearest(to.x, to.z);
+  const dist = new Map([[start, 0]]);
+  const prev = new Map();
+  const open = new Set([start]);
+  while (open.size) {
+    let current = null;
+    for (const n of open) if (current === null || dist.get(n) < dist.get(current)) current = n;
+    open.delete(current);
+    for (const next of link.get(current)) {
+      const d = dist.get(current) + Math.hypot(nodes[current][0] - nodes[next][0], nodes[current][1] - nodes[next][1]);
+      if (!dist.has(next) || d < dist.get(next)) {
+        dist.set(next, d);
+        prev.set(next, current);
+        open.add(next);
+      }
+    }
+  }
+  const chain = [];
+  for (let n = goal; n !== undefined; n = prev.get(n)) chain.unshift(nodes[n]);
+  return [...chain, [to.x, to.z]];
+}
+
+// scene.pick scales its input by the hardware scaling level itself, so it wants css pixels from the canvas corner
+export function canvasPoint(event, rect) {
+  return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+}
+
 // nav: { spawn, heightAt(x, z), walkable(x, z), paths, destinations, door(dest) } supplied by the scene
 export function createPlayer({ scene, canvas, camera, ground, sharlock, reduced, nav, joystick: pad = {}, onSprint = () => {} }) {
   const { destinations, door, heightAt, paths, spawn, walkable } = nav;
@@ -50,7 +83,7 @@ export function createPlayer({ scene, canvas, camera, ground, sharlock, reduced,
   controller.keepDistance = 0.04;
   controller.maxStepHeight = 0.3;
 
-  const player = { root: sharlock.root, visual: sharlock.visual, rig: sharlock.rig ?? null, animate: null, animated: false };
+  const player = { root: sharlock.root, rig: sharlock.rig };
   const keys = new Set();
   const joystick = { x: 0, y: 0 };
   let route = [];
@@ -60,8 +93,9 @@ export function createPlayer({ scene, canvas, camera, ground, sharlock, reduced,
   let hold = false;
   let stallTime = 0;
   let stalled = false;
-  let lastPos = new Vector3();
-  let walkBlend = 0;
+  const lastPos = new Vector3();
+  // the controller copies a velocity, so one vector serves every frame
+  const velocity = new Vector3();
   const jump = createJump();
   const sprint = createSprint();
   // live top speed, base times the sprint multiplier
@@ -124,10 +158,8 @@ export function createPlayer({ scene, canvas, camera, ground, sharlock, reduced,
     const quick = performance.now() - press.t < 450;
     press = null;
     if (moved > 8 || !quick) return;
-    const rect = canvas.getBoundingClientRect();
-    const px = ((event.clientX - rect.left) * canvas.width) / rect.width;
-    const py = ((event.clientY - rect.top) * canvas.height) / rect.height;
-    const hit = scene.pick(px, py, (mesh) => mesh === ground, false, camera);
+    const at = canvasPoint(event, canvas.getBoundingClientRect());
+    const hit = scene.pick(at.x, at.y, (mesh) => mesh === ground, false, camera);
     if (hit?.hit && hit.pickedPoint) {
       const { x, z } = hit.pickedPoint;
       if (walkable(x, z)) walkTo([[x, z]], { cancelHold: true });
@@ -206,33 +238,7 @@ export function createPlayer({ scene, canvas, camera, ground, sharlock, reduced,
   // route along the paths, then straight to the door
   function routeToDoor(id) {
     const dest = destinations.find((d) => d.id === id);
-    const target = door(dest);
-    const { nodes, link } = graph;
-    // lane ends can sit inside a prop's collider, so only walkable nodes can start or end a route
-    const usable = nodes.map((n, i) => i).filter((i) => walkable(nodes[i][0], nodes[i][1]));
-    const nearest = (x, z) => (usable.length ? usable : nodes.map((n, i) => i)).reduce((best, i) => (Math.hypot(nodes[i][0] - x, nodes[i][1] - z) < Math.hypot(nodes[best][0] - x, nodes[best][1] - z) ? i : best));
-    const here = pos();
-    const start = nearest(here.x, here.z);
-    const goal = nearest(target.x, target.z);
-    const dist = new Map([[start, 0]]);
-    const prev = new Map();
-    const open = new Set([start]);
-    while (open.size) {
-      let current = null;
-      for (const n of open) if (current === null || dist.get(n) < dist.get(current)) current = n;
-      open.delete(current);
-      for (const next of link.get(current)) {
-        const d = dist.get(current) + Math.hypot(nodes[current][0] - nodes[next][0], nodes[current][1] - nodes[next][1]);
-        if (!dist.has(next) || d < dist.get(next)) {
-          dist.set(next, d);
-          prev.set(next, current);
-          open.add(next);
-        }
-      }
-    }
-    const chain = [];
-    for (let n = goal; n !== undefined; n = prev.get(n)) chain.unshift(nodes[n]);
-    walkTo([...chain, [target.x, target.z]]);
+    walkTo(planRoute(graph, pos(), door(dest), walkable));
   }
 
   function flyTo(to, seconds = 0.9) {
@@ -347,8 +353,7 @@ export function createPlayer({ scene, canvas, camera, ground, sharlock, reduced,
     curSpeed += Math.max(-rate, Math.min(rate, wanted - curSpeed));
     const air = jump.step(dt, { supported, calm: reduced(), enabled });
     const vy = air.launch ? JUMP_SPEED : air.grounded ? -0.6 : v.y + gravity.y * dt;
-    const out = new Vector3(lastDir.x * curSpeed, vy, lastDir.z * curSpeed);
-    controller.setVelocity(out);
+    controller.setVelocity(velocity.set(lastDir.x * curSpeed, vy, lastDir.z * curSpeed));
     controller.integrate(dt, support, gravity);
 
     // stop a route that makes no headway (obstacle)
@@ -363,7 +368,7 @@ export function createPlayer({ scene, canvas, camera, ground, sharlock, reduced,
         stalled = true;
       }
     }
-    lastPos = np.clone();
+    lastPos.copyFrom(np);
     if (air.grounded) groundY = np.y;
 
     // the capsule rests 0.1 m above the floor, so the visual drops to stand on it (a little less, the toes dip while striding)
@@ -371,10 +376,9 @@ export function createPlayer({ scene, canvas, camera, ground, sharlock, reduced,
     const before = heading;
     if (moving) heading += diff * (1 - Math.exp(-dt * 10));
     player.root.rotation.y = heading;
-    walkBlend += ((moving ? 1 : 0) - walkBlend) * Math.min(1, dt * 10);
     // the nearest door within reach of a glance, only worth working out while standing still
     let look = null;
-    if (player.rig && !moving) {
+    if (!moving) {
       let best = LOOK_RANGE;
       for (const d of destinations) {
         const gap = Math.hypot(d.x - np.x, d.z - np.z);
@@ -384,15 +388,7 @@ export function createPlayer({ scene, canvas, camera, ground, sharlock, reduced,
         }
       }
     }
-    if (player.rig) player.rig.update(dt, curSpeed, speed, { turn: dt > 0 ? (heading - before) / dt : 0, lead: moving ? diff : 0, active: moving || manual || air.active, look, jump: air });
-    else if (player.animated) player.animate(walkBlend * speed, speed);
-    else {
-      const t = performance.now() / 1000;
-      player.visual.position.y = moving ? Math.abs(Math.sin(t * 11)) * 0.08 : 0;
-      player.visual.rotation.z = moving ? Math.sin(t * 11) * 0.06 : 0;
-      const breathe = 1 + Math.sin(t * 2.2) * 0.012 * (1 - walkBlend);
-      player.visual.scaling.y = breathe;
-    }
+    player.rig.update(dt, curSpeed, speed, { turn: dt > 0 ? (heading - before) / dt : 0, lead: moving ? diff : 0, active: moving || manual || air.active, look, jump: air });
 
     // camera: tween when flying, otherwise follow
     if (flight) {

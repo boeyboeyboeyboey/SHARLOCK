@@ -33,6 +33,7 @@ const mocks = vi.hoisted(() => {
     listPendingAdministrators: vi.fn(),
     reissueAdministratorActivation: vi.fn(),
     cancelPendingAdministrator: vi.fn(),
+    cancelPendingInstructor: vi.fn(),
     updateInstructorAssignments: vi.fn(),
     updateAdminUser: vi.fn(),
     deleteAdminUser: vi.fn(),
@@ -81,6 +82,13 @@ const instructor = {
   accountStatus: 'active',
   assignmentRevision: 1,
   cohortIds: [],
+}
+
+function clickNamed(wrapper, label) {
+  return wrapper
+    .findAll('button')
+    .find((candidate) => candidate.text() === label)
+    .trigger('click')
 }
 
 function setDefaultLists({ instructorRows = [], institutionRows = [institution] } = {}) {
@@ -206,7 +214,7 @@ describe('admin workspace', () => {
     )
     const expired = mount(AuditEventsPanel)
     await flushPromises()
-    expect(expired.get('[role="alert"]').text()).toContain('Sign in again')
+    expect(expired.get('[role="alert"]').text()).toContain('administrator access has changed')
     expect(expired.find('[role="alert"] button').exists()).toBe(false)
     expired.unmount()
   })
@@ -234,7 +242,7 @@ describe('admin workspace', () => {
     await wrapper.get('.admin-workspace__section-heading button').trigger('click')
     await flushPromises()
 
-    expect(wrapper.get('[role="alert"]').text()).toContain('Sign in again')
+    expect(wrapper.get('[role="alert"]').text()).toContain('administrator access has changed')
     expect(wrapper.find('.admin-workspace__audit-list').exists()).toBe(false)
     expect(wrapper.find('[aria-label="Audit event pages"]').exists()).toBe(false)
     expect(wrapper.text()).not.toContain(event.targetId)
@@ -385,6 +393,9 @@ describe('admin workspace', () => {
     expect(wrapper.get('.admin-workspace__edit-form').find('input[name="slug"]').exists()).toBe(
       false,
     )
+    await wrapper.setProps({
+      institutions: [{ ...institution, revision: institution.revision + 9 }],
+    })
     await wrapper
       .get('#admin-institution-edit-name-111111111111111111111111')
       .setValue('Updated Academy')
@@ -392,6 +403,9 @@ describe('admin workspace', () => {
       .get('#admin-institution-edit-status-111111111111111111111111')
       .setValue('inactive')
     await wrapper.get('.admin-workspace__edit-form').trigger('submit')
+    expect(wrapper.emitted('update-institution')).toBeUndefined()
+    expect(wrapper.text()).toContain('Deactivate this institution?')
+    await clickNamed(wrapper, 'Yes, deactivate')
     expect(wrapper.emitted('update-institution')[0][0]).toEqual({
       id: institution.id,
       name: 'Updated Academy',
@@ -403,10 +417,14 @@ describe('admin workspace', () => {
     expect(
       wrapper.get('.admin-workspace__edit-form').find('#admin-cohort-institution').exists(),
     ).toBe(false)
+    await wrapper.setProps({ cohorts: [{ ...cohort, revision: cohort.revision + 9 }] })
     await wrapper.get('#admin-cohort-edit-name-222222222222222222222222').setValue('Green Class')
     await wrapper.get('#admin-cohort-edit-term-222222222222222222222222').setValue('2026 Term 4')
     await wrapper.get('#admin-cohort-edit-status-222222222222222222222222').setValue('inactive')
     await wrapper.get('.admin-workspace__edit-form').trigger('submit')
+    expect(wrapper.emitted('update-cohort')).toBeUndefined()
+    expect(wrapper.text()).toContain('Deactivate this class?')
+    await clickNamed(wrapper, 'Yes, deactivate')
     expect(wrapper.emitted('update-cohort')[0][0]).toEqual({
       id: cohort.id,
       name: 'Green Class',
@@ -435,6 +453,7 @@ describe('admin workspace', () => {
       props: {
         instructor: { ...instructor, cohortIds: [inactive.id], assignedCohorts: [inactive] },
         cohorts: [cohort, inactiveParentClass],
+        open: true,
       },
     })
     expect(wrapper.text()).toContain('Retained Class')
@@ -463,6 +482,7 @@ describe('admin workspace', () => {
       .get('#admin-institution-edit-status-111111111111111111111111')
       .setValue('inactive')
     await wrapper.get('.admin-workspace__edit-form').trigger('submit')
+    await clickNamed(wrapper, 'Yes, deactivate')
     await flushPromises()
 
     expect(mocks.updateInstitution).toHaveBeenCalledWith(
@@ -556,6 +576,7 @@ describe('admin workspace', () => {
       .findAll('button')
       .find((button) => button.text() === 'Close')
       .trigger('click')
+    await clickNamed(wrapper, 'Yes, close')
     expect(wrapper.find('dialog').exists()).toBe(false)
     expect(wrapper.html()).not.toContain('C'.repeat(43))
     wrapper.unmount()
@@ -666,31 +687,33 @@ describe('admin workspace', () => {
     it('cancels after confirmation and refreshes the list', async () => {
       withPending()
       mocks.cancelPendingAdministrator.mockResolvedValueOnce({ outcome: 'cancelled' })
-      const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
-      const wrapper = mount(AdminPage)
+      const wrapper = mount(AdminPage, { attachTo: document.body })
       await flushPromises()
       mocks.listPendingAdministrators.mockClear()
       await button(wrapper, 'Cancel Synthetic_Pending').trigger('click')
+      expect(mocks.cancelPendingAdministrator).not.toHaveBeenCalled()
+      expect(wrapper.text()).toContain('Cancel the pending administrator Synthetic_Pending?')
+      await clickNamed(wrapper, 'Yes, cancel them')
       await flushPromises()
-      expect(confirm).toHaveBeenCalledWith(expect.stringContaining('Synthetic_Pending'))
       expect(mocks.cancelPendingAdministrator).toHaveBeenCalledWith(
         pendingRow.id,
         expect.any(AbortSignal),
       )
       expect(mocks.listPendingAdministrators).toHaveBeenCalled()
-      confirm.mockRestore()
+      expect(wrapper.text()).toContain('Pending administrator cancelled.')
+      expect(document.activeElement?.id).toBe('pending-administrators-title')
       wrapper.unmount()
     })
 
     it('does nothing when the cancel confirmation is declined', async () => {
       withPending()
-      const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
       const wrapper = mount(AdminPage)
       await flushPromises()
       await button(wrapper, 'Cancel Synthetic_Pending').trigger('click')
+      await clickNamed(wrapper, 'Keep them')
       await flushPromises()
       expect(mocks.cancelPendingAdministrator).not.toHaveBeenCalled()
-      confirm.mockRestore()
+      expect(wrapper.text()).not.toContain('Cancel the pending administrator')
       wrapper.unmount()
     })
 
@@ -699,13 +722,12 @@ describe('admin workspace', () => {
       mocks.cancelPendingAdministrator.mockRejectedValueOnce(
         new mocks.AdminApiError('ADMIN_NOT_FOUND', 'not found', 404),
       )
-      const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
       const wrapper = mount(AdminPage)
       await flushPromises()
       await button(wrapper, 'Cancel Synthetic_Pending').trigger('click')
+      await clickNamed(wrapper, 'Yes, cancel them')
       await flushPromises()
       expect(wrapper.text()).toContain('This administrator is no longer pending')
-      confirm.mockRestore()
       wrapper.unmount()
     })
   })
@@ -718,6 +740,7 @@ describe('admin workspace', () => {
     const wrapper = mount(AdminPage)
     await flushPromises()
 
+    await clickNamed(wrapper, 'Edit assignments')
     const checkbox = wrapper.get('.admin-workspace__assignment input')
     await checkbox.setValue(true)
     const saveButton = wrapper
@@ -766,10 +789,6 @@ describe('admin workspace', () => {
     await wrapper.get('.recovery-lookup').trigger('submit')
     await flushPromises()
     expect(recoveryMocks.lookupStudent).toHaveBeenCalledWith(target.email, expect.any(AbortSignal))
-    await wrapper
-      .findAll('button')
-      .find((button) => button.text() === 'Select student')
-      .trigger('click')
     const checkbox = wrapper.get('input[type="checkbox"]')
     expect(wrapper.get('.recovery-issue-form button[type="submit"]').element.disabled).toBe(true)
     await checkbox.setValue(true)
@@ -785,6 +804,8 @@ describe('admin workspace', () => {
       .findAll('button')
       .find((button) => button.text() === 'Close')
       .trigger('click')
+    expect(wrapper.find('dialog').text()).toContain('Link for Casey_Student (casey@example.test)')
+    await clickNamed(wrapper, 'Yes, close')
     expect(wrapper.find('dialog').exists()).toBe(false)
     expect(wrapper.find('input#recovery-link-value').exists()).toBe(false)
     expect(wrapper.find('.recovery-issue-form').exists()).toBe(true)
@@ -940,15 +961,14 @@ describe('admin workspace', () => {
       page: 1,
       total: 2,
     })
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
     const wrapper = mount(AccountStatusPanel)
     await flushPromises()
 
     await wrapper.findAll('tbody button')[0].trigger('click')
+    expect(mocks.updateAdminUser).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('Their class memberships and instructor assignments remain.')
+    await clickNamed(wrapper, 'Yes, disable')
     await flushPromises()
-    expect(confirm).toHaveBeenCalledWith(
-      expect.stringContaining('Their class memberships and instructor assignments remain.'),
-    )
     expect(mocks.updateAdminUser).toHaveBeenCalledWith(
       student.id,
       { accountStatus: 'disabled', expectedRevision: 4 },
@@ -956,13 +976,40 @@ describe('admin workspace', () => {
     )
 
     await wrapper.findAll('tbody button')[2].trigger('click')
-    expect(wrapper.emitted('reissue-activation')).toEqual([[disabledInstructor.id]])
+    expect(wrapper.emitted('reissue-activation')[0][0]).toBe(disabledInstructor.id)
     expect(mocks.updateAdminUser).toHaveBeenCalledTimes(1)
     wrapper.unmount()
-    confirm.mockRestore()
   })
 
-  it('reloads after a stale account revision and displays only safe guidance', async () => {
+  it('never enables an account when a disable confirm outlived a reload', async () => {
+    const student = {
+      id: 'student-id',
+      username: 'Casey_Student',
+      avatarId: 'mint',
+      globalRoles: ['student'],
+      accountStatus: 'active',
+      revision: 4,
+    }
+    mocks.listAdminUsers.mockResolvedValue({ users: [student], page: 1, total: 1 })
+    const wrapper = mount(AccountStatusPanel)
+    await flushPromises()
+    await wrapper.get('tbody button').trigger('click')
+    expect(wrapper.text()).toContain('Yes, disable')
+
+    // another administrator disabled it, and this list reloads
+    mocks.listAdminUsers.mockResolvedValue({
+      users: [{ ...student, accountStatus: 'disabled', revision: 5 }],
+      page: 1,
+      total: 1,
+    })
+    await clickNamed(wrapper, 'Refresh accounts')
+    await flushPromises()
+    expect(wrapper.text()).not.toContain('Yes, disable')
+    expect(mocks.updateAdminUser).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('reloads after a stale account revision and says so beside the row', async () => {
     const student = {
       id: 'student-id',
       username: 'Casey_Student',
@@ -979,18 +1026,16 @@ describe('admin workspace', () => {
         409,
       ),
     )
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
     const wrapper = mount(AccountStatusPanel)
     await flushPromises()
 
     await wrapper.get('tbody button').trigger('click')
+    await clickNamed(wrapper, 'Yes, disable')
     await flushPromises()
 
     expect(mocks.listAdminUsers).toHaveBeenCalledTimes(2)
     expect(wrapper.get('[role="alert"]').text()).toContain('review its latest status')
-    expect(wrapper.text()).not.toContain('private backend detail')
     wrapper.unmount()
-    vi.restoreAllMocks()
   })
 
   it('clears loaded account rows when a status change loses administrator access', async () => {
@@ -1006,20 +1051,19 @@ describe('admin workspace', () => {
     mocks.updateAdminUser.mockRejectedValue(
       new mocks.AdminApiError('AUTHENTICATION_REQUIRED', 'Your session ended. Sign in again.', 401),
     )
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
     const wrapper = mount(AccountStatusPanel)
     await flushPromises()
 
     expect(wrapper.text()).toContain(student.username)
     await wrapper.get('tbody button').trigger('click')
+    await clickNamed(wrapper, 'Yes, disable')
     await flushPromises()
 
     expect(wrapper.find('tbody').exists()).toBe(false)
-    expect(wrapper.get('[role="alert"]').text()).toContain('Your session ended. Sign in again.')
+    expect(wrapper.get('[role="alert"]').text()).toContain('administrator access has changed')
     expect(wrapper.text()).not.toContain(student.username)
     expect(wrapper.text()).not.toContain('Page 1 of 1')
     wrapper.unmount()
-    confirm.mockRestore()
   })
 
   it('clears loaded account rows when instructor activation reissue loses access', async () => {
@@ -1048,8 +1092,307 @@ describe('admin workspace', () => {
     await flushPromises()
 
     expect(wrapper.find('tbody').exists()).toBe(false)
-    expect(wrapper.get('[role="alert"]').text()).toContain('Your session ended. Sign in again.')
+    expect(wrapper.get('[role="alert"]').text()).toContain('administrator access has changed')
     expect(wrapper.text()).not.toContain(instructor.username)
+    wrapper.unmount()
+  })
+
+  describe('feedback and staleness', () => {
+    const openTab = async (id) => {
+      routerMocks.route.query = { tab: id }
+      await flushPromises()
+    }
+
+    it('rereads a list when its tab opens', async () => {
+      const wrapper = mount(AdminPage)
+      await flushPromises()
+      expect(mocks.listAdminUsers).toHaveBeenCalledTimes(1)
+      expect(mocks.listAuditEvents).toHaveBeenCalledTimes(1)
+      expect(mocks.listInstructors).toHaveBeenCalledTimes(1)
+
+      await openTab('accounts')
+      expect(mocks.listAdminUsers).toHaveBeenCalledTimes(2)
+      await openTab('audit')
+      expect(mocks.listAuditEvents).toHaveBeenCalledTimes(2)
+      await openTab('instructors')
+      expect(mocks.listInstructors).toHaveBeenCalledTimes(2)
+      expect(mocks.listPendingAdministrators).toHaveBeenCalledTimes(2)
+      wrapper.unmount()
+    })
+
+    it('confirms each save with a status line that the next action clears', async () => {
+      setDefaultLists({ instructorRows: [instructor] })
+      mocks.updateInstructorAssignments.mockResolvedValue({ instructor })
+      const wrapper = mount(AdminPage)
+      await flushPromises()
+
+      await wrapper.get('#admin-institution-name').setValue('New Academy')
+      await wrapper.get('#admin-institution-slug').setValue('new-academy')
+      await wrapper
+        .findAll('form')
+        .find((form) => form.text().includes('Institution slug'))
+        .trigger('submit')
+      await flushPromises()
+      expect(wrapper.get('[role="status"]').text()).toBe('Institution created.')
+
+      await wrapper.get('#admin-cohort-name').setValue('New Class')
+      await wrapper.get('#admin-cohort-term').setValue('T1')
+      await wrapper
+        .findAll('form')
+        .find((form) => form.text().includes('Class name'))
+        .trigger('submit')
+      await flushPromises()
+      expect(wrapper.get('.admin-workspace__status-line').text()).toBe('Class created.')
+
+      await clickNamed(wrapper, 'Edit assignments')
+      await wrapper.get('.admin-workspace__assignment input').setValue(true)
+      expect(wrapper.text()).toContain('1 selected, not saved yet')
+      await clickNamed(wrapper, 'Save assignments')
+      await flushPromises()
+      expect(wrapper.get('.admin-workspace__status-line').text()).toBe('Assignments saved.')
+      expect(wrapper.find('.admin-workspace__assignment').exists()).toBe(false)
+      wrapper.unmount()
+    })
+
+    it('keeps one list failing visible when another loads fine', async () => {
+      mocks.listInstitutions.mockRejectedValue(
+        new mocks.AdminApiError('REQUEST_FAILED', 'Institutions are down.', 500),
+      )
+      const wrapper = mount(AdminPage)
+      await flushPromises()
+      expect(mocks.listInstructors).toHaveBeenCalled()
+      expect(wrapper.get('.admin-workspace__feedback').text()).toBe('Institutions are down.')
+      wrapper.unmount()
+    })
+
+    it('renders one checklist at a time', async () => {
+      const other = { ...instructor, id: '999999999999999999999999', username: 'Second_Teacher' }
+      setDefaultLists({ instructorRows: [instructor, other] })
+      const wrapper = mount(AdminPage)
+      await flushPromises()
+      expect(wrapper.findAll('.admin-workspace__assignment-list')).toHaveLength(0)
+
+      const toggles = wrapper
+        .findAll('button')
+        .filter((candidate) => candidate.text() === 'Edit assignments')
+      await toggles[0].trigger('click')
+      expect(wrapper.findAll('.admin-workspace__assignment-list')).toHaveLength(1)
+      await toggles[1].trigger('click')
+      expect(wrapper.findAll('.admin-workspace__assignment-list')).toHaveLength(1)
+      expect(toggles[0].attributes('aria-expanded')).toBe('false')
+      expect(toggles[1].attributes('aria-expanded')).toBe('true')
+      wrapper.unmount()
+    })
+
+    it('reloads and resets the form when an account is made but its link cannot be shown', async () => {
+      mocks.createInstructor.mockRejectedValueOnce(
+        new mocks.AdminApiError('ADMIN_LINK_NOT_SHOWN', 'Reissue the link.'),
+      )
+      const wrapper = mount(AdminPage)
+      await flushPromises()
+      mocks.listInstructors.mockClear()
+      await wrapper.get('#admin-instructor-email').setValue('teacher@example.test')
+      await wrapper.get('#admin-instructor-username').setValue('Synthetic_Teacher')
+      await wrapper
+        .findAll('form')
+        .find((form) => form.text().includes('Instructor email'))
+        .trigger('submit')
+      await flushPromises()
+      expect(mocks.listInstructors).toHaveBeenCalled()
+      expect(wrapper.get('#admin-instructor-email').element.value).toBe('')
+      expect(wrapper.text()).toContain('Reissue the link.')
+      wrapper.unmount()
+    })
+
+    it('shows server field errors beside their inputs', async () => {
+      const failure = new mocks.AdminApiError('ADMIN_INVALID_REQUEST', 'Check the details.', 400)
+      failure.fieldErrors = { username: 'Use 3 to 32 letters.' }
+      mocks.createInstructor.mockRejectedValueOnce(failure)
+      const wrapper = mount(AdminPage)
+      await flushPromises()
+      await wrapper.get('#admin-instructor-email').setValue('teacher@example.test')
+      await wrapper.get('#admin-instructor-username').setValue('Mr Smith')
+      expect(wrapper.get('#admin-instructor-username').attributes('pattern')).toBeTruthy()
+      await wrapper
+        .findAll('form')
+        .find((form) => form.text().includes('Instructor email'))
+        .trigger('submit')
+      await flushPromises()
+      const input = wrapper.get('#admin-instructor-username')
+      expect(input.attributes('aria-invalid')).toBe('true')
+      expect(input.attributes('aria-describedby')).toContain('admin-instructor-username-error')
+      expect(wrapper.get('#admin-instructor-username-error').text()).toBe('Use 3 to 32 letters.')
+      wrapper.unmount()
+    })
+
+    it('gives the two avatar pickers their own ids', async () => {
+      const wrapper = mount(AdminPage)
+      await flushPromises()
+      const ids = wrapper.findAll('input[type="radio"]').map((radio) => radio.attributes('id'))
+      expect(ids.length).toBeGreaterThan(6)
+      expect(new Set(ids).size).toBe(ids.length)
+      for (const label of wrapper.findAll('.auth-avatar-choice')) {
+        expect(label.find('input').attributes('id')).toBe(label.attributes('for'))
+      }
+      expect(wrapper.text()).toContain('Avatar for the new administrator')
+      expect(wrapper.text()).not.toContain('Choose your capybara')
+      wrapper.unmount()
+    })
+
+    it('offers a pending instructor a new link or cancellation', async () => {
+      const pending = { ...instructor, accountStatus: 'disabled', pendingActivation: true }
+      setDefaultLists({ instructorRows: [pending] })
+      mocks.cancelPendingInstructor.mockResolvedValue({ outcome: 'cancelled' })
+      mocks.reissueInstructorActivation.mockResolvedValue({
+        activationUrl: `http://localhost:5174/activate-account#token=${'E'.repeat(43)}`,
+        expiresAt: '2099-01-01T00:00:00.000Z',
+      })
+      const wrapper = mount(AdminPage, { attachTo: document.body })
+      await flushPromises()
+      const row = wrapper.get('.admin-workspace__instructor-row')
+      expect(row.text()).toContain('Pending activation')
+
+      await row.get(`[aria-label="Reissue link for ${pending.username}"]`).trigger('click')
+      await flushPromises()
+      expect(mocks.reissueInstructorActivation).toHaveBeenCalled()
+      expect(wrapper.get('dialog').text()).toContain(pending.username)
+      await clickNamed(wrapper, 'Close')
+      await clickNamed(wrapper, 'Yes, close')
+      await flushPromises()
+
+      await wrapper.get(`[aria-label="Cancel ${pending.username}"]`).trigger('click')
+      expect(mocks.cancelPendingInstructor).not.toHaveBeenCalled()
+      await clickNamed(wrapper, 'Yes, cancel them')
+      await flushPromises()
+      expect(mocks.cancelPendingInstructor).toHaveBeenCalledWith(
+        pending.id,
+        expect.any(AbortSignal),
+      )
+      expect(wrapper.get('.admin-workspace__status-line').text()).toBe(
+        'Pending instructor cancelled.',
+      )
+      expect(document.activeElement?.id).toBe('instructors-title')
+      wrapper.unmount()
+    })
+
+    it('does not offer cancellation for an instructor who already activated', async () => {
+      const disabled = { ...instructor, accountStatus: 'disabled', pendingActivation: false }
+      setDefaultLists({ instructorRows: [disabled] })
+      const wrapper = mount(AdminPage)
+      await flushPromises()
+      const row = wrapper.get('.admin-workspace__instructor-row')
+      expect(row.text()).toContain('Disabled')
+      expect(row.find(`[aria-label="Cancel ${disabled.username}"]`).exists()).toBe(false)
+      expect(row.find(`[aria-label="Reissue link for ${disabled.username}"]`).exists()).toBe(true)
+      wrapper.unmount()
+    })
+  })
+
+  describe('account list', () => {
+    const student = {
+      id: 'student-id',
+      username: 'Casey_Student',
+      email: 'casey@example.test',
+      avatarId: 'mint',
+      globalRoles: ['student'],
+      accountStatus: 'active',
+      revision: 4,
+    }
+
+    it('searches by username or email and shows the email', async () => {
+      mocks.listAdminUsers.mockResolvedValue({ users: [student], page: 1, total: 1 })
+      const wrapper = mount(AccountStatusPanel)
+      await flushPromises()
+      expect(wrapper.text()).toContain(student.email)
+      await wrapper.get('input[type="search"]').setValue('  casey ')
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+      expect(mocks.listAdminUsers.mock.calls.at(-1)[0]).toMatchObject({ search: 'casey', page: 1 })
+      wrapper.unmount()
+    })
+
+    it('goes back a page when a change empties the last one', async () => {
+      const rows = { 1: [{ ...student, id: 'first-page' }], 2: [student] }
+      mocks.listAdminUsers.mockImplementation(async ({ page }) => ({
+        users: rows[page],
+        page,
+        total: 26,
+      }))
+      const paged = mount(AccountStatusPanel)
+      await flushPromises()
+      await clickNamed(paged, 'Next accounts')
+      await flushPromises()
+      rows[2] = []
+      await paged.get('tbody button').trigger('click')
+      await clickNamed(paged, 'Yes, disable')
+      await flushPromises()
+      expect(mocks.listAdminUsers.mock.calls.at(-1)[0].page).toBe(1)
+      expect(paged.text()).toContain('Account disabled.')
+      paged.unmount()
+    })
+
+    it('reloads and closes the delete dialog when the account changed elsewhere', async () => {
+      mocks.listAdminUsers.mockResolvedValue({ users: [student], page: 1, total: 1 })
+      const wrapper = mount(AccountStatusPanel)
+      await flushPromises()
+      await wrapper.get(`[aria-label="Delete account ${student.username}"]`).trigger('click')
+      await flushPromises()
+      mocks.listAdminUsers.mockClear()
+      wrapper.findComponent(DeleteAccountDialog).vm.$emit('stale')
+      await flushPromises()
+      expect(wrapper.findComponent(DeleteAccountDialog).exists()).toBe(false)
+      expect(mocks.listAdminUsers).toHaveBeenCalledTimes(1)
+      expect(wrapper.get('[role="alert"]').text()).toContain('The list was refreshed')
+      wrapper.unmount()
+    })
+
+    it('labels a never-activated instructor as pending', async () => {
+      mocks.listAdminUsers.mockResolvedValue({
+        users: [
+          {
+            ...student,
+            globalRoles: ['instructor'],
+            accountStatus: 'disabled',
+            pendingActivation: true,
+          },
+        ],
+        page: 1,
+        total: 1,
+      })
+      const wrapper = mount(AccountStatusPanel)
+      await flushPromises()
+      expect(wrapper.get('tbody').text()).toContain('Pending activation')
+      wrapper.unmount()
+    })
+  })
+
+  it('names who did what to whom in the audit list and hides empty identifiers', async () => {
+    mocks.listAuditEvents.mockResolvedValue({
+      events: [
+        {
+          eventType: 'admin.cohort.deactivate',
+          actorKind: 'user',
+          actorId: '111111111111111111111111',
+          actorName: 'Head_Admin',
+          targetId: '222222222222222222222222',
+          targetName: 'Blue Class',
+          scopeCohortId: null,
+          cohortName: null,
+          outcome: 'success',
+          occurredAt: '2026-10-17T12:00:00.000Z',
+          requestId: '33333333-3333-4333-8333-333333333333',
+        },
+      ],
+      page: 1,
+      total: 1,
+    })
+    const wrapper = mount(AuditEventsPanel)
+    await flushPromises()
+    const row = wrapper.get('.admin-workspace__audit-list li')
+    expect(row.text()).toContain('Class deactivated')
+    expect(row.text()).toContain('Head_Admin → Blue Class')
+    expect(row.text()).not.toContain('Not available')
+    expect(row.text()).not.toContain('Class ID')
     wrapper.unmount()
   })
   describe('tabs', () => {

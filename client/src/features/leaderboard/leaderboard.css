@@ -1,17 +1,26 @@
 .leaderboard {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 1.25rem;
   min-width: 0;
 }
 
 .leaderboard .leaderboard__section {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 1rem;
   min-width: 0;
   padding: clamp(1rem, 3vw, 1.5rem);
   border: 2px solid var(--border-strong);
   background: var(--surface);
   box-shadow: var(--shadow-pixel);
+}
+
+.leaderboard .leaderboard__panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  min-width: 0;
 }
 
 .leaderboard .leaderboard__section h2,
@@ -37,6 +46,7 @@
 }
 
 .leaderboard .leaderboard__filter select {
+  width: 100%;
   min-height: 48px;
   max-width: 100%;
   padding: 0.5rem 0.75rem;
@@ -119,7 +129,8 @@
   align-items: center;
   gap: 0.5rem;
   min-width: 0;
-  overflow-wrap: anywhere;
+  /* a whole name widens the column and the table scrolls inside its region */
+  overflow-wrap: break-word;
 }
 
 .leaderboard .leaderboard__avatar {

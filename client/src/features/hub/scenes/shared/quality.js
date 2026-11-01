@@ -5,11 +5,12 @@ import { getDeviceCheck } from '../../deviceCheck.js';
 // npcRigs: animated rigs for the townsfolk, otherwise static meshes
 // wanderers: how many street wanderers are cast, the original three first
 // backdrop is the scenery south and west of the district: full builds every row, lite the nearest two
+// platescale shrinks the skyline pictures before upload
 const TIERS = {
-  desktop: { name: 'desktop', desktop: true, mirror: true, mirrorRatio: 0.5, shadowSize: 1536, cascades: 2, post: true, bloomKernel: 64, crowd: 1, renderScale: 1.5, fpsCap: 0, barges: 3, moored: 6, workers: 8, gulls: 9, npcRigs: true, wanderers: 6, chimneySmoke: 30, funnelSmoke: 18, backdrop: 'full', backdropSmoke: 14 },
-  compact: { name: 'compact', desktop: false, mirror: false, mirrorRatio: 0.35, shadowSize: 1024, cascades: 2, post: true, bloomKernel: 32, crowd: 0.5, renderScale: 1.5, fpsCap: 0, barges: 2, moored: 3, workers: 4, gulls: 5, npcRigs: false, wanderers: 6, chimneySmoke: 12, funnelSmoke: 8, backdrop: 'full', backdropSmoke: 0 },
+  desktop: { name: 'desktop', desktop: true, mirror: true, mirrorRatio: 0.5, shadowSize: 1536, cascades: 2, post: true, bloomKernel: 64, crowd: 1, renderScale: 1.5, fpsCap: 0, barges: 3, moored: 6, workers: 8, gulls: 9, npcRigs: true, wanderers: 6, chimneySmoke: 30, funnelSmoke: 18, backdrop: 'full', backdropSmoke: 14, plateScale: 1 },
+  compact: { name: 'compact', desktop: false, mirror: false, mirrorRatio: 0.35, shadowSize: 1024, cascades: 2, post: true, bloomKernel: 32, crowd: 0.5, renderScale: 1.5, fpsCap: 0, barges: 2, moored: 3, workers: 4, gulls: 5, npcRigs: false, wanderers: 6, chimneySmoke: 12, funnelSmoke: 8, backdrop: 'full', backdropSmoke: 0, plateScale: 0.75 },
   // no mirror, no shadows, tone mapping only, rendered at 0.75 scale and capped at 30 fps
-  low: { name: 'low', desktop: false, mirror: false, mirrorRatio: 0.35, shadowSize: 0, cascades: 0, post: false, bloomKernel: 0, crowd: 0.25, renderScale: 0.75, fpsCap: 30, barges: 1, moored: 2, workers: 2, gulls: 3, npcRigs: false, wanderers: 3, chimneySmoke: 0, funnelSmoke: 6, backdrop: 'lite', backdropSmoke: 0 },
+  low: { name: 'low', desktop: false, mirror: false, mirrorRatio: 0.35, shadowSize: 0, cascades: 0, post: false, bloomKernel: 0, crowd: 0.25, renderScale: 0.75, fpsCap: 30, barges: 1, moored: 2, workers: 2, gulls: 3, npcRigs: false, wanderers: 3, chimneySmoke: 0, funnelSmoke: 6, backdrop: 'lite', backdropSmoke: 0, plateScale: 0.5 },
 };
 
 export const GRAPHICS_TO_TIER = { high: 'desktop', medium: 'compact', low: 'low' };

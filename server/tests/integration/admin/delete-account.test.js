@@ -463,14 +463,17 @@ describe.skipIf(process.env.SHARLOCK_TEST_REPLICA_SET !== '1')(
       const roster = await admin.agent
         .get(`/api/cohorts/${cohort._id}/memberships`)
         .set('Origin', origin)
+        .expect(200)
       expect(JSON.stringify(roster.body)).not.toContain(targetId)
       const games = await viewerSession.agent
         .get(`/api/cohorts/${cohort._id}/leaderboard/games`)
         .set('Origin', origin)
+        .expect(200)
       expect(JSON.stringify(games.body)).not.toContain(targetId)
       const results = await admin.agent
         .get(`/api/cohorts/${cohort._id}/results`)
         .set('Origin', origin)
+        .expect(200)
       expect(JSON.stringify(results.body)).not.toContain(targetId)
     })
 

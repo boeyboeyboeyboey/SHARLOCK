@@ -50,6 +50,11 @@ test.beforeEach(async ({ page }) => {
   await page.route('https://static.guim.co.uk/**', (route) => route.abort())
 })
 
+// the search sits behind a disclosure on narrow screens only, so the viewport says which it is
+async function revealSearch(page) {
+  if (page.viewportSize().width < 768) await page.getByText('Browse & search').click()
+}
+
 async function feed(page, callback = () => {}) {
   await page.route('**/api/news**', (route) => {
     const url = new URL(route.request().url())
@@ -83,7 +88,7 @@ test('opens the newspaper directly and preserves town camera, focus, audio and h
   await expect(dialog).toBeVisible()
   await expect(page).toHaveURL(/\/games\/threat-briefing$/)
   await expect(dialog.getByRole('heading', { name: 'The Sharlock Times' })).toBeFocused()
-  await expect(dialog.locator('.gazette-article')).toHaveCount(10)
+  await expect(dialog.getByRole('article')).toHaveCount(10)
   await page.keyboard.press('Shift+Tab')
   await expect
     .poll(() =>
@@ -105,6 +110,46 @@ test('opens the newspaper directly and preserves town camera, focus, audio and h
   await expect(page).toHaveURL('/')
 })
 
+test('credits the publisher on every live story and in the footer', async ({ page }) => {
+  await feed(page)
+  await page.goto('/games/threat-briefing')
+  const dialog = page.getByRole('dialog', { name: 'The Sharlock Times' })
+  const stories = dialog.getByRole('article')
+  await expect(stories).toHaveCount(10)
+  for (const story of await stories.all()) {
+    await expect(story).toContainText('THE GUARDIAN')
+    await expect(story.getByRole('link', { name: /Read at The Guardian/ })).toHaveAttribute(
+      'target',
+      '_blank',
+    )
+  }
+  const footer = dialog.getByRole('link', { name: /Powered by The Guardian/ })
+  await expect(footer).toHaveAttribute('href', 'https://www.theguardian.com')
+  await expect(footer).toHaveAttribute('target', '_blank')
+  await expect(dialog.getByTestId('news-sample-label')).toHaveCount(0)
+})
+
+// no mock here: the e2e server runs with no key, so this is the path a fresh clone takes
+test('with no news key the real server gives a clearly labelled sample edition', async ({
+  page,
+}) => {
+  await page.goto('/games/threat-briefing')
+  const dialog = page.getByRole('dialog', { name: 'The Sharlock Times' })
+  await expect(dialog.getByTestId('news-sample-label')).toHaveText(
+    'Sample edition. These stories are made up for this project. This is not real news.',
+  )
+  const stories = dialog.getByRole('article')
+  await expect(stories.first()).toBeVisible()
+  await expect(stories.first()).toContainText('SAMPLE STORY, NOT REAL NEWS')
+  await expect(dialog.getByRole('article').getByRole('link')).toHaveCount(0)
+  await expect(dialog).not.toContainText(/guardian/i)
+  await expect(page.getByRole('img', { name: 'Powered by The Guardian' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Technology', exact: true }).click()
+  await expect(dialog.getByRole('article').first()).toContainText('SAMPLE STORY, NOT REAL NEWS')
+  await page.getByRole('button', { name: 'Close newspaper' }).click()
+  await expect(page).toHaveURL('/')
+})
+
 test('shares sections and filters while local search and pagination spend no requests', async ({
   page,
 }) => {
@@ -112,24 +157,23 @@ test('shares sections and filters while local search and pagination spend no req
   await feed(page, (url) => requests.push(url.search))
   await page.goto('/games/threat-briefing')
   const dialog = page.getByRole('dialog', { name: 'The Sharlock Times' })
-  await expect(dialog.locator('.gazette-article')).toHaveCount(10)
+  await expect(dialog.getByRole('article')).toHaveCount(10)
   await page.getByRole('button', { name: 'Newspaper page 2', exact: true }).click()
   await expect(
     dialog.getByRole('heading', { name: 'Synthetic cybersecurity headline 11', exact: false }),
   ).toBeVisible()
-  if (!(await page.getByLabel('Search this edition').isVisible()))
-    await page.locator('.gazette-browse summary').click()
+  await revealSearch(page)
   await page.getByLabel('Search this edition').fill('passkey')
-  await expect(dialog.locator('.gazette-article')).toHaveCount(1)
+  await expect(dialog.getByRole('article')).toHaveCount(1)
   await expect(page).toHaveURL(/q=passkey/)
   expect(requests).toHaveLength(1)
   await page.getByLabel('Search this edition').fill('')
   await expect(page).not.toHaveURL(/[?&]q=/)
   await page.getByRole('button', { name: 'Technology', exact: true }).click()
-  await expect(dialog.locator('.gazette-article').first()).toContainText('Synthetic technology')
+  await expect(dialog.getByRole('article').first()).toContainText('Synthetic technology')
   await page.getByRole('combobox', { name: 'Edition', exact: true }).selectOption('month')
   await expect(page).toHaveURL(/section=technology&range=month/)
-  await expect(dialog.locator('.gazette-article')).toHaveCount(10)
+  await expect(dialog.getByRole('article')).toHaveCount(10)
   expect(requests).toHaveLength(3)
   const articleLink = dialog.getByRole('link', { name: /Read at The Guardian/ }).first()
   await expect(articleLink).toHaveAttribute('target', '_blank')
@@ -166,7 +210,7 @@ test('shows failures, permits retry, and explains empty and stale editions', asy
   })
   await page.goto('/games/threat-briefing')
   await expect(
-    page.getByRole('dialog', { name: 'The Sharlock Times' }).locator('.gazette-status'),
+    page.getByRole('dialog', { name: 'The Sharlock Times' }).getByRole('status'),
   ).toContainText('temporarily unavailable')
   mode = 'empty'
   const retry = page.getByRole('button', { name: 'Try again' })
@@ -176,10 +220,10 @@ test('shows failures, permits retry, and explains empty and stale editions', asy
   mode = 'stale'
   await page.reload()
   await expect(
-    page.getByRole('dialog', { name: 'The Sharlock Times' }).locator('.gazette-status'),
+    page.getByRole('dialog', { name: 'The Sharlock Times' }).getByRole('status'),
   ).toContainText('cached edition')
   await expect(
-    page.getByRole('dialog', { name: 'The Sharlock Times' }).locator('.gazette-status'),
+    page.getByRole('dialog', { name: 'The Sharlock Times' }).getByRole('status'),
   ).toContainText('Some stories')
 })
 
@@ -207,7 +251,7 @@ test('fits newspaper layouts and provides visible focus at supported widths', as
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('/games/threat-briefing')
   const dialog = page.getByRole('dialog', { name: 'The Sharlock Times' })
-  await expect(dialog.locator('.gazette-article')).toHaveCount(10)
+  await expect(dialog.getByRole('article')).toHaveCount(10)
   for (const width of [375, 576, 767, 768, 992, 1200, 1440]) {
     await page.setViewportSize({ width, height: 900 })
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
@@ -225,9 +269,9 @@ test('fits newspaper layouts and provides visible focus at supported widths', as
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   }
   await page.setViewportSize({ width: 667, height: 375 })
-  await page.locator('.owasp-risks summary').last().click()
+  await dialog.getByRole('tabpanel', { name: 'OWASP Top 10' }).locator('summary').last().click()
   await expect(page.getByRole('button', { name: 'Close newspaper' })).toBeInViewport()
-  await expect(page.locator('.gazette-sound')).toBeInViewport()
+  await expect(page.getByRole('button', { name: /newspaper sound/ })).toBeInViewport()
 })
 
 test('opens the OWASP reference without news requests and preserves news filters across accessible tabs', async ({
@@ -267,9 +311,7 @@ test('opens the OWASP reference without news requests and preserves news filters
   await expect(owaspTab).toHaveAttribute('aria-selected', 'true')
   await page.keyboard.press('Enter')
   await expect(newsTab).toHaveAttribute('aria-selected', 'true')
-  await expect(page.locator('.gazette-article').first()).toContainText(
-    'Synthetic technology headline 11',
-  )
+  await expect(page.getByRole('article').first()).toContainText('Synthetic technology headline 11')
   expect(requests).toEqual(['?section=technology&range=month'])
   await page.keyboard.press('End')
   await expect(owaspTab).toBeFocused()
@@ -290,8 +332,9 @@ test('plays the supplied newspaper loop, keeps one player across tabs and restor
   await page.goto('/')
   const townAudio = page.locator('.town-audio audio')
   // autoplay may be blocked until the first interaction
-  const mute = page.getByRole('button', { name: 'Mute town sound' })
-  if (!(await mute.isVisible())) await page.mouse.click(1, 1)
+  const mute = page.getByRole('button', { name: 'Town sound', pressed: true })
+  await page.getByTestId('town-player').waitFor()
+  await page.mouse.click(1, 1)
   await expect(mute).toBeVisible()
   await expect.poll(() => townAudio.evaluate((el) => !el.paused && !el.muted)).toBe(true)
   await jumpToBuilding(page, 'threat-briefing')
@@ -365,7 +408,7 @@ test('recovers from blocked autoplay and keeps the reference readable when audio
   await page.keyboard.press('Escape')
   await expect(page).toHaveURL('/')
   await expect(page.locator('.town-audio audio')).toHaveCount(1)
-  await expect(page.getByRole('button', { name: /^(Turn on|Mute) town sound$/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Town sound' })).toBeVisible()
 })
 
 test.describe('the Times on a phone', () => {
@@ -381,7 +424,7 @@ test.describe('the Times on a phone', () => {
     ).toBeVisible()
     await expect(times.getByText('INDEPENDENT CURIOSITY · SHARLOCK TOWN')).toBeHidden()
     await expect(times.getByText('FREE TO EXPLORE')).toBeHidden()
-    await expect(times.locator('.gazette-status')).toContainText(/Updated .+ SGT · next /)
+    await expect(times.getByRole('status')).toContainText(/Updated .+ SGT · next /)
 
     for (const link of await times.getByRole('heading', { level: 2 }).getByRole('link').all()) {
       const box = await link.boundingBox()
@@ -401,7 +444,8 @@ test.describe('the Times on a phone', () => {
 
     // wider lines fit most headlines on one line, the shortest target case
     for (const link of await times.getByRole('heading', { level: 2 }).getByRole('link').all()) {
-      expect((await link.boundingBox()).height).toBeGreaterThanOrEqual(44)
+      // a sub-pixel layout can report 43.9999 for a 44 px target
+      expect((await link.boundingBox()).height).toBeGreaterThanOrEqual(43.99)
     }
   })
 })

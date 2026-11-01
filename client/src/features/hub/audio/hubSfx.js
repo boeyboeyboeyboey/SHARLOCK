@@ -9,6 +9,7 @@ export const HISS_GAP = [7, 15]
 const GESTURES = ['pointerdown', 'keydown', 'touchstart']
 const FOOT_GAIN = 0.07
 const HISS_GAIN = 0.03
+const MUTE_CHECK_S = 0.25
 
 export function stepInterval(speed) {
   return speed < MIN_STEP_SPEED ? Infinity : STRIDE / speed
@@ -96,6 +97,9 @@ export function createHubSfx({
   let hissBuf = null
   let alt = 1
   let disposed = false
+  let muted = null
+  let pausedNow = false
+  let muteAge = 0
 
   function ensure() {
     if (ctx || disposed) return
@@ -154,7 +158,14 @@ export function createHubSfx({
     // speed in m/s, called once a frame
     update(dt, { x, z, speed, grounded, paused }) {
       if (disposed) return
-      const silent = paused || isMuted() || !ctx || ctx.state !== 'running'
+      // storage is read a few times a second, not on every frame
+      muteAge += dt
+      if (muted === null || muteAge >= MUTE_CHECK_S) {
+        muted = isMuted()
+        muteAge = 0
+      }
+      pausedNow = Boolean(paused)
+      const silent = paused || muted || !ctx || ctx.state !== 'running'
       if (clock.step(dt, { speed, grounded, silent })) playStep(speed)
       const level = clock.hiss(dt, {
         distance: silent ? Infinity : nearestLamp(spots, x, z),
@@ -162,6 +173,7 @@ export function createHubSfx({
       })
       if (level > 0) playHiss(level)
     },
+    isPaused: () => pausedNow,
     dispose() {
       if (disposed) return
       disposed = true

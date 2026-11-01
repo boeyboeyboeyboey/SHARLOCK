@@ -1,7 +1,7 @@
-// bounded teaching parser for sql-2: it never runs SQL and never touches a database.
+// bounded teaching parser for sql-2 and sql-3: it never runs sql and never touches a database;
 // each case builds a query string from fixed text plus the player's raw input, the string is
 // tokenised under an allowlist and the resulting condition is evaluated in memory against a
-// fictional table made of synthetic rows. anything outside the grammar stops with a code.
+// fictional table made of synthetic rows. anything outside the grammar stops with a code
 
 const MAX_TOKENS = 48
 const MAX_LITERAL = 80
@@ -30,6 +30,7 @@ export class SqlStop extends Error {
 
 const syntax = (detail) => new SqlStop('SYNTAX_ERROR', detail)
 const unsupported = (detail) => new SqlStop('UNSUPPORTED', detail)
+const stacked = () => new SqlStop('STACKED_NOT_RUN', 'stacked statement')
 
 export function tokenise(text) {
   const tokens = []
@@ -76,6 +77,10 @@ export function tokenise(text) {
     } else if (PUNCTUATION.has(rest[0])) {
       tokens.push({ t: 'p', v: rest[0] })
       cursor += 1
+    } else if (rest[0] === ';') {
+      // nothing but space or a comment after it only ends the statement; anything else is a second one
+      if (/^;\s*(?:(?:--|#).*)?$/s.test(rest)) break
+      throw stacked()
     } else if (rest[0] === '%') throw syntax('leftover pattern')
     else throw unsupported('character')
     if (tokens.length > MAX_TOKENS) throw unsupported('length')
@@ -138,17 +143,60 @@ function valueOf(side, row) {
   return String(row[side.col]).slice(side.at - 1, side.at)
 }
 
+// the folding of a case-insensitive regex: one character stays one, so ß never matches ss
+function foldCharacter(character) {
+  const upper = character.toUpperCase()
+  if (upper.length !== 1) return character
+  return character.charCodeAt(0) >= 128 && upper.charCodeAt(0) < 128 ? character : upper
+}
+
+const foldText = (value) => value.split('').map(foldCharacter)
+
+// % matches any run and _ any one character. a player can type both sides, so retrying only from
+// the last % keeps the work at subject length times pattern length for any input
+export function likeMatches(subject, pattern, onStep = () => {}) {
+  const text = foldText(subject)
+  const wild = foldText(pattern)
+  let textAt = 0
+  let wildAt = 0
+  let lastPercent = -1
+  let resumeAt = 0
+  while (textAt < text.length) {
+    onStep()
+    if (wild[wildAt] === '%') {
+      lastPercent = wildAt
+      resumeAt = textAt
+      wildAt += 1
+    } else if (wildAt < wild.length && (wild[wildAt] === '_' || wild[wildAt] === text[textAt])) {
+      textAt += 1
+      wildAt += 1
+    } else if (lastPercent >= 0) {
+      resumeAt += 1
+      textAt = resumeAt
+      wildAt = lastPercent + 1
+    } else return false
+  }
+  while (wild[wildAt] === '%') wildAt += 1
+  return wildAt === wild.length
+}
+
+// a number against a string that holds a number compares as numbers, so 10 > '9' holds
+function numericPair(a, b) {
+  const numeric = (value) =>
+    typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value
+  if (typeof a !== 'number' && typeof b !== 'number') return null
+  const pair = [numeric(a), numeric(b)]
+  return pair.every((value) => typeof value === 'number') ? pair : null
+}
+
 function compare(a, op, b) {
   if (a === null || b === null || a === undefined || b === undefined) return false
-  if (op === 'LIKE') {
-    const pattern = String(b)
-      .split('%')
-      .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-      .join('.*')
-    return new RegExp(`^${pattern}$`, 'is').test(String(a))
+  if (op === 'LIKE') return likeMatches(String(a), String(b))
+  const numbers = numericPair(a, b)
+  if (numbers) {
+    const [x, y] = numbers
+    return op === '=' ? x === y : op === '<' ? x < y : x > y
   }
-  if (typeof a === 'number' && typeof b === 'number')
-    return op === '=' ? a === b : op === '<' ? a < b : a > b
   const left = String(a).toUpperCase()
   const right = String(b).toUpperCase()
   return op === '=' ? left === right : op === '<' ? left < right : left > right
@@ -160,8 +208,11 @@ function matches(groups, row) {
   )
 }
 
-const usesSubstring = (groups) =>
-  groups.flat().some((atom) => atom.left.k === 'sub' || atom.right.k === 'sub')
+const substringsIn = (groups) =>
+  groups
+    .flat()
+    .flatMap((atom) => [atom.left, atom.right])
+    .filter((side) => side.k === 'sub')
 
 // indexes of the rows whose condition holds, for a tail that must be one complete condition
 function runWhere(tail, rows, allowSubstring = false) {
@@ -171,7 +222,7 @@ function runWhere(tail, rows, allowSubstring = false) {
   checkColumns(groups, Object.keys(rows[0]))
   return {
     matched: rows.flatMap((row, index) => (matches(groups, row) ? [index] : [])),
-    sub: usesSubstring(groups),
+    subs: substringsIn(groups),
   }
 }
 
@@ -271,11 +322,13 @@ export function runBlind(model, inputs) {
       [model.col]: crate,
       [model.hiddenCol]: model.hiddenValue,
     }))
-    const { matched, sub } = runWhere(`${model.col} = '${input}'`, rows, true)
+    const { matched, subs } = runWhere(`${model.col} = '${input}'`, rows, true)
     return {
       code: matched.length ? 'YES' : 'NO',
       injected: quoted(inputs),
-      sub,
+      sub: subs.length > 0,
+      // the question asks about the first letter of the hidden column, so only that is evidence
+      firstLetterProbe: subs.some((side) => side.col === model.hiddenCol && side.at === 1),
       startsKnown: input.toUpperCase().startsWith(model.known.toUpperCase()),
     }
   })

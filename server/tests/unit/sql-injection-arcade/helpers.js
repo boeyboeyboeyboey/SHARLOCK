@@ -34,12 +34,12 @@ export function solutionFor(c) {
   return [act('choose-fix', { optionId: c.private.repair.correctId })]
 }
 
-// one try that is rejected as unsupported syntax, valid for any non-repair case
+// one try that fails and counts as a slip, valid for any non-repair case except second-order
 export function junkAction(c) {
   const { caseId } = c.public
   const { kind } = c.private
   if (kind === 'second-order') return null
-  const inputs = kind === 'login-tautology' || kind === 'login-comment' ? [';', ';'] : [';']
+  const inputs = kind === 'login-tautology' || kind === 'login-comment' ? ['*', '*'] : ['*']
   return { type: 'attempt', payload: { caseId, inputs } }
 }
 

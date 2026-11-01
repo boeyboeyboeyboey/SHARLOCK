@@ -3,6 +3,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { useAuthStore } from '../store.js'
+import { toSafeAuthError } from '../api.js'
 import LoginForm from '../components/LoginForm.vue'
 import RegisterForm from '../components/RegisterForm.vue'
 import AvatarPicker from '../components/AvatarPicker.vue'
@@ -11,7 +12,7 @@ import RegisterPage from '../pages/RegisterPage.vue'
 
 const authRequests = vi.hoisted(() => ({
   requestCsrfToken: vi.fn(),
-  requestCurrentUser: vi.fn(),
+  requestSession: vi.fn(),
   requestLogin: vi.fn(),
   requestLogout: vi.fn(),
   requestRegistration: vi.fn(),
@@ -77,7 +78,7 @@ beforeEach(() => {
 describe('auth store', () => {
   it('deduplicates forced restoration and keeps only the public user DTO', async () => {
     let resolveCurrentUser
-    authRequests.requestCurrentUser.mockReturnValue(
+    authRequests.requestSession.mockReturnValue(
       new Promise((resolve) => {
         resolveCurrentUser = resolve
       }),
@@ -88,8 +89,8 @@ describe('auth store', () => {
     const first = auth.restoreSession({ force: true })
     const second = auth.restoreSession({ force: true })
     expect(auth.status).toBe('loading')
-    expect(authRequests.requestCurrentUser).toHaveBeenCalledTimes(1)
-    resolveCurrentUser(account)
+    expect(authRequests.requestSession).toHaveBeenCalledTimes(1)
+    resolveCurrentUser({ user: account })
 
     const restored = await Promise.all([first, second])
     expect(restored[0]).toEqual({
@@ -111,7 +112,7 @@ describe('auth store', () => {
   it('keeps the current identity visible during a forced session check', async () => {
     authRequests.requestCsrfToken.mockResolvedValue('anonymous-token')
     let resolveCurrentUser
-    authRequests.requestCurrentUser.mockReturnValue(
+    authRequests.requestSession.mockReturnValue(
       new Promise((resolve) => {
         resolveCurrentUser = resolve
       }),
@@ -122,7 +123,7 @@ describe('auth store', () => {
     const restoring = auth.restoreSession({ force: true })
     expect(auth.status).toBe('authenticated')
     expect(auth.user.username).toBe(account.username)
-    resolveCurrentUser(account)
+    resolveCurrentUser({ user: account })
     await expect(restoring).resolves.toMatchObject({ username: account.username })
   })
 
@@ -227,7 +228,8 @@ describe('auth store', () => {
     expect(authRequests.requestResendVerification).toHaveBeenCalledWith('pending-token')
     expect(auth.pendingVerification).toEqual(later)
 
-    auth.cancelVerification()
+    authRequests.requestLogout.mockResolvedValue()
+    await auth.cancelVerification()
     expect(auth.pendingVerification).toBeNull()
     await expect(auth.resendVerification()).resolves.toBeNull()
   })
@@ -246,10 +248,29 @@ describe('auth store', () => {
     expect(auth.status).not.toBe('authenticated')
   })
 
-  it('refreshes a rejected CSRF token without replaying the sign-in POST', async () => {
+  it('replays a sign-in once with a fresh token after the short anonymous session lapsed', async () => {
     authRequests.requestCsrfToken
       .mockResolvedValueOnce('stale-token')
       .mockResolvedValueOnce('fresh-token')
+    authRequests.requestLogin
+      .mockRejectedValueOnce(rejectedAuth('CSRF_INVALID', 403))
+      .mockResolvedValueOnce({ user: account, csrfToken: 'signed-in-token' })
+    const auth = useAuthStore()
+
+    const payload = { identifier: 'detective@example.test', password: 'Correct-Horse-🔒-2026' }
+    await expect(auth.login(payload)).resolves.toMatchObject({ username: account.username })
+
+    expect(authRequests.requestLogin).toHaveBeenCalledTimes(2)
+    expect(authRequests.requestLogin).toHaveBeenNthCalledWith(1, payload, 'stale-token')
+    expect(authRequests.requestLogin).toHaveBeenNthCalledWith(2, payload, 'fresh-token')
+    expect(auth.requestError).toBeNull()
+  })
+
+  it('stops after one replay and reports a security check that keeps failing', async () => {
+    authRequests.requestCsrfToken
+      .mockResolvedValueOnce('stale-token')
+      .mockResolvedValueOnce('fresh-token')
+      .mockResolvedValueOnce('newest-token')
     authRequests.requestLogin.mockRejectedValue(rejectedAuth('CSRF_INVALID', 403))
     const auth = useAuthStore()
 
@@ -257,13 +278,8 @@ describe('auth store', () => {
       auth.login({ identifier: 'detective@example.test', password: 'Correct-Horse-🔒-2026' }),
     ).rejects.toMatchObject({ code: 'CSRF_INVALID' })
 
-    expect(authRequests.requestLogin).toHaveBeenCalledTimes(1)
-    expect(authRequests.requestLogin).toHaveBeenCalledWith(
-      { identifier: 'detective@example.test', password: 'Correct-Horse-🔒-2026' },
-      'stale-token',
-    )
-    expect(authRequests.requestCsrfToken).toHaveBeenCalledTimes(2)
-    expect(auth.csrfToken).toBe('fresh-token')
+    expect(authRequests.requestLogin).toHaveBeenCalledTimes(2)
+    expect(auth.csrfToken).toBe('newest-token')
     expect(auth.requestError.message).toBe(
       'Your security check expired. Review the form and try again.',
     )
@@ -272,7 +288,7 @@ describe('auth store', () => {
 
   it('ignores a restoration response that arrives after local invalidation', async () => {
     let resolveCurrentUser
-    authRequests.requestCurrentUser.mockReturnValue(
+    authRequests.requestSession.mockReturnValue(
       new Promise((resolve) => {
         resolveCurrentUser = resolve
       }),
@@ -280,7 +296,7 @@ describe('auth store', () => {
     const auth = useAuthStore()
     const restoring = auth.restoreSession({ force: true })
     auth.invalidateSession()
-    resolveCurrentUser(account)
+    resolveCurrentUser({ user: account })
 
     await expect(restoring).resolves.toBeNull()
     expect(auth.status).toBe('anonymous')
@@ -290,7 +306,7 @@ describe('auth store', () => {
 
   it('returns the newer signed-in account when a stale restore finishes after login', async () => {
     let resolveCurrentUser
-    authRequests.requestCurrentUser.mockReturnValue(
+    authRequests.requestSession.mockReturnValue(
       new Promise((resolve) => {
         resolveCurrentUser = resolve
       }),
@@ -302,7 +318,7 @@ describe('auth store', () => {
 
     const restoring = auth.restoreSession({ force: true })
     await auth.login({ identifier: account.email, password: 'Correct-Horse-🔒-2026' })
-    resolveCurrentUser(account)
+    resolveCurrentUser({ user: account })
 
     await expect(restoring).resolves.toMatchObject({
       id: newerAccount.id,
@@ -348,7 +364,7 @@ describe('auth store', () => {
     await expect(auth.restoreSession({ force: true })).rejects.toMatchObject({
       code: 'ACCOUNT_ACTION_PENDING',
     })
-    expect(authRequests.requestCurrentUser).not.toHaveBeenCalled()
+    expect(authRequests.requestSession).not.toHaveBeenCalled()
     finishLogout()
     await signingOut
 
@@ -406,8 +422,172 @@ describe('auth store', () => {
     expect(auth.logoutPending).toBe(false)
   })
 
+  it('treats a signed-out session probe as an answer, not an error', async () => {
+    authRequests.requestSession.mockResolvedValue({ user: null })
+    const auth = useAuthStore()
+
+    await expect(auth.restoreSession({ force: true })).resolves.toBeNull()
+    expect(auth.status).toBe('anonymous')
+    expect(auth.requestError).toBeNull()
+    expect(auth.sessionEnd).toBeNull()
+    expect(authRequests.requestCsrfToken).not.toHaveBeenCalled()
+  })
+
+  it('restores the code screen from a pending session after a refresh', async () => {
+    authRequests.requestSession.mockResolvedValue({
+      user: null,
+      verification: { ...verification, delivery: 'recent' },
+    })
+    const auth = useAuthStore()
+
+    await auth.restoreSession({ force: true })
+    expect(auth.status).toBe('anonymous')
+    expect(auth.pendingVerification).toMatchObject({ email: account.email, delivery: 'recent' })
+  })
+
+  it('remembers why a signed-in session ended', async () => {
+    authRequests.requestCsrfToken.mockResolvedValue('token')
+    const auth = useAuthStore()
+    await registerAndVerify(auth)
+
+    authRequests.requestSession.mockResolvedValueOnce({ user: null })
+    await auth.restoreSession({ force: true })
+    expect(auth.sessionEnd).toBe('expired')
+
+    authRequests.requestSession.mockResolvedValueOnce({ user: null, sessionEnded: 'replaced' })
+    await auth.restoreSession({ force: true })
+    expect(auth.sessionEnd).toBe('elsewhere')
+    expect(auth.user).toBeNull()
+
+    authRequests.requestLogin.mockResolvedValue({ user: account, csrfToken: 'again' })
+    await auth.login({ identifier: account.email, password: 'Correct-Horse-🔒-2026' })
+    expect(auth.sessionEnd).toBeNull()
+  })
+
+  it('counts the resend wait from the server value, not the device clock', async () => {
+    vi.useFakeTimers({ now: new Date('2030-01-01T00:00:00.000Z') })
+    try {
+      authRequests.requestCsrfToken.mockResolvedValue('token')
+      authRequests.requestRegistration.mockResolvedValue({
+        // the device clock is years ahead of this absolute time
+        verification: { ...verification, resendInSeconds: 30 },
+        csrfToken: 'pending-token',
+      })
+      const auth = useAuthStore()
+      await auth.register({
+        email: account.email,
+        username: account.username,
+        password: 'Correct-Horse-🔒-2026',
+        avatarId: account.avatarId,
+      })
+      expect(auth.pendingVerification.resendAvailableAt).toBe('2030-01-01T00:00:30.000Z')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('ends the pending session on the server when the code screen is cancelled', async () => {
+    authRequests.requestCsrfToken.mockResolvedValue('token')
+    authRequests.requestRegistration.mockResolvedValue({
+      verification,
+      csrfToken: 'pending-token',
+    })
+    authRequests.requestLogout.mockResolvedValue()
+    const auth = useAuthStore()
+    await auth.register({
+      email: account.email,
+      username: account.username,
+      password: 'Correct-Horse-🔒-2026',
+      avatarId: account.avatarId,
+    })
+
+    await auth.cancelVerification()
+    expect(auth.pendingVerification).toBeNull()
+    expect(authRequests.requestLogout).toHaveBeenCalledWith('pending-token')
+    expect(auth.csrfToken).toBeNull()
+  })
+
+  describe('cancelling a pending sign-up', () => {
+    async function pendingSignUp() {
+      authRequests.requestCsrfToken.mockResolvedValue('anonymous-token')
+      authRequests.requestRegistration.mockResolvedValue({
+        verification,
+        csrfToken: 'pending-token',
+      })
+      const auth = useAuthStore()
+      await auth.register({
+        email: account.email,
+        username: account.username,
+        password: 'Correct-Horse-🔒-2026',
+        avatarId: account.avatarId,
+      })
+      return auth
+    }
+
+    it('keeps the code screen and reports it when the sign-up could not be ended', async () => {
+      const auth = await pendingSignUp()
+      authRequests.requestLogout.mockRejectedValue(new Error('offline'))
+      await expect(auth.cancelVerification()).rejects.toBeDefined()
+      expect(auth.pendingVerification).toEqual(verification)
+      expect(auth.requestError?.message).toBeTruthy()
+    })
+
+    it('retries once with a fresh token when the pending session lapsed', async () => {
+      const auth = await pendingSignUp()
+      authRequests.requestLogout
+        .mockRejectedValueOnce(rejectedAuth('CSRF_INVALID', 403))
+        .mockResolvedValueOnce()
+      authRequests.requestCsrfToken.mockResolvedValue('fresh-token')
+      await auth.cancelVerification()
+      expect(authRequests.requestLogout).toHaveBeenLastCalledWith('fresh-token')
+      expect(auth.pendingVerification).toBeNull()
+    })
+
+    it('does not let a session check already in flight bring the code screen back', async () => {
+      const auth = await pendingSignUp()
+      let answer
+      authRequests.requestSession.mockReturnValue(new Promise((resolve) => (answer = resolve)))
+      const restoring = auth.restoreSession({ force: true }).catch(() => null)
+      authRequests.requestLogout.mockResolvedValue()
+      await auth.cancelVerification()
+      answer({ user: null, verification })
+      await restoring
+      expect(auth.pendingVerification).toBeNull()
+    })
+  })
+
+  describe('session checks that must not raise an alert', () => {
+    it('leaves requestError alone when a quiet check cannot reach the server', async () => {
+      const auth = useAuthStore()
+      authRequests.requestSession.mockResolvedValueOnce({ user: account })
+      authRequests.requestCsrfToken.mockResolvedValue('token')
+      await auth.restoreSession()
+      authRequests.requestSession.mockRejectedValueOnce(new Error('offline'))
+      await expect(auth.restoreSession({ force: true, quiet: true })).rejects.toBeDefined()
+      expect(auth.requestError).toBeNull()
+      expect(auth.status).toBe('authenticated')
+    })
+  })
+
+  it('says how long to wait when the server gives a retry time', () => {
+    const limited = (seconds) =>
+      toSafeAuthError(
+        Object.assign(new Error('x'), {
+          response: {
+            status: 429,
+            data: { error: { code: 'RATE_LIMITED' } },
+            headers: { 'retry-after': String(seconds) },
+          },
+        }),
+      )
+    expect(limited(899).message).toBe('Too many attempts. Try again in about 15 minutes.')
+    expect(limited(40).message).toBe('Too many attempts. Try again in a moment.')
+    expect(limited(3599).message).toBe('Too many attempts. Try again in about an hour.')
+    expect(limited(899).retryAfter).toBe(899)
+  })
+
   it('invalidates identity after an authenticated restore returns 401', async () => {
-    authRequests.requestCurrentUser.mockRejectedValue(rejectedAuth('AUTHENTICATION_REQUIRED', 401))
+    authRequests.requestSession.mockRejectedValue(rejectedAuth('AUTHENTICATION_REQUIRED', 401))
     const auth = useAuthStore()
 
     await expect(auth.restoreSession({ force: true })).resolves.toBeNull()

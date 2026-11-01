@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   formatCommand,
   parseCommand,
@@ -406,8 +406,8 @@ describe('cli defender service', () => {
     const paused = service.pauseRun(RUN_ID)
     expect(paused.paused).toBe(true)
     expect(paused.current.alert).toBeNull()
-    // far longer than the whole shift passes while paused
-    clock.now += 5 * 60 * 1000
+    // inside the pause budget nothing moves
+    clock.now += 25 * 1000
     expect(service.getRun(RUN_ID)).toMatchObject({ paused: true, resolvedCount: 0 })
     expectCliError(() => send(service, started, answersFor(started)[0]), 'CLI_RUN_PAUSED')
     const resumed = service.resumeRun(RUN_ID)
@@ -526,7 +526,10 @@ describe('cli defender service', () => {
     expect(second.hint).toMatchObject({ tier: 2, concept: scenario.hintConcept })
     expect(second.current).toMatchObject({ hintTier: 2, hintConcept: scenario.hintConcept })
     // the concept never carries the worked answer
-    for (const step of scenario.steps) expect(second.hint.concept).not.toContain(step.command)
+    for (const step of scenario.steps) {
+      expect(second.hint.concept).not.toContain(formatCommand(step.verb, step.target))
+      expect(second.hint.concept).not.toContain(step.target)
+    }
     expectCliError(
       () => service.hintRun(RUN_ID, { incidentId: 'incident-01' }),
       'CLI_HINT_EXHAUSTED',
@@ -540,6 +543,249 @@ describe('cli defender service', () => {
     service.startRun({ mode: 'practice' })
     clock.now += 10 * 60 * 1000 + 1
     expectCliError(() => service.getRun(RUN_ID), 'CLI_RUN_NOT_FOUND')
+  })
+})
+
+describe('holding the clock for a leave dialog', () => {
+  const hold = (service) => service.pauseRun(RUN_ID, undefined, { forLeave: true })
+
+  it('spends no pause and hides the alert like a pause', () => {
+    const { clock, service } = setup()
+    const started = service.startRun({ mode: 'timed' })
+    const held = hold(service)
+    expect(held.paused).toBe(true)
+    expect(held.heldForLeave).toBe(true)
+    expect(held.current.alert).toBeNull()
+    expect(held.pauseBudget).toEqual({ pausesLeft: 2, msLeft: 30_000, leaveHoldMsLeft: 30_000 })
+    clock.now += 10_000
+    expect(service.getRun(RUN_ID).serverNow).toBe(started.serverNow)
+    const resumed = service.resumeRun(RUN_ID)
+    expect(resumed.pauseBudget).toEqual({ pausesLeft: 2, msLeft: 30_000, leaveHoldMsLeft: 20_000 })
+    expect(resumed.current.closesAt).toBe(started.current.closesAt)
+  })
+
+  it('stops holding at the fixed total, then refuses another hold', () => {
+    const { clock, service } = setup()
+    const started = service.startRun({ mode: 'timed' })
+    hold(service)
+    clock.now += 34_000
+    // past the total the game clock runs again, so this cannot become an unlimited pause
+    expect(service.getRun(RUN_ID).serverNow).toBe(started.serverNow + 4000)
+    expect(service.resumeRun(RUN_ID).pauseBudget.leaveHoldMsLeft).toBe(0)
+    expectCliError(() => hold(service), 'CLI_PAUSE_UNAVAILABLE')
+    expect(service.getRun(RUN_ID).paused).toBe(false)
+    // the player's own pauses are untouched
+    expect(service.pauseRun(RUN_ID).pauseBudget).toMatchObject({ pausesLeft: 1, msLeft: 30_000 })
+  })
+
+  it('adds the hold to the player pauses only for game time, not their budget', () => {
+    const { clock, service } = setup()
+    const started = service.startRun({ mode: 'timed' })
+    service.pauseRun(RUN_ID)
+    clock.now += 5000
+    service.resumeRun(RUN_ID)
+    hold(service)
+    clock.now += 5000
+    service.resumeRun(RUN_ID)
+    expect(service.getRun(RUN_ID).serverNow).toBe(started.serverNow)
+    expect(service.getRun(RUN_ID).pauseBudget).toEqual({
+      pausesLeft: 1,
+      msLeft: 25_000,
+      leaveHoldMsLeft: 25_000,
+    })
+  })
+})
+
+describe('timed pause budget', () => {
+  it('allows two pauses and refuses a third, keeping the clock running', () => {
+    const { clock, service } = setup()
+    const started = service.startRun({ mode: 'timed' })
+    expect(started.pauseBudget).toMatchObject({ pausesLeft: 2, msLeft: 30_000 })
+    expect(service.pauseRun(RUN_ID).pauseBudget).toMatchObject({ pausesLeft: 1, msLeft: 30_000 })
+    clock.now += 5000
+    expect(service.resumeRun(RUN_ID).pauseBudget).toMatchObject({ pausesLeft: 1, msLeft: 25_000 })
+    service.pauseRun(RUN_ID)
+    clock.now += 5000
+    expect(service.resumeRun(RUN_ID).pauseBudget).toMatchObject({ pausesLeft: 0, msLeft: 20_000 })
+    expectCliError(() => service.pauseRun(RUN_ID), 'CLI_PAUSE_UNAVAILABLE')
+    expect(service.getRun(RUN_ID).paused).toBe(false)
+  })
+
+  it('freezes the deadline only up to 30 seconds in total', () => {
+    const { clock, service } = setup()
+    const started = service.startRun({ mode: 'timed' })
+    const closesAt = started.current.closesAt
+    service.pauseRun(RUN_ID)
+    clock.now += 30_000
+    // the budget is spent exactly here, so the game clock has not moved yet
+    expect(service.getRun(RUN_ID).serverNow).toBe(started.serverNow)
+    clock.now += 4000
+    const over = service.getRun(RUN_ID)
+    expect(over.paused).toBe(true)
+    expect(over.serverNow).toBe(started.serverNow + 4000)
+    expect(over.pauseBudget.msLeft).toBe(0)
+    const resumed = service.resumeRun(RUN_ID)
+    expect(resumed.paused).toBe(false)
+    expect(resumed.current.closesAt).toBe(closesAt)
+    expect(resumed.serverNow).toBe(started.serverNow + 4000)
+  })
+
+  it('cannot be used to read an alert for minutes and still score the window', () => {
+    const { clock, service } = setup()
+    const started = service.startRun({ mode: 'timed' })
+    service.pauseRun(RUN_ID)
+    // 30 s of budget plus the whole 200 s shift
+    clock.now += 231_000
+    const resumed = service.resumeRun(RUN_ID)
+    expect(resumed.status).toBe('finished')
+    expect(resumed.current).toBeNull()
+    expectCliError(() => send(service, started, answersFor(started)[0]), 'CLI_INCIDENT_CLOSED')
+  })
+
+  it('refuses a new pause once the time is spent even with a pause left', () => {
+    const { clock, service } = setup()
+    service.startRun({ mode: 'timed' })
+    service.pauseRun(RUN_ID)
+    clock.now += 30_000
+    service.resumeRun(RUN_ID)
+    expectCliError(() => service.pauseRun(RUN_ID), 'CLI_PAUSE_UNAVAILABLE')
+  })
+
+  it('leaves practice untouched: no budget and no pausing', () => {
+    const { service } = setup()
+    const started = service.startRun({ mode: 'practice' })
+    expect(started.pauseBudget).toBeNull()
+    expectCliError(() => service.pauseRun(RUN_ID), 'CLI_PAUSE_UNAVAILABLE')
+  })
+})
+
+describe('run store', () => {
+  function storeOf({ maxRuns } = {}) {
+    const clock = { now: 1_000_000 }
+    let id = 0
+    const service = createCliDefenderService({
+      now: () => clock.now,
+      randomInt: () => 0,
+      createId: () => `run-${(id += 1)}`,
+      maxRuns,
+    })
+    return { clock, service }
+  }
+
+  it('keeps every other player when one player starts hundreds of runs', () => {
+    const { service } = storeOf()
+    const victim = service.startRun({ mode: 'practice' }, 'player-a')
+    let last
+    for (let index = 0; index < 600; index += 1)
+      last = service.startRun({ mode: 'practice' }, 'player-b')
+    expect(service.getRun(victim.runId, 'player-a').runId).toBe(victim.runId)
+    expect(service.getRun(last.runId, 'player-b').runId).toBe(last.runId)
+  })
+
+  it('caps a player at three live runs, dropping their least recently used', () => {
+    const { clock, service } = storeOf()
+    const first = service.startRun({ mode: 'practice' }, 'player-a')
+    clock.now += 1000
+    const second = service.startRun({ mode: 'practice' }, 'player-a')
+    clock.now += 1000
+    const third = service.startRun({ mode: 'practice' }, 'player-a')
+    clock.now += 1000
+    // touching the oldest run makes the second the least recently used
+    service.hintRun(first.runId, { incidentId: 'incident-01' }, 'player-a')
+    service.startRun({ mode: 'practice' }, 'player-a')
+    expect(service.getRun(first.runId, 'player-a').runId).toBe(first.runId)
+    expect(service.getRun(third.runId, 'player-a').runId).toBe(third.runId)
+    expectCliError(() => service.getRun(second.runId, 'player-a'), 'CLI_RUN_NOT_FOUND')
+  })
+
+  it('keeps an unsaved finished run over a paused one, whichever was active last', () => {
+    const { clock, service } = storeOf()
+    const finished = service.startRun({ mode: 'practice' }, 'player-a')
+    service.completeRun(finished.runId, { actionId: nextAction() }, 'player-a')
+    clock.now += 1000
+    const paused = service.startRun({ mode: 'timed' }, 'player-a')
+    service.pauseRun(paused.runId, 'player-a')
+    clock.now += 1000
+    const live = service.startRun({ mode: 'practice' }, 'player-a')
+    clock.now += 1000
+    service.startRun({ mode: 'practice' }, 'player-a')
+    // the oldest run is finished and not saved, so it outlasts the paused one
+    expect(service.getRun(finished.runId, 'player-a').runId).toBe(finished.runId)
+    expect(service.getRun(live.runId, 'player-a').runId).toBe(live.runId)
+    expectCliError(() => service.getRun(paused.runId, 'player-a'), 'CLI_RUN_NOT_FOUND')
+  })
+
+  it('never drops a live game when the store is full: it refuses the start with 503', () => {
+    const { service } = storeOf({ maxRuns: 2 })
+    const first = service.startRun({ mode: 'practice' }, 'player-a')
+    const second = service.startRun({ mode: 'practice' }, 'player-b')
+    expectCliError(() => service.startRun({ mode: 'practice' }, 'player-c'), 'CLI_UNAVAILABLE')
+    expect(service.getRun(first.runId, 'player-a').runId).toBe(first.runId)
+    expect(service.getRun(second.runId, 'player-b').runId).toBe(second.runId)
+  })
+
+  it('drops a paused run before a live one when the store is full', () => {
+    const { service } = storeOf({ maxRuns: 2 })
+    const paused = service.startRun({ mode: 'timed' }, 'player-a')
+    const live = service.startRun({ mode: 'practice' }, 'player-b')
+    service.pauseRun(paused.runId, 'player-a')
+    const started = service.startRun({ mode: 'practice' }, 'player-c')
+    expect(service.getRun(live.runId, 'player-b').runId).toBe(live.runId)
+    expect(service.getRun(started.runId, 'player-c').runId).toBe(started.runId)
+    expectCliError(() => service.getRun(paused.runId, 'player-a'), 'CLI_RUN_NOT_FOUND')
+  })
+})
+
+describe('held runs', () => {
+  it('still answers a run paused for 15 minutes, with the clock past its budget', () => {
+    const { clock, service } = setup()
+    service.startRun({ mode: 'timed' })
+    service.pauseRun(RUN_ID)
+    clock.now += 15 * 60 * 1000
+    const back = service.resumeRun(RUN_ID)
+    expect(back.status).toBe('finished')
+    expect(service.completeRun(RUN_ID, { actionId: nextAction() }).status).toBe('completed')
+  })
+
+  it('forgets a paused run after an hour', () => {
+    const { clock, service } = setup()
+    service.startRun({ mode: 'timed' })
+    service.pauseRun(RUN_ID)
+    clock.now += 60 * 60 * 1000 + 1
+    expectCliError(() => service.getRun(RUN_ID), 'CLI_RUN_NOT_FOUND')
+  })
+
+  it('lets a failed save be retried after 11 minutes, and forgets it after an hour', async () => {
+    const { clock, service } = setup()
+    const attempts = { recordCompletedAttempt: vi.fn() }
+    service.startRun({ mode: 'practice' }, 'owner')
+    attempts.recordCompletedAttempt.mockRejectedValueOnce(
+      Object.assign(new Error('no class'), { name: 'AttemptError', code: 'X' }),
+    )
+    const failed = await service.completeAndRecord(
+      RUN_ID,
+      { actionId: nextAction() },
+      'owner',
+      attempts,
+    )
+    expect(failed.saved).toBe(false)
+    clock.now += 11 * 60 * 1000
+    attempts.recordCompletedAttempt.mockResolvedValueOnce({
+      attemptId: 'a1',
+      score: 0,
+      maxScore: 2700,
+      persisted: true,
+      context: null,
+    })
+    const retried = await service.completeAndRecord(
+      RUN_ID,
+      { actionId: nextAction() },
+      'owner',
+      attempts,
+    )
+    expect(retried.saved).toBe(true)
+    clock.now += 11 * 60 * 1000
+    expectCliError(() => service.getRun(RUN_ID, 'owner'), 'CLI_RUN_NOT_FOUND')
   })
 })
 
@@ -609,6 +855,20 @@ describe('scenario integrity', () => {
     expect([1, 2, 3].map((tier) => SCENARIOS.filter((item) => item.tier === tier).length)).toEqual([
       5, 7, 4,
     ])
+  })
+
+  it('never names an answer in a hint', () => {
+    for (const scenario of SCENARIOS) {
+      for (const step of scenario.steps) {
+        expect(scenario.hintLookup.endsWith(step.target), scenario.id).toBe(false)
+        expect(scenario.hintConcept, scenario.id).not.toContain(step.target)
+      }
+      // a false alarm's answer has no target, so saying the word gives the whole answer away
+      if (scenario.decoy)
+        expect(scenario.hintConcept, scenario.id).not.toMatch(/dismiss|false alarm/i)
+      // the lookup a hint points to is a real one with something to read
+      expect(scenario.lookups[scenario.hintLookup], scenario.id).toBeTruthy()
+    }
   })
 
   it('only uses documentation or private address space', () => {

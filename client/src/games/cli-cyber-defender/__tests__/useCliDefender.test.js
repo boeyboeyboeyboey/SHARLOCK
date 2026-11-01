@@ -32,6 +32,7 @@ function snapshot(overrides = {}) {
     mode: 'timed',
     status: 'active',
     serverNow: 50_000,
+    pauseBudget: { pausesLeft: 2, msLeft: 30_000 },
     incidentCount: 8,
     resolvedCount: 0,
     current: {
@@ -249,6 +250,36 @@ describe('cli defender composable', () => {
     expect(game.error.value).toBe('Too many requests. Wait a moment.')
   })
 
+  it('holds the clock for a leave dialog from its own total, with no pauses left', async () => {
+    startRun.mockResolvedValue(
+      snapshot({ pauseBudget: { pausesLeft: 0, msLeft: 0, leaveHoldMsLeft: 12_000 } }),
+    )
+    pauseRun.mockResolvedValue(
+      snapshot({
+        paused: true,
+        heldForLeave: true,
+        pauseBudget: { pausesLeft: 0, msLeft: 0, leaveHoldMsLeft: 12_000 },
+      }),
+    )
+    const { game } = harness({ now: 50_000 })
+    await game.start('timed')
+    expect(await game.pause('Deciding.')).toBe(false)
+    expect(await game.pause('Deciding.', { forLeave: true })).toBe(true)
+    await flushPromises()
+    expect(pauseRun).toHaveBeenCalledWith(RUN, expect.any(AbortSignal), { reason: 'leave' })
+    expect(game.pauseSecondsLeft.value).toBe(12)
+  })
+
+  it('does not hold the clock once that total is used up', async () => {
+    startRun.mockResolvedValue(
+      snapshot({ pauseBudget: { pausesLeft: 2, msLeft: 30_000, leaveHoldMsLeft: 0 } }),
+    )
+    const { game } = harness({ now: 50_000 })
+    await game.start('timed')
+    expect(await game.pause('Deciding.', { forLeave: true })).toBe(false)
+    expect(pauseRun).not.toHaveBeenCalled()
+  })
+
   it('auto-pauses a timed shift when the tab is hidden and resumes on request', async () => {
     const clock = { now: 50_000 }
     startRun.mockResolvedValue(snapshot())
@@ -266,11 +297,11 @@ describe('cli defender composable', () => {
     vi.advanceTimersByTime(100)
     setHidden(true)
     await flushPromises()
-    expect(pauseRun).toHaveBeenCalledWith(RUN, expect.any(AbortSignal))
+    expect(pauseRun).toHaveBeenCalledWith(RUN, expect.any(AbortSignal), {})
     expect(game.paused.value).toBe(true)
     expect(game.remainingMs.value).toBe(5000)
-    // no resync or countdown while paused, however long the player is away
-    clock.now = 500_000
+    // no resync or countdown while paused, as long as pause time is left
+    clock.now = 70_000
     vi.advanceTimersByTime(1000)
     expect(fetchRun).not.toHaveBeenCalled()
     expect(game.remainingMs.value).toBe(5000)
@@ -501,5 +532,92 @@ describe('cli defender composable', () => {
     expect(clearSpy).toHaveBeenCalled()
     expect(removeSpy).toHaveBeenCalledWith('visibilitychange', expect.any(Function))
     expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('backs off a failing deadline sync and resets after a success', async () => {
+    const clock = { now: 50_000 }
+    startRun.mockResolvedValue(snapshot())
+    fetchRun.mockRejectedValue(new Error('offline'))
+    const { game } = harness(clock)
+    await game.start('timed')
+    clock.now = 57_000
+    for (let elapsed = 0; elapsed < 5000; elapsed += 100) {
+      clock.now += 100
+      await vi.advanceTimersByTimeAsync(100)
+    }
+    // 1 s, then 2 s, then 4 s apart: never more than one request a second
+    expect(fetchRun.mock.calls.length).toBeLessThanOrEqual(5)
+    expect(fetchRun.mock.calls.length).toBeGreaterThanOrEqual(2)
+    expect(game.error.value).toBe('Lost contact with the terminal. Retrying.')
+  })
+
+  it('stops asking once the session has ended', async () => {
+    const clock = { now: 50_000 }
+    startRun.mockResolvedValue(snapshot())
+    fetchRun.mockRejectedValue({ response: { status: 401 } })
+    const { game } = harness(clock)
+    await game.start('timed')
+    clock.now = 57_000
+    await vi.advanceTimersByTimeAsync(300)
+    const calls = fetchRun.mock.calls.length
+    expect(calls).toBe(1)
+    clock.now += 60_000
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(fetchRun.mock.calls.length).toBe(calls)
+    expect(game.error.value).toBe('Your session ended. Sign in again to play.')
+  })
+
+  it('counts pause time down and resumes by itself when the budget runs out', async () => {
+    const clock = { now: 50_000 }
+    startRun.mockResolvedValue(snapshot())
+    pauseRun.mockResolvedValue(
+      snapshot({ paused: true, pauseBudget: { pausesLeft: 1, msLeft: 30_000 } }),
+    )
+    resumeRun.mockResolvedValue(snapshot({ pauseBudget: { pausesLeft: 1, msLeft: 0 } }))
+    const { game } = harness(clock)
+    await game.start('timed')
+    await game.pause()
+    await flushPromises()
+    expect(game.pauseSecondsLeft.value).toBe(30)
+    clock.now += 10_000
+    await vi.advanceTimersByTimeAsync(100)
+    expect(game.pauseSecondsLeft.value).toBe(20)
+    expect(resumeRun).not.toHaveBeenCalled()
+    clock.now += 20_000
+    await vi.advanceTimersByTimeAsync(100)
+    await flushPromises()
+    expect(resumeRun).toHaveBeenCalledTimes(1)
+    expect(game.paused.value).toBe(false)
+    expect(game.lines.value.map((line) => line.text)).toContain(
+      'Pause time used up. The clock is running again.',
+    )
+  })
+
+  it('does not pause once the budget is spent, by the menu or a hidden tab', async () => {
+    const clock = { now: 50_000 }
+    startRun.mockResolvedValue(snapshot({ pauseBudget: { pausesLeft: 0, msLeft: 12_000 } }))
+    const { game } = harness(clock)
+    await game.start('timed')
+    expect(game.canPause.value).toBe(false)
+    await expect(game.pause()).resolves.toBe(false)
+    setHidden(true)
+    await flushPromises()
+    expect(pauseRun).not.toHaveBeenCalled()
+    expect(game.paused.value).toBe(false)
+  })
+
+  it('returns to the running game when the server refuses a pause', async () => {
+    const clock = { now: 50_000 }
+    startRun.mockResolvedValue(snapshot())
+    pauseRun.mockRejectedValue({
+      response: { status: 409, data: { error: { code: 'CLI_PAUSE_UNAVAILABLE' } } },
+    })
+    fetchRun.mockResolvedValue(snapshot())
+    const { game } = harness(clock)
+    await game.start('timed')
+    await game.pause()
+    await flushPromises()
+    expect(game.paused.value).toBe(false)
+    expect(fetchRun).toHaveBeenCalledTimes(1)
   })
 })

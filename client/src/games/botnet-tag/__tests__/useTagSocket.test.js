@@ -59,6 +59,72 @@ beforeEach(() => {
 })
 afterEach(() => vi.useRealTimers())
 
+describe('dropped connections', () => {
+  it('reports reconnecting, then notices the round went on without the player', () => {
+    const { tag, socket } = make()
+    socket.receive(snapshot({ phase: 'playing', sid: 'old' }))
+    expect(tag.state.status).toBe('open')
+    socket.drop(1006)
+    expect(tag.state.status).toBe('reconnecting')
+    vi.advanceTimersByTime(60_000)
+    const next = FakeSocket.all.at(-1)
+    expect(next).not.toBe(socket)
+    next.open()
+    next.receive(snapshot({ phase: 'lobby', sid: 'new' }))
+    expect(tag.state.status).toBe('open')
+    expect(tag.state.roundLost).toBe(true)
+    next.receive(snapshot({ phase: 'playing', sid: 'new' }))
+    expect(tag.state.roundLost).toBe(false)
+  })
+
+  it('stays quiet when nothing was in progress, or after play again', () => {
+    const { tag, socket } = make()
+    socket.receive(snapshot({ phase: 'lobby', sid: 'old' }))
+    socket.drop(1006)
+    vi.advanceTimersByTime(60_000)
+    const next = FakeSocket.all.at(-1)
+    next.open()
+    next.receive(snapshot({ phase: 'lobby', sid: 'new' }))
+    expect(tag.state.roundLost).toBe(false)
+    next.receive(snapshot({ phase: 'playing', sid: 'new' }))
+    tag.rejoin()
+    const again = FakeSocket.all.at(-1)
+    again.open()
+    again.receive(snapshot({ phase: 'lobby', sid: 'third' }))
+    expect(tag.state.roundLost).toBe(false)
+  })
+
+  it('does not retry after an idle removal, and rejoin starts over', () => {
+    const { tag, socket } = make()
+    socket.drop(4410)
+    expect(tag.state.blocked).toBe('idle')
+    const count = FakeSocket.all.length
+    vi.advanceTimersByTime(60_000)
+    expect(FakeSocket.all).toHaveLength(count)
+    tag.rejoin()
+    expect(tag.state.blocked).toBe('')
+    expect(FakeSocket.all).toHaveLength(count + 1)
+  })
+
+  it('keeps why a result was not saved, the grace end and the watching flag', () => {
+    const { tag, socket } = make()
+    socket.receive(snapshot({ phase: 'playing', graceEndsAt: 15_000, watching: true }))
+    expect(tag.state.graceEndsAt).toBe(15_000)
+    expect(tag.state.watching).toBe(true)
+    socket.receive({ type: 'results', sideWon: null, unsaved: 'abandoned', results: [] })
+    socket.receive({ type: 'saved', saved: false, reason: 'abandoned' })
+    expect(tag.state.results.unsaved).toBe('abandoned')
+    expect(tag.state.saved.reason).toBe('abandoned')
+  })
+
+  it('leaves with a reason', () => {
+    const { tag, socket } = make()
+    tag.leave('arena-failed')
+    expect(socket.sent).toContainEqual({ type: 'leave' })
+    expect(tag.state.blocked).toBe('arena-failed')
+  })
+})
+
 describe('tag rules', () => {
   it('builds the socket url from the page location', () => {
     expect(tagUrl({ protocol: 'https:', host: 'example.test' })).toBe(
@@ -106,7 +172,7 @@ describe('tag socket', () => {
     socket.receive({ type: 'saved', saved: true, score: 5, maxScore: 400 })
     expect(tag.state.events).toHaveLength(1)
     expect(tag.state.results.sideWon).toBe('botnet')
-    expect(tag.state.saved).toEqual({ saved: true, score: 5, maxScore: 400 })
+    expect(tag.state.saved).toEqual({ saved: true, score: 5, maxScore: 400, reason: null })
     socket.receive(snapshot())
     expect(tag.state.results).toBeNull()
     expect(tag.state.saved).toBeNull()

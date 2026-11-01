@@ -683,6 +683,281 @@ describe('account and Mongo session HTTP contract', () => {
     await secondSession.agent.get('/api/auth/me').expect(200)
   })
 
+  describe('a session replaced by a newer sign-in', () => {
+    async function replacedSession() {
+      const first = await registerTestStudent(app, {
+        email: 'replaced@example.test',
+        username: 'Replaced_User',
+      })
+      const second = await prepareLoginAgent(first.email, first.password)
+      expect(second.response.status).toBe(200)
+      return { first, second }
+    }
+
+    it('tells the old tab why, on every kind of request, and keeps the new session', async () => {
+      const { first, second } = await replacedSession()
+
+      const me = await first.agent.get('/api/auth/me').expect(401)
+      expect(me.body.error).toMatchObject({
+        code: 'AUTHENTICATION_REQUIRED',
+        reason: 'session-replaced',
+      })
+      const protectedRead = await first.agent.get('/api/me/profile').expect(401)
+      expect(protectedRead.body.error.reason).toBe('session-replaced')
+      const probe = await first.agent.get('/api/auth/session').expect(200)
+      expect(probe.body).toEqual({ user: null, sessionEnded: 'replaced' })
+
+      await second.agent.get('/api/auth/me').expect(200)
+    })
+
+    it('leaves no identity behind in the marker', async () => {
+      const { first } = await replacedSession()
+      const stored = await database.db
+        .collection('auth_sessions')
+        .find({ 'session.replacedAt': { $exists: true } })
+        .toArray()
+      expect(stored).toHaveLength(1)
+      expect(stored[0].session.userId).toBeNull()
+      expect(stored[0].session.authVersion).toBeNull()
+      expect(stored[0].session).not.toHaveProperty('csrfToken')
+      expect(stored[0].expires.getTime()).toBeLessThanOrEqual(currentTime + 30 * 60 * 1000)
+      await first.agent.get('/api/auth/session').expect(200)
+    })
+
+    it('says so once more when a token is fetched, then behaves as a fresh anonymous session', async () => {
+      const { first } = await replacedSession()
+      const csrf = await first.agent.get('/api/auth/csrf').expect(200)
+      expect(csrf.body).toEqual({ csrfToken: expect.any(String), sessionEnded: 'replaced' })
+
+      const probe = await first.agent.get('/api/auth/session').expect(200)
+      expect(probe.body).toEqual({ user: null })
+      const again = await first.agent.get('/api/auth/csrf').expect(200)
+      expect(again.body).toEqual({ csrfToken: csrf.body.csrfToken })
+    })
+
+    it('cannot be revived by a save from a request that was already running', async () => {
+      const { first, second } = await replacedSession()
+      const stale = await database.db
+        .collection('auth_sessions')
+        .findOne({ 'session.replacedAt': { $exists: true } })
+      const store = new AuthMongoStore(
+        { set: vi.fn(), destroy: vi.fn(), get: vi.fn() },
+        database.db.collection('auth_sessions'),
+        () => currentTime,
+      )
+      await expect(
+        new Promise((resolve, reject) => {
+          store.set(
+            stale._id,
+            { ...stale.session, userId: first.user.id, authVersion: 1 },
+            (error) => (error ? reject(error) : resolve()),
+          )
+        }),
+      ).rejects.toThrow('Session no longer exists')
+
+      await first.agent.get('/api/auth/me').expect(401)
+      await second.agent.get('/api/auth/me').expect(200)
+    })
+
+    it('forgets the reason once the marker expires', async () => {
+      const { first } = await replacedSession()
+      currentTime += 30 * 60 * 1000 + 1
+      const probe = await first.agent.get('/api/auth/session').expect(200)
+      expect(probe.body).toEqual({ user: null })
+    })
+  })
+
+  describe('two sign-ins racing', () => {
+    async function prepareSignIn(student) {
+      const agent = request.agent(app)
+      const csrf = await agent
+        .get('/api/auth/csrf')
+        .set('Origin', baseAuthOptions.clientOrigin)
+        .expect(200)
+      return () =>
+        agent
+          .post('/api/auth/login')
+          .set('Origin', baseAuthOptions.clientOrigin)
+          .set('X-CSRF-Token', csrf.body.csrfToken)
+          .send({ identifier: student.email, password: student.password })
+          .expect(200)
+          .then(() => agent)
+    }
+
+    // the newer login saved first, so it could not see the older one when it looked
+    it('ends the older login when it saves after the newer one looked', async () => {
+      const student = await registerTestStudent(app, {
+        email: 'racing@example.test',
+        username: 'Racing_User',
+      })
+      const signInOlder = await prepareSignIn(student)
+      const signInNewer = await prepareSignIn(student)
+      const start = currentTime
+      currentTime = start + 5_000
+      const newer = await signInNewer()
+      currentTime = start + 1_000
+      const older = await signInOlder()
+      currentTime = start + 6_000
+
+      await newer.get('/api/auth/me').expect(200)
+      const ended = await older.get('/api/auth/me').expect(401)
+      expect(ended.body.error.reason).toBe('session-replaced')
+      await student.agent.get('/api/auth/me').expect(401)
+    })
+
+    it('settles two logins in the same millisecond by their order', async () => {
+      const student = await registerTestStudent(app, {
+        email: 'racing-tie@example.test',
+        username: 'Racing_Tie',
+      })
+      const signInEarlier = await prepareSignIn(student)
+      const signInLater = await prepareSignIn(student)
+      const later = await signInLater()
+      await database.db
+        .collection('auth_sessions')
+        .updateOne(
+          { 'session.userId': student.user.id },
+          { $set: { 'session.loginOrder': Number.MAX_SAFE_INTEGER } },
+        )
+      const earlier = await signInEarlier()
+
+      await later.get('/api/auth/me').expect(200)
+      await earlier.get('/api/auth/me').expect(401)
+    })
+
+    it('leaves exactly one session however two simultaneous sign-ins interleave', async () => {
+      const student = await registerTestStudent(app, {
+        email: 'racing-both@example.test',
+        username: 'Racing_Both',
+      })
+      const [one, two] = await Promise.all([prepareSignIn(student), prepareSignIn(student)])
+      const agents = await Promise.all([one(), two()])
+      const statuses = await Promise.all(
+        [...agents, student.agent].map(async (agent) => {
+          const response = await agent.get('/api/auth/me')
+          return response.status
+        }),
+      )
+      expect(statuses.filter((status) => status === 200)).toHaveLength(1)
+    })
+  })
+
+  describe('the session probe', () => {
+    it('answers an anonymous caller with no user and no error', async () => {
+      const response = await request(app).get('/api/auth/session').expect(200)
+      expect(response.body).toEqual({ user: null })
+      expect(response.headers['cache-control']).toBe('no-store')
+    })
+
+    it('rejects unknown query fields', async () => {
+      await request(app).get('/api/auth/session?user=1').expect(400)
+    })
+
+    it('returns the same user as /me for a live session', async () => {
+      const student = await registerTestStudent(app)
+      const probe = await student.agent.get('/api/auth/session').expect(200)
+      const me = await student.agent.get('/api/auth/me').expect(200)
+      expect(probe.body).toEqual({ user: me.body.user })
+    })
+
+    it('answers no user after sign-out, expiry or a disabled account', async () => {
+      const signedOut = await registerTestStudent(app)
+      await signedOut.agent
+        .post('/api/auth/logout')
+        .set('Origin', baseAuthOptions.clientOrigin)
+        .set('X-CSRF-Token', signedOut.csrfToken)
+        .expect(204)
+      expect((await signedOut.agent.get('/api/auth/session').expect(200)).body).toEqual({
+        user: null,
+      })
+
+      const disabled = await registerTestStudent(app)
+      await userModel(database).updateOne(
+        { _id: disabled.user.id },
+        { $set: { accountStatus: 'disabled' } },
+      )
+      expect((await disabled.agent.get('/api/auth/session').expect(200)).body).toEqual({
+        user: null,
+      })
+
+      const expired = await registerTestStudent(app)
+      currentTime += 30 * 60 * 1000 + 1
+      expect((await expired.agent.get('/api/auth/session').expect(200)).body).toEqual({
+        user: null,
+      })
+    })
+
+    it('does not weaken protected routes, which still answer 401', async () => {
+      await request(app).get('/api/me/profile').expect(401)
+      await request(app).get('/api/auth/me').expect(401)
+    })
+  })
+
+  it('judges a short password at sign-in as wrong details, not as a length rule', async () => {
+    const student = await registerTestStudent(app)
+    const agent = request.agent(app)
+    const csrf = await agent
+      .get('/api/auth/csrf')
+      .set('Origin', baseAuthOptions.clientOrigin)
+      .expect(200)
+    const response = await agent
+      .post('/api/auth/login')
+      .set('Origin', baseAuthOptions.clientOrigin)
+      .set('X-CSRF-Token', csrf.body.csrfToken)
+      .send({ identifier: student.email, password: 'short' })
+      .expect(401)
+    expect(response.body.error.code).toBe('INVALID_CREDENTIALS')
+  })
+
+  describe('csrf and origin protection on every session-changing auth route', () => {
+    const routes = [
+      ['/api/auth/login', { identifier: 'csrf@example.test', password: 'Correct-Horse-🔒-2026' }],
+      ['/api/auth/logout', {}],
+      ['/api/auth/verify-email', { code: '123456' }],
+      ['/api/auth/verify-email/resend', {}],
+      ['/api/auth/class-invitation', { code: 'ABCD-EFGH-JKLM-NPQR' }],
+      ['/api/auth/class-invitation/clear', {}],
+    ]
+    const attempts = [
+      ['no token', () => ({ Origin: baseAuthOptions.clientOrigin }), 'CSRF_INVALID'],
+      [
+        'a wrong token',
+        () => ({ Origin: baseAuthOptions.clientOrigin, 'X-CSRF-Token': 'not-the-token' }),
+        'CSRF_INVALID',
+      ],
+      ['a null origin', (token) => ({ Origin: 'null', 'X-CSRF-Token': token }), 'ORIGIN_FORBIDDEN'],
+      [
+        'a foreign origin',
+        (token) => ({ Origin: 'http://evil.example', 'X-CSRF-Token': token }),
+        'ORIGIN_FORBIDDEN',
+      ],
+    ]
+
+    it.each(routes)('refuses %s and changes nothing', async (path, body) => {
+      const student = await registerTestStudent(app, {
+        email: 'csrf@example.test',
+        username: 'Csrf_User',
+      })
+      const anonymous = request.agent(app)
+      const anonymousCsrf = await anonymous
+        .get('/api/auth/csrf')
+        .set('Origin', baseAuthOptions.clientOrigin)
+        .expect(200)
+      const before = await database.db.collection('auth_sessions').countDocuments({})
+
+      for (const [, headers, code] of attempts) {
+        const response = await anonymous
+          .post(path)
+          .set(headers(anonymousCsrf.body.csrfToken))
+          .send(body)
+          .expect(403)
+        expect(response.body.error.code).toBe(code)
+      }
+      expect(await database.db.collection('auth_sessions').countDocuments({})).toBe(before)
+      await student.agent.get('/api/auth/me').expect(200)
+    })
+  })
+
   it('rejects missing auth settings and initializes existing storage safely', async () => {
     expect(() => createApp(database)).toThrow(/Auth settings are required/)
     await initializeAuthStorage(database)

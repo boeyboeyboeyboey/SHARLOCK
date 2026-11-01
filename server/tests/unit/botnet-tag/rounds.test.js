@@ -8,14 +8,21 @@ import {
 } from '../../../src/modules/games/botnet-tag/puzzles.js'
 import {
   COUNTDOWN_MS,
+  GRACE_MS,
   IMMUNITY_MS,
+  LOBBY_IDLE_MS,
   MAX_PLAYERS,
+  MAX_SCORE,
+  MIN_SAVED_ROUND_MS,
   RESULTS_MS,
   ROUND_MS,
   STATION_COOLDOWN_MS,
   STATION_LOCKOUT_MS,
-  createRng,
+  STATION_REACH,
+  BASE_SPEED,
 } from '../../../src/modules/games/botnet-tag/rules.js'
+import { botnetTagRuleset } from '../../../src/modules/games/botnet-tag/ruleset.js'
+import { createRng } from './rng.js'
 
 const person = (n, extra = {}) => ({
   sid: 's' + n,
@@ -90,6 +97,55 @@ describe('lobby', () => {
     expect(round.stationStart(undefined, 'st-hash', 0).ok).toBe(false)
   })
 
+  it('refills bots and counts down again when a player leaves a countdown', () => {
+    const round = lobby(2, { withBots: true })
+    round.setReady('s1', true, 0)
+    round.setReady('s2', true, 0)
+    expect(round.size).toBe(3)
+    expect(round.phase).toBe('countdown')
+    round.leave('s2', 1000)
+    expect(round.size).toBe(3)
+    expect(round.phase).toBe('countdown')
+    expect(round.phaseEndsAt).toBe(1000 + COUNTDOWN_MS)
+    round.tick(1000 + COUNTDOWN_MS)
+    expect(round.phase).toBe('playing')
+  })
+
+  it('refills bots and counts down again when staff unready during a countdown', () => {
+    const round = lobby(1, { withBots: true })
+    round.join(person(9, { isStaff: true }), 0)
+    round.setReady('s9', true, 0)
+    round.setReady('s1', true, 0)
+    expect(round.players().filter((p) => p.isBot)).toHaveLength(1)
+    expect(round.phase).toBe('countdown')
+    round.setReady('s9', false, 1000)
+    expect(round.players().filter((p) => p.isBot)).toHaveLength(2)
+    expect(round.phase).toBe('countdown')
+    expect(round.phaseEndsAt).toBe(1000 + COUNTDOWN_MS)
+    round.tick(1000 + COUNTDOWN_MS)
+    expect(round.phase).toBe('playing')
+    expect(round.players().map((p) => p.sid)).not.toContain('s9')
+  })
+
+  it('stays in the lobby when a countdown is cancelled by a student unreadying', () => {
+    const round = lobby(2, { withBots: true })
+    round.setReady('s1', true, 0)
+    round.setReady('s2', true, 0)
+    round.setReady('s2', false, 1000)
+    expect(round.phase).toBe('lobby')
+    expect(round.phaseEndsAt).toBeNull()
+  })
+
+  it('takes the bots away when the last counted player leaves a countdown', () => {
+    const round = lobby(1, { withBots: true })
+    round.join(person(9, { isStaff: true }), 0)
+    round.setReady('s1', true, 0)
+    expect(round.phase).toBe('countdown')
+    round.leave('s1', 1000)
+    expect(round.phase).toBe('lobby')
+    expect(round.players().map((p) => p.sid)).toEqual(['s9'])
+  })
+
   it('does not start with bots disabled and two humans', () => {
     const round = lobby(2)
     round.setReady('s1', true, 0)
@@ -132,15 +188,27 @@ describe('starting a round', () => {
 })
 
 describe('tag flow', () => {
+  const PLAY = COUNTDOWN_MS + GRACE_MS
+
+  it('lets nobody tag during the grace period and tells the players', () => {
+    const { round, b } = setup()
+    place(round, 's1', 8, 0)
+    place(round, 's2', 9, 0)
+    expect(round.snapshot('s2', COUNTDOWN_MS).graceEndsAt).toBe(PLAY)
+    expect(round.tag('s1', 's2', PLAY - 1)).toEqual({ ok: false, reason: 'grace' })
+    expect(b.infected).toBe(false)
+    expect(round.tag('s1', 's2', PLAY).ok).toBe(true)
+  })
+
   it('infects a clean target in reach and counts the tag', () => {
     const { round, a, b } = setup()
     place(round, 's1', 8, 0)
     place(round, 's2', 9, 0)
-    expect(round.tag('s2', 's1', COUNTDOWN_MS + 1).ok).toBe(false)
-    expect(round.tag('s1', 's2', COUNTDOWN_MS + 1).ok).toBe(true)
+    expect(round.tag('s2', 's1', PLAY).ok).toBe(false)
+    expect(round.tag('s1', 's2', PLAY).ok).toBe(true)
     expect(b.infected).toBe(true)
     expect(a.tags).toBe(1)
-    expect(round.tag('s1', 's2', COUNTDOWN_MS + 2).ok).toBe(false)
+    expect(round.tag('s1', 's2', PLAY + 1).ok).toBe(false)
     expect(round.drainEvents().some((e) => e.type === 'tag')).toBe(true)
   })
 
@@ -148,11 +216,11 @@ describe('tag flow', () => {
     const { round, b } = setup()
     place(round, 's1', 8, 0)
     place(round, 's2', 14, 0)
-    expect(round.tag('s1', 's2', COUNTDOWN_MS).ok).toBe(false)
+    expect(round.tag('s1', 's2', PLAY).ok).toBe(false)
     place(round, 's2', 9, 0)
-    b.immuneUntil = COUNTDOWN_MS + 5000
-    expect(round.tag('s1', 's2', COUNTDOWN_MS).ok).toBe(false)
-    expect(round.tag('s1', 's2', COUNTDOWN_MS + 5000).ok).toBe(true)
+    b.immuneUntil = PLAY + 5000
+    expect(round.tag('s1', 's2', PLAY).ok).toBe(false)
+    expect(round.tag('s1', 's2', PLAY + 5000).ok).toBe(true)
   })
 })
 
@@ -180,8 +248,6 @@ describe('station flow', () => {
     place(round, 's2', station.x, station.z)
     place(round, 's3', station.x, station.z)
     round.stationStart('s2', 'st-hash', T0)
-    const answer = round.players().length && round.botSubmit
-    expect(answer).toBeTypeOf('function')
     const done = submitRight(round, 's2', T0 + 2000)
     expect(done.ok).toBe(true)
     expect(b.immuneUntil).toBe(T0 + 2000 + IMMUNITY_MS)
@@ -241,6 +307,22 @@ describe('station flow', () => {
     expect(round.hasPuzzle('s2')).toBe(false)
   })
 
+  it('tells the second solver a station was taken, without a lockout', () => {
+    const { round, b, c } = setup()
+    place(round, 's2', station.x, station.z)
+    place(round, 's3', station.x, station.z)
+    round.stationStart('s2', 'st-hash', T0)
+    round.stationStart('s3', 'st-hash', T0)
+    expect(submitRight(round, 's2', T0 + 2000).ok).toBe(true)
+    expect(submitRight(round, 's3', T0 + 3000)).toEqual({ ok: false, reason: 'cooling' })
+    expect(c.patches).toBe(0)
+    expect(c.lockedUntil).toBe(0)
+    expect(round.snapshot('s3', T0 + 3100).you.notice).toBe('Someone patched this station first')
+    expect(round.snapshot('s2', T0 + 3100).you.notice).toBeNull()
+    expect(round.snapshot('s3', T0 + 9000).you.notice).toBeNull()
+    expect(b.patches).toBe(1)
+  })
+
   it('snapshot shows only the caller their own puzzle, never answers', () => {
     const { round } = setup()
     place(round, 's2', station.x, station.z)
@@ -259,15 +341,266 @@ describe('station flow', () => {
 })
 
 function submitRight(round, sid, at) {
-  const puzzle = round.botSubmitProbe?.(sid)
-  if (puzzle) return round.stationSubmit(sid, puzzle, at)
-  // bots hold their own answers; humans need the client, so reuse the bot path on a flagged copy
-  const player = round.getPlayer(sid)
-  player.isBot = true
-  const result = round.botSubmit(sid, true, at)
-  player.isBot = false
-  return result
+  return round.stationSubmit(sid, round.answerFor(sid), at)
 }
+
+describe('patient zero spawn', () => {
+  it('starts as far from the others as the spawn set allows', () => {
+    for (let seed = 1; seed <= 30; seed += 1) {
+      const round = startPlay(3, { rng: createRng(seed) })
+      const zero = round.players().find((p) => p.infected)
+      const others = round.players().filter((p) => !p.infected)
+      expect(zero.startedInfected).toBe(true)
+      for (const other of others) {
+        expect(Math.hypot(zero.x - other.x, zero.z - other.z)).toBeGreaterThanOrEqual(22)
+      }
+    }
+  })
+})
+
+describe('who decides the start', () => {
+  it('removes a student who never presses ready, with the time left in their snapshot', () => {
+    const round = lobby(2, { withBots: true })
+    expect(round.idlePlayers(LOBBY_IDLE_MS - 1)).toEqual([])
+    round.setReady('s1', true, LOBBY_IDLE_MS - 1)
+    expect(round.snapshot('s2', 100).you.readyBy).toBe(LOBBY_IDLE_MS)
+    expect(round.snapshot('s1', 100).you.readyBy).toBeNull()
+    expect(round.idlePlayers(LOBBY_IDLE_MS)).toEqual(['s2'])
+    round.leave('s2', LOBBY_IDLE_MS)
+    expect(round.phase).toBe('countdown')
+  })
+
+  it('restarts the wait on each toggle and after a round', () => {
+    const round = lobby(1)
+    round.setReady('s1', true, 40000)
+    round.setReady('s1', false, 41000)
+    expect(round.idlePlayers(41000 + LOBBY_IDLE_MS - 1)).toEqual([])
+    expect(round.idlePlayers(41000 + LOBBY_IDLE_MS)).toEqual(['s1'])
+
+    const played = startPlay(3)
+    const end = COUNTDOWN_MS + ROUND_MS
+    expect(played.idlePlayers(end - 1)).toEqual([])
+    played.tick(end)
+    played.tick(end + RESULTS_MS)
+    expect(played.phase).toBe('lobby')
+    expect(played.idlePlayers(end + RESULTS_MS + LOBBY_IDLE_MS - 1)).toEqual([])
+    expect(played.idlePlayers(end + RESULTS_MS + LOBBY_IDLE_MS)).toHaveLength(3)
+  })
+
+  // how to play on the client restarts the limit with this message while the guide is open
+  it('restarts the wait on a ready message that changes nothing', () => {
+    const round = lobby(1)
+    round.setReady('s1', false, 40000)
+    expect(round.idlePlayers(40000 + LOBBY_IDLE_MS - 1)).toEqual([])
+    expect(round.snapshot('s1', 40000).you.readyBy).toBe(40000 + LOBBY_IDLE_MS)
+    expect(round.phase).toBe('lobby')
+  })
+
+  it('never removes staff, who do not hold the students up and only watch', () => {
+    const round = createRound({ id: 'r', cohortId: 'c', rng: createRng(3), withBots: true })
+    round.join(person(1), 0)
+    round.join(person(9, { isStaff: true }), 0)
+    round.setReady('s1', true, 0)
+    expect(round.idlePlayers(1)).toEqual([])
+    expect(round.phase).toBe('countdown')
+    round.tick(COUNTDOWN_MS)
+    expect(round.phase).toBe('playing')
+    expect(round.players().map((p) => p.sid)).not.toContain('s9')
+    expect(round.players()).toHaveLength(3)
+    const seen = round.snapshot('s9', COUNTDOWN_MS)
+    expect(seen.watching).toBe(true)
+    expect(seen.you).toBeNull()
+    expect(seen.players.map((p) => p.sid)).not.toContain('s9')
+    expect(round.move('s9', { x: 1, z: 1 }, COUNTDOWN_MS + 50).reason).toBe('not_playing')
+    round.tick(COUNTDOWN_MS + ROUND_MS)
+    expect(round.results().map((r) => r.sid)).not.toContain('s9')
+    round.tick(COUNTDOWN_MS + ROUND_MS + RESULTS_MS)
+    expect(
+      round.snapshot('s9', COUNTDOWN_MS + ROUND_MS + RESULTS_MS).players.map((p) => p.sid),
+    ).toContain('s9')
+  })
+
+  it('plays staff who pressed ready, and lets a watcher leave', () => {
+    const round = createRound({ id: 'r', cohortId: 'c', rng: createRng(3), withBots: true })
+    round.join(person(1), 0)
+    round.join(person(8, { isStaff: true }), 0)
+    round.join(person(9, { isStaff: true }), 0)
+    round.setReady('s8', true, 0)
+    round.setReady('s1', true, 0)
+    round.tick(COUNTDOWN_MS)
+    expect(round.players().map((p) => p.sid)).toContain('s8')
+    expect(round.size).toBe(4)
+    expect(round.leave('s9', COUNTDOWN_MS + 1)).toBe(true)
+    expect(round.size).toBe(3)
+    expect(round.phase).toBe('playing')
+  })
+
+  it('counts only students as idle', () => {
+    const round = createRound({ id: 'r', cohortId: 'c', rng: createRng(3), withBots: true })
+    round.join(person(1), 0)
+    round.join(person(9, { isStaff: true }), 0)
+    expect(round.idlePlayers(LOBBY_IDLE_MS)).toEqual(['s1'])
+  })
+
+  it('does not start for staff who only watch', () => {
+    const round = createRound({ id: 'r', cohortId: 'c', rng: createRng(3), withBots: true })
+    round.join(person(9, { isStaff: true }), 0)
+    round.tick(COUNTDOWN_MS)
+    expect(round.phase).toBe('lobby')
+    expect(round.size).toBe(1)
+  })
+})
+
+describe('rounds that are not saved', () => {
+  it('counts a round under 20 seconds as short, and one at 20 seconds as saved', () => {
+    const quick = setup()
+    place(quick.round, 's1', 8, 0)
+    place(quick.round, 's2', 9, 0)
+    place(quick.round, 's3', 8, 1)
+    const early = COUNTDOWN_MS + MIN_SAVED_ROUND_MS - 1
+    quick.round.tag('s1', 's2', early)
+    quick.round.tag('s1', 's3', early)
+    expect(quick.round.sideWon).toBe('botnet')
+    expect(quick.round.unsavedReason).toBe('short')
+
+    const fair = setup()
+    place(fair.round, 's1', 8, 0)
+    place(fair.round, 's2', 9, 0)
+    place(fair.round, 's3', 8, 1)
+    const enough = COUNTDOWN_MS + MIN_SAVED_ROUND_MS
+    fair.round.tag('s1', 's2', enough)
+    fair.round.tag('s1', 's3', enough)
+    expect(fair.round.sideWon).toBe('botnet')
+    expect(fair.round.unsavedReason).toBeNull()
+  })
+
+  it('abandons the round when the last infected player leaves', () => {
+    const { round } = setup()
+    round.leave('s1', COUNTDOWN_MS + 30000)
+    expect(round.phase).toBe('results')
+    expect(round.sideWon).toBeNull()
+    expect(round.unsavedReason).toBe('abandoned')
+    expect(round.results().every((r) => r.sideWon === false)).toBe(true)
+  })
+
+  it('abandons the round when every clean player leaves a botnet that never spread', () => {
+    const { round } = setup()
+    round.leave('s2', COUNTDOWN_MS + 30000)
+    expect(round.phase).toBe('playing')
+    round.leave('s3', COUNTDOWN_MS + 31000)
+    expect(round.phase).toBe('results')
+    expect(round.sideWon).toBeNull()
+    expect(round.unsavedReason).toBe('abandoned')
+    const zero = round.results().find((r) => r.sid === 's1')
+    expect(zero).toMatchObject({ sideWon: false, startedInfected: true })
+  })
+
+  it('gives the botnet the win when it had really spread before the last clean player left', () => {
+    const { round } = setup()
+    place(round, 's1', 8, 0)
+    place(round, 's2', 9, 0)
+    round.tag('s1', 's2', COUNTDOWN_MS + 30000)
+    round.leave('s3', COUNTDOWN_MS + 31000)
+    expect(round.sideWon).toBe('botnet')
+    expect(round.unsavedReason).toBeNull()
+  })
+
+  it('remembers a real spread after the infected victim has left', () => {
+    const { round } = setup()
+    place(round, 's1', 8, 0)
+    place(round, 's2', 9, 0)
+    round.tag('s1', 's2', COUNTDOWN_MS + 30000)
+    round.leave('s2', COUNTDOWN_MS + 31000)
+    expect(round.phase).toBe('playing')
+    round.leave('s3', COUNTDOWN_MS + 32000)
+    expect(round.phase).toBe('results')
+    expect(round.sideWon).toBe('botnet')
+    expect(round.unsavedReason).toBeNull()
+    expect(round.results().find((r) => r.sid === 's1')).toMatchObject({ sideWon: true, tags: 1 })
+  })
+
+  it('forgets the spread of the last play when the next one starts', () => {
+    const { round } = setup()
+    place(round, 's1', 8, 0)
+    place(round, 's2', 9, 0)
+    const tagged = COUNTDOWN_MS + 30000
+    round.tag('s1', 's2', tagged)
+    round.tick(COUNTDOWN_MS + ROUND_MS)
+    expect(round.phase).toBe('results')
+    const again = COUNTDOWN_MS + ROUND_MS + RESULTS_MS
+    round.tick(again)
+    for (const sid of ['s1', 's2', 's3']) round.setReady(sid, true, again)
+    round.tick(again + COUNTDOWN_MS)
+    expect(round.phase).toBe('playing')
+    const zero = round.players().find((p) => p.infected)
+    for (const clean of round.players().filter((p) => !p.infected)) {
+      round.leave(clean.sid, again + COUNTDOWN_MS + 30000)
+    }
+    expect(round.getPlayer(zero.sid)).not.toBeNull()
+    expect(round.sideWon).toBeNull()
+    expect(round.unsavedReason).toBe('abandoned')
+  })
+
+  it('numbers each play of a lobby and clears the reason for the next one', () => {
+    const { round } = setup()
+    expect(round.play).toBe(1)
+    round.leave('s1', COUNTDOWN_MS + 30000)
+    round.tick(COUNTDOWN_MS + 30000 + RESULTS_MS)
+    expect(round.phase).toBe('lobby')
+    const again = COUNTDOWN_MS + 30000 + RESULTS_MS
+    round.join(person(4), again)
+    for (const sid of ['s2', 's3', 's4']) round.setReady(sid, true, again)
+    round.tick(again + COUNTDOWN_MS)
+    expect(round.phase).toBe('playing')
+    expect(round.play).toBe(2)
+    expect(round.unsavedReason).toBeNull()
+  })
+})
+
+describe('the ceiling', () => {
+  // a survivor who solves in about 10 s and walks the row of three stations, through the real move and submit paths
+  function fastSurvivorRound() {
+    const { round } = setup()
+    place(round, 's1', 18, 12)
+    const route = ['st-firewall', 'st-patch', 'st-process']
+    const me = round.getPlayer('s2')
+    let t = COUNTDOWN_MS
+    const start = stationById(route[0])
+    place(round, 's2', start.x, start.z)
+    for (let stop = 0; round.phase === 'playing'; stop += 1) {
+      const station = stationById(route[stop % route.length])
+      while (Math.hypot(me.x - station.x, me.z - station.z) > STATION_REACH - 0.1) {
+        t += 50
+        const stride = (BASE_SPEED * 50) / 1000
+        const sign = Math.sign(station.x - me.x)
+        expect(round.move('s2', { x: me.x + sign * stride, z: me.z, yaw: 0 }, t).ok).toBe(true)
+      }
+      const started = round.stationStart('s2', station.id, t)
+      expect(started).toMatchObject({ ok: true })
+      t = Math.min(t + 10000, started.puzzle.deadline - 100)
+      if (t >= COUNTDOWN_MS + ROUND_MS) round.tick(t)
+      else expect(submitRight(round, 's2', t).ok).toBe(true)
+      round.tick(t)
+    }
+    return round.results().find((r) => r.sid === 's2')
+  }
+
+  it('is reached by a fast solver, and the score stops there', () => {
+    const row = fastSurvivorRound()
+    expect(row.outcome).toBe('survived')
+    expect(row.patches).toBeGreaterThanOrEqual(13)
+    expect(row.score).toBe(MAX_SCORE)
+    const { score } = botnetTagRuleset.summarize({
+      outcome: row.outcome,
+      sideWon: row.sideWon,
+      survivalSeconds: row.survivalSeconds,
+      patches: row.patches,
+      tags: row.tags,
+    })
+    expect(score).toBe(MAX_SCORE)
+    expect(botnetTagRuleset.maxScore).toBe(MAX_SCORE)
+  })
+})
 
 describe('round end and results', () => {
   it('ends when everyone is infected', () => {

@@ -60,8 +60,13 @@ async function changePage(number) {
       :fetched-at="edition?.fetchedAt"
       :refresh-available-at="refreshAt"
       :can-refresh="canRefresh"
+      :sample="edition?.sample"
       @retry="refresh"
     />
+    <p v-if="edition?.sample" class="gazette-sample" data-testid="news-sample-label">
+      <strong>Sample edition.</strong> These stories are made up for this project. This is not real
+      news.
+    </p>
     <section :aria-busy="loading" aria-labelledby="gazette-results-heading">
       <div class="gazette-results-line">
         <h2 id="gazette-results-heading" ref="resultsHeading" tabindex="-1">
@@ -115,6 +120,7 @@ async function changePage(number) {
           :key="article.id"
           :article="article"
           :featured="page === 1 && index === 0"
+          :sample="edition.sample"
         />
       </div>
       <NewsPagination :page="page" :page-count="pageCount" @update:page="changePage" />
@@ -122,10 +128,10 @@ async function changePage(number) {
     <footer class="gazette-footer">
       <p>
         Up to 50 latest stories per section and date range. Search covers this edition. All dates
-        use Singapore time. Full articles open in a new tab.
+        use Singapore time.{{ edition?.sample ? '' : ' Full articles open in a new tab.' }}
       </p>
       <a
-        v-if="edition"
+        v-if="edition && !edition.sample"
         href="https://www.theguardian.com"
         target="_blank"
         rel="noopener noreferrer"

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 const props = defineProps({
   pending: { type: Boolean, default: false },
@@ -11,6 +11,14 @@ const email = ref('')
 const lastQuery = ref('')
 const hasCurrentResult = computed(() =>
   Boolean(lastQuery.value && email.value.trim() === lastQuery.value),
+)
+
+// the lookup is an exact email match, so one result needs no second click
+watch(
+  () => props.match,
+  (student) => {
+    if (student && hasCurrentResult.value) emit('select', student)
+  },
 )
 
 function submit() {
@@ -36,27 +44,17 @@ function submit() {
         required
         :disabled="pending"
       />
-      <button class="btn btn-primary recovery-button" type="submit" :disabled="pending">
+      <button
+        class="btn btn-primary recovery-button admin-workspace__button"
+        type="submit"
+        :disabled="pending"
+      >
         {{ pending ? 'Checking…' : 'Find student' }}
       </button>
     </div>
     <p v-if="error" class="recovery-alert" role="alert">{{ error }}</p>
     <div v-if="hasCurrentResult && match === null" class="recovery-result" role="status">
       No eligible student account matched that email.
-    </div>
-    <div v-else-if="hasCurrentResult && match" class="recovery-result" aria-live="polite">
-      <p>
-        <strong>{{ match.username }}</strong>
-        <span>{{ match.email }}</span>
-      </p>
-      <button
-        class="btn btn-secondary recovery-button"
-        type="button"
-        :disabled="pending"
-        @click="emit('select', match)"
-      >
-        Select student
-      </button>
     </div>
   </form>
 </template>

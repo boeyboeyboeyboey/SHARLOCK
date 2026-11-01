@@ -107,6 +107,10 @@ async function submitReset({ password }) {
 onMounted(() => {
   void checkSession()
 })
+// a link pasted into this open tab only changes the hash, so nothing remounts the page
+watch(tokenReady, (ready) => {
+  if (ready) void checkSession()
+})
 
 onBeforeUnmount(() => {
   resetController?.abort()
@@ -120,7 +124,6 @@ onBeforeUnmount(() => {
 <template>
   <section class="auth-page recovery-page" aria-labelledby="reset-page-title">
     <div class="auth-card">
-      <p class="auth-eyebrow">STUDENT PASSWORD RESET</p>
       <h1 id="reset-page-title" tabindex="-1">Choose a new password</h1>
 
       <p
@@ -129,7 +132,8 @@ onBeforeUnmount(() => {
         class="recovery-alert"
         role="alert"
       >
-        This reset link is incomplete or invalid. Ask a staff member to prepare a new one.
+        Open the reset link from your message again. If it still does not work, ask a staff member
+        to prepare a new one.
       </p>
 
       <template v-else-if="tokenReady">
@@ -150,9 +154,6 @@ onBeforeUnmount(() => {
           <ResetPasswordForm ref="form" :pending="pending" :error="error" @submit="submitReset" />
         </template>
         <template v-else>
-          <p class="recovery-muted">
-            Confirm that you are signed out before setting a new password.
-          </p>
           <button
             class="btn btn-secondary recovery-button"
             type="button"

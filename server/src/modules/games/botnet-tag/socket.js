@@ -1,9 +1,11 @@
 import { randomBytes } from 'node:crypto'
+import { ipKeyGenerator, MemoryStore } from 'express-rate-limit'
 import { WebSocketServer } from 'ws'
 import { hasExpectedOrigin } from '../../auth/csrf.js'
 import { publicLook } from '../../presence/look.js'
 import { roleFor } from '../../presence/protocol.js'
 import { createRoomResolver } from '../../presence/rooms.js'
+import { DEFAULT_CONNECT_LIMITS } from '../../presence/service.js'
 import { createRound } from './rounds.js'
 import { MAX_PLAYERS } from './rules.js'
 import { GAME_ID } from './ruleset.js'
@@ -12,13 +14,19 @@ import { BOTNET_TAG_PATH, MAX_PAYLOAD_BYTES, allowMessage, parseClientMessage } 
 const STRIKE_LIMIT = 30
 const STRIKE_WINDOW_MS = 10000
 const LOBBY_SNAPSHOT_MS = 500
+const IPV6_SUBNET = 56
 
-const REJECTIONS = Object.freeze({ 401: 'Unauthorized', 403: 'Forbidden' })
+const REJECTIONS = Object.freeze({
+  401: 'Unauthorized',
+  403: 'Forbidden',
+  429: 'Too Many Requests',
+})
 
 function reject(socket, status) {
   if (socket.writable) {
+    const retry = status === 429 ? 'Retry-After: 60\r\n' : ''
     socket.write(
-      `HTTP/1.1 ${status} ${REJECTIONS[status]}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`,
+      `HTTP/1.1 ${status} ${REJECTIONS[status]}\r\nConnection: close\r\n${retry}Content-Length: 0\r\n\r\n`,
     )
   }
   socket.destroy()
@@ -33,12 +41,17 @@ export function createBotnetTagService(
     attempts,
     now = Date.now,
     rng = Math.random,
+    botsIdle = false,
     tickMs = 1000 / 15,
     heartbeatMs = 30000,
     recheckMs = 60000,
+    connectLimits = {},
     rooms = createRoomResolver(database),
   },
 ) {
+  const limits = { ...DEFAULT_CONNECT_LIMITS, ...connectLimits }
+  const connectHits = new MemoryStore()
+  connectHits.init({ windowMs: limits.windowMs })
   const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_PAYLOAD_BYTES })
   const connections = new Set()
   // cohortId -> Map(roundId -> entry); an entry owns one round, its members and its tick timer
@@ -65,9 +78,18 @@ export function createBotnetTagService(
   // wall clock start of the round, valid for a real or an injected clock
   const wallStart = (round) => new Date(Date.now() - (now() - round.startedAt))
 
-  // saves one practice attempt per human non-staff player, once per round
+  // a round too short or abandoned counts for nobody, so each student is told instead
+  function refuseSaving(members, results, reason) {
+    for (const member of members) {
+      const result = results.find((item) => item.sid === member.sid)
+      if (result && !member.isStaff) send(member, { type: 'saved', saved: false, reason })
+    }
+  }
+
+  // saves one practice attempt per human non-staff player, once per play of the lobby
   async function saveResults(entry, members, results) {
     const startedAt = wallStart(entry.round)
+    const playKey = `${entry.round.id}-${entry.round.play}`
     await Promise.all(
       members.map(async (connection) => {
         const result = results.find((item) => item.sid === connection.sid)
@@ -81,7 +103,7 @@ export function createBotnetTagService(
               context: { kind: 'cohort', cohortId: entry.cohortId },
               mode: 'practice',
               startedAt,
-              resultKey: `${entry.round.id}-${connection.sid}`,
+              resultKey: `${playKey}-${connection.sid}`,
               state: {
                 outcome: result.outcome,
                 sideWon: result.sideWon,
@@ -114,9 +136,15 @@ export function createBotnetTagService(
         const members = [...entry.members]
         const results = round.results()
         for (const member of members) {
-          send(member, { type: 'results', sideWon: round.sideWon, results })
+          send(member, {
+            type: 'results',
+            sideWon: round.sideWon,
+            unsaved: round.unsavedReason,
+            results,
+          })
         }
-        entry.savePending = saveResults(entry, members, results).catch(() => {})
+        if (round.unsavedReason) refuseSaving(members, results, round.unsavedReason)
+        else entry.savePending = saveResults(entry, members, results).catch(() => {})
       }
     } else entry.resultsSent = false
   }
@@ -129,17 +157,42 @@ export function createBotnetTagService(
     }
   }
 
+  function removeIdlePlayers(entry) {
+    const idle = entry.round.idlePlayers(now())
+    for (const member of [...entry.members]) {
+      if (!idle.includes(member.sid)) continue
+      leaveRound(member)
+      member.ws.close(4410, 'idle')
+    }
+  }
+
+  function failEntry(entry) {
+    dropEntry(entry)
+    for (const member of [...entry.members]) {
+      member.entry = null
+      entry.members.delete(member)
+      member.ws.close(1011, 'error')
+    }
+  }
+
+  // a timer callback has no caller to catch for it, so one bad round closes alone and the api stays up
   function tickEntry(entry) {
-    entry.round.tick(now())
-    afterChange(entry)
-    broadcastSnapshots(entry)
+    try {
+      entry.round.tick(now())
+      removeIdlePlayers(entry)
+      afterChange(entry)
+      broadcastSnapshots(entry)
+    } catch {
+      console.error('Botnet Tag closed a round after a tick failed.')
+      failEntry(entry)
+    }
   }
 
   function createEntry(cohortId) {
     const id = `r-${randomBytes(6).toString('hex')}`
     const entry = {
       cohortId,
-      round: createRound({ id, cohortId, now: now(), rng, withBots: true }),
+      round: createRound({ id, cohortId, now: now(), rng, withBots: true, botsIdle }),
       members: new Set(),
       resultsSent: false,
       savePending: null,
@@ -215,6 +268,7 @@ export function createBotnetTagService(
   }
 
   async function handleMessage(connection, raw) {
+    if (connection.ws.readyState !== connection.ws.OPEN) return
     const message = parseClientMessage(raw)
     if (!message) {
       strike(connection)
@@ -315,6 +369,11 @@ export function createBotnetTagService(
     }
   }
 
+  async function overLimit(key, limit) {
+    const { totalHits } = await connectHits.increment(key)
+    return totalHits > limit
+  }
+
   async function handleUpgrade(request, socket, head) {
     socket.on('error', () => socket.destroy())
     let pathname
@@ -333,9 +392,18 @@ export function createBotnetTagService(
       return
     }
     try {
+      const address = ipKeyGenerator(request.socket.remoteAddress ?? '', IPV6_SUBNET)
+      if (await overLimit(`ip:${address}`, limits.ip)) {
+        reject(socket, 429)
+        return
+      }
       const session = await resolveSessionUser(request)
       if (!session) {
         reject(socket, 401)
+        return
+      }
+      if (await overLimit(`user:${session.user.id}`, limits.user)) {
+        reject(socket, 429)
         return
       }
       const isStudent = roleFor(session.user.globalRoles) === 'student'
@@ -356,25 +424,31 @@ export function createBotnetTagService(
     }
   }
 
+  // the close handshake waits on the client, which could keep the player in the round meanwhile
+  function revoke(connection, code, reason) {
+    leaveRound(connection)
+    connection.ws.close(code, reason)
+  }
+
   // closes sockets whose session, account or class access no longer holds
   async function recheck(connection) {
     try {
       const session = await recheckSession(connection.sessionId)
       if (!session) {
-        connection.ws.close(4401, 'signed out')
+        revoke(connection, 4401, 'signed out')
         return
       }
       connection.user = session.user
       connection.username = session.user.username
       if (!connection.isStaff) {
         if ((await rooms.studentRoom(connection.userId)) !== connection.cohortId) {
-          connection.ws.close(4403, 'class changed')
+          revoke(connection, 4403, 'class changed')
         }
       } else if (
         connection.cohortId &&
         !(await rooms.staffMayJoin(connection.user, connection.cohortId))
       ) {
-        connection.ws.close(4403, 'class not available')
+        revoke(connection, 4403, 'class not available')
       }
     } catch {
       connection.ws.close(1011, 'error')
@@ -385,7 +459,7 @@ export function createBotnetTagService(
 
   function closeWhere(predicate, code, reason) {
     for (const connection of connections) {
-      if (predicate(connection)) connection.ws.close(code, reason)
+      if (predicate(connection)) revoke(connection, code, reason)
     }
   }
 
@@ -409,6 +483,7 @@ export function createBotnetTagService(
     clearInterval(recheckTimer)
     for (const entry of allEntries()) clearInterval(entry.timer)
     for (const connection of connections) connection.ws.terminate()
+    connectHits.shutdown()
     wss.close()
   }
 
@@ -421,8 +496,6 @@ export function createBotnetTagService(
         4401,
         reason === 'replaced' ? 'replaced' : 'signed out',
       ),
-    disconnectUser: (userId) => closeWhere((entry) => entry.userId === userId, 4401, 'signed out'),
-    connectionCount: () => connections.size,
     roundCount: () => allEntries().length,
     // tests only: advances every round once, and exposes live rounds and pending saves
     tickAll: () => allEntries().forEach(tickEntry),

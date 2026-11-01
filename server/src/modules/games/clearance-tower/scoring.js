@@ -2,8 +2,24 @@ import { HINT_COST } from './hints.js'
 import { checkStep, findDutyConflicts } from './models.js'
 
 export const MAX_SCORE = 100
-export const LEAK_PENALTY = 20
 export const PRIVILEGE_PENALTY = 5
+
+// clear-4: any leak empties the row, and a policy that stops most of the work cannot bank
+// security points for it; below the threshold both security rows shrink with the work share
+export const SCORING_RULES = Object.freeze({
+  leakPenalty: 40,
+  fullSecurityAtWorkShare: 0.75,
+  countsUnavoidableWorkLoss: true,
+  leakBlocksTopic: true,
+})
+
+// clear-2 and clear-3 keep the rules they were saved under
+export const LEGACY_SCORING_RULES = Object.freeze({
+  leakPenalty: 20,
+  fullSecurityAtWorkShare: 0,
+  countsUnavoidableWorkLoss: false,
+  leakBlocksTopic: false,
+})
 
 // mandatory labels decide every flow, so those levels move the privilege points to predictions
 export const WEIGHTS = {
@@ -102,10 +118,25 @@ export function hintPenaltyFor(rawScore, hintsUsed) {
   return Math.min(rawScore, hintsUsed * HINT_COST)
 }
 
-export function scoreLevel(level, policy, predictions, events, hintsUsed = 0) {
+function securityShareFor(workShare, rules) {
+  if (!rules.fullSecurityAtWorkShare) return 1
+  return Math.min(1, workShare / rules.fullSecurityAtWorkShare)
+}
+
+export function scoreLevel(
+  level,
+  policy,
+  predictions,
+  events,
+  hintsUsed = 0,
+  rules = SCORING_RULES,
+) {
   const weights = WEIGHTS[level.model]
   const workEvents = events.filter((event) => event.kind === 'work')
   const workDone = workEvents.filter((event) => event.outcome === 'done').length
+  const workAllowance = rules.countsUnavoidableWorkLoss ? (level.unavoidableWorkLoss ?? 0) : 0
+  const workShare = Math.min(1, workDone / (workEvents.length - workAllowance))
+  const securityShare = securityShareFor(workShare, rules)
   const leaks = events.filter((event) => event.outcome === 'leaked').length
   const tampering = events.filter((event) => event.outcome === 'tampered').length
   const excessRights = weights.privilege > 0 ? countExcessRights(level, policy) : 0
@@ -119,19 +150,21 @@ export function scoreLevel(level, policy, predictions, events, hintsUsed = 0) {
       key: 'leaks',
       label: 'No leaks',
       max: weights.leaks,
-      points: Math.max(0, weights.leaks - LEAK_PENALTY * leaks),
+      points: Math.round(Math.max(0, weights.leaks - rules.leakPenalty * leaks) * securityShare),
     },
     {
       key: 'work',
       label: 'Work completed',
       max: weights.work,
-      points: Math.round((weights.work * workDone) / workEvents.length),
+      points: Math.round(weights.work * workShare),
     },
     {
       key: 'privilege',
       label: 'Least privilege',
       max: weights.privilege,
-      points: Math.max(0, weights.privilege - PRIVILEGE_PENALTY * privilegeMisses),
+      points: Math.round(
+        Math.max(0, weights.privilege - PRIVILEGE_PENALTY * privilegeMisses) * securityShare,
+      ),
     },
     {
       key: 'predictions',
@@ -160,6 +193,11 @@ export function scoreLevel(level, policy, predictions, events, hintsUsed = 0) {
       dutyConflicts,
       correctPredictions,
       predictionTotal: review.length,
+      ...(rules.leakBlocksTopic && {
+        workAllowance,
+        securityShare,
+        topicBlockedByLeak: leaks > 0,
+      }),
     },
     predictionReview: review,
     ...(level.compareEdits && { edits: countEdits(level, policy) }),
