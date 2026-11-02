@@ -156,118 +156,109 @@ afterAll(async () => {
 describe.skipIf(process.env.SHARLOCK_TEST_REPLICA_SET !== '1')(
   'admin institution and class editing API',
   () => {
-    it(
-      'requires administrator access and rejects changes to institution slugs and class parents',
-      async () => {
-        const institution = await createInstitution()
-        const cohort = await createCohort(institution.id)
-        const otherInstitution = await createInstitution()
+    it('requires administrator access and rejects changes to institution slugs and class parents', async () => {
+      const institution = await createInstitution()
+      const cohort = await createCohort(institution.id)
+      const otherInstitution = await createInstitution()
 
-        await request(app).patch(`/api/admin/institutions/${institution.id}`).expect(401)
-        await patchInstitution(
-          institution.id,
-          { name: 'Student edit', expectedRevision: 0 },
-          student.agent,
-          student.csrfToken,
-        ).expect(403)
-        await patchInstitution(institution.id, {
-          name: institution.name,
-          status: institution.status,
-          slug: 'changed-slug',
-          expectedRevision: 0,
-        }).expect(400)
-        await patchCohort(cohort.id, {
-          name: cohort.name,
-          term: cohort.term,
-          status: cohort.status,
-          institutionId: otherInstitution.id,
-          expectedRevision: 0,
-        }).expect(400)
+      await request(app).patch(`/api/admin/institutions/${institution.id}`).expect(401)
+      await patchInstitution(
+        institution.id,
+        { name: 'Student edit', expectedRevision: 0 },
+        student.agent,
+        student.csrfToken,
+      ).expect(403)
+      await patchInstitution(institution.id, {
+        name: institution.name,
+        status: institution.status,
+        slug: 'changed-slug',
+        expectedRevision: 0,
+      }).expect(400)
+      await patchCohort(cohort.id, {
+        name: cohort.name,
+        term: cohort.term,
+        status: cohort.status,
+        institutionId: otherInstitution.id,
+        expectedRevision: 0,
+      }).expect(400)
 
-        const savedInstitution = await institutionModel(database).findById(institution.id).lean()
-        const savedCohort = await cohortModel(database).findById(cohort.id).lean()
-        expect(savedInstitution).toMatchObject({ name: institution.name, slug: institution.slug })
-        expect(savedCohort.institutionId.toString()).toBe(institution.id)
-      },
-    )
+      const savedInstitution = await institutionModel(database).findById(institution.id).lean()
+      const savedCohort = await cohortModel(database).findById(cohort.id).lean()
+      expect(savedInstitution).toMatchObject({ name: institution.name, slug: institution.slug })
+      expect(savedCohort.institutionId.toString()).toBe(institution.id)
+    })
 
-    it(
-      'applies partial edits with legacy revisions and rejects stale writes',
-      async () => {
-        const institution = await createInstitution()
-        const cohort = await createCohort(institution.id)
-        await institutionModel(database).updateOne(
-          { _id: new Types.ObjectId(institution.id) },
-          { $unset: { adminRevision: '' } },
-        )
-        await cohortModel(database).updateOne(
-          { _id: new Types.ObjectId(cohort.id) },
-          { $unset: { adminRevision: '' } },
-        )
+    it('applies partial edits with legacy revisions and rejects stale writes', async () => {
+      const institution = await createInstitution()
+      const cohort = await createCohort(institution.id)
+      await institutionModel(database).updateOne(
+        { _id: new Types.ObjectId(institution.id) },
+        { $unset: { adminRevision: '' } },
+      )
+      await cohortModel(database).updateOne(
+        { _id: new Types.ObjectId(cohort.id) },
+        { $unset: { adminRevision: '' } },
+      )
 
-        const renamed = await patchInstitution(institution.id, {
+      const renamed = await patchInstitution(institution.id, {
+        name: 'Renamed Synthetic Campus',
+        expectedRevision: 0,
+      }).expect(200)
+      expect(renamed.body).toMatchObject({
+        institution: {
+          id: institution.id,
           name: 'Renamed Synthetic Campus',
-          expectedRevision: 0,
-        }).expect(200)
-        expect(renamed.body).toMatchObject({
-          institution: {
-            id: institution.id,
-            name: 'Renamed Synthetic Campus',
-            slug: institution.slug,
-            revision: 1,
-          },
-        })
-        await patchInstitution(institution.id, { status: 'inactive', expectedRevision: 0 })
-          .expect(409)
-          .then(({ body }) => expect(body.error.code).toBe('ADMIN_STALE_INSTITUTION'))
+          slug: institution.slug,
+          revision: 1,
+        },
+      })
+      await patchInstitution(institution.id, { status: 'inactive', expectedRevision: 0 })
+        .expect(409)
+        .then(({ body }) => expect(body.error.code).toBe('ADMIN_STALE_INSTITUTION'))
 
-        const termed = await patchCohort(cohort.id, {
+      const termed = await patchCohort(cohort.id, {
+        term: '2027 T1',
+        expectedRevision: 0,
+      }).expect(200)
+      expect(termed.body).toMatchObject({
+        cohort: {
+          id: cohort.id,
+          institutionId: institution.id,
+          name: cohort.name,
           term: '2027 T1',
-          expectedRevision: 0,
-        }).expect(200)
-        expect(termed.body).toMatchObject({
-          cohort: {
-            id: cohort.id,
-            institutionId: institution.id,
-            name: cohort.name,
-            term: '2027 T1',
-            status: 'active',
-            revision: 1,
-          },
-        })
-        await patchCohort(cohort.id, { status: 'inactive', expectedRevision: 0 })
-          .expect(409)
-          .then(({ body }) => expect(body.error.code).toBe('ADMIN_STALE_COHORT'))
-      },
-    )
+          status: 'active',
+          revision: 1,
+        },
+      })
+      await patchCohort(cohort.id, { status: 'inactive', expectedRevision: 0 })
+        .expect(409)
+        .then(({ body }) => expect(body.error.code).toBe('ADMIN_STALE_COHORT'))
+    })
 
-    it(
-      'assigns multiple eligible sibling classes in one revision-checked replacement',
-      async () => {
-        const institution = await createInstitution()
-        const firstCohort = await createCohort(institution.id)
-        const secondCohort = await createCohort(institution.id)
+    it('assigns multiple eligible sibling classes in one revision-checked replacement', async () => {
+      const institution = await createInstitution()
+      const firstCohort = await createCohort(institution.id)
+      const secondCohort = await createCohort(institution.id)
 
-        const assigned = await admin.agent
-          .put(`/api/admin/instructors/${instructor.user.id}/assignments`)
-          .set('Origin', origin)
-          .set('X-CSRF-Token', admin.csrfToken)
-          .send({ cohortIds: [firstCohort.id, secondCohort.id], expectedRevision: 0 })
-          .expect(200)
-        expect(assigned.body.instructor).toMatchObject({
-          cohortIds: [firstCohort.id, secondCohort.id],
-          assignmentRevision: 1,
-        })
+      const assigned = await admin.agent
+        .put(`/api/admin/instructors/${instructor.user.id}/assignments`)
+        .set('Origin', origin)
+        .set('X-CSRF-Token', admin.csrfToken)
+        .send({ cohortIds: [firstCohort.id, secondCohort.id], expectedRevision: 0 })
+        .expect(200)
+      expect(assigned.body.instructor).toMatchObject({
+        cohortIds: [firstCohort.id, secondCohort.id],
+        assignmentRevision: 1,
+      })
 
-        const rows = await instructorAssignmentModel(database)
-          .find({ userId: new Types.ObjectId(instructor.user.id), status: 'active' })
-          .select('cohortId')
-          .lean()
-        expect(rows.map(({ cohortId }) => cohortId.toString()).sort()).toEqual(
-          [firstCohort.id, secondCohort.id].sort(),
-        )
-      },
-    )
+      const rows = await instructorAssignmentModel(database)
+        .find({ userId: new Types.ObjectId(instructor.user.id), status: 'active' })
+        .select('cohortId')
+        .lean()
+      expect(rows.map(({ cohortId }) => cohortId.toString()).sort()).toEqual(
+        [firstCohort.id, secondCohort.id].sort(),
+      )
+    })
 
     describe('reactivating when a student has since joined another class', () => {
       async function deactivated(institutionId) {
@@ -291,259 +282,245 @@ describe.skipIf(process.env.SHARLOCK_TEST_REPLICA_SET !== '1')(
           }),
         })
 
-      it(
-        'refuses a class with a count, changes nothing and writes no audit event',
-        async () => {
-          const institution = await createInstitution()
-          const old = await deactivated(institution.id)
-          const current = await createCohort(institution.id)
-          const oldMembership = await hold(old.id)
-          const currentMembership = await hold(current.id, 'pending')
-          const audits = () =>
-            database.db
-              .collection('audit_events')
-              .countDocuments({ eventType: 'admin.cohort.reactivate' })
-          const auditsBefore = await audits()
+      it('refuses a class with a count, changes nothing and writes no audit event', async () => {
+        const institution = await createInstitution()
+        const old = await deactivated(institution.id)
+        const current = await createCohort(institution.id)
+        const oldMembership = await hold(old.id)
+        const currentMembership = await hold(current.id, 'pending')
+        const audits = () =>
+          database.db
+            .collection('audit_events')
+            .countDocuments({ eventType: 'admin.cohort.reactivate' })
+        const auditsBefore = await audits()
 
-          const refused = await patchCohort(old.id, {
-            status: 'active',
-            expectedRevision: old.revision,
-          }).expect(409)
-          expect(refused.body.error).toEqual({
-            code: 'ADMIN_REACTIVATION_CONFLICT',
-            message:
-              '1 student here is already in another class. Remove them from that class first, then try again.',
-            affectedStudents: 1,
-          })
-          expect(JSON.stringify(refused.body)).not.toContain(student.user.id)
-          expect(JSON.stringify(refused.body)).not.toContain(current.id)
+        const refused = await patchCohort(old.id, {
+          status: 'active',
+          expectedRevision: old.revision,
+        }).expect(409)
+        expect(refused.body.error).toEqual({
+          code: 'ADMIN_REACTIVATION_CONFLICT',
+          message:
+            '1 student here is already in another class. Remove them from that class first, then try again.',
+          affectedStudents: 1,
+        })
+        expect(JSON.stringify(refused.body)).not.toContain(student.user.id)
+        expect(JSON.stringify(refused.body)).not.toContain(current.id)
 
-          const stored = await cohortModel(database).findById(old.id).lean()
-          expect(stored.status).toBe('inactive')
-          expect(stored.adminRevision ?? 0).toBe(old.revision)
-          expect(await audits()).toBe(auditsBefore)
-          expect((await membershipModel(database).findById(oldMembership._id).lean()).status).toBe(
-            'active',
-          )
-          expect(
-            (await membershipModel(database).findById(currentMembership._id).lean()).status,
-          ).toBe('pending')
+        const stored = await cohortModel(database).findById(old.id).lean()
+        expect(stored.status).toBe('inactive')
+        expect(stored.adminRevision ?? 0).toBe(old.revision)
+        expect(await audits()).toBe(auditsBefore)
+        expect((await membershipModel(database).findById(oldMembership._id).lean()).status).toBe(
+          'active',
+        )
+        expect(
+          (await membershipModel(database).findById(currentMembership._id).lean()).status,
+        ).toBe('pending')
 
-          // the same stale check and revision still work once the student is out of the other class
-          await membershipModel(database).updateOne(
-            { _id: currentMembership._id },
-            { $set: { status: 'removed' } },
-          )
-          await patchCohort(old.id, { status: 'active', expectedRevision: old.revision }).expect(200)
-          expect(await audits()).toBe(auditsBefore + 1)
-        },
-      )
+        // the same stale check and revision still work once the student is out of the other class
+        await membershipModel(database).updateOne(
+          { _id: currentMembership._id },
+          { $set: { status: 'removed' } },
+        )
+        await patchCohort(old.id, { status: 'active', expectedRevision: old.revision }).expect(200)
+        expect(await audits()).toBe(auditsBefore + 1)
+      })
 
-      it(
-        'ignores a removed membership and another class that is itself off',
-        async () => {
-          const institution = await createInstitution()
-          const old = await deactivated(institution.id)
-          const removedFrom = await createCohort(institution.id)
-          const alsoOff = await deactivated(institution.id)
-          await hold(old.id)
-          await hold(removedFrom.id, 'removed')
-          await hold(alsoOff.id)
-          await patchCohort(old.id, { status: 'active', expectedRevision: old.revision }).expect(200)
-        },
-      )
+      it('ignores a removed membership and another class that is itself off', async () => {
+        const institution = await createInstitution()
+        const old = await deactivated(institution.id)
+        const removedFrom = await createCohort(institution.id)
+        const alsoOff = await deactivated(institution.id)
+        await hold(old.id)
+        await hold(removedFrom.id, 'removed')
+        await hold(alsoOff.id)
+        await patchCohort(old.id, { status: 'active', expectedRevision: old.revision }).expect(200)
+      })
 
-      it(
-        'refuses an institution whose live classes would give a student two',
-        async () => {
-          const institution = await createInstitution()
-          const cohort = await createCohort(institution.id)
-          const other = await createCohort((await createInstitution()).id)
-          await hold(cohort.id)
-          await hold(other.id)
-          // reached only through older records: the api keeps classes off under an off institution
-          await institutionModel(database).updateOne(
-            { _id: new Types.ObjectId(institution.id) },
-            { $set: { status: 'inactive' } },
-          )
-          const refused = await patchInstitution(institution.id, {
-            status: 'active',
-            expectedRevision: institution.revision,
-          }).expect(409)
-          expect(refused.body.error).toMatchObject({
-            code: 'ADMIN_REACTIVATION_CONFLICT',
-            affectedStudents: 1,
-          })
-          const stored = await institutionModel(database).findById(institution.id).lean()
-          expect(stored.status).toBe('inactive')
-          expect(stored.adminRevision ?? 0).toBe(institution.revision)
-
-          await membershipModel(database).deleteMany({
-            userId: new Types.ObjectId(student.user.id),
-            cohortId: new Types.ObjectId(other.id),
-          })
-          await patchInstitution(institution.id, {
-            status: 'active',
-            expectedRevision: institution.revision,
-          }).expect(200)
-        },
-      )
-    })
-
-    it(
-      'preserves class history and enforces parent and reactivation rules',
-      async () => {
+      it('refuses an institution whose live classes would give a student two', async () => {
         const institution = await createInstitution()
         const cohort = await createCohort(institution.id)
-        await membershipModel(database).create({
+        const other = await createCohort((await createInstitution()).id)
+        await hold(cohort.id)
+        await hold(other.id)
+        // reached only through older records: the api keeps classes off under an off institution
+        await institutionModel(database).updateOne(
+          { _id: new Types.ObjectId(institution.id) },
+          { $set: { status: 'inactive' } },
+        )
+        const refused = await patchInstitution(institution.id, {
+          status: 'active',
+          expectedRevision: institution.revision,
+        }).expect(409)
+        expect(refused.body.error).toMatchObject({
+          code: 'ADMIN_REACTIVATION_CONFLICT',
+          affectedStudents: 1,
+        })
+        const stored = await institutionModel(database).findById(institution.id).lean()
+        expect(stored.status).toBe('inactive')
+        expect(stored.adminRevision ?? 0).toBe(institution.revision)
+
+        await membershipModel(database).deleteMany({
+          userId: new Types.ObjectId(student.user.id),
+          cohortId: new Types.ObjectId(other.id),
+        })
+        await patchInstitution(institution.id, {
+          status: 'active',
+          expectedRevision: institution.revision,
+        }).expect(200)
+      })
+    })
+
+    it('preserves class history and enforces parent and reactivation rules', async () => {
+      const institution = await createInstitution()
+      const cohort = await createCohort(institution.id)
+      await membershipModel(database).create({
+        userId: new Types.ObjectId(student.user.id),
+        cohortId: new Types.ObjectId(cohort.id),
+        status: 'active',
+        decision: 'approved',
+        approvedAt: new Date(),
+        approvedBy: new Types.ObjectId(admin.user.id),
+      })
+
+      const assigned = await admin.agent
+        .put(`/api/admin/instructors/${instructor.user.id}/assignments`)
+        .set('Origin', origin)
+        .set('X-CSRF-Token', admin.csrfToken)
+        .send({ cohortIds: [cohort.id], expectedRevision: 0 })
+        .expect(200)
+      expect(assigned.body.instructor).toMatchObject({
+        cohortIds: [cohort.id],
+        assignmentRevision: 1,
+      })
+      await admin.agent
+        .put(`/api/admin/instructors/${instructor.user.id}/assignments`)
+        .set('Origin', origin)
+        .set('X-CSRF-Token', admin.csrfToken)
+        .send({ cohortIds: [], expectedRevision: 0 })
+        .expect(409)
+
+      const issued = await instructor.agent
+        .post(`/api/cohorts/${cohort.id}/enrollment-codes`)
+        .set('Origin', origin)
+        .set('X-CSRF-Token', instructor.csrfToken)
+        .send({ expectedRevision: 0 })
+        .expect(201)
+
+      await patchInstitution(institution.id, { status: 'inactive', expectedRevision: 0 })
+        .expect(409)
+        .then(({ body }) => expect(body.error.code).toBe('ADMIN_INSTITUTION_HAS_CLASSES'))
+      await patchCohort(cohort.id, { status: 'inactive', expectedRevision: 0 }).expect(200)
+
+      const membership = await membershipModel(database)
+        .findOne({
           userId: new Types.ObjectId(student.user.id),
           cohortId: new Types.ObjectId(cohort.id),
-          status: 'active',
-          decision: 'approved',
-          approvedAt: new Date(),
-          approvedBy: new Types.ObjectId(admin.user.id),
         })
-
-        const assigned = await admin.agent
-          .put(`/api/admin/instructors/${instructor.user.id}/assignments`)
-          .set('Origin', origin)
-          .set('X-CSRF-Token', admin.csrfToken)
-          .send({ cohortIds: [cohort.id], expectedRevision: 0 })
-          .expect(200)
-        expect(assigned.body.instructor).toMatchObject({
-          cohortIds: [cohort.id],
-          assignmentRevision: 1,
+        .lean()
+      const assignment = await instructorAssignmentModel(database)
+        .findOne({
+          userId: new Types.ObjectId(instructor.user.id),
+          cohortId: new Types.ObjectId(cohort.id),
         })
-        await admin.agent
-          .put(`/api/admin/instructors/${instructor.user.id}/assignments`)
-          .set('Origin', origin)
-          .set('X-CSRF-Token', admin.csrfToken)
-          .send({ cohortIds: [], expectedRevision: 0 })
-          .expect(409)
+        .lean()
+      const revoked = await enrollmentCodeModel(database)
+        .findOne({ cohortId: new Types.ObjectId(cohort.id) })
+        .lean()
+      expect(membership).toMatchObject({ status: 'active', decision: 'approved' })
+      expect(assignment).toMatchObject({ status: 'active' })
+      expect(revoked).toMatchObject({
+        revokedAt: expect.any(Date),
+        revision: issued.body.revision + 1,
+      })
 
-        const issued = await instructor.agent
-          .post(`/api/cohorts/${cohort.id}/enrollment-codes`)
-          .set('Origin', origin)
-          .set('X-CSRF-Token', instructor.csrfToken)
-          .send({ expectedRevision: 0 })
-          .expect(201)
-
-        await patchInstitution(institution.id, { status: 'inactive', expectedRevision: 0 })
-          .expect(409)
-          .then(({ body }) => expect(body.error.code).toBe('ADMIN_INSTITUTION_HAS_CLASSES'))
-        await patchCohort(cohort.id, { status: 'inactive', expectedRevision: 0 }).expect(200)
-
-        const membership = await membershipModel(database)
-          .findOne({
-            userId: new Types.ObjectId(student.user.id),
-            cohortId: new Types.ObjectId(cohort.id),
-          })
-          .lean()
-        const assignment = await instructorAssignmentModel(database)
-          .findOne({
-            userId: new Types.ObjectId(instructor.user.id),
-            cohortId: new Types.ObjectId(cohort.id),
-          })
-          .lean()
-        const revoked = await enrollmentCodeModel(database)
-          .findOne({ cohortId: new Types.ObjectId(cohort.id) })
-          .lean()
-        expect(membership).toMatchObject({ status: 'active', decision: 'approved' })
-        expect(assignment).toMatchObject({ status: 'active' })
-        expect(revoked).toMatchObject({
-          revokedAt: expect.any(Date),
-          revision: issued.body.revision + 1,
-        })
-
-        const instructors = await admin.agent
-          .get('/api/admin/instructors')
-          .set('Origin', origin)
-          .expect(200)
-        const instructorDto = instructors.body.instructors.find(
-          ({ id }) => id === instructor.user.id,
-        )
-        expect(instructorDto.cohortIds).toEqual([cohort.id])
-        expect(instructorDto.assignedCohorts).toMatchObject([
-          {
-            id: cohort.id,
-            institutionId: institution.id,
-            institutionStatus: 'active',
-            name: cohort.name,
-            term: cohort.term,
-            status: 'inactive',
-          },
-        ])
-        expect(JSON.stringify(instructorDto)).not.toMatch(/recoveryRevision|passwordHash|tokenHash/)
-
-        const retained = await admin.agent
-          .put(`/api/admin/instructors/${instructor.user.id}/assignments`)
-          .set('Origin', origin)
-          .set('X-CSRF-Token', admin.csrfToken)
-          .send({ cohortIds: [cohort.id], expectedRevision: 1 })
-          .expect(200)
-        expect(retained.body.instructor).toMatchObject({
-          cohortIds: [cohort.id],
-          assignmentRevision: 2,
-        })
-        await admin.agent
-          .put(`/api/admin/instructors/${unassignedInstructor.user.id}/assignments`)
-          .set('Origin', origin)
-          .set('X-CSRF-Token', admin.csrfToken)
-          .send({ cohortIds: [cohort.id], expectedRevision: 0 })
-          .expect(404)
-
-        await patchInstitution(institution.id, {
+      const instructors = await admin.agent
+        .get('/api/admin/instructors')
+        .set('Origin', origin)
+        .expect(200)
+      const instructorDto = instructors.body.instructors.find(({ id }) => id === instructor.user.id)
+      expect(instructorDto.cohortIds).toEqual([cohort.id])
+      expect(instructorDto.assignedCohorts).toMatchObject([
+        {
+          id: cohort.id,
+          institutionId: institution.id,
+          institutionStatus: 'active',
+          name: cohort.name,
+          term: cohort.term,
           status: 'inactive',
-          expectedRevision: 0,
-        }).expect(200)
-        await patchCohort(cohort.id, { status: 'active', expectedRevision: 1 }).expect(404)
-        const rejectedCreation = await admin.agent
-          .post('/api/admin/cohorts')
-          .set('Origin', origin)
-          .set('X-CSRF-Token', admin.csrfToken)
-          .send({ institutionId: institution.id, name: 'Blocked class', term: '2027 T1' })
-          .expect(404)
-        expect(rejectedCreation.body.error.code).toBe('ADMIN_NOT_FOUND')
-        const inactiveParentListing = await admin.agent
-          .get('/api/admin/cohorts')
-          .query({ institutionId: institution.id })
-          .set('Origin', origin)
-          .expect(200)
-        expect(inactiveParentListing.body.cohorts).toContainEqual(
-          expect.objectContaining({
-            id: cohort.id,
-            status: 'inactive',
-            institutionStatus: 'inactive',
-          }),
-        )
+        },
+      ])
+      expect(JSON.stringify(instructorDto)).not.toMatch(/recoveryRevision|passwordHash|tokenHash/)
 
-        await patchInstitution(institution.id, {
-          status: 'active',
-          expectedRevision: 1,
-        }).expect(200)
-        const afterParentReactivation = await admin.agent
-          .get('/api/admin/cohorts')
-          .query({ institutionId: institution.id })
-          .set('Origin', origin)
-          .expect(200)
-        expect(afterParentReactivation.body.cohorts).toContainEqual(
-          expect.objectContaining({
-            id: cohort.id,
-            status: 'inactive',
-            institutionStatus: 'active',
-          }),
-        )
-        await patchCohort(cohort.id, { status: 'active', expectedRevision: 1 }).expect(200)
+      const retained = await admin.agent
+        .put(`/api/admin/instructors/${instructor.user.id}/assignments`)
+        .set('Origin', origin)
+        .set('X-CSRF-Token', admin.csrfToken)
+        .send({ cohortIds: [cohort.id], expectedRevision: 1 })
+        .expect(200)
+      expect(retained.body.instructor).toMatchObject({
+        cohortIds: [cohort.id],
+        assignmentRevision: 2,
+      })
+      await admin.agent
+        .put(`/api/admin/instructors/${unassignedInstructor.user.id}/assignments`)
+        .set('Origin', origin)
+        .set('X-CSRF-Token', admin.csrfToken)
+        .send({ cohortIds: [cohort.id], expectedRevision: 0 })
+        .expect(404)
 
-        const renewed = await instructor.agent
-          .post(`/api/cohorts/${cohort.id}/enrollment-codes`)
-          .set('Origin', origin)
-          .set('X-CSRF-Token', instructor.csrfToken)
-          .send({ expectedRevision: revoked.revision })
-          .expect(201)
-        expect(renewed.body.rawCode).not.toBe(issued.body.rawCode)
-        expect(renewed.body.revision).toBe(revoked.revision + 1)
-      },
-    )
+      await patchInstitution(institution.id, {
+        status: 'inactive',
+        expectedRevision: 0,
+      }).expect(200)
+      await patchCohort(cohort.id, { status: 'active', expectedRevision: 1 }).expect(404)
+      const rejectedCreation = await admin.agent
+        .post('/api/admin/cohorts')
+        .set('Origin', origin)
+        .set('X-CSRF-Token', admin.csrfToken)
+        .send({ institutionId: institution.id, name: 'Blocked class', term: '2027 T1' })
+        .expect(404)
+      expect(rejectedCreation.body.error.code).toBe('ADMIN_NOT_FOUND')
+      const inactiveParentListing = await admin.agent
+        .get('/api/admin/cohorts')
+        .query({ institutionId: institution.id })
+        .set('Origin', origin)
+        .expect(200)
+      expect(inactiveParentListing.body.cohorts).toContainEqual(
+        expect.objectContaining({
+          id: cohort.id,
+          status: 'inactive',
+          institutionStatus: 'inactive',
+        }),
+      )
+
+      await patchInstitution(institution.id, {
+        status: 'active',
+        expectedRevision: 1,
+      }).expect(200)
+      const afterParentReactivation = await admin.agent
+        .get('/api/admin/cohorts')
+        .query({ institutionId: institution.id })
+        .set('Origin', origin)
+        .expect(200)
+      expect(afterParentReactivation.body.cohorts).toContainEqual(
+        expect.objectContaining({
+          id: cohort.id,
+          status: 'inactive',
+          institutionStatus: 'active',
+        }),
+      )
+      await patchCohort(cohort.id, { status: 'active', expectedRevision: 1 }).expect(200)
+
+      const renewed = await instructor.agent
+        .post(`/api/cohorts/${cohort.id}/enrollment-codes`)
+        .set('Origin', origin)
+        .set('X-CSRF-Token', instructor.csrfToken)
+        .send({ expectedRevision: revoked.revision })
+        .expect(201)
+      expect(renewed.body.rawCode).not.toBe(issued.body.rawCode)
+      expect(renewed.body.revision).toBe(revoked.revision + 1)
+    })
   },
 )

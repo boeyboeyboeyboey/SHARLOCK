@@ -104,6 +104,7 @@ describe('holdsStill', () => {
     expect(holdsStill({ ...base, dist: 3.9 })).toBe(false)
     expect(holdsStill({ ...base, dist: 1.6 })).toBe(false)
   })
-  it('stops when the player is within reach', () => expect(holdsStill({ ...base, dist: 1.4 })).toBe(true))
+  it('stops when the player is within reach', () =>
+    expect(holdsStill({ ...base, dist: 1.4 })).toBe(true))
   it('stops while a talk is open', () => expect(holdsStill({ ...base, talking: true })).toBe(true))
 })

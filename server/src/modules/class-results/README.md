@@ -8,7 +8,7 @@ Paths are relative to `/api`. Both need an active cookie session (401), send `Ca
 
 | Method/path                                                         | Success body                                                                                                                      |
 | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| GET `/cohorts/:cohortId/results?page=`                              | `{ cohort, activeStudents, truncated, truncatedStudents, truncatedAttempts, games, students, page, pageSize: 50, total }`             |
+| GET `/cohorts/:cohortId/results?page=`                              | `{ cohort, activeStudents, truncated, truncatedStudents, truncatedAttempts, games, students, page, pageSize: 50, total }`         |
 | GET `/cohorts/:cohortId/students/:studentId/attempts?gameId=&page=` | `{ student, attempts: [{ id, gameId, rulesetVersion, score, maxScore, completedAt, topicOutcomes }], page, pageSize: 10, total }` |
 
 `games` has one entry per production-registered game, even with no attempts (`rulesetVersion` and `averageBestPercent` null, `topics` empty). `students` is sorted by username, case-insensitive. A student's `games` lists only games attempted on the class's current ruleset; `bestPercent` is null only if the score is not computable (max score 0).

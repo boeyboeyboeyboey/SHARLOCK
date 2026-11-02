@@ -111,7 +111,10 @@ export const routes = [
     ],
   },
   { path: '/dashboard', redirect: (to) => ({ path: '/', query: to.query, hash: to.hash }) },
-  { path: '/progress', redirect: (to) => ({ path: '/profile', query: { ...to.query, tab: 'progress' } }) },
+  {
+    path: '/progress',
+    redirect: (to) => ({ path: '/profile', query: { ...to.query, tab: 'progress' } }),
+  },
   {
     path: '/login',
     component: () => import('../features/auth/pages/LoginPage.vue'),
@@ -177,22 +180,39 @@ export const routes = [
       {
         path: '/games/sql-injection-arcade',
         component: () => import('../games/sql-injection-arcade/SqlInjectionArcade.vue'),
-        meta: { interior: 'sql-injection-arcade', title: 'SQL Injection Arcade', requiresAccount: true },
+        meta: {
+          interior: 'sql-injection-arcade',
+          title: 'SQL Injection Arcade',
+          requiresAccount: true,
+        },
       },
       {
         path: '/games/phishing-post-mortem',
         component: () => import('../games/phishing-post-mortem/PhishingPostMortem.vue'),
-        meta: { interior: 'phishing-post-mortem', title: 'The Phishing Post-Mortem', requiresAccount: true },
+        meta: {
+          interior: 'phishing-post-mortem',
+          title: 'The Phishing Post-Mortem',
+          requiresAccount: true,
+        },
       },
       {
         path: '/games/social-engineering-simulator',
-        component: () => import('../games/social-engineering-simulator/SocialEngineeringSimulator.vue'),
-        meta: { interior: 'social-engineering-simulator', title: 'Help Desk Shift', requiresAccount: true },
+        component: () =>
+          import('../games/social-engineering-simulator/SocialEngineeringSimulator.vue'),
+        meta: {
+          interior: 'social-engineering-simulator',
+          title: 'Help Desk Shift',
+          requiresAccount: true,
+        },
       },
       {
         path: '/games/cli-cyber-defender',
         component: () => import('../games/cli-cyber-defender/CliDefenderGame.vue'),
-        meta: { interior: 'cli-cyber-defender', title: 'CLI Cyber Defender', requiresAccount: true },
+        meta: {
+          interior: 'cli-cyber-defender',
+          title: 'CLI Cyber Defender',
+          requiresAccount: true,
+        },
       },
       {
         path: '/games/clearance-tower',

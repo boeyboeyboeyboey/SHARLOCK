@@ -54,9 +54,15 @@ export function useTownMode({ device: measured = getDeviceCheck() } = {}) {
   const failed = ref(false)
   const warning = ref(false)
   const dismissed = ref(readDismissedNotice())
-  const resolved = computed(() => resolveMode({ stored: choice.value, device: device.value, failed: failed.value }))
+  const resolved = computed(() =>
+    resolveMode({ stored: choice.value, device: device.value, failed: failed.value }),
+  )
   const mode = computed(() => resolved.value.mode)
-  const reasons = computed(() => (failed.value ? ['failed'] : device.value.reasons.filter((r) => device.value.verdict === '2d' || r === 'no-webgl2')))
+  const reasons = computed(() =>
+    failed.value
+      ? ['failed']
+      : device.value.reasons.filter((r) => device.value.verdict === '2d' || r === 'no-webgl2'),
+  )
   const key = computed(() => noticeKey(reasons.value))
 
   function setMode(next) {
@@ -74,7 +80,9 @@ export function useTownMode({ device: measured = getDeviceCheck() } = {}) {
     reasons,
     warning,
     // the automatic notice also covers a locked fallback, which cannot be dismissed
-    noticeVisible: computed(() => resolved.value.forced && (resolved.value.locked || dismissed.value !== key.value)),
+    noticeVisible: computed(
+      () => resolved.value.forced && (resolved.value.locked || dismissed.value !== key.value),
+    ),
     toggle: () => {
       if (resolved.value.locked) return
       if (mode.value === '3d') setMode('2d')

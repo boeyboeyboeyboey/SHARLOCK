@@ -18,8 +18,16 @@ const phone = { verdict: '2d', tier: 'desktop', reasons: ['phone'] }
 
 describe('phone default', () => {
   it('starts on 2d, lets a stored 3d choice win and asks before switching', () => {
-    expect(resolveMode({ stored: null, device: phone, failed: false })).toEqual({ mode: '2d', forced: true, auto: true, locked: false })
-    expect(resolveMode({ stored: '3d', device: phone, failed: false })).toMatchObject({ mode: '3d', forced: false })
+    expect(resolveMode({ stored: null, device: phone, failed: false })).toEqual({
+      mode: '2d',
+      forced: true,
+      auto: true,
+      locked: false,
+    })
+    expect(resolveMode({ stored: '3d', device: phone, failed: false })).toMatchObject({
+      mode: '3d',
+      forced: false,
+    })
     const town = useTownMode({ device: phone })
     expect(town.mode.value).toBe('2d')
     town.toggle()
@@ -32,19 +40,44 @@ describe('phone default', () => {
 
 describe('town mode', () => {
   it('defaults to 3d and honours a stored choice', () => {
-    expect(resolveMode({ stored: null, device: ok, failed: false })).toMatchObject({ mode: '3d', forced: false })
-    expect(resolveMode({ stored: '2d', device: ok, failed: false })).toMatchObject({ mode: '2d', forced: false })
+    expect(resolveMode({ stored: null, device: ok, failed: false })).toMatchObject({
+      mode: '3d',
+      forced: false,
+    })
+    expect(resolveMode({ stored: '2d', device: ok, failed: false })).toMatchObject({
+      mode: '2d',
+      forced: false,
+    })
   })
 
   it('locks to 2d without webgl2 or after the hub failed', () => {
-    expect(resolveMode({ stored: '3d', device: noWebgl2, failed: false })).toMatchObject({ mode: '2d', forced: true, locked: true })
-    expect(resolveMode({ stored: '3d', device: ok, failed: true })).toMatchObject({ mode: '2d', forced: true, locked: true })
+    expect(resolveMode({ stored: '3d', device: noWebgl2, failed: false })).toMatchObject({
+      mode: '2d',
+      forced: true,
+      locked: true,
+    })
+    expect(resolveMode({ stored: '3d', device: ok, failed: true })).toMatchObject({
+      mode: '2d',
+      forced: true,
+      locked: true,
+    })
   })
 
   it('falls back to 2d automatically on software rendering but lets an explicit 3d win', () => {
-    expect(resolveMode({ stored: null, device: software, failed: false })).toEqual({ mode: '2d', forced: true, auto: true, locked: false })
-    expect(resolveMode({ stored: '3d', device: software, failed: false })).toMatchObject({ mode: '3d', forced: false })
-    expect(resolveMode({ stored: '2d', device: software, failed: false })).toMatchObject({ mode: '2d', forced: false })
+    expect(resolveMode({ stored: null, device: software, failed: false })).toEqual({
+      mode: '2d',
+      forced: true,
+      auto: true,
+      locked: false,
+    })
+    expect(resolveMode({ stored: '3d', device: software, failed: false })).toMatchObject({
+      mode: '3d',
+      forced: false,
+    })
+    expect(resolveMode({ stored: '2d', device: software, failed: false })).toMatchObject({
+      mode: '2d',
+      forced: false,
+    })
   })
 
   it('ignores an unknown stored value', () => {

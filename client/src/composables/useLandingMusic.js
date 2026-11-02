@@ -2,7 +2,7 @@ import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 export const MUSIC_MUTED_KEY = 'sharlock.musicMuted'
 export const MUSIC_VOLUME = 0.5
-const GESTURES =['pointerdown', 'keydown', 'touchstart']
+const GESTURES = ['pointerdown', 'keydown', 'touchstart']
 
 function readMuted() {
   try {

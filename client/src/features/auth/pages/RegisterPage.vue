@@ -37,7 +37,8 @@ async function continueAfterSignIn() {
     if (!controller.signal.aborted) await router.replace(destination)
   } catch {
     if (!controller.signal.aborted) {
-      continuationError.value = 'Your account is ready. Class setup is unavailable. Try Continue again.'
+      continuationError.value =
+        'Your account is ready. Class setup is unavailable. Try Continue again.'
     }
   } finally {
     continuing.value = false
@@ -109,16 +110,19 @@ async function cancelCode() {
       <h1 id="register-title" tabindex="-1">
         {{ verifying ? 'Check your email' : 'Create a student account' }}
       </h1>
-      <p v-if="!verifying" class="auth-intro">
-        Choose a username and avatar.
-      </p>
+      <p v-if="!verifying" class="auth-intro">Choose a username and avatar.</p>
 
       <!-- the signed-in view stays outside the transition: signing in navigates away at once, and
            an out-in transition holding a not-yet-mounted view crashes when its page is unmounted -->
       <div v-if="signedIn" aria-live="polite">
         <p>Your account is ready and you are signed in.</p>
         <p v-if="continuationError" role="alert">{{ continuationError }}</p>
-        <button class="btn btn-primary" type="button" :disabled="pending || continuing" @click="continueAfterSignIn">
+        <button
+          class="btn btn-primary"
+          type="button"
+          :disabled="pending || continuing"
+          @click="continueAfterSignIn"
+        >
           {{ continuing ? 'Opening Sharlock Town…' : 'Continue' }}
         </button>
       </div>

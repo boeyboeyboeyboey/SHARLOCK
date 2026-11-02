@@ -3,10 +3,86 @@
 // lines are the card text, a scene with no lesson, 1-2 lines of 140 characters at most
 // note is Sharlock's lesson shown in the discoveries log once found, pocket is the hint shown before
 export const finds = [
-  { id: 'sticky-note', kind: 'object', name: 'Pinned note', x: -40.5, z: -14, lines: ['A slip is pinned to the strongbox in a careful hand: "Safe: 1-2-3-4. Mr Pell\'s birthday."', 'The strongbox is locked. The note, helpfully, is not.'], note: 'A lock is only as good as where its secret is kept. Never write a password where others can read it; a password manager keeps it safe.', pocket: 'west lane' },
-  { id: 'tailgater', kind: 'npc', name: 'Stranger at the door', x: -34.3, z: -25.5, yaw: Math.PI / 2, lines: ['"Hold the door, would you? Left my pass at the counting-house, and the guv\'nor\'s expecting me."', 'The clerk hesitates, hand on the latch. The gentleman smiles very politely.'], note: 'Politeness is not a pass. Someone without one goes round to the front desk, however charming. This is tailgating.', pocket: 'west lane', style: { fur: 'dockA', cap: [0.14, 0.14, 0.16], scarf: [0.3, 0.3, 0.34] } },
-  { id: 'usb-stick', kind: 'object', name: 'Lost memory stick', x: 49.5, z: -43.5, lines: ['A little brass-capped stick on a string, tagged "PAYROLL — PRIVATE". Nobody about.', 'Curious thing to drop in a coal yard. Almost as if someone wanted it found.'], note: 'Found sticks are bait. Plugging one in can hand a stranger your machine. Give it to IT unopened.', pocket: 'east yard' },
-  { id: 'shoulder-surfer', kind: 'npc', name: 'Nosy onlooker', x: 54.9, z: -37.1, yaw: -Math.PI / 2, lines: ['"Fine ledger, that. Which column was the third figure in? Only asking."', 'He leans a little closer than a stranger ought.'], note: 'Watch who stands behind you while you type or read. Shield the screen; this is shoulder surfing.', pocket: 'east yard', style: { fur: 'dockC', cap: [0.4, 0.3, 0.2], scarf: [0.5, 0.2, 0.2] } },
-  { id: 'open-telegraph', kind: 'object', name: 'Open telegraph set', x: 6.5, z: 63.7, lines: ['The key still warm, the sounder clicking. The operator stepped out "for one minute" a quarter hour ago.', 'Anyone could tap out a wire in his name and nobody would know it wasn\'t him.'], note: 'Lock your screen whenever you step away, even for a minute. An open session speaks for you.', pocket: 'jetty' },
-  { id: 'handbill', kind: 'object', name: 'Handbill', x: 10.4, z: 63, lines: ['"WIN A GOLDEN GUINEA! Simply send your name, address and bank particulars to Box 9, Limehouse."', 'Printed cheap and pasted thick. Every corner of the jetty has one.'], note: 'Prizes you never entered that ask for your details are phishing. Do not reply, do not send details.', pocket: 'jetty' },
-];
+  {
+    id: 'sticky-note',
+    kind: 'object',
+    name: 'Pinned note',
+    x: -40.5,
+    z: -14,
+    lines: [
+      'A slip is pinned to the strongbox in a careful hand: "Safe: 1-2-3-4. Mr Pell\'s birthday."',
+      'The strongbox is locked. The note, helpfully, is not.',
+    ],
+    note: 'A lock is only as good as where its secret is kept. Never write a password where others can read it; a password manager keeps it safe.',
+    pocket: 'west lane',
+  },
+  {
+    id: 'tailgater',
+    kind: 'npc',
+    name: 'Stranger at the door',
+    x: -34.3,
+    z: -25.5,
+    yaw: Math.PI / 2,
+    lines: [
+      '"Hold the door, would you? Left my pass at the counting-house, and the guv\'nor\'s expecting me."',
+      'The clerk hesitates, hand on the latch. The gentleman smiles very politely.',
+    ],
+    note: 'Politeness is not a pass. Someone without one goes round to the front desk, however charming. This is tailgating.',
+    pocket: 'west lane',
+    style: { fur: 'dockA', cap: [0.14, 0.14, 0.16], scarf: [0.3, 0.3, 0.34] },
+  },
+  {
+    id: 'usb-stick',
+    kind: 'object',
+    name: 'Lost memory stick',
+    x: 49.5,
+    z: -43.5,
+    lines: [
+      'A little brass-capped stick on a string, tagged "PAYROLL — PRIVATE". Nobody about.',
+      'Curious thing to drop in a coal yard. Almost as if someone wanted it found.',
+    ],
+    note: 'Found sticks are bait. Plugging one in can hand a stranger your machine. Give it to IT unopened.',
+    pocket: 'east yard',
+  },
+  {
+    id: 'shoulder-surfer',
+    kind: 'npc',
+    name: 'Nosy onlooker',
+    x: 54.9,
+    z: -37.1,
+    yaw: -Math.PI / 2,
+    lines: [
+      '"Fine ledger, that. Which column was the third figure in? Only asking."',
+      'He leans a little closer than a stranger ought.',
+    ],
+    note: 'Watch who stands behind you while you type or read. Shield the screen; this is shoulder surfing.',
+    pocket: 'east yard',
+    style: { fur: 'dockC', cap: [0.4, 0.3, 0.2], scarf: [0.5, 0.2, 0.2] },
+  },
+  {
+    id: 'open-telegraph',
+    kind: 'object',
+    name: 'Open telegraph set',
+    x: 6.5,
+    z: 63.7,
+    lines: [
+      'The key still warm, the sounder clicking. The operator stepped out "for one minute" a quarter hour ago.',
+      "Anyone could tap out a wire in his name and nobody would know it wasn't him.",
+    ],
+    note: 'Lock your screen whenever you step away, even for a minute. An open session speaks for you.',
+    pocket: 'jetty',
+  },
+  {
+    id: 'handbill',
+    kind: 'object',
+    name: 'Handbill',
+    x: 10.4,
+    z: 63,
+    lines: [
+      '"WIN A GOLDEN GUINEA! Simply send your name, address and bank particulars to Box 9, Limehouse."',
+      'Printed cheap and pasted thick. Every corner of the jetty has one.',
+    ],
+    note: 'Prizes you never entered that ask for your details are phishing. Do not reply, do not send details.',
+    pocket: 'jetty',
+  },
+]

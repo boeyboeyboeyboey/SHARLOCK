@@ -40,7 +40,7 @@ Never print, overwrite or commit `.env` or `server/.env`.
 
 1. Plan first, with a **Docs impact** line naming the Markdown files the change will update. Wait for approval (agents.md section 2).
 2. Implement within the approved scope only.
-3. Run the narrowest relevant checks (lint, unit, targeted integration or E2E).
+3. Run the narrowest relevant checks (lint, `pnpm exec prettier --check` on the changed files, unit, targeted integration or E2E).
 4. Update every doc named in agents.md section 10 in the same change: module README (with its `## Presentation summary` for games/activities), README setup and "Using the app", DESIGN.md, hub README.
 5. Update the TASKS.md record. Task status lives only in TASKS.md.
 6. Finish with a completion report listing the checks run and the docs updated, or "no docs impact" with the reason.

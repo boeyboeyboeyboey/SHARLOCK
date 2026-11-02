@@ -43,11 +43,14 @@ const props = defineProps({
   wardrobe: { type: Object, default: null },
 })
 const emit = defineEmits(['enter', 'failed', 'slow'])
-const TIER_TO_GRAPHICS = Object.fromEntries(Object.entries(GRAPHICS_TO_TIER).map(([setting, tier]) => [tier, setting]))
+const TIER_TO_GRAPHICS = Object.fromEntries(
+  Object.entries(GRAPHICS_TO_TIER).map(([setting, tier]) => [tier, setting]),
+)
 
 const isDev = import.meta.env.DEV
 // the frame counter only shows when asked for, so a demo on the dev server stays clean
-const showStats = isDev && typeof location !== 'undefined' && new URLSearchParams(location.search).has('stats')
+const showStats =
+  isDev && typeof location !== 'undefined' && new URLSearchParams(location.search).has('stats')
 const returnKey = 'sharlock.hubReturn'
 const stage = ref(null)
 const pad = ref(null)
@@ -133,7 +136,8 @@ onBeforeMount(() => {
 })
 // the intro covers the hub, so its input is paused the same way as for the Times
 const paused = computed(() => props.inputPaused || introPlaying.value)
-const motionQuery = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null
+const motionQuery =
+  typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null
 const reducedMotion = ref(Boolean(motionQuery?.matches))
 const onMotionChange = (event) => {
   reducedMotion.value = event.matches
@@ -146,7 +150,9 @@ function onIntroDone() {
 
 const selectedGame = computed(() => props.games.find((game) => game.id === view.selected) ?? null)
 // while the hub loads or after it fails, the buttons still lead somewhere
-const canEnter = computed(() => Boolean(selectedGame.value) && (!view.ready || view.mode === 'explore'))
+const canEnter = computed(
+  () => Boolean(selectedGame.value) && (!view.ready || view.mode === 'explore'),
+)
 // games are covered by the page wipe, so only the newspaper dialog and the first load need the veil
 const faded = computed(
   () =>
@@ -161,18 +167,29 @@ const status = computed(() => {
   if (!view.ready) return view.lowering ? 'Lowering graphics for smoother play' : 'Loading the town'
   return announcement.value
 })
-const devStats = computed(() => (showStats && view.ready ? `Engine ${view.engine}, ${view.fps} fps, ${view.drawCalls} draws` : ''))
+const devStats = computed(() =>
+  showStats && view.ready ? `Engine ${view.engine}, ${view.fps} fps, ${view.drawCalls} draws` : '',
+)
 const controlsHint = ref(null)
 // the destination list starts open on wide screens and collapsed below them
 const wideQuery = typeof matchMedia === 'function' ? matchMedia('(min-width: 992px)') : null
 const destOpen = ref(wideQuery ? wideQuery.matches : true)
 const talk = useNpcDialogue()
 const talkNpc = computed(() => npcs.find((npc) => npc.id === view.nearNpc) ?? null)
-const showTalk = computed(() => view.ready && view.mode === 'explore' && !paused.value && Boolean(talkNpc.value))
+const showTalk = computed(
+  () => view.ready && view.mode === 'explore' && !paused.value && Boolean(talkNpc.value),
+)
 const discoveries = useDiscoveries()
-const sprintText = computed(() => ({ ready: 'Sprint ready', active: 'Sprint active', cooldown: 'Sprint recharging' })[view.sprint.phase])
+const sprintText = computed(
+  () =>
+    ({ ready: 'Sprint ready', active: 'Sprint active', cooldown: 'Sprint recharging' })[
+      view.sprint.phase
+    ],
+)
 const nearFind = computed(() => finds.find((find) => find.id === view.nearFind) ?? null)
-const showFind = computed(() => view.ready && view.mode === 'explore' && !paused.value && Boolean(nearFind.value))
+const showFind = computed(
+  () => view.ready && view.mode === 'explore' && !paused.value && Boolean(nearFind.value),
+)
 const talkBtn = ref(null)
 const findBtn = ref(null)
 const dialogue = ref(null)
@@ -199,7 +216,8 @@ async function openFind() {
   const find = nearFind.value
   if (!find || talk.open.value || !talk.begin({ ...find, kind: 'discovery' })) return
   hub?.pauseInput(true)
-  if (discoveries.mark(find.id)) say(`Discovery ${discoveries.count.value} of ${discoveries.total}: ${find.name}`)
+  if (discoveries.mark(find.id))
+    say(`Discovery ${discoveries.count.value} of ${discoveries.total}: ${find.name}`)
   else say(find.name)
   await nextTick()
   dialogue.value?.focus()
@@ -260,7 +278,8 @@ watch(
   ([nearNpc, nearFindId, mode, isPaused]) => {
     if (!talk.open.value) return
     const near = talk.npc.value.kind === 'discovery' ? nearFindId : nearNpc
-    if (near !== talk.npc.value.id || mode !== 'explore' || isPaused) closeTalk({ restoreFocus: false })
+    if (near !== talk.npc.value.id || mode !== 'explore' || isPaused)
+      closeTalk({ restoreFocus: false })
   },
 )
 
@@ -325,11 +344,18 @@ let peerTick = 0
 // the map's classmate dots refresh at about 4 Hz
 function samplePeers() {
   const list = []
-  for (const p of latestPeers.values()) list.push({ sid: p.sid, x: p.x, z: p.z, staff: p.role === 'staff' })
+  for (const p of latestPeers.values())
+    list.push({ sid: p.sid, x: p.x, z: p.z, staff: p.role === 'staff' })
   const prev = view.peers
   const same =
     prev.length === list.length &&
-    prev.every((q, i) => q.sid === list[i].sid && Math.abs(q.x - list[i].x) < 0.3 && Math.abs(q.z - list[i].z) < 0.3 && q.staff === list[i].staff)
+    prev.every(
+      (q, i) =>
+        q.sid === list[i].sid &&
+        Math.abs(q.x - list[i].x) < 0.3 &&
+        Math.abs(q.z - list[i].z) < 0.3 &&
+        q.staff === list[i].staff,
+    )
   if (!same) view.peers = list
 }
 // pixels the bottom bar and the open talk panel cover, so the camera keeps Sharlock and the npc above them
@@ -338,7 +364,9 @@ function syncInset() {
   if (!hub || !root) return
   const bottom = root.getBoundingClientRect().bottom
   let top = bottom
-  for (const el of root.querySelectorAll('.hub-actions, .hub-talk-panel, [data-testid="npc-dialogue"]')) {
+  for (const el of root.querySelectorAll(
+    '.hub-actions, .hub-talk-panel, [data-testid="npc-dialogue"]',
+  )) {
     const box = el.getBoundingClientRect()
     if (box.height > 0) top = Math.min(top, box.top)
   }
@@ -352,7 +380,12 @@ function samplePlayer() {
   const at = hub?.state?.player
   if (!at) return
   const last = view.player
-  if (!last || Math.abs(last.x - at.x) > 0.05 || Math.abs(last.z - at.z) > 0.05 || Math.abs(last.heading - at.heading) > 0.03) {
+  if (
+    !last ||
+    Math.abs(last.x - at.x) > 0.05 ||
+    Math.abs(last.z - at.z) > 0.05 ||
+    Math.abs(last.heading - at.heading) > 0.03
+  ) {
     view.player = { x: at.x, z: at.z, heading: at.heading }
   }
 }
@@ -360,7 +393,10 @@ function samplePlayer() {
 function onEscape(event) {
   if (event.key !== 'Escape' || event.defaultPrevented) return
   const target = event.target
-  if (target?.closest?.('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) return
+  if (
+    target?.closest?.('input, textarea, select, [contenteditable]:not([contenteditable="false"])')
+  )
+    return
   if (paused.value) return
   // a handled escape is marked so the site menu does not also open
   if (talk.open.value) {
@@ -420,7 +456,11 @@ let generation = 0
 const watchedTier = ref(null)
 // opaque hud panels on the low tier
 const solidHud = computed(() =>
-  isSolidHud({ quality: props.quality, watchedTier: watchedTier.value, deviceTier: getDeviceCheck().tier }),
+  isSolidHud({
+    quality: props.quality,
+    watchedTier: watchedTier.value,
+    deviceTier: getDeviceCheck().tier,
+  }),
 )
 
 function onPerf({ fps, tier }) {
@@ -458,7 +498,10 @@ async function mountHub(resume = null) {
     joystick: { el: pad.value, knob: knob.value, jump: jumpBtn.value, sprint: sprintBtn.value },
     params,
     spawnAt: returnDoor,
-    quality: props.quality === 'auto' && watchedTier.value ? TIER_TO_GRAPHICS[watchedTier.value] : props.quality,
+    quality:
+      props.quality === 'auto' && watchedTier.value
+        ? TIER_TO_GRAPHICS[watchedTier.value]
+        : props.quality,
     watch: props.quality === 'auto',
     resumeAt: resume,
     wardrobe: props.wardrobe,
@@ -530,11 +573,14 @@ onBeforeUnmount(() => {
 })
 
 watch(paused, pauseFromProp)
-watch(() => props.quality, () => {
-  watchedTier.value = null
-  view.lowering = false
-  rebuildHub()
-})
+watch(
+  () => props.quality,
+  () => {
+    watchedTier.value = null
+    view.lowering = false
+    rebuildHub()
+  },
+)
 watch(
   () => view.failed,
   (failed) => {
@@ -667,7 +713,9 @@ defineExpose({
       :selected="view.selected"
       @choose="choose"
     />
-    <div ref="pad" class="hub-joystick" aria-hidden="true"><div ref="knob" class="hub-joystick-knob"></div></div>
+    <div ref="pad" class="hub-joystick" aria-hidden="true">
+      <div ref="knob" class="hub-joystick-knob"></div>
+    </div>
     <button ref="jumpBtn" type="button" class="hub-jump" data-testid="hub-jump">Jump</button>
     <button
       ref="sprintBtn"
@@ -688,7 +736,9 @@ defineExpose({
           cy="18"
           r="16"
           pathLength="100"
-          :style="{ '--sprint-ms': `${view.sprint.phase === 'active' ? SPRINT.MS : SPRINT.COOLDOWN_MS}ms` }"
+          :style="{
+            '--sprint-ms': `${view.sprint.phase === 'active' ? SPRINT.MS : SPRINT.COOLDOWN_MS}ms`,
+          }"
         />
         <path class="hub-sprint-bolt" d="M20 6 11 20h6l-2 10 10-15h-6z" />
       </svg>
@@ -818,7 +868,9 @@ defineExpose({
   border-radius: 4px;
   background: rgb(255 255 255 / 10%);
   color: inherit;
-  font: 600 12px/18px ui-monospace, monospace;
+  font:
+    600 12px/18px ui-monospace,
+    monospace;
 }
 @media (hover: none) and (pointer: coarse) {
   .hub-key {

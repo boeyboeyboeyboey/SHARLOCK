@@ -139,6 +139,7 @@ Move the task's active record rather than duplicating it across board states. Re
 All records in this section were Review until 1 November 2026, when Boey accepted every Review record at once, teammates' work included as team lead (DOC-20). They are Done and stay here so existing links keep working.
 
 **REVFIX-01 — Fixes from the REVIEW-01 Claude report** · Status: **Review** (merged into `main` through PR #8 on 2 November 2026; follow-ups in REVFIX-02) · Contributor: **Russell**, implemented by Claude Code (plan approved by Russell on 1 November 2026) · Branches: stacked `revfix-0N-*`, the first cut from `origin/main` at `1240fb5`; pushed and merged through PR #8.
+
 - **Consent:** reported by Russell as Boey's and the team's agreement on 1 November 2026 for shared code and teammates' games. It is not independently recorded here; Boey to confirm before any merge. Owners get a change note per stage.
 - **Scope:** blockers, majors and minors of `.local-handover/review-claude/REPORT.md` (gitignored, on Russell's machine); nits are out of scope. Findings are rechecked against the code first; any that do not reproduce are skipped and listed.
 - **Not changed:** C-001 (Atlas password, Boey; no history rewrite), C-005 (course documents in the repo, team decision), C-033 (skyline image source, Boey), C-240 (`llm/` engine, Eric). Help Desk findings wait for Boey to confirm SOC-02 is finished, because that record is still In Progress. C-002 is closed: Russell confirmed on 1 November 2026 that `documentation/project_brief_and_rubric.pdf` is the source of truth and that students may learn AI-enabled software engineering; that copy lists question 20 without an answer.
@@ -244,6 +245,7 @@ All records in this section were Review until 1 November 2026, when Boey accepte
 - **Final verification (2 November 2026, on `revfix-10-review-fixes`):** `pnpm exec eslint .` 0 errors, 2 existing warnings; `pnpm test:unit` 228 files, 2,756 passed; `pnpm test:integration` 30 files, 400 passed; `pnpm build` succeeded. These ran on `91a281f`; the only later change is the test helper in `admin-workspace.spec.js`. `pnpm test:e2e` on `46425c0`: 437 passed, 47 skipped, 0 failed (16 minutes), the only whole-suite run with no failures. The run before it, on `91a281f`, had 436 passed, 47 skipped and 1 failed: the helper's own race, fixed and repeated 64 of 64. **Not tested:** WebGPU rendering, real phones, a live Guardian key, live Gemini replies, an accessibility scan, the marker's route on a clean machine. **Not done:** Help Desk findings (held for SOC-02), deferred readability findings. Nothing pushed or merged; Russell reports the team's consent, and Boey is to confirm it before any merge.
 
 **REVFIX-02 — Follow-ups from the REVFIX-01 review** · Status: **Review** · Contributor: **Boey**, implemented by Claude Code (Boey approved the scope and the recommended owner decisions on 2 November 2026; Athithya and Russell agreed to delete their stale untracked local files) · Branch: `revfix-02-review-followups`, cut from `main` at `fcb3e8a`.
+
 - **Source:** Boey's read-only review of PR #8 (`.local-handover/reviews/REVFIX-01-REVIEW-2026-11-02.md`, gitignored).
 - **Browser tests:** `town-walk.spec.js` steers back to the office door when the walk overshoots to the Publican, and polls every 25–50 ms. `lore-intro.spec.js` freezes the page clock so card one cannot auto-advance under load. `auth.spec.js` gets 90 s and so does the 8-incident phone test in `cli-cyber-defender.spec.js`; the expiry path was rechecked and cannot hang a real player. `hub.spec.js` asserts one sound control after switching to 2D.
 - **Scores above par:** `phish-4` and `sql-3` save the full server score; `maxScore` (1,000 and 320) is a par. The attempt registry gains an opt-in `maxScoreIsPar` flag, set only for those two rulesets: the service then accepts up to 10× `maxScore`, and every other game keeps `score <= maxScore`. Progress points and the all-time board's points cap at 100 per attempt; Perfect case is `score >= maxScore`. Screens show `1240 (par 1000)` above par (`client/src/features/attempts/formatScore.js`). No ruleset bump: both rulesets were hours old and only the clamp changed.
@@ -254,11 +256,13 @@ All records in this section were Review until 1 November 2026, when Boey accepte
 - **Docs:** attempts, progress, leaderboards, auth, Phishing and SQL server READMEs; SQL and CLI client READMEs (factual lines); hub README (Sound control name and slot); Phishing client README (par line); this record.
 
 **FIX-10 — Newspaper headings in the Times** · Status: **Review** · Contributor: **Boey** (decided 1 November 2026; Boey owns G-NEWS), implemented by Claude Code · Branch: `fix-10-times-headings`.
+
 - `main.css` adds `.news-dialog *` to the pixel-heading exclusion list (shared file, Boey's; the only change there). `news.css` gives the Times `h1`-`h3` Libre Baskerville 700 through `--news-heading-font`; `NewsDialog.vue` imports `@fontsource/libre-baskerville/700.css` (already a dependency for the lore intro, no install). Body text is unchanged.
 - Checks: vitest threat-briefing 13/13; prettier passes on the changed code files (DESIGN.md already failed at HEAD); E2E `news.spec.js` 18 passed, 2 skipped (phone-only tests on desktop); screenshots at 1280x800 and 375x812 checked.
 - Docs: DESIGN.md (Times look and the exclusion list, which also now names Botnet Tag), threat-briefing README (font line), this record.
 
 **GUIDE-01 — Practice hints and clearer failure feedback** · Status: **Review** · Contributor: **Boey**, implemented by Claude Code (plan approved by Boey on 1 November 2026; owner agreement covers CLI, Clearance and Phishing; `llm/` untouched) · Branches: one per stage, `guide-01-cli`, `guide-01-phishing`, `guide-01-clearance`, `guide-01-shared`.
+
 - Settled: hints only in practice (timed and competitive runs refuse them on the server); two tiers (nudge, then concept), the worked example stays in the post-answer explanation; Phishing and CLI hints are free and marked "hint used" (their practice is never ranked); Clearance hints cost 10 points per level (floor 0) with ruleset `clear-3`, because its practice best scores rank; no attempt-level "assisted" field; no guided first case; SQL and Help Desk Shift keep their hints; Botnet Tag gets no hints.
 - Stages: (1) CLI second hint tier; (2) Phishing practice hint endpoint and UI; (3) Clearance per-level hints and cost; (4) Botnet Tag failed-patch reason, difficulty and background-knowledge line in How to play, leaderboards README SQL wording.
 - Collision check (1 Nov): no TASKS record, branch or code for tiered hints (rg over TASKS.md, `client/src`, `server/src`, branches); existing hints are SQL-02, SOC-02 shift hints and the CLI practice hint. Teammate worktrees not inspected.
@@ -270,6 +274,7 @@ All records in this section were Review until 1 November 2026, when Boey accepte
 - Status note: all four stages merged; GUIDE-01 is in Review for Boey. Owner notes: Xin Lei (CLI hint tier 2), Russell (Clearance hints, clear-3, unused untracked router/service), Athithya (Phishing hints).
 
 **INT-04 — Remove the dead live-room code and the game-page view switch** · Status: **Review** · Contributor: **Boey** (approved 1 November 2026 with option B2, delete), implemented by Claude Code (`senior` subagent, reviewed by the main session) · Branch: `int-04-interior-cleanup`. Plan: `.local-handover/INT-04-PLAN-2026-11-01.md`.
+
 - `ImmersiveControls.vue` (shared menu): additive `showMode` prop (default true) around the 3D | 2D group; only `InteriorLayout.vue` passes false. Hub, 2D town and Botnet Tag unchanged.
 - `InteriorLayout.vue` 524 to 314 lines: always the still over the palette gradient (static `data-stage="still"`); removed engine start, perf sampler, tier, stored and overridden mode, hero rect, `.desk-surface`/`desk-overlay` and their CSS; `stillMissing` now resets on room change. `renderMode.js` keeps `stillUrl` and `fallbackGradient` only.
 - Deleted: `useInteriorEngine.js`, `heroRect.js`, `rooms/{index,kit,heroes,cli,phishing,sql,social,clearance}.js`, `scripts/capture-interiors.mjs` and their tests; palettes moved verbatim to `rooms/palettes.js`. Nothing outside `features/interiors` imported them; `@babylonjs/*` stays for the hub. The code is in git history before this change.
@@ -278,21 +283,25 @@ All records in this section were Review until 1 November 2026, when Boey accepte
 - Docs: interiors README (rewritten), README "Using the app" game rooms, DESIGN.md (game bar, motion and fallbacks, chrome), `docs/asset-generation-guide.md` §2 intro, agents.md §8, this record.
 
 **ASSET-04 — Second-generation game music** · Status: **Review** · Contributor: **Boey** (generated with Gemini Lyria Argon High on 1 November 2026; picked the new Clearance and CLI tracks and left the other three to Claude Code), processed by Claude Code · Branch: `asset-04-music-v2`.
+
 - Replaces the five room themes and adds `botnet-tag-final-theme.mp3` (AUDIO-05). Loops are now cut where the last 2 s best match the loop start (spectral match over the last 20 s, `.local-handover/asset-sources-2026-11-01/loop2.py`), then crossfaded and normalised to -16 LUFS as before. Clearance skips its quiet 12 s intro. Loops: Clearance 75.8 s, CLI 155.7 s, Phishing 138.7 s (was 58.5 s), Social 149.6 s, SQL 165.0 s, final 156.9 s; 1.2 to 2.6 MB each.
 - Choice for Phishing, Social and SQL made on measurements, not by ear: new SQL is steady (old had 32 one-second dips more than 8 dB under its median, the stop-start intro pauses); new Social has no 10 s quiet stretch (old had one); new Phishing loops every 139 s instead of 59 s. The old versions stay in git history and their MP4s in the local sources folder.
 - Checks: per-track measurements (loudness spread, dips, loop-join spectral match, tempo against the prompt). Not checked by ear.
 - Docs: CREDITS.md (six rows), this record, AUDIO-05 record.
 
 **AUDIO-05 — Botnet Tag final-30-seconds music** · Status: **Review** · Contributor: **Boey** (approved 1 November 2026), implemented by Claude Code · Branch: `audio-05-tag-final-track`.
+
 - New `client/src/games/botnet-tag/audio/useRoundMusic.js`: two `useGameAudio` players (round and final); `roundTrack` picks the final track while playing with 30 s or less left. The inactive player gets an empty room id, so the shared suspend rule silences it and restarts the active one; a missing final file falls back to the round loop for the visit. `BotnetTagGame.vue` uses it in place of `useGameAudio`. No shared file changed (the planned single getter swap would have paused the track without restarting it). The switch is an instant cut; a crossfade would need a shared `useGameAudio` change.
 - Track added in ASSET-04.
 - Checks: vitest `client/src/games/botnet-tag` 90/90 (new `useRoundMusic.test.js`); eslint 0 errors; prettier clean; E2E `botnet-tag.spec.js` first run 1 passed, 1 failed (mobile: `tag-use` prompt not shown in 20 s), then `--repeat-each=2` 4/4 passed, so treated as a flake in the Use step. Not checked by ear.
 - Docs: Botnet Tag client README, `docs/asset-generation-guide.md`, CREDITS.md (pending row), this record.
 
 **DOC-24 — Botnet Tag theme prompt** · Status: **Review** · Contributor: **Boey** (1 November 2026: the prompt was missing from the guide), implemented by Claude Code · Branch: `doc-24-botnet-theme-prompt`.
+
 - `docs/asset-generation-guide.md` §1 Themes: a Botnet Tag entry (filename, where it plays, a Lyria prompt for a 128 BPM chiptune chase loop that leaves room for the WebAudio effects). Documentation only.
 
 **ASSET-01 — Game music, sound effects and room stills** · Status: **Review** · Contributor: **Boey** (generated the media on 1 November 2026), processed and wired by Claude Code · Branch: `asset-01-game-media`.
+
 - Five game themes (Gemini Lyria, delivered as MP4): fade-out and trailing silence cut, last 2 s crossfaded into the first 2 s for a gapless loop, -16 LUFS two-pass, stereo MP3 128 kbps (0.9 to 2.8 MB each). Four jsfxr effects (correct, wrong, lose, click) converted from WAV to mono MP3. Five Gemini room stills centre-cropped to 16:9, 1600 x 900 WebP quality 80 (65 to 128 KB), replacing the rendered ones. All play or show through the existing `useGameAudio` and `stillUrl` paths; no code change.
 - `sfx-win.mp3` (branch `asset-02-win-sfx`): Boey picked option 1 of three cuts from a 62 s Gemini track, the closing 3.1 s (56.5 to 59.6 s) with a 0.35 s fade-out, mono MP3 128 kbps.
 - `botnet-tag-theme.mp3` (branch `asset-03-botnet-theme`): Gemini track from the DOC-24 prompt, processed like the other themes (174.5 s loop, -16 LUFS, 2.8 MB). All game audio files are now in place. Originals kept locally in `.local-handover/asset-sources-2026-11-01/`.
@@ -300,27 +309,33 @@ All records in this section were Review until 1 November 2026, when Boey accepte
 - Docs: CREDITS.md (themes, effects, room stills), this record.
 
 **DOC-23 — Detailed prompts for the room stills** · Status: **Review** · Contributor: **Boey** (1 November 2026: the room prompts were too simple), implemented by Claude Code · Branch: `doc-23-room-prompts`.
+
 - `docs/asset-generation-guide.md` §2 rewritten for INT-03 (the still now shows on every device): how the panel covers the image, a fuller shared style block (camera, lens, materials, capybara characters, composition for a game background), five detailed room prompts with left, right, top and floor zones, lighting, palette and mood, at most one optional sign each, and a checklist (WebP 1600 x 900 via Squoosh, check laptop and phone). Documentation only.
 
 **DOC-22 — Step-by-step Win sound settings** · Status: **Review** · Contributor: **Boey** (1 November 2026: the Win settings were not specific enough), implemented by Claude Code · Branch: `doc-22-win-sfx`.
+
 - `docs/asset-generation-guide.md` Win: eight numbered jsfxr steps with readout targets; retrigger is set by counting 4 humps in the waveform box, and arpeggiation is now off because it restarts on every retrigger. Documentation only.
 
 **DOC-21 — jsfxr settings for the sound effects** · Status: **Review** · Contributor: **Boey** (asked on 1 November 2026), implemented by Claude Code · Branch: `doc-21-sfx-settings` (merged before this record was written; recorded on `guide-01-clearance`).
+
 - `docs/asset-generation-guide.md` "Sound effects": a shared settings paragraph (44k, 16 bit, gain until Clipped 0, same gain for all five, save the .json or permalink for CREDITS.md) and exact jsfxr starting values for correct, wrong, win, lose and click, replacing the preset-only notes. Documentation only; prettier already failed on that file at HEAD (intentional double spaces in two image prompts).
 
 **INT-03 — Game rooms show stills only** · Status: **Review** · Contributor: **Boey** (asked on 1 November 2026, for performance), implemented by Claude Code · Branch: `int-03-room-stills`.
+
 - `renderMode.js` `decideRender` always returns `still`, so game routes show the pre-rendered WebP of each room (gradient if it fails) and never start Babylon; the E2E checks there is no canvas, no `window.__interior` and no Babylon request. INT-02's hero layout falls back to the centred desk. The live room code (`useInteriorEngine.js`, scenes, `scripts/capture-interiors.mjs`) is kept but unreachable; regenerating a still needs the live path forced back on.
 - Left for a clean-up: dead wiring in `InteriorLayout.vue` (createInterior call, perf sampler, failed/tier handling, hero rect and `.desk-surface` markup). The 3D | 2D switch on game pages now changes nothing visible (it was a per-visit override); hide or remove it in a follow-up. The hero stills show an empty board below the desk.
 - Checks: vitest interiors and router 50/50; E2E `interiors.spec.js` and `clearance-tower.spec.js` on desktop and mobile 40 passed, 2 skipped; eslint clean; prettier clean except DESIGN.md (already failed at HEAD); screenshot at 1280x800.
 - Docs: agents.md §8 (interiors sentence), interiors README, DESIGN.md, README "Using the app" (game rooms), this record.
 
 **DOC-20 — Accept the whole Review queue** · Status: **Done** · Contributor/reviewer: **Boey** (asked on 1 November 2026), implemented by Claude Code · Branch: `doc-20-review-acceptance`.
+
 - Scope: every record marked Review (143 bold status lines plus DOC-13, QA-01-A, G-SQL saved practice, the two GAME-01 field lists, the G-SOC current-status line and REC-01-A) now reads Done, accepted by Boey on 1 November 2026. This includes teammates' records (Xin Lei, Athithya, Eric, Russell), which Boey accepted as team lead. Records stay in their sections; a note at the top of In Progress and Review says so.
 - agents.md §3: the teammate-game sentence now records the acceptance, and the G-NEWS-03 inconsistency note is replaced by its acceptance.
 - Not changed: dated historical lines ("remains in Review" as of an earlier date) stay as history. The final Claude Code and Codex reviews (Boey's todo) come later; anything they find becomes a new fix.
 - Checks: `rg "Status: \*\*Review"` returns nothing; documentation only, no application checks run.
 
 **MOB-01 — Mobile experience review and revamp** · Status: **Done** (accepted by Boey, 1 November 2026) · Contributor: **Boey**, implemented by Claude Code (plan approved by Boey on 1 November 2026) · Branches: one per stage, `mob-01-<stage>`; stage 1 on `mob-01-audit`.
+
 - **Scope:** five stages, each ending with Boey's OK. (1) Extended phone audit at 375/390/430 px, portrait and landscape, start and mid-play, with automated overflow, 44 px target and overlap checks; artifacts stay in gitignored `.local-handover/mob-01-audit-2026-11-01/`. (2) Shell and town: 2D zoom stack overlapping building labels, right-edge label clip, cramped 2D fallback notice, site menu drawer as a true modal at phone widths, hub map label and "3D" badge size, About headline, breakpoint stragglers in Boey-owned files only. (3) The Times masthead kicker and edition-check block; shared `AttemptContextChooser.vue` spacing against How to play. (4) Remaining stage 1 findings in Boey-owned modules. (5) Real-phone check by Boey (LAN dev-server access not yet authorized; simulated-only until Boey says otherwise).
 - **Decisions:** phones keep the 2D-by-default, 3D-opt-in rule (`deviceCheck.js`); 2D town keeps tap-to-walk, no on-screen pad; teammates' game modules are not edited, their findings go to owner notes.
 - **Collision check (1 Nov):** no `MOB-` ID or `*mob*` branch exists; overlaps only with the open todo UI overhaul brainstorm (not a claimed task) and FIX-04/UX-03 (Review, done items not redone).
@@ -333,12 +348,14 @@ All records in this section were Review until 1 November 2026, when Boey accepte
 - **Next action:** Boey's manual phone and desktop check, then acceptance.
 
 **FIX-06 — How to play waits for the game doors** · Status: **Done** (accepted by Boey, 1 November 2026) · Contributor: **Boey**, implemented by Claude Code (Boey asked for the fix on 1 November 2026 from Eric's report and video) · Branch: `fix-06-howto-after-wipe`.
+
 - Bug: entering a game, the How to play dialog appeared while the pixel doors were still closing and hid their opening, because `showModal()` puts the dialog in the top layer above `PixelWipe.vue`. The camera approach and door sequencing were already correct (doors start only after `hub.enter` resolves).
 - Fix: `client/src/components/common/HowToPlayDialog.vue` skips opening while `wipe.phase` is not `idle` and opens when it returns to idle (reduced motion has no wipe, so it opens at once as before; the eight-second wipe watchdog bounds the wait).
 - Checks: `HowToPlayDialog.test.js` 9/9 (new: waits through cover and reveal, opens at idle); eslint and prettier clean on both files; `clearance-tower`, `social-engineering-simulator` and `cli-cyber-defender` E2E on both projects 85 passed, 3 skipped.
 - Docs impact: `client/src/features/auth/README.md` (wipe paragraph) and this record; no route, control or setting changed.
 
 **FIX-07 — Phone fixes in teammates' games** · Status: **Done** (accepted by Boey, 1 November 2026) · Contributor: **Boey**, implemented by Claude Code (plan approved by Boey on 1 November 2026; the team gave Boey full liberty to fix their games, restating the owner agreement in `docs/boey-todo.md` §D; `llm/` untouched) · Branch: `fix-07-owner-game-phone`.
+
 - Source: the MOB-01 stage 1 owner findings, re-audited on main after MOB-01. Not defects after checking: Social "caller tabs crop the first bubble" (the chat area scrolls; that was the scroll position) and Clearance "Dossier/Next overlap the list" (the list sits inside the closed Today's work panel).
 - Clearance (Russell), `clearance.css`: table headers no longer break mid-word (the body's `overflow-wrap: anywhere` reached them); under 576px the r and w buttons stack in each cell, the table text is 0.8rem and the matrix fits a 375px screen with no page-wide sideways scroll; buttons stay 44px.
 - CLI (Xin Lei): `InteriorLayout.vue` (shared, Boey's) sets `--header-height` to the 64px phone bar, so games that size themselves to the screen minus the header start below it (the interiors set it to 0 for the missing navbar); `cli.css` under 576px gives the alert up to 45% of the console (was 34%) and the target chips 44px (were 34px); phone stat labels 12px (were 11.2px).
@@ -347,12 +364,14 @@ All records in this section were Review until 1 November 2026, when Boey accepte
 - Docs: interiors README (header height), this record, owner notes in `.local-handover/OWNER-NOTES-PENDING-2026-10-28.md`. No game README change: controls, routes and rules are unchanged.
 
 **FIX-08 — Untrack two stale phishing test files** · Status: **Done** (accepted by Boey, 1 November 2026) · Contributor: **Boey**, implemented by Claude Code (Boey asked on 1 November 2026) · Branch: `fix-08-untrack-phish-tests`.
+
 - Finding: FIX-04 (`c1851af`) committed Athithya's 8 old phishing client files by mistake, and they stayed tracked on `main` although later records call them untracked. Two of them, `client/src/games/phishing-post-mortem/__tests__/case.test.js` and `__tests__/components.test.js`, fail to load on `main` because they import `../composables/usePhishingCase.js` and `../phishing.js`, which PHISH-01 (`7bafe84`) deleted.
 - Fix: `git rm --cached` on those two files only; the local copies stay on disk, untracked, for Athithya. The other 6 files from FIX-04 are unchanged.
 - Checks: `pnpm exec vitest run client/src/games/phishing-post-mortem` excluding the two files: 4 files, 44 tests pass. A local checkout that still has the untracked copies will keep seeing the two load failures.
 - Docs: this record only; no route, control or rule changed. Owner note for Athithya added to Boey's local owner notes.
 
 **FIX-09 — Small clean-ups: dead CSS, HUD contrast, arrival framing** · Status: **Done** (accepted by Boey, 1 November 2026) · Contributor: **Boey**, implemented by Claude Code (Boey approved the four small items on 1 November 2026; owner agreement covers the game CSS) · Branch: `fix-09-small-cleanups`.
+
 - Dead CSS after UX-03: removed `.cli-strap` (three selectors in `cli.css`), `.clear-strap` (`clearance.css`) and `.phish-mode-line` (`phish.css`); none is referenced in `client/src`, `tests/` or `server/src`. `.cli-note` is still used and stays.
 - HUD contrast (first audit): glass `rgb(20 32 46)` composited over #f0f0f0 (worst) and #101010. Muted text, the Esc chip, unselected and hovered 3D | 2D, glass-button hover and the amber peer label failed 4.5:1 at 72%; glass raised to 80% in `menu.css` and `HubScene.vue` (all text now at least 4.81:1, most 5.2:1 or more), hovered 3D | 2D text turns ink, joystick and Jump rings ink 85% on navy 70% (were 1.8:1 and 2.9:1, now about 4.6:1). Left: the hairline panel edge (1.83:1, not needed for 1.4.11 since every control carries text or an icon) and the decorative Sprint ring track. Botnet Tag keeps its own `--game-glass` at 72% (game file, not changed).
 - Arrival framing: `liftFor` in `scenes/a-wharf.js` now lifts until the feet sit at 70% of the height above the Talk/Enter bar (`LIFT_FRAC`), not just 32 px above it; on phones the heads were behind the bar.
@@ -439,6 +458,7 @@ All records in this section were Review until 1 November 2026, when Boey accepte
 - **Next action:** Boey reviews, then stage 2 (NPCs, discoveries) on his go.
 
 **FIX-05 — Lint, font exclusion list, presence README** · Status: **Done** (accepted by Boey, 1 November 2026) · Contributor: **Boey**, implemented by Claude Code (approved by Boey on 1 November 2026) · Branch: `fix-05-small-fixes`, uncommitted edits only.
+
 - Lint: `pnpm lint` reports 0 errors and 2 warnings (`client/src/games/botnet-tag/__tests__/useTagSound.test.js` 30:21, 82:23, `vue/one-component-per-file`, left as-is). The three named error spots (`server/src/modules/admin/service.js:328`, `server/tests/integration/admin/delete-account.test.js`, `server/tests/unit/admin/workspace.test.js:233`) were already clean, so no edits were made there.
 - FONT-01: `client/src/assets/styles/main.css:76` adds `.botnet-tag-game *` to the pixel-heading `:not(` exclusion list (root from `client/src/games/botnet-tag/BotnetTagGame.vue:289`). Help Desk Shift is a composable inside the social-engineering game, so its root `.soc-game` is already listed. `threat-briefing` (`.news-dialog`) is not listed: adding it would change the Times headings' font, so it needs Boey's decision.
 - Presence: `server/src/modules/presence/README.md:42` replaces the stale "3 connections per user" line with one socket per account (MP-02).
@@ -446,6 +466,7 @@ All records in this section were Review until 1 November 2026, when Boey accepte
 - Docs impact: presence README (line 42) and TASKS.md record only; no game entry, route, control or setting changed.
 
 **HUB-12 — Hub polish leftovers** · Status: **Done** (accepted by Boey, 1 November 2026) · Contributor: **Boey**, implemented by Claude Code (approved by Boey on 1 November 2026) · Branch: `hub-12-polish`, uncommitted edits only.
+
 - **Scope:** (1) arrival and Talk framing: the follow camera lifts Sharlock and the npc above the bottom bar (`setBottomInset`, `liftFor`); (2) Sharlock: a short skirt closes the deerstalker's back edge, nostrils 13% smaller (body and face otherwise unchanged); (3) WebAudio footsteps and faint gas lamp hiss in `client/src/features/hub/audio/hubSfx.js`, honouring `sharlock.musicMuted`, started after a gesture, one context, disposed on leave; (4) Customs House camera clip.
 - **Files:** `client/src/features/hub/{HubScene.vue,engine.js,audio/hubSfx.js}`, `scenes/{a-wharf.js,wharf/props.js (exports lamp spots),shared/capybara.js}`, `__tests__/hubSfx.test.js`; docs: hub README, DESIGN.md, CREDITS.md.
 - **Checks:** `pnpm exec vitest run client/src/features/hub` 25 files / 280 tests pass; eslint clean on the hub folder; measured feet-above-bar at 375 x 667, 1024 x 768 (talk and arrival) and 1440 x 900 with a throwaway Playwright spec (removed): feet at least 32px clear after the change (375 talk: feet 349 vs panel top 381; before 485). Hub E2E (hub.spec + hub-npcs.spec): 23 of 24 pass; 3 load-flaky failures (two NPC talk tests, the sprint recharge test) each passed when rerun alone. Hat back and nostril close-up not captured (debug camera would not frame Sharlock); needs Boey's eyes.
@@ -453,6 +474,7 @@ All records in this section were Review until 1 November 2026, when Boey accepte
 - **Next action:** Boey reviews the hat back and nose in the browser and the footstep/lamp levels by ear.
 
 **UX-03 — UI/UX overhaul stage 2: minimal text and consistency** · Status: **Done** (accepted by Boey, 1 November 2026) · Contributor: **Boey**, implemented by Claude Code (approved by Boey on 1 November 2026) · Branch: `ux-03-minimal-text`, uncommitted edits only. Source: `.local-handover/phone-audit-2026-11-01/FINDINGS.md` items 7-11, 13, 16 (Settings radios).
+
 - **Scope:** removed taglines, eyebrows and helper sentences from the five game start screens and the Times; Settings "Interface size" radios on one row at 375px; one heading scale and one close-button radius across the shared overlays; shared attempt chooser loses its "Class attempts appear..." helper and gets spacing above its Start button. Start controls now sit above the fold at 375 x 667 on all five games. Role designer, debriefs and the in-game screens are untouched.
 - **Shared files (Boey):** `client/src/features/attempts/components/AttemptContextChooser.vue`, `client/src/features/menu/menu.css`, `client/src/games/threat-briefing/{NewsDialog.vue,news.css,components/NewsAudio.vue}` (Times: tagline, "EXTRA!" kicker and the "Tap Sound" banner removed; author, excerpt and OWASP footer links 44px high; a blocked autoplay now shows only the unpressed Sound button, other errors still show the message).
 - **Game files touched (tell the owners):** CLI, Xin Lei: `games/cli-cyber-defender/CliDefenderGame.vue`, `components/BriefingPanel.vue` (strap and class note removed). Clearance Tower, Russell: `games/clearance-tower/ClearanceTowerGame.vue` (strap and case-count paragraph removed). SQL Injection Arcade, Keane: `games/sql-injection-arcade/SqlInjectionArcade.vue`, `sql.css`, `__tests__/game.test.js` (eyebrow, tagline and intro copy replaced by a "Start a run" heading). Phishing Post-Mortem, Athithya: `games/phishing-post-mortem/PhishingPostMortem.vue`, `__tests__/triage-game.test.js` (mode line removed). Help Desk Shift, Eric: no file changed (its helper was the shared chooser line; its start screen already matched the other games).
@@ -461,6 +483,7 @@ All records in this section were Review until 1 November 2026, when Boey accepte
 - **Docs impact:** `DESIGN.md` (Overlay consistency), this record; game module READMEs and README "Using the app" unchanged (no how-to-play line or control changed). Dead `.cli-strap`, `.cli-note`, `.clear-strap` and `.phish-mode-line` CSS rules are left for the owners.
 
 **FIX-04 — Phone audit fixes (top 10 minus Times, game start screens)** · Status: **Done** (accepted by Boey, 1 November 2026) · Contributor: **Boey**, implemented by Claude Code (approved by Boey on 1 November 2026) · Branch: `fix-04-phone-audit`, uncommitted edits only. Source: `.local-handover/phone-audit-2026-11-01/FINDINGS.md`.
+
 - **Scope:** audit items 1-5, 6 and 7 of the brief: slim 60px room strip on game pages under 576px; Botnet Tag lobby title colour and Menu button aligned left; toggle buttons 44px high; hub map in its 44px-pin Map-button mode on touch screens; Esc badge hidden on `(hover: none)`/`(pointer: coarse)`; overlay heading no longer shows a focus box; login and register duplicate field hints removed (errors, username and password rules kept), register "Sign in" link 44px. The hub "Engine ... fps ... draws" line was already gated by `import.meta.env.DEV` (`HubScene.vue`), so nothing changed there (the audit ran on the dev server); no spec reads it. UX-03 items (Times, game start-screen text) not touched.
 - **Files:** `client/src/features/interiors/InteriorLayout.vue`, `client/src/features/menu/menu.css`, `client/src/features/hub/HubMinimap.vue`, `client/src/features/auth/{auth.css,components/LoginForm.vue,components/RegisterForm.vue}`, tests `auth/__tests__/auth.test.js` and new `menu/__tests__/OverlayPanel.test.js`. **Game file touched (tell the owner):** `client/src/games/botnet-tag/tag.css` (Botnet Tag owner; title colour and fixed top-left controls, CSS only).
 - **Checks:** vitest `client/src` 990/990 (only the 2 untracked phishing suites fail to load); eslint clean; prettier clean on changed files except `HubMinimap.vue`, which already failed before the edit. E2E results in the completion report.
@@ -468,6 +491,7 @@ All records in this section were Review until 1 November 2026, when Boey accepte
 - **Stale E2E fixed with it (1 Nov):** `portal.spec.js` and `fixtures/town.js` now count the catalog and use the "needs 3D" Places name for Botnet Tag; `portal.spec.js` and `interiors.spec.js` expect the Help Desk Shift heading. These failed on `main` after the G-TAG and SOC-02 merges; portal + interiors now 32/32.
 
 **CSS-01 — Remove dead UX-02 styles** · Status: **Done** (accepted by Boey, 1 November 2026) · Contributor: **Boey**, implemented by Claude Code · Branch: `css-01-dead-ux02-styles` (checked out; uncommitted edits only).
+
 - **Removed (no template, script or test uses these classes after UX-02):** `client/src/assets/styles/main.css` `.case-preview` family (selector in the `.coming-soon, .not-found` list at 713; rules and the 730-734 media block at 720-749; `.case-preview` in the `:has()` list at 983; the 989-1007 laptop-height block); `client/src/assets/styles/town.css` `.game-preview-label` (483-488); `client/src/features/auth/auth.css` `.auth-summary` family (`.auth-summary` in the `.auth-card, .auth-aside` list at 13; `.auth-summary__eyebrow` in the `.auth-eyebrow` list at 57; the 336-428 block; the desktop `display: none` rule at 534-541; `.auth-summary *` at 663).
 - **Not found, nothing removed:** sidebar, offcanvas and account-summary selectors in CSS (only comments remain).
 - **Left for owner:** `client/src/features/interiors/InteriorLayout.vue:325` still lists `.case-preview` in a `:has()` selector (a `.vue` style block, outside this CSS-only scope). Remove it in a follow-up.

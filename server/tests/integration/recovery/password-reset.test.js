@@ -571,22 +571,18 @@ describe.skipIf(process.env.SHARLOCK_TEST_REPLICA_SET !== '1')('student password
       .set('X-CSRF-Token', admin.csrfToken)
       .send(resetPayload)
       .expect(200)
-    const issued = await database.db
-      .collection('audit_events')
-      .findOne({
-        eventType: 'admin.student.recovery.issue',
-        targetId: new Types.ObjectId(student.user.id),
-      })
+    const issued = await database.db.collection('audit_events').findOne({
+      eventType: 'admin.student.recovery.issue',
+      targetId: new Types.ObjectId(student.user.id),
+    })
     expect(issued.requestId).toBe(issue.headers['x-request-id'])
 
     const visitor = await newPublicAgent()
     const redeem = await postReset(visitor, tokenFrom(issue.body.resetUrl)).expect(204)
-    const redeemed = await database.db
-      .collection('audit_events')
-      .findOne({
-        eventType: 'account.student.password_reset',
-        targetId: new Types.ObjectId(student.user.id),
-      })
+    const redeemed = await database.db.collection('audit_events').findOne({
+      eventType: 'account.student.password_reset',
+      targetId: new Types.ObjectId(student.user.id),
+    })
     expect(redeemed.requestId).toBe(redeem.headers['x-request-id'])
   })
 

@@ -10,7 +10,9 @@ describe('rayBoxDistance', () => {
   })
 
   it('misses when the box is off to the side, behind, or beyond maxDist', () => {
-    expect(rayBoxDistance([0, 1, 0], [0, 0, 1], 50, [{ min: [10, 0, 6], max: [12, 20, 9] }])).toBe(Infinity)
+    expect(rayBoxDistance([0, 1, 0], [0, 0, 1], 50, [{ min: [10, 0, 6], max: [12, 20, 9] }])).toBe(
+      Infinity,
+    )
     expect(rayBoxDistance([0, 1, 0], [-1, 0, 0], 50, [wall])).toBe(Infinity)
     expect(rayBoxDistance([0, 1, 0], [1, 0, 0], 9.9, [wall])).toBe(Infinity)
     expect(rayBoxDistance([0, 1, 0], [1, 0, 0], 10, [wall])).toBeCloseTo(10)
@@ -50,7 +52,12 @@ describe('rayBoxDistance', () => {
 })
 
 // camera looking along +x from the target: alpha 0, beta 90 degrees
-const makeCamera = (radius = 16) => ({ alpha: 0, beta: Math.PI / 2, radius, target: { x: 0, y: 1, z: 0 } })
+const makeCamera = (radius = 16) => ({
+  alpha: 0,
+  beta: Math.PI / 2,
+  radius,
+  target: { x: 0, y: 1, z: 0 },
+})
 const frames = (arm, count, dt = 1 / 60) => {
   for (let i = 0; i < count; i += 1) {
     arm.restore()

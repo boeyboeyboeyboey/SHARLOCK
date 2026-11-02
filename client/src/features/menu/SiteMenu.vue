@@ -123,7 +123,12 @@ watch(() => props.open, sync)
         >
           Online in your class: <strong data-testid="menu-online-count">{{ onlineCount }}</strong>
         </button>
-        <ul v-show="onlineOpen" id="menu-online-list" class="menu-online-list" data-testid="menu-online-list">
+        <ul
+          v-show="onlineOpen"
+          id="menu-online-list"
+          class="menu-online-list"
+          data-testid="menu-online-list"
+        >
           <li v-for="peer in presence.peers" :key="peer.sid">
             {{ peer.username }}<small v-if="peer.staff"> (staff)</small>
           </li>
@@ -174,9 +179,7 @@ watch(() => props.open, sync)
               >
             </li>
             <li v-if="isAdmin">
-              <RouterLink to="/admin" class="menu-link" @click="emit('navigate')"
-                >Admin</RouterLink
-              >
+              <RouterLink to="/admin" class="menu-link" @click="emit('navigate')">Admin</RouterLink>
             </li>
           </template>
           <li><hr /></li>

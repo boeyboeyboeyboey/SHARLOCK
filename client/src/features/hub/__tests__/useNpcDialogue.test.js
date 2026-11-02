@@ -51,13 +51,20 @@ describe('advanceTalk', () => {
     advanceTalk(d, () => (closed += 1))
     expect(d.line.value).toBe('three')
     expect(closed).toBe(0)
-    advanceTalk(d, () => { closed += 1; d.close() })
+    advanceTalk(d, () => {
+      closed += 1
+      d.close()
+    })
     expect(closed).toBe(1)
     expect(d.open.value).toBe(false)
   })
 
   it('does nothing without an open talk', () => {
     const d = useNpcDialogue()
-    expect(advanceTalk(d, () => { throw new Error('closed') })).toBe(false)
+    expect(
+      advanceTalk(d, () => {
+        throw new Error('closed')
+      }),
+    ).toBe(false)
   })
 })

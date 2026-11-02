@@ -44,7 +44,15 @@ function userDto(value) {
     throw new SafeAuthError({ message: 'Sharlock returned an incomplete account. Try again.' })
   }
 
-  const { id, email, username, avatarId, globalRoles, howToPlayDismissed = [], wardrobe = null } = value
+  const {
+    id,
+    email,
+    username,
+    avatarId,
+    globalRoles,
+    howToPlayDismissed = [],
+    wardrobe = null,
+  } = value
   if (
     typeof id !== 'string' ||
     typeof email !== 'string' ||
@@ -64,7 +72,9 @@ function userDto(value) {
     avatarId,
     globalRoles: [...globalRoles],
     howToPlayDismissed: [...howToPlayDismissed],
-    ...(wardrobe && typeof wardrobe === 'object' ? { wardrobe: Object.freeze({ ...wardrobe }) } : {}),
+    ...(wardrobe && typeof wardrobe === 'object'
+      ? { wardrobe: Object.freeze({ ...wardrobe }) }
+      : {}),
   })
 }
 

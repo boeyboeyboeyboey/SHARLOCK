@@ -1,5 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { FPS_THRESHOLD, PERF_KEY, createSampler, decidePerf, median, perfRecord, readPerf, writePerf } from '../perfWatch.js'
+import {
+  FPS_THRESHOLD,
+  PERF_KEY,
+  createSampler,
+  decidePerf,
+  median,
+  perfRecord,
+  readPerf,
+  writePerf,
+} from '../perfWatch.js'
 import { applyPerf, evaluateDevice } from '../deviceCheck.js'
 
 afterEach(() => localStorage.clear())
@@ -19,7 +28,10 @@ describe('decidePerf', () => {
   })
 
   it('never switches to 2d when the user chose 3d explicitly', () => {
-    expect(decidePerf({ tier: 'low', fps: 5, explicit3d: true })).toEqual({ action: 'stay', tier: 'low' })
+    expect(decidePerf({ tier: 'low', fps: 5, explicit3d: true })).toEqual({
+      action: 'stay',
+      tier: 'low',
+    })
     expect(decidePerf({ tier: 'desktop', fps: 5, explicit3d: true }).action).toBe('lower')
   })
 })
@@ -29,8 +41,15 @@ describe('remembered outcome', () => {
 
   it('builds a record only for a struggle', () => {
     expect(perfRecord({ action: 'ok', tier: 'desktop' }, now)).toBeNull()
-    expect(perfRecord({ action: 'lower', tier: 'compact' }, now)).toEqual({ tier: 'compact', struggled: true, at: now.toISOString() })
-    expect(perfRecord({ action: 'switch-2d', tier: 'low' }, now)).toMatchObject({ tier: 'low', twoD: true })
+    expect(perfRecord({ action: 'lower', tier: 'compact' }, now)).toEqual({
+      tier: 'compact',
+      struggled: true,
+      at: now.toISOString(),
+    })
+    expect(perfRecord({ action: 'switch-2d', tier: 'low' }, now)).toMatchObject({
+      tier: 'low',
+      twoD: true,
+    })
   })
 
   it('round trips, clears and ignores junk', () => {
@@ -48,7 +67,11 @@ describe('remembered outcome', () => {
     const base = evaluateDevice({ webgl2: true, baseTier: 'desktop' })
     expect(applyPerf(base, { tier: 'compact', twoD: false }).tier).toBe('compact')
     expect(applyPerf({ ...base, tier: 'low' }, { tier: 'compact', twoD: false }).tier).toBe('low')
-    expect(applyPerf(base, { tier: 'low', twoD: true })).toEqual({ verdict: '2d', tier: 'low', reasons: ['slow-runtime'] })
+    expect(applyPerf(base, { tier: 'low', twoD: true })).toEqual({
+      verdict: '2d',
+      tier: 'low',
+      reasons: ['slow-runtime'],
+    })
     expect(applyPerf(base, null)).toBe(base)
     const software = evaluateDevice({ webgl2: true, softwareRenderer: true })
     expect(applyPerf(software, { tier: 'low', twoD: true })).toBe(software)

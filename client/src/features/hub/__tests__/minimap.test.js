@@ -26,7 +26,12 @@ describe('minimap projection', () => {
   })
 
   it('projects a rectangle from its north west corner', () => {
-    expect(projectRect({ x0: -10, x1: 10, z0: -44, z1: 30 })).toEqual({ x: 24, y: 50, width: 20, height: 74 })
+    expect(projectRect({ x0: -10, x1: 10, z0: -44, z1: 30 })).toEqual({
+      x: 24,
+      y: 50,
+      width: 20,
+      height: 74,
+    })
   })
 
   it('gives percentages of the map box', () => {
@@ -39,7 +44,10 @@ describe('minimap projection', () => {
   it('keeps every destination, floor and the quay inside the view', () => {
     for (const d of destinations) {
       const fp = footprint(d)
-      for (const [x, z] of [[d.x, d.z], [fp.cx, fp.cz]]) {
+      for (const [x, z] of [
+        [d.x, d.z],
+        [fp.cx, fp.cz],
+      ]) {
         expect(x).toBeGreaterThan(mapBounds.x0)
         expect(x).toBeLessThan(mapBounds.x1)
         expect(z).toBeGreaterThan(mapBounds.z0)
@@ -88,7 +96,12 @@ describe('heading wedge', () => {
   })
 
   it('formats points for an svg attribute', () => {
-    expect(pointsAttr([[1, 2], [3.14159, 4]])).toBe('1,2 3.14,4')
+    expect(
+      pointsAttr([
+        [1, 2],
+        [3.14159, 4],
+      ]),
+    ).toBe('1,2 3.14,4')
   })
 })
 

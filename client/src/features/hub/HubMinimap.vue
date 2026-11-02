@@ -1,6 +1,17 @@
 <script setup>
 import { computed, nextTick, onMounted, ref, shallowRef } from 'vue'
-import { contextBlocks, footprint, mapBounds, mapSize, percentOf, pointsAttr, project, projectRect, shortLabel, wedgePoints } from './minimap.js'
+import {
+  contextBlocks,
+  footprint,
+  mapBounds,
+  mapSize,
+  percentOf,
+  pointsAttr,
+  project,
+  projectRect,
+  shortLabel,
+  wedgePoints,
+} from './minimap.js'
 
 const props = defineProps({
   games: { type: Array, required: true },
@@ -29,7 +40,12 @@ const streets = computed(() => (layout.value ? rects(Object.values(layout.value.
 const blocks = computed(() => rects(contextBlocks))
 const river = computed(() => {
   if (!layout.value) return null
-  return projectRect({ x0: mapBounds.x0, x1: mapBounds.x1, z0: layout.value.quayZ, z1: mapBounds.z1 })
+  return projectRect({
+    x0: mapBounds.x0,
+    x1: mapBounds.x1,
+    z0: layout.value.quayZ,
+    z1: mapBounds.z1,
+  })
 })
 const quay = computed(() => (layout.value ? project(0, layout.value.quayZ).y : 0))
 // only destinations the games list knows about get a marker
@@ -133,7 +149,13 @@ function onKeydown(event) {
     >
       <div class="hub-map-head">
         <span class="hub-map-title">Map</span>
-        <button ref="closer" type="button" class="btn btn-secondary btn-sm hub-glass-btn" data-testid="hub-map-close" @click="closeMap">
+        <button
+          ref="closer"
+          type="button"
+          class="btn btn-secondary btn-sm hub-glass-btn"
+          data-testid="hub-map-close"
+          @click="closeMap"
+        >
           Close
         </button>
       </div>
@@ -304,7 +326,9 @@ function onKeydown(event) {
   background: var(--accent);
 }
 .hub-map-pin.is-selected .hub-map-dot {
-  box-shadow: 0 0 0 2px var(--accent-primary), 0 0 0 4px var(--town-edge);
+  box-shadow:
+    0 0 0 2px var(--accent-primary),
+    0 0 0 4px var(--town-edge);
 }
 .hub-map-label {
   position: absolute;

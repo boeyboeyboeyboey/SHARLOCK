@@ -46,12 +46,13 @@ describe('alphaBehind', () => {
 })
 
 describe('createOrbitKeys', () => {
-  const press = (type, code, init = {}) => window.dispatchEvent(new KeyboardEvent(type, { code, bubbles: true, ...init }))
+  const press = (type, code, init = {}) =>
+    window.dispatchEvent(new KeyboardEvent(type, { code, bubbles: true, ...init }))
 
   it('turns the camera with Z and C and resets with R, and ignores Q and E', () => {
     const camera = { alpha: 0 }
     let resets = 0
-    const keys = createOrbitKeys({ camera, enabled: () => true, onReset: () => resets++ , rate: 1 })
+    const keys = createOrbitKeys({ camera, enabled: () => true, onReset: () => resets++, rate: 1 })
     press('keydown', 'KeyC')
     keys.update(1)
     expect(camera.alpha).toBe(1)

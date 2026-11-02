@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { BUFFER, COYOTE, CROUCH, createJump, GRAVITY, HOP_LENGTH, JUMP_SPEED, LIFT_OFF, SQUASH } from '../scenes/shared/jump.js'
+import {
+  BUFFER,
+  COYOTE,
+  CROUCH,
+  createJump,
+  GRAVITY,
+  HOP_LENGTH,
+  JUMP_SPEED,
+  LIFT_OFF,
+  SQUASH,
+} from '../scenes/shared/jump.js'
 
 const DT = 1 / 60
 

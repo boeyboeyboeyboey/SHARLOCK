@@ -140,7 +140,8 @@ export function parseAdminListQuery(query, { institution = false, users = false 
     result.institutionId = parseAdminObjectId(query.institutionId, 'institutionId')
   }
   if (Object.hasOwn(query, 'role')) {
-    if (!['student', 'instructor'].includes(query.role)) invalid({ role: 'Choose a supported role.' })
+    if (!['student', 'instructor'].includes(query.role))
+      invalid({ role: 'Choose a supported role.' })
     result.role = query.role
   }
   if (Object.hasOwn(query, 'accountStatus')) {
@@ -178,9 +179,13 @@ export function parseAccountDeleteInput(input) {
     invalid()
   }
   const missing = required.filter((field) => !Object.hasOwn(input, field))
-  if (missing.length) invalid(Object.fromEntries(missing.map((field) => [field, 'This field is required.'])))
-  if (typeof input.confirmUsername !== 'string' || !input.confirmUsername.trim() ||
-    input.confirmUsername.length > 64) {
+  if (missing.length)
+    invalid(Object.fromEntries(missing.map((field) => [field, 'This field is required.'])))
+  if (
+    typeof input.confirmUsername !== 'string' ||
+    !input.confirmUsername.trim() ||
+    input.confirmUsername.length > 64
+  ) {
     invalid({ confirmUsername: 'Type the username to confirm.' })
   }
   if (typeof input.password !== 'string' || !input.password || input.password.length > 128) {

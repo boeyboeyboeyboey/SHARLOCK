@@ -32,7 +32,7 @@ Per game, the best attempt is the highest `score / maxScore` among attempts on t
 | key                     | rule                                                        |
 | ----------------------- | ----------------------------------------------------------- |
 | `first-clue`            | any completed saved attempt                                 |
-| `perfect-case`          | an attempt with `score >= maxScore`                        |
+| `perfect-case`          | an attempt with `score >= maxScore`                         |
 | `well-rounded`          | completed attempts across 3 different games                 |
 | `persistent-detective`  | 5 completed attempts                                        |
 | `topic-expert`          | one attempt with at least one topic outcome, all `achieved` |

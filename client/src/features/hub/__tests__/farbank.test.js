@@ -27,7 +27,8 @@ describe('far bank', () => {
   it('spans at least -90 to 90 degrees in one mesh per material', () => {
     const { stone, brick } = fill()
     const xs = []
-    for (let i = 0; i < stone.pos.length; i += 3) xs.push(Math.atan2(stone.pos[i], stone.pos[i + 2]) * (180 / Math.PI))
+    for (let i = 0; i < stone.pos.length; i += 3)
+      xs.push(Math.atan2(stone.pos[i], stone.pos[i + 2]) * (180 / Math.PI))
     expect(Math.min(...xs)).toBeLessThanOrEqual(-90)
     expect(Math.max(...xs)).toBeGreaterThanOrEqual(90)
     expect(brick.vertexCount).toBeGreaterThan(0)

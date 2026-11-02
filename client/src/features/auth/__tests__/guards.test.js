@@ -394,7 +394,8 @@ describe('account navigation', () => {
     await expect(guard({ meta: { authPage: true } })).resolves.toBe('/join-class?carry=1')
     resolveDestination.mockRejectedValue(new Error('Unavailable'))
     await expect(guard({ meta: { authPage: true } })).resolves.toEqual({
-      path: '/join-class', query: { onboarding: '1' },
+      path: '/join-class',
+      query: { onboarding: '1' },
     })
     expect(auth.restoreSession).toHaveBeenCalledTimes(4)
   })

@@ -10,20 +10,20 @@ This backend module provides student registration, account sign-in, session rest
 
 All auth responses use `Cache-Control: no-store`. The browser sends the session cookie automatically; no auth token belongs in browser local storage. Each mutation requires `X-CSRF-Token` plus the configured client origin through `Origin`, or a same-origin `Referer` when `Origin` is absent. A missing or `null` origin does not authorize a mutation. Unknown body or query fields are rejected.
 
-| Endpoint                                | Exact JSON body                           | Success                                                   |
-| --------------------------------------- | ----------------------------------------- | --------------------------------------------------------- |
-| `GET /api/auth/csrf`                    | none                                      | 200 `{ csrfToken }`                                       |
-| `POST /api/auth/register`               | `{ email, username, password, avatarId }` | 202 `{ verification, csrfToken }`, not signed in yet      |
-| `POST /api/auth/verify-email`           | `{ code }`                                | 201 `{ user, csrfToken }`, signed in                      |
-| `POST /api/auth/verify-email/resend`    | empty or `{}`                             | 202 `{ verification }`                                    |
-| `POST /api/auth/login`                  | `{ identifier, password }`                | 200 `{ user, csrfToken }`, or 202 `{ verification, csrfToken }` when the email is unconfirmed |
+| Endpoint                                | Exact JSON body                           | Success                                                                                                                                                   |
+| --------------------------------------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/auth/csrf`                    | none                                      | 200 `{ csrfToken }`                                                                                                                                       |
+| `POST /api/auth/register`               | `{ email, username, password, avatarId }` | 202 `{ verification, csrfToken }`, not signed in yet                                                                                                      |
+| `POST /api/auth/verify-email`           | `{ code }`                                | 201 `{ user, csrfToken }`, signed in                                                                                                                      |
+| `POST /api/auth/verify-email/resend`    | empty or `{}`                             | 202 `{ verification }`                                                                                                                                    |
+| `POST /api/auth/login`                  | `{ identifier, password }`                | 200 `{ user, csrfToken }`, or 202 `{ verification, csrfToken }` when the email is unconfirmed                                                             |
 | `GET /api/auth/session`                 | none                                      | 200 `{ user }`; signed out: 200 `{ user: null }`, plus `verification` while a sign-up awaits its code or `sessionEnded: 'replaced'` after a newer sign-in |
-| `GET /api/auth/me`                      | none                                      | 200 `{ user }`, or 401 when unauthenticated               |
-| `POST /api/auth/logout`                 | empty or `{}`                             | 204, current session invalidated                          |
-| `POST /api/auth/reset-password`         | `{ token, password }`                     | 204, see [recovery](../recovery/README.md)                |
-| `POST /api/auth/activate-account`       | `{ token, password }`                     | 204, see [recovery](../recovery/README.md)                |
-| `POST /api/auth/class-invitation`       | `{ code }`                                | 204, hash retained in the current session for ten minutes |
-| `POST /api/auth/class-invitation/clear` | `{}`                                      | 204, invitation draft cleared                             |
+| `GET /api/auth/me`                      | none                                      | 200 `{ user }`, or 401 when unauthenticated                                                                                                               |
+| `POST /api/auth/logout`                 | empty or `{}`                             | 204, current session invalidated                                                                                                                          |
+| `POST /api/auth/reset-password`         | `{ token, password }`                     | 204, see [recovery](../recovery/README.md)                                                                                                                |
+| `POST /api/auth/activate-account`       | `{ token, password }`                     | 204, see [recovery](../recovery/README.md)                                                                                                                |
+| `POST /api/auth/class-invitation`       | `{ code }`                                | 204, hash retained in the current session for ten minutes                                                                                                 |
+| `POST /api/auth/class-invitation/clear` | `{}`                                      | 204, invitation draft cleared                                                                                                                             |
 
 Email is trimmed, lowercased ASCII, syntactically validated and at most 254 characters. Username is trimmed, 3–32 ASCII letters, digits, underscores or hyphens; uniqueness is case-insensitive. New passwords are unchanged, well-formed Unicode strings of 12–128 code points with at least one Unicode uppercase letter and one punctuation/symbol character. Whitespace does not satisfy the special-character requirement. Login checks only that a well-formed password of at most 128 code points was sent, preserving older composition-free passwords; a shorter one is simply wrong details (401), so sign-in reveals no length rule. The upper bound keeps hash work bounded. These are Boey's approved policy changes of 15 October 2026. Registration accepts only the six IDs in [avatars.js](avatars.js); submitted roles, IDs, memberships, scores and other account fields are rejected.
 

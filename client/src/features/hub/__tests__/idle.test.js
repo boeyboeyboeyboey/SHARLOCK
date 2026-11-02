@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { createIdle, lookYawTo, MAX_STEP, SIT_AFTER, wiggleSignal, yawnEnv } from '../scenes/shared/idle.js'
+import {
+  createIdle,
+  lookYawTo,
+  MAX_STEP,
+  SIT_AFTER,
+  wiggleSignal,
+  yawnEnv,
+} from '../scenes/shared/idle.js'
 
 const run = (idle, seconds, input = {}, dt = 1 / 30) => {
   for (let t = 0; t < seconds; t += dt) idle.step(dt, input)

@@ -83,7 +83,8 @@ async function deactivateCohort(expectedRevision = 0) {
 beforeAll(async () => {
   if (process.env.SHARLOCK_TEST_REPLICA_SET !== '1') return
   const config = validateEnvironment(process.env)
-  if (config.nodeEnv !== 'test') throw new Error('Lifecycle race integration requires NODE_ENV=test.')
+  if (config.nodeEnv !== 'test')
+    throw new Error('Lifecycle race integration requires NODE_ENV=test.')
   assertSafeTestDatabaseUri(config.databaseUri, process.env.MONGO_URI)
   database = await connectDatabase(config.databaseUri)
   guardTestDatabase()
@@ -175,23 +176,24 @@ describe('institution and cohort lifecycle serialization', () => {
       cohortId: cohort._id,
     }).lean()
     await Promise.all([
-      database.db.collection('users').updateMany(
-        { _id: { $in: [new Types.ObjectId(instructor.id), new Types.ObjectId(student.id)] } },
-        { $set: { recoveryRevision: 2 } },
-      ),
-      database.db.collection('institutions').updateOne(
-        { _id: institution._id },
-        { $set: { recoveryRevision: 2 } },
-      ),
-      database.db.collection('cohorts').updateOne({ _id: cohort._id }, { $set: { recoveryRevision: 2 } }),
-      database.db.collection('instructor_assignments').updateOne(
-        { _id: assignment._id },
-        { $set: { recoveryRevision: 2 } },
-      ),
-      database.db.collection('memberships').updateOne(
-        { _id: membership._id },
-        { $set: { recoveryRevision: 2 } },
-      ),
+      database.db
+        .collection('users')
+        .updateMany(
+          { _id: { $in: [new Types.ObjectId(instructor.id), new Types.ObjectId(student.id)] } },
+          { $set: { recoveryRevision: 2 } },
+        ),
+      database.db
+        .collection('institutions')
+        .updateOne({ _id: institution._id }, { $set: { recoveryRevision: 2 } }),
+      database.db
+        .collection('cohorts')
+        .updateOne({ _id: cohort._id }, { $set: { recoveryRevision: 2 } }),
+      database.db
+        .collection('instructor_assignments')
+        .updateOne({ _id: assignment._id }, { $set: { recoveryRevision: 2 } }),
+      database.db
+        .collection('memberships')
+        .updateOne({ _id: membership._id }, { $set: { recoveryRevision: 2 } }),
     ])
     const guards = createStudentRecoveryGuards(database)
     const scope = {
@@ -226,8 +228,9 @@ describe('institution and cohort lifecycle serialization', () => {
         await session.endSession()
       }
       const revisions = await Promise.all(
-        guardedRecords.map(async ([collection, id]) =>
-          (await database.db.collection(collection).findOne({ _id: id })).recoveryRevision,
+        guardedRecords.map(
+          async ([collection, id]) =>
+            (await database.db.collection(collection).findOne({ _id: id })).recoveryRevision,
         ),
       )
       expect(revisions).toEqual(Array(6).fill(expectedRevision + 1))

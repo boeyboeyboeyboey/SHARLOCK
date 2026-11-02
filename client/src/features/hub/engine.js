@@ -1,35 +1,35 @@
 // libraries: @babylonjs/core and @babylonjs/havok (see credits.md for versions and licences)
-import { Engine } from '@babylonjs/core/Engines/engine.js';
-import { WebGPUEngine } from '@babylonjs/core/Engines/webgpuEngine.js';
+import { Engine } from '@babylonjs/core/Engines/engine.js'
+import { WebGPUEngine } from '@babylonjs/core/Engines/webgpuEngine.js'
 // every webgpu engine extension, since deep imports skip the ones the engine file does not pull in
-import '@babylonjs/core/Engines/WebGPU/Extensions/index.js';
-import { Scene } from '@babylonjs/core/scene.js';
-import { Vector3 } from '@babylonjs/core/Maths/math.vector.js';
-import '@babylonjs/core/Physics/physicsEngineComponent.js';
-import '@babylonjs/core/Meshes/instancedMesh.js';
+import '@babylonjs/core/Engines/WebGPU/Extensions/index.js'
+import { Scene } from '@babylonjs/core/scene.js'
+import { Vector3 } from '@babylonjs/core/Maths/math.vector.js'
+import '@babylonjs/core/Physics/physicsEngineComponent.js'
+import '@babylonjs/core/Meshes/instancedMesh.js'
 // without this the thin instanced crowds, gulls and props draw one base copy at the origin
-import '@babylonjs/core/Meshes/thinInstanceMesh.js';
-import { HavokPlugin } from '@babylonjs/core/Physics/v2/Plugins/havokPlugin.js';
-import HavokPhysics from '@babylonjs/havok';
-import havokWasm from '@babylonjs/havok/lib/esm/HavokPhysics.wasm?url';
-import { getTier } from './scenes/shared/quality.js';
-import { createSampler, realSamplingOff } from './perfWatch.js';
+import '@babylonjs/core/Meshes/thinInstanceMesh.js'
+import { HavokPlugin } from '@babylonjs/core/Physics/v2/Plugins/havokPlugin.js'
+import HavokPhysics from '@babylonjs/havok'
+import havokWasm from '@babylonjs/havok/lib/esm/HavokPhysics.wasm?url'
+import { getTier } from './scenes/shared/quality.js'
+import { createSampler, realSamplingOff } from './perfWatch.js'
 
 // counted across instances so a remount can prove the previous hub was disposed
-let mountCount = 0;
-let disposalCount = 0;
+let mountCount = 0
+let disposalCount = 0
 
-let hkPromise = null;
+let hkPromise = null
 function loadHavok() {
-  hkPromise ??= HavokPhysics({ locateFile: () => havokWasm });
-  return hkPromise;
+  hkPromise ??= HavokPhysics({ locateFile: () => havokWasm })
+  return hkPromise
 }
 
 function freshCanvas(old) {
-  const next = document.createElement('canvas');
-  for (const { name, value } of old.attributes) next.setAttribute(name, value);
-  old.replaceWith(next);
-  return next;
+  const next = document.createElement('canvas')
+  for (const { name, value } of old.attributes) next.setAttribute(name, value)
+  old.replaceWith(next)
+  return next
 }
 
 export async function createEngine(canvas, params) {
@@ -42,23 +42,28 @@ export async function createEngine(canvas, params) {
           adaptToDeviceRatio: false,
           glslangOptions: { jsPath: '/_no-cdn/glslang.js', wasmPath: '/_no-cdn/glslang.wasm' },
           twgslOptions: { jsPath: '/_no-cdn/twgsl.js', wasmPath: '/_no-cdn/twgsl.wasm' },
-        });
+        })
         try {
-          await gpu.initAsync();
-          return { engine: gpu, type: 'webgpu', canvas };
+          await gpu.initAsync()
+          return { engine: gpu, type: 'webgpu', canvas }
         } catch (error) {
-          console.warn('webgpu init failed, falling back to webgl2', error);
-          gpu.dispose();
+          console.warn('webgpu init failed, falling back to webgl2', error)
+          gpu.dispose()
           // a canvas that requested a webgpu context cannot hand out webgl2
-          canvas = freshCanvas(canvas);
+          canvas = freshCanvas(canvas)
         }
       }
     } catch (error) {
-      console.warn('webgpu probe failed, falling back to webgl2', error);
+      console.warn('webgpu probe failed, falling back to webgl2', error)
     }
   }
-  const gl = new Engine(canvas, true, { antialias: true, stencil: true, powerPreference: 'high-performance' }, false);
-  return { engine: gl, type: 'webgl2', canvas };
+  const gl = new Engine(
+    canvas,
+    true,
+    { antialias: true, stencil: true, powerPreference: 'high-performance' },
+    false,
+  )
+  return { engine: gl, type: 'webgl2', canvas }
 }
 
 // quality: the Graphics setting, auto, high, medium or low
@@ -67,9 +72,20 @@ export async function createEngine(canvas, params) {
 // params: URLSearchParams with the dev overrides renderer, tier and mirror
 // joystick: { el, knob, jump, sprint } elements of the touch pad, owned by the caller
 // spawnAt: destination id whose door the player starts beside, for coming back from a game
-export function createHub({ container, joystick = {}, params = new URLSearchParams(), spawnAt = null, quality = 'auto', watch = false, resumeAt = null, wardrobe = null, onPerf = () => {}, onState = () => {} }) {
-  const tier = getTier(params, quality);
-  const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+export function createHub({
+  container,
+  joystick = {},
+  params = new URLSearchParams(),
+  spawnAt = null,
+  quality = 'auto',
+  watch = false,
+  resumeAt = null,
+  wardrobe = null,
+  onPerf = () => {},
+  onState = () => {},
+}) {
+  const tier = getTier(params, quality)
+  const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
   const state = {
     ready: false,
     engine: null,
@@ -88,143 +104,167 @@ export function createHub({ container, joystick = {}, params = new URLSearchPara
     sprint: { phase: 'ready', at: 0 },
     reducedMotion: motionQuery.matches,
     get mounts() {
-      return mountCount;
+      return mountCount
     },
     get disposals() {
-      return disposalCount;
+      return disposalCount
     },
-  };
-  const emit = () => onState(state);
+  }
+  const emit = () => onState(state)
 
-  let canvas = document.createElement('canvas');
-  canvas.tabIndex = 0;
-  canvas.setAttribute('role', 'img');
-  canvas.setAttribute('aria-label', 'Interactive 3D view of the town. Use the destination buttons to choose a place, or move Sharlock with WASD or the arrow keys.');
-  canvas.className = 'hub-canvas';
-  container.append(canvas);
+  let canvas = document.createElement('canvas')
+  canvas.tabIndex = 0
+  canvas.setAttribute('role', 'img')
+  canvas.setAttribute(
+    'aria-label',
+    'Interactive 3D view of the town. Use the destination buttons to choose a place, or move Sharlock with WASD or the arrow keys.',
+  )
+  canvas.className = 'hub-canvas'
+  container.append(canvas)
 
-  let disposed = false;
-  let torn = false;
-  let engine = null;
-  let engineType = null;
-  let scene = null;
-  let built = null;
+  let disposed = false
+  let torn = false
+  let engine = null
+  let engineType = null
+  let scene = null
+  let built = null
   // the scene adds its cleanup here as it builds, so a build that stops or throws halfway still undoes its work
-  const sceneDisposers = [];
-  let observer = null;
-  let fpsTimer = null;
-  const manualWatch = realSamplingOff();
-  const perf = watch ? createSampler({ onResult: (fps) => onPerf({ fps, tier: tier.name }) }) : null;
+  const sceneDisposers = []
+  let observer = null
+  let fpsTimer = null
+  const manualWatch = realSamplingOff()
+  const perf = watch ? createSampler({ onResult: (fps) => onPerf({ fps, tier: tier.name }) }) : null
   const onMotion = (event) => {
-    state.reducedMotion = event.matches;
-    emit();
-  };
-  motionQuery.addEventListener('change', onMotion);
+    state.reducedMotion = event.matches
+    emit()
+  }
+  motionQuery.addEventListener('change', onMotion)
 
-  const api = () => built?.api ?? null;
+  const api = () => built?.api ?? null
 
   async function start() {
-    const created = await createEngine(canvas, params);
-    engine = created.engine;
-    engineType = created.type;
-    canvas = created.canvas;
-    if (disposed) return;
+    const created = await createEngine(canvas, params)
+    engine = created.engine
+    engineType = created.type
+    canvas = created.canvas
+    if (disposed) return
 
-    const applyScale = () => engine.setHardwareScalingLevel(1 / Math.min(window.devicePixelRatio || 1, tier.renderScale));
+    const applyScale = () =>
+      engine.setHardwareScalingLevel(1 / Math.min(window.devicePixelRatio || 1, tier.renderScale))
     observer = new ResizeObserver(() => {
-      applyScale();
-      engine.resize();
-    });
-    applyScale();
-    observer.observe(container);
+      applyScale()
+      engine.resize()
+    })
+    applyScale()
+    observer.observe(container)
 
-    scene = new Scene(engine);
-    const hk = await loadHavok();
-    if (disposed) return;
-    scene.enablePhysics(new Vector3(0, -9.81, 0), new HavokPlugin(true, hk));
-    const { build } = await import('./scenes/a-wharf.js');
-    if (disposed) return;
-    built = await build({ engine, scene, canvas, state, notify: emit, params, joystick, spawnAt, quality, resumeAt, wardrobe, disposers: sceneDisposers, isDisposed: () => disposed });
-    if (disposed) return;
+    scene = new Scene(engine)
+    const hk = await loadHavok()
+    if (disposed) return
+    scene.enablePhysics(new Vector3(0, -9.81, 0), new HavokPlugin(true, hk))
+    const { build } = await import('./scenes/a-wharf.js')
+    if (disposed) return
+    built = await build({
+      engine,
+      scene,
+      canvas,
+      state,
+      notify: emit,
+      params,
+      joystick,
+      spawnAt,
+      quality,
+      resumeAt,
+      wardrobe,
+      disposers: sceneDisposers,
+      isDisposed: () => disposed,
+    })
+    if (disposed) return
 
-    const rendered = new Promise((resolve) => scene.onAfterRenderObservable.addOnce(resolve));
+    const rendered = new Promise((resolve) => scene.onAfterRenderObservable.addOnce(resolve))
     // the low tier renders every other frame
-    let lastFrame = 0;
-    let lastTick = performance.now();
+    let lastFrame = 0
+    let lastTick = performance.now()
     engine.runRenderLoop(() => {
       if (tier.fpsCap) {
-        const now = performance.now();
-        if (now - lastFrame < 1000 / tier.fpsCap - 3) return;
-        lastFrame = now;
+        const now = performance.now()
+        if (now - lastFrame < 1000 / tier.fpsCap - 3) return
+        lastFrame = now
       }
-      scene.render();
+      scene.render()
       if (perf && !manualWatch) {
-        const tick = performance.now();
-        perf.frame(tick - lastTick, !document.hidden && state.ready && state.mode === 'explore' && !state.inputPaused);
-        lastTick = tick;
+        const tick = performance.now()
+        perf.frame(
+          tick - lastTick,
+          !document.hidden && state.ready && state.mode === 'explore' && !state.inputPaused,
+        )
+        lastTick = tick
       }
-    });
+    })
     fpsTimer = setInterval(() => {
-      state.fps = Math.round(engine.getFps());
-      emit();
-    }, 500);
-    state.engine = engineType;
-    state.scene = 'wharf';
-    mountCount += 1;
-    if (state.inputPaused) built.api.setInputPaused(true);
-    if (state.selected) built.api.select(state.selected);
-    await rendered;
-    if (disposed) return;
-    state.ready = true;
-    emit();
+      state.fps = Math.round(engine.getFps())
+      emit()
+    }, 500)
+    state.engine = engineType
+    state.scene = 'wharf'
+    mountCount += 1
+    if (state.inputPaused) built.api.setInputPaused(true)
+    if (state.selected) built.api.select(state.selected)
+    await rendered
+    if (disposed) return
+    state.ready = true
+    emit()
   }
 
   // the build can fail halfway, so teardown must cope with any missing piece; one failing step must not skip the rest
   function attempt(label, step) {
     try {
-      step();
+      step()
     } catch (error) {
-      console.warn(`hub teardown: ${label}`, error);
+      console.warn(`hub teardown: ${label}`, error)
     }
   }
   function teardown() {
-    if (torn) return;
-    torn = true;
-    clearInterval(fpsTimer);
-    observer?.disconnect();
-    motionQuery.removeEventListener('change', onMotion);
-    attempt('render loop', () => engine?.stopRenderLoop());
-    for (const dispose of sceneDisposers.reverse()) attempt('scene', dispose);
-    attempt('scene', () => scene?.dispose());
-    attempt('engine', () => engine?.dispose());
-    if (engineType === 'webgl2') attempt('context', () => canvas.getContext('webgl2')?.getExtension('WEBGL_lose_context')?.loseContext());
-    canvas.remove();
-    state.ready = false;
-    state.scene = null;
-    state.fps = 0;
-    disposalCount += 1;
-    if (import.meta.env.DEV && window.__hub?.state === state) delete window.__hub;
-    emit();
+    if (torn) return
+    torn = true
+    clearInterval(fpsTimer)
+    observer?.disconnect()
+    motionQuery.removeEventListener('change', onMotion)
+    attempt('render loop', () => engine?.stopRenderLoop())
+    for (const dispose of sceneDisposers.reverse()) attempt('scene', dispose)
+    attempt('scene', () => scene?.dispose())
+    attempt('engine', () => engine?.dispose())
+    if (engineType === 'webgl2')
+      attempt('context', () =>
+        canvas.getContext('webgl2')?.getExtension('WEBGL_lose_context')?.loseContext(),
+      )
+    canvas.remove()
+    state.ready = false
+    state.scene = null
+    state.fps = 0
+    disposalCount += 1
+    if (import.meta.env.DEV && window.__hub?.state === state) delete window.__hub
+    emit()
   }
 
   const ready = start().catch((error) => {
-    if (!disposed) console.error('hub failed to start', error);
-    disposed = true;
-    teardown();
-    throw error;
-  });
+    if (!disposed) console.error('hub failed to start', error)
+    disposed = true
+    teardown()
+    throw error
+  })
   // a hub nobody awaits must not raise an unhandled rejection
-  ready.catch(() => {});
+  ready.catch(() => {})
 
   const hub = {
     state,
     ready,
     select(id) {
       // the enter and return flights own the camera, so picks wait for explore
-      if (state.mode !== 'explore') return;
-      state.selected = id;
-      api()?.select(id);
-      emit();
+      if (state.mode !== 'explore') return
+      state.selected = id
+      api()?.select(id)
+      emit()
     },
     enter: (id) => api()?.enter(id) ?? Promise.resolve(false),
     back: () => api()?.back() ?? Promise.resolve(false),
@@ -234,16 +274,16 @@ export function createHub({ container, joystick = {}, params = new URLSearchPara
     setPeers: (map) => api()?.setPeers(map),
     peerLabels: () => api()?.peerLabels() ?? [],
     pauseInput(value) {
-      state.inputPaused = Boolean(value);
-      api()?.setInputPaused(state.inputPaused);
-      emit();
+      state.inputPaused = Boolean(value)
+      api()?.setInputPaused(state.inputPaused)
+      emit()
     },
     dispose() {
-      disposed = true;
+      disposed = true
       // wait for an in flight build to stop before tearing down what it is still creating
-      ready.then(teardown, teardown);
+      ready.then(teardown, teardown)
     },
-  };
+  }
 
   if (import.meta.env.DEV) {
     window.__hub = {
@@ -254,10 +294,10 @@ export function createHub({ container, joystick = {}, params = new URLSearchPara
       resetCamera: hub.resetCamera,
       pauseInput: hub.pauseInput,
       get debug() {
-        const debug = api()?.debug;
-        return debug ? { ...debug, simulateFps: (fps) => perf?.feed(fps) } : null;
+        const debug = api()?.debug
+        return debug ? { ...debug, simulateFps: (fps) => perf?.feed(fps) } : null
       },
-    };
+    }
   }
-  return hub;
+  return hub
 }
