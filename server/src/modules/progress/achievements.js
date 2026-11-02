@@ -5,7 +5,7 @@ const firstCloseGames = Object.freeze([
   ['clearance-tower', 'Tower cleared', 'Clearance Tower'],
   ['phishing-post-mortem', 'Post sorted', 'Phishing Post-Mortem'],
   ['cli-cyber-defender', 'Wire held', 'CLI Cyber Defender'],
-  ['social-engineering-simulator', 'Talked down', 'Help Desk Shift'],
+  ['social-engineering-simulator', 'Talked down', 'LLM Social Engineering Simulator'],
 ])
 
 // botnet tag rounds: fields come from the server-recorded attempt state, never the browser

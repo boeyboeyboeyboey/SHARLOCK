@@ -52,7 +52,7 @@ function restart() {
   <div class="soc-game is-wide">
     <RouterLink to="/" class="soc-back back-link">Back to town</RouterLink>
     <div class="soc-intro">
-      <h1 tabindex="-1">Help Desk Shift</h1>
+      <h1 tabindex="-1">LLM Social Engineering Simulator</h1>
     </div>
 
     <div v-if="shift.status.value === 'choosing'" class="soc-state soc-start">

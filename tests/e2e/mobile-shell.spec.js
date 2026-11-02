@@ -264,7 +264,10 @@ test.describe('phone shell', () => {
     }
   })
 
-  test('Help Desk Shift chat labels and codes are at least 12px', async ({ browser, baseURL }) => {
+  test('LLM Social Engineering Simulator chat labels and codes are at least 12px', async ({
+    browser,
+    baseURL,
+  }) => {
     const room = await seedClass(`mh${Date.now().toString(36)}`)
     const { context, page } = await open(
       browser,

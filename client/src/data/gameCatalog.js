@@ -116,7 +116,7 @@ export const gameCatalog = defineGameCatalog([
     id: 'social-engineering-simulator',
     shortName: 'Help Desk',
     accent: '#c792ea',
-    name: 'Help Desk Shift',
+    name: 'LLM Social Engineering Simulator',
     description:
       'Spot a fictional colleague’s pressure tactics and protect a synthetic reset code.',
     difficulty: 2,

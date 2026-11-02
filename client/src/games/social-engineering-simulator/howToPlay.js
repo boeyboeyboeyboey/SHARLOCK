@@ -1,5 +1,5 @@
 export const HOW_TO_PLAY = Object.freeze({
-  title: 'Help Desk Shift',
+  title: 'LLM Social Engineering Simulator',
   steps: [
     {
       title: 'Take the call',

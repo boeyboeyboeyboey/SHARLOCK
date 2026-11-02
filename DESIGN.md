@@ -220,7 +220,7 @@ The six activities are already registered. Keep their identities and placements 
 | The Phishing Post-Mortem                  | `phishing-post-mortem`         | library   | (664, 380) | Playable, saved (Done)     |
 | SQL Injection Arcade                      | `sql-injection-arcade`         | hut       | (694, 180) | Saved practice             |
 | Cyber News Central / The daily briefing   | `threat-briefing`              | newsstand | (424, 0)   | Accepted                   |
-| Help Desk Shift                           | `social-engineering-simulator` | office    | (234, 400) | Playable, saved (Done)     |
+| LLM Social Engineering Simulator          | `social-engineering-simulator` | office    | (234, 400) | Playable, saved (Done)     |
 | Clearance Tower (replaced Regex Defender) | `clearance-tower`              | shed      | (879, 565) | Playable, saved (Done)     |
 
 A game that only works in 3D sets `needs3d: true` in its catalog entry: the 2D info card and the Places row then show a small "3D" badge (`aria-label` "Needs 3D"), and the game page shows a short "Needs 3D" state when WebGL2 is missing (the 2D town setting does not block it). Botnet Tag (`botnet-tag`, `warehouse` building at (600, 580), Server Yard on the east lane of the wharf) is the first.

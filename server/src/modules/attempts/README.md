@@ -1,6 +1,6 @@
 # Shared saved attempts and results
 
-GAME-01-A is the server foundation for saved gameplay. Normal startup registers every saved game through [`production-registry.js`](production-registry.js): SQL Injection Arcade, Clearance Tower, Phishing Post-Mortem, CLI Cyber Defender, Help Desk Shift and Botnet Tag, each with its current ruleset and any older rulesets kept for saved attempts. The sample game used by integration tests lives only under `server/tests/integration/attempts/`; no HTTP field, environment switch or startup import enables it in the normal app.
+GAME-01-A is the server foundation for saved gameplay. Normal startup registers every saved game through [`production-registry.js`](production-registry.js): SQL Injection Arcade, Clearance Tower, Phishing Post-Mortem, CLI Cyber Defender, LLM Social Engineering Simulator and Botnet Tag, each with its current ruleset and any older rulesets kept for saved attempts. The sample game used by integration tests lives only under `server/tests/integration/attempts/`; no HTTP field, environment switch or startup import enables it in the normal app.
 
 ## Request and storage flow
 

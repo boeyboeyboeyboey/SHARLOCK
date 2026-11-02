@@ -7,7 +7,7 @@
 - API: signed-in `POST` `session`, `message`, `verifier-message`, `nudge` and `complete` under `/games/social-engineering-simulator` (`router.js`); live chat sessions are held in memory and each belongs to the player who started it.
 - Saving: `complete` records one practice attempt (max 100, never ranked as competitive) through `recordCompletedAttempt`; personal and class runs are readable at `/api/attempts/:id`, class runs appear on the class leaderboard.
 - LLM: a bad-actor adapter (`LLM_API_KEY` + `LLM_MODEL`) and a separate real-colleague adapter (`LLM_COLLEAGUE_*`); without them the game reports it is not configured.
-- Help Desk Shift (SOC-02, see TASKS.md): a shift of 4 seeded calls with desk tools, a colleague, hints and strikes, saved once per shift under ruleset `2026-10-31`. It works with no keys at all (scripted mode). The single-call routes below still play but are no longer saved.
+- LLM Social Engineering Simulator (SOC-02, see TASKS.md): a shift of 4 seeded calls with desk tools, a colleague, hints and strikes, saved once per shift under ruleset `2026-10-31`. It works with no keys at all (scripted mode). The single-call routes below still play but are no longer saved.
 - Status: playable and saved (SAVE-SOC, see TASKS.md). The `llm/` engine is separately owned and not changed here.
 
 Runs G-SOC: a fictional colleague, played by an LLM, pressures the trainee to reveal a
@@ -17,7 +17,7 @@ score; the model's words are never a security boundary.
 The LLM engine in `llm/` (adapter, providers, bounded chat-session store and runner) is a
 separate contributor's work. This module **imports** it and does not modify it.
 
-## Help Desk Shift (SOC-02)
+## LLM Social Engineering Simulator (SOC-02)
 
 A shift is 4 calls at the Capybara and Crown help desk. All routes are signed-in `POST`s under `/api/games/social-engineering-simulator/shift/`, with the same session, CSRF and origin guards, `no-store` and per-player pacing as the other routes. Bodies reject unknown fields; a shift belongs to its player and another player's `shiftId` gets `SOC_SHIFT_NOT_FOUND` (404).
 
@@ -182,7 +182,7 @@ PR #3 (c46dfba). Saving was added later (SAVE-SOC, see [Saved attempts](#saved-a
 
 ## Saved attempts (SAVE-SOC)
 
-Since SOC-02 the saved ruleset is the Help Desk Shift (`2026-10-31`). The description below is the earlier single-call save: its `complete` route now returns the score with `saved: false` and `saveError.code` `SOC_SINGLE_CALL_NOT_SAVED`, and the older ruleset stays registered (not current) so saved results still read.
+Since SOC-02 the saved ruleset is the LLM Social Engineering Simulator (`2026-10-31`). The description below is the earlier single-call save: its `complete` route now returns the score with `saved: false` and `saveError.code` `SOC_SINGLE_CALL_NOT_SAVED`, and the older ruleset stays registered (not current) so saved results still read.
 
 The module is server-recorded: the attempts registry entry (`ruleset.js`, registered in
 `server/src/modules/attempts/production-registry.js`) has `serverRecorded: true`, so the public

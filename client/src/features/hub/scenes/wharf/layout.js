@@ -68,7 +68,7 @@ export const destinations = [
   },
   {
     id: 'social-engineering-simulator',
-    title: 'Help Desk Shift',
+    title: 'LLM Social Engineering Simulator',
     accent: accents.pub,
     x: -10,
     z: -21,

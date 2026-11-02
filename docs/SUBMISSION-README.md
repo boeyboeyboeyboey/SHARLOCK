@@ -103,15 +103,15 @@ The first `test:integration` or `test:e2e` run downloads a MongoDB server, about
 
 ## 6. Cybersecurity topics covered
 
-| Destination                                                             | Route                                 | Cybersecurity topics covered                                                                                                                                 |
-| ----------------------------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| CLI Cyber Defender                                                      | `/games/cli-cyber-defender`           | Incident triage and containment: reading logs, blocking at the firewall, securing accounts and isolating hosts, tagged with the CIA triad and attack stage   |
-| The Phishing Post-Mortem                                                | `/games/phishing-post-mortem`         | Spotting phishing: lookalike domains, display-name spoofing, reply-to and link mismatches, payment-change requests, and not distrusting genuine urgent email |
-| SQL Injection Arcade                                                    | `/games/sql-injection-arcade`         | SQL injection: quote breakout, comments, unquoted numbers, UNION, boolean-blind and second-order injection, with bound parameters as the fix                 |
-| LLM Social Engineering Simulator (shown in the town as Help Desk Shift) | `/games/social-engineering-simulator` | Social engineering and impersonation under pressure, and checking a request against independent records and a call back                                      |
-| Clearance Tower                                                         | `/games/clearance-tower`              | Access control: discretionary, Bell-LaPadula mandatory and role-based, with Trojan horses, tampering and separation of duties                                |
-| Botnet Tag                                                              | `/games/botnet-tag`                   | How worms and botnets spread, and why patching and filtering stop them                                                                                       |
-| The daily briefing (The Sharlock Times)                                 | `/games/threat-briefing`              | Awareness of current threats, and the OWASP Top 10 web-application risks                                                                                     |
+| Destination                             | Route                                 | Cybersecurity topics covered                                                                                                                                 |
+| --------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| CLI Cyber Defender                      | `/games/cli-cyber-defender`           | Incident triage and containment: reading logs, blocking at the firewall, securing accounts and isolating hosts, tagged with the CIA triad and attack stage   |
+| The Phishing Post-Mortem                | `/games/phishing-post-mortem`         | Spotting phishing: lookalike domains, display-name spoofing, reply-to and link mismatches, payment-change requests, and not distrusting genuine urgent email |
+| SQL Injection Arcade                    | `/games/sql-injection-arcade`         | SQL injection: quote breakout, comments, unquoted numbers, UNION, boolean-blind and second-order injection, with bound parameters as the fix                 |
+| LLM Social Engineering Simulator        | `/games/social-engineering-simulator` | Social engineering and impersonation under pressure, and checking a request against independent records and a call back                                      |
+| Clearance Tower                         | `/games/clearance-tower`              | Access control: discretionary, Bell-LaPadula mandatory and role-based, with Trojan horses, tampering and separation of duties                                |
+| Botnet Tag                              | `/games/botnet-tag`                   | How worms and botnets spread, and why patching and filtering stop them                                                                                       |
+| The daily briefing (The Sharlock Times) | `/games/threat-briefing`              | Awareness of current threats, and the OWASP Top 10 web-application risks                                                                                     |
 
 Around the games, the site also has:
 

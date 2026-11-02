@@ -201,7 +201,7 @@ export const routes = [
           import('../games/social-engineering-simulator/SocialEngineeringSimulator.vue'),
         meta: {
           interior: 'social-engineering-simulator',
-          title: 'Help Desk Shift',
+          title: 'LLM Social Engineering Simulator',
           requiresAccount: true,
         },
       },

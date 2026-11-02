@@ -112,6 +112,6 @@ Game scenarios, rules, puzzles and copy were written by the team. Owners follow 
 - G-SQL SQL Injection Arcade: Keane
 - G-CLI CLI Cyber Defender: Xin Lei
 - G-PHISH Phishing Post-Mortem: Athithya
-- G-SOC Help Desk Shift (Social Engineering Simulator module): Eric (its `llm/` engine is separately owned; provider details are in that module's records)
+- G-SOC LLM Social Engineering Simulator: Eric (its `llm/` engine is separately owned; provider details are in that module's records)
 - G-CLEAR Clearance Tower: Russell
 - Hub footstep and gas lamp hiss sound effects (`client/src/features/hub/audio/hubSfx.js`) are original code generated with the Web Audio API, no recorded audio: Boey (HUB-12).

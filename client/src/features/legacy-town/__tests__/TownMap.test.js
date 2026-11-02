@@ -176,7 +176,7 @@ describe('walking Sharlock', () => {
     }
     await wrapper.get('[data-testid="npc-enter"]').trigger('click')
     expect(wrapper.find('[data-testid="npc-dialogue"]').exists()).toBe(false)
-    expect(wrapper.get('[id^="game-card-"]').text()).toContain('Help Desk Shift')
+    expect(wrapper.get('[id^="game-card-"]').text()).toContain('LLM Social Engineering Simulator')
     wrapper.unmount()
   })
 

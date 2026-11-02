@@ -1,4 +1,4 @@
-# Help Desk Shift (Social Engineering Simulator) - client module
+# LLM Social Engineering Simulator - client module
 
 ## Presentation summary
 
