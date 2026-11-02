@@ -1,5 +1,7 @@
 # Sharlock Hub
 
+Marking this project? Start with the [README for markers](docs/SUBMISSION-README.md).
+
 ## 1. Teammate Agent Kickoff Prompt
 
 ```text
@@ -332,6 +334,7 @@ Team: Boey, Keane, Eric, Russell, Xin Lei and Athithya. No automatic assignments
 - **[Legacy town README](client/src/features/legacy-town/README.md):** The Panzoom pixel town kept as the hub's 2D mode, with rollback steps.
 - **[CODE_STYLE.md](CODE_STYLE.md):** Authoritative readability rules, human review checklist and small-batch maintenance workflow.
 - **[Saved-game integration guide](docs/saved-game-integration.md):** Owner-approved planning workflow for connecting one existing game to saved accounts and results; the guide does not authorize a migration.
+- **[README for markers](docs/SUBMISSION-README.md):** Set-up, demo accounts, test commands with expected results, the journey-to-test map and a short tour, written for markers; the zip copy holds the passwords.
 - **[CREDITS.md](CREDITS.md):** Libraries, fonts, images, audio and content sources with their licences, and the assets whose source is not yet recorded.
 - **[Course reference index](TASKS.md#course-reference-index):** Supplied project brief, CS440 lecture decks and WAD2 teaching slides under `documentation/`. The 21 September additions include CS440 security basics, encryption, certificates, authentication, access control, network/software/web security and WAD2 Week 6 on Vue components, props, slots, events and local storage. Read the relevant sources before mapping learning objectives or making course/assessment claims; the index records filename/version ambiguities.
 
