@@ -28,7 +28,7 @@ Row shapes (`isSelf` marks the caller; `me` is the caller's row on any page, or 
 - Counted attempts: `status: completed`, cohort context for this class, one game and one ruleset (rulesets are never mixed), player ranked. Personal attempts never count.
 - `best` on a competitive ruleset counts only `competitiveEligible` attempts; on a non-competitive ruleset it counts all attempts (a practice best). `all-time` counts all counted attempts.
 - `best`: one row per student with their best score. Order is score descending, earliest completion of that score, then username. Rank is a competition rank on score (1, 1, 3).
-- `all-time`: points are the sum of `round(100 * score / maxScore)` over attempts (0 when max score is 0). Order is points descending, then username; competition rank on points.
+- `all-time`: points are the sum of `round(100 * score / maxScore)` over attempts, each capped at 100 (0 when max score is 0). Order is points descending, then username; competition rank on points.
 - Paging happens after ranking the whole board.
 
 ## Bounds

@@ -1,6 +1,6 @@
 <script setup>
 defineOptions({ name: 'SharlockImmersiveControls' })
-import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import SiteMenu from './SiteMenu.vue'
 import { useTownControls } from './townControls.js'
 import './menu.css'
@@ -68,8 +68,15 @@ function onKeydown(event) {
 onMounted(() => {
   window.addEventListener('keydown', onKeydownCapture, true)
   window.addEventListener('keydown', onKeydown)
-  if (controls?.soundSlot) controls.soundSlot.value = soundSlot.value
 })
+// the slot div leaves when the 2d town fills the sound slot, so a stale target must not linger
+watch(
+  soundSlot,
+  (el) => {
+    if (controls?.soundSlot) controls.soundSlot.value = el
+  },
+  { flush: 'post' },
+)
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeydownCapture, true)
   window.removeEventListener('keydown', onKeydown)

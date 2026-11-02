@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PixelIcon from '../../../components/town/PixelIcon.vue'
 import { useAuthStore } from '../store.js'
@@ -19,6 +19,8 @@ const continuing = ref(false)
 const continuationError = ref('')
 const controller = new AbortController()
 onBeforeUnmount(() => controller.abort())
+// the notice is shown from the link, so the store forgets the reason once this page is up
+onMounted(() => auth.clearSessionEnd())
 const introAvatar = '/images/town/capybara-mint.svg'
 const expiredNotice = computed(() => route.query.reason === 'expired')
 const elsewhereNotice = computed(() => route.query.reason === 'elsewhere')
@@ -129,11 +131,6 @@ async function cancelCode() {
       <h1 id="login-title" tabindex="-1">
         {{ verifying ? 'Confirm your email' : 'Sign in to Sharlock' }}
       </h1>
-      <p v-if="!signedIn && !verifying" class="auth-intro">
-        Sharlock is a game-based way to learn cybersecurity: investigate phishing, SQL injection,
-        social engineering and more.
-      </p>
-
       <p v-if="passwordResetNotice" class="auth-field-hint" role="status">
         Your password was updated. Sign in with your new password.
       </p>
@@ -156,7 +153,12 @@ async function cancelCode() {
       <div v-if="signedIn" aria-live="polite">
         <p>You are signed in.</p>
         <p v-if="continuationError" role="alert">{{ continuationError }}</p>
-        <button class="btn btn-primary" type="button" :disabled="pending || continuing" @click="continueAfterSignIn">
+        <button
+          class="btn btn-primary"
+          type="button"
+          :disabled="pending || continuing"
+          @click="continueAfterSignIn"
+        >
           {{ continuing ? 'Opening Sharlock Town…' : 'Continue' }}
         </button>
       </div>

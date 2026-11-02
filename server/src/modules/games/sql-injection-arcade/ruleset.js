@@ -333,6 +333,7 @@ export function createSqlRuleset({
       'Recognise how pasted-together SQL lets input become code (quote breakout, comments, unquoted numbers, UNION, boolean blind and second-order injection) and choose bound parameters as the real fix.',
     topicTags: [...SQL_TOPICS],
     maxScore,
+    maxScoreIsPar: maxScore === PAR_SCORE,
     maxActions: maxTimedActions(),
     current,
     competitive: true,
@@ -380,7 +381,7 @@ export function createSqlRuleset({
         casesClosed: totals.closed,
         // the browser uses this to correct its countdown for a skewed device clock
         serverNow: new Date(metadata.now).getTime(),
-        score: Math.min(totals.score, maxScore),
+        score: totals.score,
         solved: totals.solved,
         failed: totals.failed,
         current: playable ? currentView(state) : null,
@@ -407,7 +408,7 @@ export function createSqlRuleset({
       // practice has no lives, so three failed cases there are not a lost run
       const livesOut = metadata?.mode === 'standard' && totals.failed >= MAX_LIVES
       return {
-        score: Math.min(totals.score, maxScore),
+        score: totals.score,
         feedback: {
           verdictCode: livesOut ? 'SQL_RUN_LIVES_OUT' : 'SQL_RUN_FINISHED',
           casesSolved: totals.solved,

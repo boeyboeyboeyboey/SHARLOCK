@@ -143,7 +143,10 @@ describe('cli defender game page', () => {
     game.current = fakeGame()
     const wrapper = mountGame()
     await chooseLeave(wrapper)
-    await buttonNamed(wrapper, 'Leave game').trigger('click')
+    await wrapper
+      .findAll('dialog button')
+      .find((item) => item.text() === 'Quit to briefing')
+      .trigger('click')
     await flushPromises()
     expect(game.current.replay).toHaveBeenCalledTimes(1)
     wrapper.unmount()
@@ -284,7 +287,7 @@ describe('cli defender game page', () => {
     window.history.replaceState({ current: '/' }, '')
     const decision = leaveGuard.current({ fullPath: '/' })
     await flushPromises()
-    expect(wrapper.get('#cli-leave-confirm-title').text()).toBe('Leave this game?')
+    expect(wrapper.get('#cli-leave-confirm-title').text()).toBe('Quit to the briefing?')
     await buttonNamed(wrapper, 'Keep playing').trigger('click')
     await expect(decision).resolves.toBe(false)
     // a top bar push has not touched history yet, so the current entry is not the target

@@ -428,13 +428,14 @@ test('switches between the 3D town and the 2D town and remembers the choice', as
   // the 3D hub plays its own ambience loop, never the town music
   await expect(page.locator('audio')).toHaveCount(1)
   await expect(page.locator('audio')).toHaveAttribute('src', '/audio/hub-ambience.mp3')
-  await expect(page.getByRole('button', { name: 'Hub sound' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^sound (on|off)$/i })).toBeVisible()
 
   await toggle.click()
   await expect(town).toBeVisible()
   await expect(page.locator('audio')).toHaveCount(1)
   await expect(page.locator('audio')).toHaveAttribute('src', '/audio/sharlock-bgm.mp3')
-  await expect(page.getByRole('button', { name: 'Hub sound' })).toHaveCount(0)
+  // the hub's control left with the hub: one sound control for one sound source
+  await expect(page.getByRole('button', { name: /^(sound (on|off)|starting…)$/i })).toHaveCount(1)
   await expect(page.locator('canvas.hub-canvas')).toHaveCount(0)
   expect(await page.evaluate(() => window.__hub)).toBeUndefined()
   await expect(toggle).toHaveText('3D')

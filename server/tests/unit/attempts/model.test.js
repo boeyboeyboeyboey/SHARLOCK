@@ -108,7 +108,7 @@ describe('attempt data models', () => {
     await expect(
       createAttempt(RulesetAttempt, { revision: Number.MAX_SAFE_INTEGER }).validate(),
     ).rejects.toHaveProperty('errors.revision')
-    await expect(createAttempt(RulesetAttempt, { score: 101 }).validate()).rejects.toHaveProperty(
+    await expect(createAttempt(RulesetAttempt, { score: 1001 }).validate()).rejects.toHaveProperty(
       'errors.score',
     )
     await expect(

@@ -14,7 +14,9 @@ function assignRanks(sorted, valueOf) {
 }
 
 function percentOf(attempt) {
-  return attempt.maxScore > 0 ? Math.round((100 * attempt.score) / attempt.maxScore) : 0
+  return attempt.maxScore > 0
+    ? Math.min(100, Math.round((100 * attempt.score) / attempt.maxScore))
+    : 0
 }
 
 function groupByPlayer(attempts, students) {

@@ -51,6 +51,25 @@ describe('failed login rate limits', () => {
     expect(() => limits.reserveFailedLogin('other@example.test', '10.0.1.1')).not.toThrow()
   })
 
+  it('clears the account and address counters on a successful sign-in', () => {
+    const limits = makeLimits(() => 1000)
+    for (let address = 1; address <= 20; address += 1) {
+      limits.reserveFailedLogin('learner@example.test', `10.0.0.${address}`).fail()
+    }
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      limits.reserveFailedLogin('learner@example.test', '10.0.1.1').fail()
+    }
+    limits.reserveFailedLogin('learner@example.test', '10.0.1.1').succeed()
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      expect(() =>
+        limits.reserveFailedLogin('learner@example.test', '10.0.1.1').fail(),
+      ).not.toThrow()
+    }
+    expect(() => limits.reserveFailedLogin('learner@example.test', '10.0.1.1')).toThrow(
+      expect.objectContaining({ code: 'RATE_LIMITED' }),
+    )
+  })
+
   it('counts addresses inside one ipv6 /56 as a single budget', () => {
     const limits = makeLimits(() => 1000)
     for (let host = 1; host <= 5; host += 1) {

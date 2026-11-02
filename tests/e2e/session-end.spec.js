@@ -158,7 +158,6 @@ test('a signed-out visit logs no 401 on public pages and does not loop', async (
   await page.goto('/')
   await expect(page).toHaveURL(/\/login\?reason=required$/)
   await expect(page.getByRole('heading', { name: 'Sign in to Sharlock' })).toBeVisible()
-  await expect(page.getByText('game-based way to learn cybersecurity')).toBeVisible()
   await page.goto('/register')
   await expect(page.getByRole('heading', { name: 'Create a student account' })).toBeVisible()
   await page.goto('/about')

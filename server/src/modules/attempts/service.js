@@ -69,6 +69,9 @@ function stateObject(attempt) {
   return cloneJson(value)
 }
 
+// a par game may save above its maxScore, up to this multiple as a sanity ceiling
+const PAR_CEILING_FACTOR = 10
+
 function validateSummary(summary, entry) {
   if (
     !summary ||
@@ -77,7 +80,7 @@ function validateSummary(summary, entry) {
     Reflect.ownKeys(summary).some((key) => !['score', 'feedback', 'topicOutcomes'].includes(key)) ||
     !Number.isFinite(summary.score) ||
     summary.score < 0 ||
-    summary.score > entry.maxScore ||
+    summary.score > (entry.maxScoreIsPar ? entry.maxScore * PAR_CEILING_FACTOR : entry.maxScore) ||
     !summary.feedback ||
     typeof summary.feedback !== 'object' ||
     Array.isArray(summary.feedback) ||

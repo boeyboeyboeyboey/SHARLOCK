@@ -107,7 +107,7 @@ test('a completed G-SQL attempt appears in points, history and badges', async ({
     // play a full run through the real UI so the server scores it
     await playSqlRun(page, 'personal')
     const score = await page
-      .getByText(/^\d+ \/ \d+$/)
+      .getByText(/^\d+ (\/ \d+|\(par \d+\))$/)
       .first()
       .innerText()
 
@@ -116,13 +116,16 @@ test('a completed G-SQL attempt appears in points, history and badges', async ({
       await expect(game.getByText('Completed', { exact: true })).toBeVisible()
       await expect(game.locator('dd').nth(0)).toHaveText('1')
       await expect(game.locator('dd').nth(1)).toHaveText(score)
-      const [points, outOf] = score.split(' / ').map(Number)
+      // a timed run can beat par, which caps its points at 100
+      const [points, outOf] = score.match(/\d+/g).map(Number)
       await expect(game.locator('dd').nth(2)).toHaveText(
-        `${Math.round((points * 100) / outOf)} / 100`,
+        `${Math.min(100, Math.round((points * 100) / outOf))} / 100`,
       )
       const history = page.getByRole('table', { name: 'Completed attempts, newest first' })
       await expect(
-        history.getByRole('row', { name: new RegExp(`SQL Injection Arcade ${score}`) }),
+        history.getByRole('row', {
+          name: new RegExp(`SQL Injection Arcade ${score.replace(/[()]/g, '\\$&')}`),
+        }),
       ).toHaveCount(1)
       await expect(page.getByText('First clue').first()).toBeVisible()
       await expect(page.getByText('No results yet.')).toHaveCount(0)

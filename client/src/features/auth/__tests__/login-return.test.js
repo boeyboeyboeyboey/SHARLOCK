@@ -17,6 +17,7 @@ vi.mock('../store.js', async () => {
     user: mocks.user,
     requestError: null,
     pendingVerification: null,
+    clearSessionEnd: () => {},
     login: async () => {
       store.status = 'authenticated'
       return mocks.user

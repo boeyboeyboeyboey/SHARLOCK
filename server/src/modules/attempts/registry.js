@@ -7,6 +7,7 @@ const allowedEntryFields = new Set([
   'topicTags',
   'stateSchema',
   'maxScore',
+  'maxScoreIsPar',
   'maxActions',
   'current',
   'competitive',
@@ -103,6 +104,9 @@ function normalizeEntry(entry) {
   if (Object.hasOwn(entry, 'serverRecorded') && typeof entry.serverRecorded !== 'boolean') {
     throw new TypeError('Attempt registry serverRecorded flag is invalid.')
   }
+  if (Object.hasOwn(entry, 'maxScoreIsPar') && typeof entry.maxScoreIsPar !== 'boolean') {
+    throw new TypeError('Attempt registry maxScoreIsPar flag is invalid.')
+  }
   const serverRecorded = entry.serverRecorded === true
   for (const hook of alwaysRequiredHooks) {
     if (typeof entry[hook] !== 'function') throw new TypeError('Attempt registry hook is missing.')
@@ -124,6 +128,7 @@ function normalizeEntry(entry) {
     topicTags,
     stateSchema: entry.stateSchema,
     maxScore: entry.maxScore,
+    maxScoreIsPar: entry.maxScoreIsPar === true,
     maxActions: entry.maxActions,
     current: Object.hasOwn(entry, 'current') ? entry.current : true,
     competitive: Object.hasOwn(entry, 'competitive') ? entry.competitive : false,

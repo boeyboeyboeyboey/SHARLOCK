@@ -347,8 +347,8 @@ watch(
     <ConfirmDialog
       id="cli-leave-confirm"
       :open="confirmingLeave"
-      title="Leave this game?"
-      confirm-label="Leave game"
+      title="Quit to the briefing?"
+      confirm-label="Quit to briefing"
       cancel-label="Keep playing"
       focus="cancel"
       @confirm="leave"

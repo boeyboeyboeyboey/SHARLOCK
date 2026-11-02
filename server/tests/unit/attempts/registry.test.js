@@ -70,6 +70,7 @@ describe('attempt registry', () => {
     ['large action limit', { maxActions: 256 }],
     ['bad current flag', { current: 'yes' }],
     ['bad competitive flag', { competitive: 1 }],
+    ['bad par flag', { maxScoreIsPar: 1 }],
     ['unknown field', { unexpected: true }],
     ['missing hook', { summarize: undefined }],
   ])('rejects %s', (_label, overrides) => {

@@ -64,7 +64,7 @@ const achievementDefinitions = Object.freeze([
     name: 'Perfect case',
     description: 'Earn the maximum score on a saved activity.',
     find: (attempts) =>
-      attempts.find((attempt) => attempt.maxScore > 0 && attempt.score === attempt.maxScore),
+      attempts.find((attempt) => attempt.maxScore > 0 && attempt.score >= attempt.maxScore),
   },
   {
     key: 'well-rounded',

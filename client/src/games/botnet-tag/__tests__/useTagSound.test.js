@@ -24,16 +24,25 @@ function fakeContext() {
   return context
 }
 
+// one shared harness component keeps the single-component-per-file rule satisfied
+const Harness = defineComponent({
+  props: {
+    createContext: { type: Function, required: true },
+    onApi: { type: Function, required: true },
+  },
+  setup(props) {
+    props.onApi(useTagSound({ createContext: props.createContext }))
+    return () => h('div')
+  },
+})
+
 function mountSound(context) {
+  return mountWith(() => context)
+}
+
+function mountWith(createContext) {
   let api
-  const wrapper = mount(
-    defineComponent({
-      setup() {
-        api = useTagSound({ createContext: () => context })
-        return () => h('div')
-      },
-    }),
-  )
+  const wrapper = mount(Harness, { props: { createContext, onApi: (value) => (api = value) } })
   return { api, wrapper }
 }
 
@@ -77,15 +86,7 @@ describe('useTagSound', () => {
   it('closes the context and removes the gesture listeners on unmount', () => {
     const context = fakeContext()
     const create = vi.fn(() => context)
-    let wrapper
-    wrapper = mount(
-      defineComponent({
-        setup() {
-          useTagSound({ createContext: create })
-          return () => h('div')
-        },
-      }),
-    )
+    const { wrapper } = mountWith(create)
     document.dispatchEvent(new Event('keydown'))
     expect(create).toHaveBeenCalledTimes(1)
     wrapper.unmount()

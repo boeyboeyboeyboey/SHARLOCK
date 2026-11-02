@@ -45,6 +45,8 @@ test.beforeEach(async ({ page }) => {
 test('registers, restores, signs out, signs in, and stops a protected action after expiry', async ({
   page,
 }, testInfo) => {
+  // register, confirm, sign out and in, then a game: too long for the default limit on a loaded machine
+  test.setTimeout(90_000)
   const suffix = `${Date.now().toString(36)}${testInfo.workerIndex}`
   const email = `auth-${suffix}@example.test`
   const username = `Case_${suffix}`

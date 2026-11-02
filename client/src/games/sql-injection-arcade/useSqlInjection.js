@@ -2,6 +2,8 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useAttempt } from '../../features/attempts/useAttempt.js'
 
 const AUTO_FINISH_DELAY_MS = 800
+const FINISH_TRIES = 5
+const FINISH_RETRY_MS = 1000
 
 export function useSqlInjection() {
   const attempt = useAttempt('sql-injection-arcade')
@@ -25,8 +27,35 @@ export function useSqlInjection() {
   // server time minus device time, so a skewed device clock neither misstates the countdown nor
   // ends a run early
   let clockOffset = 0
-  // one automatic finish per snapshot: a refused one waits for new state instead of looping
+  // one automatic finish run per snapshot; it retries with backoff, then hands over to the player
   let finishTriedOn = null
+  let finishing = false
+  let disposed = false
+  let waitTimer = null
+  const finishStalled = ref(false)
+  const wait = (ms) =>
+    new Promise((resolve) => {
+      waitTimer = setTimeout(resolve, ms)
+    })
+
+  // a held save is resent as it was; a fresh finish would be ignored while one is pending
+  const finishOnce = () => (retryable.value ? attempt.retry() : attempt.complete())
+
+  async function autoFinish(forSnapshot) {
+    finishing = true
+    try {
+      for (let tries = 0; tries < FINISH_TRIES; tries += 1) {
+        const saved = await finishOnce()
+        if (saved || disposed || snapshot.value !== forSnapshot) return
+        if (tries < FINISH_TRIES - 1) await wait(FINISH_RETRY_MS * 2 ** tries)
+        if (disposed) return
+      }
+      finishStalled.value = true
+    } finally {
+      finishing = false
+    }
+  }
+
   function tick() {
     const deadline = snapshot.value?.deadlineAt
     if (!deadline || snapshot.value.status !== 'active') {
@@ -36,13 +65,14 @@ export function useSqlInjection() {
     const left = new Date(deadline).getTime() - (Date.now() + clockOffset)
     secondsLeft.value = Math.max(0, Math.ceil(left / 1000))
     const due = -left - AUTO_FINISH_DELAY_MS
-    if (due > 0 && !busy.value && !retryable.value && finishTriedOn !== snapshot.value) {
+    if (due > 0 && !busy.value && !finishing && finishTriedOn !== snapshot.value) {
       finishTriedOn = snapshot.value
-      attempt.complete()
+      autoFinish(snapshot.value)
     }
   }
   const timer = setInterval(tick, 250)
   watch(snapshot, (next, previous) => {
+    finishStalled.value = false
     const serverNow = next?.publicState?.serverNow
     // a replayed retry carries the time of its first answer, which can only read low, so within one
     // run the highest offset seen is the true one
@@ -50,7 +80,11 @@ export function useSqlInjection() {
     if (Number.isFinite(serverNow)) clockOffset = Math.max(known, serverNow - Date.now())
     tick()
   })
-  onBeforeUnmount(() => clearInterval(timer))
+  onBeforeUnmount(() => {
+    disposed = true
+    clearInterval(timer)
+    clearTimeout(waitTimer)
+  })
 
   function send(type, payload = {}) {
     if (!current.value) return false
@@ -73,6 +107,8 @@ export function useSqlInjection() {
     last,
     timed,
     secondsLeft,
+    finishStalled,
+    finishNow: finishOnce,
     reviewing,
     runOver,
     submitInputs,

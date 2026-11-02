@@ -332,7 +332,7 @@ test('plays the supplied newspaper loop, keeps one player across tabs and restor
   await page.goto('/')
   const townAudio = page.locator('.town-audio audio')
   // autoplay may be blocked until the first interaction
-  const mute = page.getByRole('button', { name: 'Town sound', pressed: true })
+  const mute = page.getByRole('button', { name: /^sound (on|off)$/i, pressed: true })
   await page.getByTestId('town-player').waitFor()
   await page.mouse.click(1, 1)
   await expect(mute).toBeVisible()
@@ -408,7 +408,7 @@ test('recovers from blocked autoplay and keeps the reference readable when audio
   await page.keyboard.press('Escape')
   await expect(page).toHaveURL('/')
   await expect(page.locator('.town-audio audio')).toHaveCount(1)
-  await expect(page.getByRole('button', { name: 'Town sound' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^sound (on|off)$/i })).toBeVisible()
 })
 
 test.describe('the Times on a phone', () => {

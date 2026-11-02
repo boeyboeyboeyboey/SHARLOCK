@@ -19,6 +19,8 @@ Paths are relative to `/api`. Every route requires an active cookie-backed accou
 | POST `/attempts/:attemptId/actions`  | `{actionId,expectedRevision,type,payload}`                            | 200 recorded public outcome                                      |
 | POST `/attempts/:attemptId/complete` | `{actionId,expectedRevision}`                                         | 200 immutable completed snapshot                                 |
 
+Registry entries may set `maxScoreIsPar: true` (default false; only `phish-4` and `sql-3`): `maxScore` is then a par for Progress points, and a saved score may exceed it up to 10 times `maxScore`. Every other game keeps the strict `score <= maxScore` rule, enforced in `validateSummary`; the model validator only bounds at 10 times.
+
 Snapshots contain `attemptId`, `gameId`, `rulesetVersion`, `context`, `mode`, `status`, `revision`, `startedAt`, `deadlineAt`, `completedAt`, `score`, `maxScore`, `persisted:true` and `publicState`. Only completed snapshots add `feedback` and `topicOutcomes`. Internal player IDs, ruleset keys, state, action hashes/receipts, database fields and eligibility flags are not serialized. An adapter must explicitly construct its public state; it must never return its private state wholesale.
 
 The browser cannot supply a player, ruleset, score, award, eligibility flag or timestamp. Mode is currently selected by the server adapter (`standard` or `practice`). The request shape does not yet select CLI timed/practice behavior; that and its UI must be agreed with the owner during migration. Untimed practice cannot have a deadline and never qualifies for rankings.

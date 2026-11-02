@@ -269,6 +269,8 @@ describe('TriageDebrief', () => {
     expect(wrapper.text()).not.toContain('Par reached')
     await wrapper.setProps({ score: 1000 })
     expect(wrapper.text()).toContain('Par reached')
+    await wrapper.setProps({ score: 1240 })
+    expect(wrapper.text()).toContain('Score1240 (par 1000)')
   })
 })
 

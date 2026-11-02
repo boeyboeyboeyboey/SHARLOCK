@@ -17,6 +17,13 @@ function attempt(playerId, score, over = {}) {
   }
 }
 
+describe('rankAllTime above par', () => {
+  it('caps each attempt at 100 points', () => {
+    const rows = rankAllTime({ attempts: [attempt('ann', 25)], students })
+    expect(rows[0]).toMatchObject({ points: 100, bestScore: 25 })
+  })
+})
+
 describe('rankBest', () => {
   it('keeps one best row per student', () => {
     const rows = rankBest({

@@ -26,13 +26,13 @@
 `sql-3` changes three things from `sql-2`, which stays registered with the old rules for attempts saved or open under it: the maximum (`maxScore` 320, was 1,130 from `maxTimedScore()`, 36 slots in 180 seconds), stacked statements (below) and the blind letter probe (below).
 
 - Class context: mode `standard`, 180 s deadline, 3 lives, `competitive: true`. Ends at the deadline, at 0 lives or after 36 slots (the cap that keeps `maxActions` at 210, under the 255 limit).
-- Par: `maxScore` is `PAR_SCORE`, 320, the lowest score of a flawless practice run whatever the seed (3 cases at 20, 4 at 20, 5 at 30, 3 repairs at 10; computed over 2,000 seeds: 320 to 410, median 370). `summarize` and the public `score` both stop there, so a player with luckier cases may lose up to 90 points of slips and still reach it. In a class run it takes about 14 flawless slots, 13 seconds each; 10 slots, 18 seconds each, save 190 to 240.
+- Par: `maxScore` is `PAR_SCORE`, 320, the lowest score of a flawless practice run whatever the seed (3 cases at 20, 4 at 20, 5 at 30, 3 repairs at 10; computed over 2,000 seeds: 320 to 410, median 370). `summarize` and the public `score` keep the raw score and the registry entry sets `maxScoreIsPar`, so 320 is the par used for Progress points (capped at 100) and a better run saves its full score, up to 10 times par. The clamp was removed without a ruleset bump because `sql-3` is hours old and the rules are unchanged. In a class run it takes about 14 flawless slots, 13 seconds each; 10 slots, 18 seconds each, save 190 to 240.
 - Personal context: mode `practice`, no deadline, no lives, ends after 15 slots (12 cases and 3 repairs).
 - Slots repeat as four cases then one repair. Cases 1–3 are tier 1, cases 4–7 mix tier 1 and 2, later cases mix tier 2 and 3.
 - Each case allows 3 tries. Unsupported or malformed syntax gives feedback but still counts as a try. A blind case has 6 probes and one answer instead. Out of tries closes the case as failed, and in timed mode costs a life.
 - Points: 10, 20, 30 for tier 1, 2, 3 on a solved case, plus 10 for solving with no earlier slip and no hint. A correct repair is worth 10. A wrong repair scores 0 and costs no life.
 - `hint` is practice only, once per case, and marks the case assisted (no first-try bonus).
-- `summarize` clamps to `maxScore` and reports per-topic outcomes for the injection types played plus `parameterized-queries` when a repair was answered. Its `verdictCode` is `SQL_RUN_LIVES_OUT` only in a class run; practice has no lives.
+- `summarize` returns the raw score (above par is allowed) and reports per-topic outcomes for the injection types played plus `parameterized-queries` when a repair was answered. Its `verdictCode` is `SQL_RUN_LIVES_OUT` only in a class run; practice has no lives.
 
 ## Actions
 

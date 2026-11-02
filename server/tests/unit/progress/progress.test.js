@@ -53,6 +53,16 @@ describe('game points', () => {
     expect(summary.lastCompletedAt).toEqual(attempts[2].completedAt)
   })
 
+  it('caps points at 100 when a score is above par', () => {
+    const summary = summarizeGame('game-a', [attempt({ score: 1400, maxScore: 1000 })])
+    expect(summary).toMatchObject({ bestScore: 1400, maxScore: 1000, points: 100 })
+  })
+
+  it('counts a score above par as a perfect case', () => {
+    const keys = deriveAchievements([attempt({ score: 1400, maxScore: 1000 })]).map((a) => a.key)
+    expect(keys).toContain('perfect-case')
+  })
+
   it('aggregates topics sorted by name', () => {
     const attempts = [
       attempt({

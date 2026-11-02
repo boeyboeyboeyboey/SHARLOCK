@@ -604,6 +604,12 @@ describe('cli defender composable', () => {
     await flushPromises()
     expect(pauseRun).not.toHaveBeenCalled()
     expect(game.paused.value).toBe(false)
+    const notes = () =>
+      game.lines.value.filter((line) => line.text === 'No pauses left. The clock keeps running.')
+    expect(notes()).toHaveLength(1)
+    setHidden(false)
+    setHidden(true)
+    expect(notes()).toHaveLength(2)
   })
 
   it('returns to the running game when the server refuses a pause', async () => {

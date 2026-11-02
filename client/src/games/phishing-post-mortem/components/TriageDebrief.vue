@@ -20,6 +20,9 @@ const END_LINES = {
 }
 const correctCalls = computed(() => props.review.filter((item) => item.correct).length)
 const endLine = computed(() => END_LINES[props.endReason] ?? '')
+const ofMax = computed(() =>
+  props.score > props.maxScore ? ` (par ${props.maxScore})` : ` of ${props.maxScore}`,
+)
 const reachedPar = computed(() => props.maxScore > 0 && props.score >= props.maxScore)
 const modeNote = computed(() => (props.timed ? 'Timed class run' : 'Practice'))
 
@@ -36,7 +39,7 @@ function callLabel(item) {
       <div>
         <dt>Score</dt>
         <dd>
-          {{ score }}<span v-if="maxScore" class="triage-of-max"> of {{ maxScore }}</span>
+          {{ score }}<span v-if="maxScore" class="triage-of-max">{{ ofMax }}</span>
         </dd>
       </div>
       <div>
@@ -48,7 +51,7 @@ function callLabel(item) {
         <dd>{{ mistakes }}</dd>
       </div>
     </dl>
-    <p v-if="reachedPar" class="triage-par">Par reached: the most one run can save.</p>
+    <p v-if="reachedPar" class="triage-par">Par reached: this run earns full progress points.</p>
     <div class="triage-debrief-actions">
       <button type="button" class="triage-next" @click="$emit('replay')">Play again</button>
       <RouterLink to="/" class="triage-next triage-town-link">Back to town</RouterLink>

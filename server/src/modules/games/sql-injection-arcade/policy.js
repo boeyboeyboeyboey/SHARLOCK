@@ -2,7 +2,7 @@ export const GAME_ID = 'sql-injection-arcade'
 export const RULESET_VERSION = 'sql-3'
 export const LEGACY_RULESET_VERSION = 'sql-2'
 // the lowest score of a flawless practice run, whatever the seed: 3 cases at 20, 4 at 20, 5 at 30
-// and 3 repairs at 10; luckier seeds could reach 410, but the maximum must be reachable by everyone
+// and 3 repairs at 10; luckier seeds could reach 410, but par must be reachable by everyone; scores may exceed it
 export const PAR_SCORE = 320
 export const TIMED_SECONDS = 180
 export const MAX_LIVES = 3

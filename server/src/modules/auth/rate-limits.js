@@ -161,11 +161,13 @@ export function createRateLimits({ secret, now = Date.now, overrides = {} } = {}
 
     for (const { entry } of budgets) entry.pending += 1
     let settled = false
-    function release(failed) {
+    function release(failed, cleared = false) {
       if (settled) return
       settled = true
       for (const { entry } of budgets) {
         entry.pending = Math.max(0, entry.pending - 1)
+        // a successful sign-in proves the owner, so it clears both counters
+        if (cleared) entry.failures = 0
         if (failed) {
           entry.failures += 1
           entry.expiresAt = now() + FIFTEEN_MINUTES
@@ -177,7 +179,7 @@ export function createRateLimits({ secret, now = Date.now, overrides = {} } = {}
 
     return Object.freeze({
       fail: () => release(true),
-      succeed: () => release(false),
+      succeed: () => release(false, true),
       release: () => release(false),
     })
   }

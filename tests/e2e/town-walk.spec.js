@@ -21,7 +21,11 @@ async function hold(page, key, axis, sign, target) {
   await expect(page.getByTestId('town-player')).toBeVisible()
   await page.keyboard.down(key)
   await expect
-    .poll(async () => sign * ((await feet(page))[axis] - target), { timeout: 20_000 })
+    .poll(async () => sign * ((await feet(page))[axis] - target), {
+      timeout: 20_000,
+      // the default poll backs off to one second, and at 120 px/s that overshoots the door
+      intervals: [25],
+    })
     .toBeGreaterThanOrEqual(0)
   await page.keyboard.up(key)
 }
@@ -94,10 +98,11 @@ test('walks with the keys to a door and opens the building with E', async ({ pag
     .poll(
       async () => {
         const count = await page.getByTestId('door-prompt').count()
-        if (!count) await page.keyboard.press('KeyA')
+        if (!count) await page.keyboard.press((await feet(page)).x > door.x ? 'KeyA' : 'KeyD')
         return count
       },
-      { timeout: 20_000 },
+      // one step per poll, so the default back-off would take minutes to walk back from an overshoot
+      { timeout: 30_000, intervals: [50] },
     )
     .toBe(1)
   const prompt = page.getByTestId('door-prompt')
@@ -171,7 +176,8 @@ async function walkToTalk(page, key, axis, sign, target) {
         if (!count) await page.keyboard.press(key)
         return count
       },
-      { timeout: 20_000 },
+      // one step per poll, so the default back-off would take minutes to walk back from an overshoot
+      { timeout: 30_000, intervals: [50] },
     )
     .toBe(1)
 }

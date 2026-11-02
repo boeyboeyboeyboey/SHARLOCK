@@ -82,19 +82,37 @@ describe('useSqlInjection clock', () => {
     expect(completes()).toHaveLength(1)
   })
 
-  it('tries the automatic finish once per snapshot instead of looping', async () => {
-    writeAttempt.mockRejectedValue(refused)
+  it('retries a refused automatic finish with backoff and stops once it saves', async () => {
+    writeAttempt
+      .mockRejectedValueOnce(refused)
+      .mockRejectedValueOnce(refused)
+      .mockResolvedValue(snapshot({ status: 'completed' }))
     const { game } = await loaded(snapshot())
     await vi.advanceTimersByTimeAsync(181_000)
     expect(completes()).toHaveLength(1)
-    expect(game.busy.value).toBe(false)
+    await vi.advanceTimersByTimeAsync(1_000)
+    expect(completes()).toHaveLength(2)
+    await vi.advanceTimersByTimeAsync(2_000)
+    expect(completes()).toHaveLength(3)
     await vi.advanceTimersByTimeAsync(60_000)
-    expect(completes()).toHaveLength(1)
-    // reloading gives it new state, and so one more try
+    expect(completes()).toHaveLength(3)
+    expect(game.finishStalled.value).toBe(false)
+  })
+
+  it('gives up after five tries and flags the stall until new state arrives', async () => {
+    writeAttempt.mockRejectedValue(refused)
+    const { game } = await loaded(snapshot())
+    await vi.advanceTimersByTimeAsync(181_000 + 15_000)
+    expect(completes()).toHaveLength(5)
+    expect(game.finishStalled.value).toBe(true)
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(completes()).toHaveLength(5)
+    // reloading gives it new state, and so a fresh round of tries
     readAttempt.mockResolvedValueOnce(snapshot({ serverNow: START + 240_000 }))
     await game.load('att1')
+    expect(game.finishStalled.value).toBe(false)
     await vi.advanceTimersByTimeAsync(500)
-    expect(completes()).toHaveLength(2)
+    expect(completes()).toHaveLength(6)
   })
 
   it('keeps its clock correction when a replayed retry answers with an old time', async () => {

@@ -1,5 +1,6 @@
 <script setup>
 import { onMounted, ref } from 'vue'
+import { formatScore } from '../formatScore.js'
 defineProps({
   attempt: { type: Object, required: true },
   // a game with a long review list places its own actions above it
@@ -13,7 +14,7 @@ onMounted(() => heading.value?.focus({ preventScroll: true }))
   <section class="attempt-result" aria-label="Saved result">
     <h2 ref="heading" tabindex="-1">Case closed</h2>
     <p class="result-score">
-      Score: <span>{{ attempt.score }} / {{ attempt.maxScore }}</span>
+      Score: <span>{{ formatScore(attempt.score, attempt.maxScore) }}</span>
     </p>
     <p v-if="attempt.status === 'completed' && attempt.persisted" role="status">
       Result saved to your account.

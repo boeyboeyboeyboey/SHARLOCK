@@ -41,7 +41,7 @@ const soundLabel = computed(() => {
       <button
         class="pixel-button sound-button"
         type="button"
-        aria-label="Hub sound"
+        :aria-label="soundLabel"
         :aria-pressed="!isMuted"
         :disabled="starting || held"
         @click="toggle"

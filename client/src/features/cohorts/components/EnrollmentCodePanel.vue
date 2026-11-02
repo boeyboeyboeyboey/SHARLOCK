@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import InlineConfirm from './InlineConfirm.vue'
 
 const props = defineProps({
@@ -16,6 +16,7 @@ const rawCode = ref('')
 const copied = ref(false)
 const copyError = ref(false)
 const confirming = ref('')
+const heading = ref(null)
 const formattedCode = computed(() => {
   const normalized = rawCode.value.replace(/[-\s]/g, '')
   return normalized.match(/.{1,4}/g)?.join('-') || ''
@@ -66,12 +67,19 @@ function closeCode() {
   clearCode()
   emit('clear')
 }
+// the confirm unmounts on answering, so focus moves to the heading rather than dropping to the page
+async function focusHeading() {
+  await nextTick()
+  heading.value?.focus()
+}
 function confirmReplace() {
   confirming.value = ''
+  void focusHeading()
   emit('generate', props.revision)
 }
 function confirmRevoke() {
   confirming.value = ''
+  void focusHeading()
   emit('revoke', { id: props.code.id, revision: props.revision })
 }
 defineExpose({ receiveCode, clearCode })
@@ -79,7 +87,7 @@ defineExpose({ receiveCode, clearCode })
 
 <template>
   <section class="cohort-panel" aria-labelledby="enrollment-code-title">
-    <h2 id="enrollment-code-title">Class invitation code</h2>
+    <h2 id="enrollment-code-title" ref="heading" tabindex="-1">Class invitation code</h2>
     <template v-if="rawCode">
       <p role="status">Share this code with your class. It will only be shown once.</p>
       <p class="cohort-code" aria-label="New class invitation code">{{ formattedCode }}</p>

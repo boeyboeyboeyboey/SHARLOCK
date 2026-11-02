@@ -73,6 +73,8 @@ describe('registration and createState', () => {
     expect(registry.get(sqlRuleset.id, 'sql-2').current).toBe(false)
     expect(registry.get(sqlRuleset.id, 'sql-2').maxScore).toBe(1130)
     expect(registry.get(sqlRuleset.id, 'sql-3').competitive).toBe(true)
+    expect(registry.get(sqlRuleset.id, 'sql-3').maxScoreIsPar).toBe(true)
+    expect(registry.get(sqlRuleset.id, 'sql-2').maxScoreIsPar).toBe(false)
     expect(registry.getCurrent(sqlRuleset.id).maxActions).toBe(maxTimedActions())
     expect(maxTimedActions()).toBeLessThanOrEqual(255)
   })
@@ -111,7 +113,7 @@ describe('scoring and run end', () => {
     }
     expect(ruleset.canComplete(run.state, run.meta)).toBe(true)
     expect(expected).toBeGreaterThanOrEqual(PAR_SCORE)
-    expect(ruleset.summarize(run.state).score).toBe(PAR_SCORE)
+    expect(ruleset.summarize(run.state).score).toBe(expected)
     expect(sqlPreviousRuleset.summarize(run.state).score).toBe(expected)
     expect(() => solveCase(run)).toThrow(/ended/)
     const topics = ruleset.summarize(run.state).topicOutcomes.map((t) => t.topic)
@@ -165,7 +167,7 @@ describe('scoring and run end', () => {
     const capped = start()
     for (let slot = 0; slot < TIMED_SLOT_CAP; slot += 1) solveCase(capped)
     expect(ruleset.canComplete(capped.state, capped.meta)).toBe(true)
-    expect(ruleset.summarize(capped.state).score).toBe(PAR_SCORE)
+    expect(ruleset.summarize(capped.state).score).toBeGreaterThan(PAR_SCORE)
     expect(sqlPreviousRuleset.summarize(capped.state).score).toBeLessThanOrEqual(maxTimedScore())
   })
 })
@@ -186,21 +188,21 @@ describe('the par maximum', () => {
     return { raw, saved: seeded.summarize(run.state, run.meta).score, run, seeded }
   }
 
-  it('is reached by every flawless practice run, whatever the seed', () => {
+  it('is reached by every flawless practice run, whatever the seed, and saves its raw score', () => {
     const raws = []
     for (let index = 0; index < 300; index += 1) {
       const seed = index.toString(16).padStart(32, '0')
       const { raw, saved } = flawlessPractice(seed)
       raws.push(raw)
-      expect(saved, seed).toBe(320)
+      expect(saved, seed).toBe(raw)
     }
     expect(Math.min(...raws)).toBeGreaterThanOrEqual(320)
     expect(Math.max(...raws)).toBeLessThanOrEqual(410)
   })
 
-  it('stops the public score at par as well', () => {
-    const { run, seeded } = flawlessPractice(SEED)
-    expect(seeded.serializePublicState(run.state, run.meta).score).toBe(320)
+  it('shows the raw public score above par as well', () => {
+    const { raw, run, seeded } = flawlessPractice(SEED)
+    expect(seeded.serializePublicState(run.state, run.meta).score).toBe(raw)
   })
 
   it('leaves a class run below par at its real score', () => {

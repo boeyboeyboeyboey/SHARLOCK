@@ -168,7 +168,8 @@ function createBaseSchema(registry) {
         validate: {
           validator(value) {
             if (!Number.isFinite(value) || value < 0) return false
-            return typeof this.maxScore !== 'number' || value <= this.maxScore
+            // the service enforces the exact per-game bound, including par games
+            return typeof this.maxScore !== 'number' || value <= this.maxScore * 10
           },
           message: 'Attempt score is invalid.',
         },

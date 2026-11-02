@@ -1,5 +1,14 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import {
+  computed,
+  nextTick,
+  onBeforeMount,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  ref,
+  watch,
+} from 'vue'
 import { GRAPHICS_TO_TIER } from './scenes/shared/quality.js'
 import HubMinimap from './HubMinimap.vue'
 import ControlsHint from './ControlsHint.vue'
@@ -118,7 +127,10 @@ function drawLabels() {
 const lore = useLoreIntro()
 const introPlaying = lore.playing
 // before the first render, so the controls hint and the ambience mount already held
-if (!lore.hasSeen()) lore.start()
+// not in setup: an instance that never mounts would leave the shared playing flag stuck
+onBeforeMount(() => {
+  if (!lore.hasSeen()) lore.start()
+})
 // the intro covers the hub, so its input is paused the same way as for the Times
 const paused = computed(() => props.inputPaused || introPlaying.value)
 const motionQuery = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null

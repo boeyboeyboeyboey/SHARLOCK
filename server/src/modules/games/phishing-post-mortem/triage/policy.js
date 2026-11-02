@@ -3,7 +3,7 @@ import { tierForRound } from './generator/index.js'
 export const GAME_ID = 'phishing-post-mortem'
 export const RULESET_VERSION = 'phish-4'
 export const LEGACY_RULESET_VERSION = 'phish-3'
-// what a strong class run saves: about 16 emails in a row with no mistake, 11 seconds each
+// par: what a strong class run reaches, about 16 emails in a row with no mistake, 11 seconds each; scores may exceed it
 export const PAR_SCORE = 1000
 export const TIMED_SECONDS = 180
 export const MAX_MISTAKES = 3

@@ -1,4 +1,5 @@
 <script setup>
+import { formatScore } from '../attempts/formatScore.js'
 import { avatarFor } from '../auth/avatars.js'
 
 defineProps({
@@ -55,9 +56,9 @@ defineProps({
           <template v-if="view === 'all-time'">
             <td>{{ row.points }}</td>
             <td>{{ row.plays }}</td>
-            <td>{{ row.bestScore }} / {{ row.maxScore }}</td>
+            <td>{{ formatScore(row.bestScore, row.maxScore) }}</td>
           </template>
-          <td v-else>{{ row.score }} / {{ row.maxScore }}</td>
+          <td v-else>{{ formatScore(row.score, row.maxScore) }}</td>
         </tr>
       </tbody>
     </table>

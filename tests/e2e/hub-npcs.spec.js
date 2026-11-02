@@ -172,7 +172,7 @@ for (const [width, height] of [
       const panel = await page.getByTestId('npc-dialogue').boundingBox()
       for (const control of [
         page.getByTestId('menu-button'),
-        page.getByRole('button', { name: 'Hub sound' }),
+        page.getByRole('button', { name: /^sound (on|off)$/i }),
         page.getByTestId('destinations-toggle'),
         page.getByTestId('hub-map-toggle'),
         page.getByTestId('hub-jump'),

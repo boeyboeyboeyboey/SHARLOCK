@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import { formatScore } from '../../attempts/formatScore.js'
 import { gameCatalog } from '../../../data/gameCatalog.js'
 
 const PAGE_SIZE = 10
@@ -56,7 +57,7 @@ function formatDate(value) {
           <tbody>
             <tr v-for="attempt in attempts" :key="attempt.attemptId">
               <th scope="row">{{ gameName(attempt.gameId) }}</th>
-              <td>{{ attempt.score }} / {{ attempt.maxScore }}</td>
+              <td>{{ formatScore(attempt.score, attempt.maxScore) }}</td>
               <td>{{ formatDate(attempt.completedAt) }}</td>
             </tr>
           </tbody>

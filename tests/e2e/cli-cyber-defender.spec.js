@@ -132,7 +132,7 @@ test('swaps back to town for a game menu that confirms before leaving', async ({
   await expect(page.getByRole('link', { name: 'Back to town' })).toHaveCount(0)
   const menuButton = page.getByRole('button', { name: 'Options', exact: true })
   const menu = page.getByRole('menu', { name: 'Game options' })
-  const leave = page.getByRole('dialog', { name: 'Leave this game?' })
+  const leave = page.getByRole('dialog', { name: 'Quit to the briefing?' })
   await menuButton.click()
   await expect(menuButton).toHaveAttribute('aria-expanded', 'true')
   await expect(menu.getByRole('menuitem', { name: 'Pause' })).toHaveCount(0)
@@ -146,7 +146,7 @@ test('swaps back to town for a game menu that confirms before leaving', async ({
   await expectPromptFocus(page, testInfoOf())
   await menuButton.click()
   await menu.getByRole('menuitem', { name: 'Quit to briefing' }).click()
-  await leave.getByRole('button', { name: 'Leave game' }).click()
+  await leave.getByRole('button', { name: 'Quit to briefing' }).click()
   await expect(page.getByRole('heading', { name: 'Shift briefing' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Back to town' })).toBeVisible()
 })
@@ -181,7 +181,7 @@ test('pauses a timed game while deciding to leave and resumes on stay', async ({
   await startShift(page, 'timed')
   await page.getByRole('button', { name: 'Options', exact: true }).click()
   await page.getByRole('menuitem', { name: 'Quit to briefing' }).click()
-  const leave = page.getByRole('dialog', { name: 'Leave this game?' })
+  const leave = page.getByRole('dialog', { name: 'Quit to the briefing?' })
   await expect(leave).toBeVisible()
   await expect(page.getByTestId('cli-pause-left')).toHaveCount(1)
   await leave.getByRole('button', { name: 'Keep playing' }).click()
@@ -649,6 +649,8 @@ test.describe('on a phone', () => {
   test('the alert is read whole by scrolling the page, with every name tappable', async ({
     page,
   }, testInfo) => {
+    // eight solved incidents, too long for the default limit on a loaded machine
+    test.setTimeout(90_000)
     await startShift(page, 'practice')
     await page.screenshot({
       path: testInfo.outputPath('cli-phone-375x667.png'),
@@ -724,7 +726,7 @@ test('browser back from a running game asks before leaving', async ({ page }) =>
   await page.getByRole('button', { name: 'Practice (no timer)' }).click()
   await expect(commandInput(page)).toBeVisible()
   await page.goBack()
-  const leave = page.getByRole('dialog', { name: 'Leave this game?' })
+  const leave = page.getByRole('dialog', { name: 'Quit to the briefing?' })
   await expect(leave).toBeVisible()
   await leave.getByRole('button', { name: 'Keep playing' }).click()
   await expect(leave).toBeHidden()
@@ -732,8 +734,8 @@ test('browser back from a running game asks before leaving', async ({ page }) =>
   await expect(commandInput(page)).toBeVisible()
   await page.goBack()
   await page
-    .getByRole('dialog', { name: 'Leave this game?' })
-    .getByRole('button', { name: 'Leave game' })
+    .getByRole('dialog', { name: 'Quit to the briefing?' })
+    .getByRole('button', { name: 'Quit to briefing' })
     .click()
   await expect(page).toHaveURL('/about')
 })
@@ -761,7 +763,7 @@ test('the top bar exit asks once, not twice', async ({ page }) => {
     .getByRole('button', { name: 'Leave game' })
     .click()
   await expect(page).toHaveURL('/')
-  await expect(page.getByRole('dialog', { name: 'Leave this game?' })).toHaveCount(0)
+  await expect(page.getByRole('dialog', { name: 'Quit to the briefing?' })).toHaveCount(0)
 })
 
 test('a class student saves a timed shift and appears on the timed leaderboard', async ({

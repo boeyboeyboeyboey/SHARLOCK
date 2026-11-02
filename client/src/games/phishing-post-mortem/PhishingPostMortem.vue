@@ -6,6 +6,7 @@ import { useHowToPlay } from '../../composables/useHowToPlay.js'
 import { playSfx } from '../../composables/playSfx.js'
 import AttemptContextChooser from '../../features/attempts/components/AttemptContextChooser.vue'
 import SavedAttemptResult from '../../features/attempts/components/SavedAttemptResult.vue'
+import { formatScore } from '../../features/attempts/formatScore.js'
 import HintPanel from './components/HintPanel.vue'
 import HowToPlayScene from './components/HowToPlayScene.vue'
 import RoundFeedback from './components/RoundFeedback.vue'
@@ -96,11 +97,13 @@ watch(
 
 // the bar above the email is pinned, so a new email must not open with its sender hidden behind it
 watch([() => current.value?.roundId, holdFeedback], async () => {
+  if (!globalThis.matchMedia?.('(max-width: 575.98px)').matches) return
   await nextTick()
   const barBottom = statusBar.value?.$el?.getBoundingClientRect?.().bottom
   const deskTop = desk.value?.getBoundingClientRect?.().top
   if (barBottom === undefined || deskTop === undefined || deskTop >= barBottom) return
-  globalThis.scrollBy?.({ top: deskTop - barBottom - 8 })
+  const reduce = globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches
+  globalThis.scrollBy?.({ top: deskTop - barBottom - 8, behavior: reduce ? 'instant' : 'smooth' })
 })
 
 // the result opens at its heading, not wherever the last email left the page
@@ -236,7 +239,7 @@ async function nextEmail() {
 
     <section v-else-if="snapshot && legacy" class="phish-state" aria-labelledby="phish-earlier">
       <h2 id="phish-earlier">Earlier inbox investigation</h2>
-      <p class="phish-earlier-score">{{ snapshot.score }} / {{ snapshot.maxScore }}</p>
+      <p class="phish-earlier-score">{{ formatScore(snapshot.score, snapshot.maxScore) }}</p>
       <button type="button" class="triage-next" @click="replay">Play again</button>
     </section>
 

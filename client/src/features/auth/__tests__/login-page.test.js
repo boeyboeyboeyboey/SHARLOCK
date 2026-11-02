@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import LoginPage from '../pages/LoginPage.vue'
 import LoginForm from '../components/LoginForm.vue'
+import { useAuthStore } from '../store.js'
 
 vi.mock('../api.js', async () => {
   const actual = await vi.importActual('../api.js')
@@ -43,9 +44,8 @@ async function mountAt(query, { arrivedFrom } = {}) {
 describe('sign-in page', () => {
   beforeEach(() => setActivePinia(createPinia()))
 
-  it('tells a first-time visitor what Sharlock is', async () => {
+  it('links a first-time visitor to the about page', async () => {
     const wrapper = await mountAt({ reason: 'required' })
-    expect(wrapper.text()).toContain('game-based way to learn cybersecurity')
     expect(wrapper.get('a[href="/about"]').text()).toContain('What is Sharlock?')
   })
 
@@ -79,6 +79,14 @@ describe('sign-in page', () => {
     const notice = wrapper.get('[role="status"]').text()
     expect(notice).toContain('signed in somewhere else')
     expect(notice).toContain('ask your instructor or school administrator')
+  })
+
+  it('forgets why the session ended once the notice is on screen', async () => {
+    const auth = useAuthStore()
+    auth.invalidateSession('elsewhere')
+    const wrapper = await mountAt({ reason: 'elsewhere' })
+    expect(wrapper.get('[role="status"]').text()).toContain('signed in somewhere else')
+    expect(auth.sessionEnd).toBeNull()
   })
 
   it('confirms a password reset', async () => {

@@ -96,15 +96,22 @@ test('the intro controls are full size on touch', async ({ page }, testInfo) => 
 })
 
 test('Enter advances a card and Space skips the intro', async ({ page }) => {
+  // card one only holds for a couple of seconds, so a loaded machine would let it advance by
+  // itself; a frozen page clock makes every step wait for the test instead
+  const start = Date.now()
+  await page.clock.install({ time: start })
+  await page.clock.pauseAt(start + 1000)
   await page.goto('/')
   await expect(intro(page).getByText(FIRST_CARD)).toBeVisible()
   // the text is in the page before the sound has started; enter only counts once the card has faded in
   await expect(page.getByTestId('lore-intro-card')).toHaveCSS('opacity', '1')
   await intro(page).focus()
   await page.keyboard.press('Enter')
-  await expect(intro(page).getByText(SECOND_CARD)).toBeVisible()
+  await page.clock.runFor(2000)
+  await expect(intro(page).getByText(SECOND_CARD)).toBeVisible(slow)
   await page.keyboard.press('Space')
-  await expect(intro(page)).toHaveCount(0)
+  await page.clock.runFor(2000)
+  await expect(intro(page)).toHaveCount(0, slow)
 })
 
 test('Replay intro shows the intro again after it was seen', async ({ page }) => {

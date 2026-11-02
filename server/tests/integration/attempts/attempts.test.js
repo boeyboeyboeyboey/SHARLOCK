@@ -977,6 +977,31 @@ describe('saved attempt API', () => {
     }).expect(503)
     expect(invalidSummary.body.error.code).toBe('ATTEMPT_UNAVAILABLE')
 
+    for (const [score, expectedStatus] of [
+      [101, 503],
+      [11, 200],
+    ]) {
+      const parRegistry = createSyntheticAttemptRegistry({
+        overrides: {
+          maxScoreIsPar: true,
+          summarize() {
+            return { score, feedback: { code: 'PAR' }, topicOutcomes: [] }
+          },
+        },
+      })
+      const parPlayer = await createStudent()
+      const parStarted = await createAttempt(parPlayer)
+      const parApp = createAppForRegistry(parRegistry)
+      const parStudent = await loginStudent(parApp, parPlayer)
+      const parRun = await actionRequest(parStudent, parStarted.attemptId, {
+        actionId: randomUUID(),
+        expectedRevision: 0,
+        type: 'answer',
+        payload: { correct: true },
+      }).expect(expectedStatus)
+      if (expectedStatus === 200) expect(parRun.body).toMatchObject({ score, maxScore: 10 })
+    }
+
     const oversizedRegistry = createSyntheticAttemptRegistry({
       overrides: {
         serializePublicState() {

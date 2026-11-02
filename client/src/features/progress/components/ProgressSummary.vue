@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import GlobalProgressBar from '../../../components/portal/GlobalProgressBar.vue'
 import { gameCatalog } from '../../../data/gameCatalog.js'
+import { formatScore } from '../../attempts/formatScore.js'
 import { topicLabel } from '../topicLabel.js'
 
 const props = defineProps({
@@ -48,7 +49,7 @@ function formatDate(value) {
           <dt>Best score</dt>
           <dd>
             <template v-if="row.saved.completedCount > 0">
-              {{ row.saved.bestScore }} / {{ row.saved.maxScore }}
+              {{ formatScore(row.saved.bestScore, row.saved.maxScore) }}
             </template>
             <template v-else>None yet</template>
           </dd>

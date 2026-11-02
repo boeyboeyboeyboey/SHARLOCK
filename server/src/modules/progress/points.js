@@ -1,7 +1,7 @@
 export const POINTS_PER_GAME = 100
 
 function ratio(attempt) {
-  return attempt.maxScore > 0 ? attempt.score / attempt.maxScore : 0
+  return attempt.maxScore > 0 ? Math.min(1, attempt.score / attempt.maxScore) : 0
 }
 
 // the registry's current ruleset once it has an attempt, so one late finish of an old run cannot

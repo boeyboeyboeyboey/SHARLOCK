@@ -290,13 +290,14 @@ describe('triage public state', () => {
 })
 
 describe('triage summary and registry', () => {
-  it('caps a saved score at the documented par of 1,000', () => {
+  it('saves the raw score of a run above the documented par of 1,000', () => {
     const run = start()
     for (let i = 0; i < 60; i += 1) step(run, true)
     expect(run.state.rounds).toHaveLength(60)
     expect(ruleset.maxScore).toBe(1000)
-    expect(ruleset.summarize(run.state, run.meta).score).toBe(PAR_SCORE)
-    expect(ruleset.serializePublicState(run.state, run.meta).score).toBe(PAR_SCORE)
+    const raw = ruleset.summarize(run.state, run.meta).score
+    expect(raw).toBeGreaterThan(PAR_SCORE)
+    expect(ruleset.serializePublicState(run.state, run.meta).score).toBe(raw)
     expect(ruleset.canComplete(run.state, run.meta)).toBe(true)
   })
 
@@ -321,7 +322,7 @@ describe('triage summary and registry', () => {
             : { roundId: email.roundId, call }
         state = seeded.applyAction(state, { type: 'triage-call', payload }, meta)
       }
-      expect(seeded.summarize(state, meta).score, seed).toBe(PAR_SCORE)
+      expect(seeded.summarize(state, meta).score, seed).toBeGreaterThanOrEqual(PAR_SCORE)
     }
   })
 
@@ -383,6 +384,8 @@ describe('triage summary and registry', () => {
     expect(current.competitive).toBe(true)
     expect(registry.get('phishing-post-mortem', 'phish-3').current).toBe(false)
     expect(registry.get('phishing-post-mortem', 'phish-3').maxScore).toBe(6610)
+    expect(registry.get('phishing-post-mortem', 'phish-3').maxScoreIsPar).toBe(false)
+    expect(registry.getCurrent('phishing-post-mortem').maxScoreIsPar).toBe(true)
     expect(registry.get('phishing-post-mortem', 'phish-2').current).toBe(false)
   })
 })

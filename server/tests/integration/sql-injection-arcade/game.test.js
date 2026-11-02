@@ -94,7 +94,7 @@ async function classFor(student, status = 'active') {
 }
 
 describe('saved SQL run', () => {
-  it('saves against the par of 320 and reads an older sql-2 run against its own maximum', async () => {
+  it('saves the raw score against the par of 320 and reads an older sql-2 run against its own maximum', async () => {
     const student = await registerTestStudent(app)
     const start = await post(student, gamePath, { context: { kind: 'personal' } }).expect(201)
     expect(start.body.maxScore).toBe(320)
@@ -146,7 +146,7 @@ describe('saved SQL run', () => {
     }
     // a flawless run always reaches the par, and the score stops there
     expect(expected).toBeGreaterThanOrEqual(320)
-    expect(snapshot.score).toBe(320)
+    expect(snapshot.score).toBe(expected)
     expect(snapshot.publicState.current).toBeNull()
     const path = `/api/attempts/${id}`
     const finish = { actionId: randomUUID(), expectedRevision: snapshot.revision }
@@ -159,7 +159,7 @@ describe('saved SQL run', () => {
     expect(results[0].body).toMatchObject({
       status: 'completed',
       mode: 'practice',
-      score: 320,
+      score: expected,
     })
     expect(results[0].body.publicState.review).toHaveLength(15)
     expect((await student.agent.get(path).expect(200)).body).toEqual(results[0].body)

@@ -19,7 +19,7 @@ Only `status: completed` attempts are read. Completed class-context attempts sta
 
 ## Points
 
-Per game, the best attempt is the highest `score / maxScore` among attempts on the registry's current ruleset once the player has completed it, otherwise on the ruleset of their newest attempt; points = `round(100 * best)`, 0 with none. `totalPoints` is the sum; `maxPoints` is `100 * savingGameIds.length`. Raw scores from different games are never summed.
+Per game, the best attempt is the highest `score / maxScore` among attempts on the registry's current ruleset once the player has completed it, otherwise on the ruleset of their newest attempt; the ratio is capped at 1 (a score above `maxScore`, such as a run above par, still earns 100), points = `round(100 * best)`, 0 with none. `totalPoints` is the sum; `maxPoints` is `100 * savingGameIds.length`. Raw scores from different games are never summed.
 
 ## Topic outcomes
 
@@ -32,7 +32,7 @@ Per game, the best attempt is the highest `score / maxScore` among attempts on t
 | key                     | rule                                                        |
 | ----------------------- | ----------------------------------------------------------- |
 | `first-clue`            | any completed saved attempt                                 |
-| `perfect-case`          | an attempt with `score === maxScore`                        |
+| `perfect-case`          | an attempt with `score >= maxScore`                        |
 | `well-rounded`          | completed attempts across 3 different games                 |
 | `persistent-detective`  | 5 completed attempts                                        |
 | `topic-expert`          | one attempt with at least one topic outcome, all `achieved` |

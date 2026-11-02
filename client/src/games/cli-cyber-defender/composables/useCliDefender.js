@@ -461,8 +461,12 @@ export function useCliDefender({ now = () => Date.now(), tickMs = 100, onEvent =
   }
 
   function onVisibility() {
-    if (document.hidden) pause()
-    else if (phase.value === 'running' && !paused.value) sync()
+    if (document.hidden) {
+      const spent = mode.value === 'timed' && phase.value === 'running' && !paused.value
+      if (spent && pauseBudget.value && !canPause.value)
+        print('info', 'No pauses left. The clock keeps running.')
+      pause()
+    } else if (phase.value === 'running' && !paused.value) sync()
   }
 
   onMounted(() => document.addEventListener('visibilitychange', onVisibility))

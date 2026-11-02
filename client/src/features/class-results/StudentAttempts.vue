@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { formatScore } from '../attempts/formatScore.js'
 import { avatarFor } from '../auth/avatars.js'
 import { topicLabel } from '../progress/topicLabel.js'
 import { formatDateTime, gameName } from './format.js'
@@ -85,7 +86,7 @@ onMounted(() => heading.value?.focus())
           <tbody>
             <tr v-for="attempt in attempts" :key="attempt.id">
               <th scope="row">{{ gameName(attempt.gameId) }}</th>
-              <td>{{ attempt.score }} / {{ attempt.maxScore }}</td>
+              <td>{{ formatScore(attempt.score, attempt.maxScore) }}</td>
               <td class="class-results__wrap">{{ topicsPassed(attempt) }}</td>
               <td>{{ formatDateTime(attempt.completedAt) }}</td>
             </tr>

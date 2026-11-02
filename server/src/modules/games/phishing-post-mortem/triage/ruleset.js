@@ -131,7 +131,7 @@ function currentHint(state, round) {
 }
 
 // randomSeed is a test-only seam, never reachable from a request
-// the rulesets differ only in their maximum: phish-4 stops at a par a player can reach
+// the rulesets differ only in their maximum: phish-4 uses a par a player can reach and pass
 export function createTriageRuleset({
   randomSeed = () => randomBytes(16).toString('hex'),
   rulesetVersion = RULESET_VERSION,
@@ -145,6 +145,7 @@ export function createTriageRuleset({
       'Triage single emails under time pressure: spot lookalike and spoofed senders, mismatched reply-to and links, payment-change requests, risky attachments and QR codes, and trust genuine email.',
     topicTags: Object.values(PHISH_TYPE_TOPICS),
     maxScore,
+    maxScoreIsPar: maxScore === PAR_SCORE,
     maxActions: TIMED_ROUND_CAP,
     current,
     competitive: true,
@@ -203,7 +204,7 @@ export function createTriageRuleset({
         roundsPlayed: state.rounds.length,
         // the browser uses this to correct its countdown for a skewed device clock
         serverNow: new Date(metadata.now).getTime(),
-        score: Math.min(totals.score, maxScore),
+        score: totals.score,
         streak: totals.streak,
         mistakes: totals.mistakes,
         maxHintTier: timed ? 0 : MAX_HINT_TIER,
@@ -218,7 +219,7 @@ export function createTriageRuleset({
       const totals = tally(state.rounds)
       const breakdown = typeBreakdown(state)
       return {
-        score: Math.min(totals.score, maxScore),
+        score: totals.score,
         feedback: {
           verdictCode: mistakeLimitReached(state.rounds)
             ? 'PHISH_TRIAGE_MISTAKE_LIMIT'

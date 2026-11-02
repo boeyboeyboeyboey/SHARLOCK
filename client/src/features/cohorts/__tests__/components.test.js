@@ -150,6 +150,26 @@ describe('cohort components', () => {
     expect(wrapper.emitted('revoke')[0]).toEqual([{ id: 'code-a', revision: 3 }])
   })
 
+  it('moves focus to the section heading once a revoke is confirmed', async () => {
+    const wrapper = mount(EnrollmentCodePanel, {
+      attachTo: document.body,
+      props: {
+        code: { id: 'code-a', expiresAt: '2099-01-01T00:00:00.000Z', revokedAt: null },
+        revision: 3,
+      },
+    })
+    const press = (label) =>
+      wrapper
+        .findAll('button')
+        .find((button) => button.text() === label)
+        .trigger('click')
+    await press('Revoke code')
+    await press('Yes, revoke it')
+    await flushPromises()
+    expect(document.activeElement).toBe(wrapper.get('h2').element)
+    wrapper.unmount()
+  })
+
   it('offers a new code rather than a dead one once a code has expired', () => {
     const wrapper = mount(EnrollmentCodePanel, {
       props: { code: { id: 'code-a', expiresAt: '2000-01-01T00:00:00.000Z', revokedAt: null } },

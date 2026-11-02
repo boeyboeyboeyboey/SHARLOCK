@@ -131,7 +131,7 @@ onMounted(async () => {
           {{ feedback.repairsCorrect }}, assisted {{ feedback.assistedCases }}.
           {{ livesRanOut ? 'The run ended when your lives ran out.' : 'The run reached its end.' }}
         </p>
-        <p v-if="reachedPar">Par reached: the most one run can save.</p>
+        <p v-if="reachedPar">Par reached: this run earns full progress points.</p>
         <RunReview :review="state.review" />
         <p>
           The reliable repair is always to bind input as parameters. The simulation changed no real
@@ -250,6 +250,17 @@ onMounted(async () => {
               @click="game.complete"
             >
               Finish and save result
+            </button>
+          </div>
+          <div v-if="game.finishStalled.value" class="sql-form-submit">
+            <button
+              type="button"
+              class="btn btn-primary"
+              :disabled="blocked"
+              data-testid="sql-finish-now"
+              @click="game.finishNow"
+            >
+              Finish now
             </button>
           </div>
         </div>

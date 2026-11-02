@@ -420,6 +420,10 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  function clearSessionEnd() {
+    sessionEnd.value = null
+  }
+
   function invalidateSession(reason = null) {
     sessionEnd.value = reason
     generation += 1
@@ -483,6 +487,7 @@ export const useAuthStore = defineStore('auth', () => {
     cancelVerification,
     logout,
     invalidateSession,
+    clearSessionEnd,
     sessionGeneration,
     setHowToPlayDismissed,
     setWardrobe,
