@@ -1041,6 +1041,14 @@ All records in this section were Review until 1 November 2026, when Boey accepte
 - **Docs:** no docs impact (formatting only); this record.
 - **Next action:** merged into `main` by Athithya (28 October 2026, `Merge branch 'fmt-02-hub-specs-prettier'`); Boey accepts or reopens.
 
+**FMT-03 — Prettier format of every failing file** · Status: **Review** · Contributor: **Boey**, implemented by Claude Code (Boey asked on 2 November 2026 for every file failing `pnpm format:check` to be formatted, Markdown included) · Branch: `fmt-03-prettier-sweep`, cut from `main` at `5b39065`.
+
+- **Problem:** `pnpm format:check` flagged 92 files, 64 of them the 3D hub (written without Prettier since HUB-01; lines of several hundred characters).
+- **Change:** `prettier --write` on 83 of them: the hub, the other Boey-owned code and tests, TASKS.md, DESIGN.md and the server READMEs. Layout only: the 73 changed `.js` files parse to identical ASTs before and after; the `.vue` changes are line wrapping. CLAUDE.md's workflow checklist now lists `pnpm exec prettier --check` on the changed files (Boey chose a checklist step over a commit hook or CI, 2 November 2026).
+- **Held for owners:** Eric's `docs/superpowers/` notes (7) and `server/tests/unit/cloud-provider.test.js`, and Xin Lei's `server/src/modules/games/cli-cyber-defender/README.md` still fail the check.
+- **Checks (2 Nov):** `pnpm lint` passes; `pnpm build` passes; `pnpm test:unit` 2,765/2,766 with untracked local test files set aside (the one failure, a Botnet Tag page test, passes alone 33/33); integration admin and recovery 83/83; E2E hub, hub-npcs and town-walk on the desktop projects: 4 hub-desktop tests fail under heavy machine load (load average about 29) and fail the same way on unformatted `main`, while they passed earlier the same day.
+- **Docs:** CLAUDE.md (checklist), this record.
+
 **BOARD-01 — Class leaderboards** · Status: **Done** (accepted by Boey, 1 November 2026) · Contributor: **Boey** · Branch: `board-01-class-leaderboards` (cut from `origin/main` at `9e6c3a1`, 27 October 2026, upstream unset). Plan approved by Boey on 27 October 2026. Spec: [BOARD-01](#board-01--cohort-leaderboards).
 
 - **Collision check (27 October 2026):** no leaderboard code on `main`, in local or remote branch names, or in the `admin-01-b-admin-controls` (Codex admin-controls) worktree. Existing references are only the `/leaderboard` ComingSoon placeholder (`client/src/router/index.js`), nav links (`Navbar.vue:34`, `PortalLayout.vue:30`), the pixel-wipe label, docs mentions, and an empty `server/src/modules/leaderboards/.gitkeep`. Remote branch contents, PRs and teammates' machines were not inspected.
