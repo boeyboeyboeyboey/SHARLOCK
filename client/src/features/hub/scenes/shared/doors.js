@@ -99,6 +99,7 @@ export function createDoors({
   // the door a menu or map pick is walking the player to, so leaving another ring on the way is not a deselect
   let headingTo = null
   let headingRoute = 0
+  let seenArrivals = control.arrivals()
   let ringDirty = false
   let saved = { alpha: camera.alpha, beta: camera.beta, radius: camera.radius }
   // the normal follow view, which a deselect settles back into
@@ -229,6 +230,14 @@ export function createDoors({
           framed = null
         }
       }
+      notify()
+    }
+    // a click-to-walk that stops on a ring picks that door, as walking onto it by hand does
+    const arrivals = control.arrivals()
+    const arrived = arrivals !== seenArrivals
+    seenArrivals = arrivals
+    if (arrived && !entering && !headingTo && near && state.selected !== near) {
+      state.selected = near
       notify()
     }
     // steering away (keys, joystick or a click elsewhere) before reaching the picked door drops the pick

@@ -265,6 +265,8 @@ export function createPlayer({
 
   // bumped by every new walk, so a caller can tell its route was replaced
   let routeSerial = 0
+  // bumped when a walk reaches its last point, so a caller can tell an arrival from a cancel or a stall
+  let arrivals = 0
   function walkTo(points, { cancelHold = false } = {}) {
     route = points.map(([x, z]) => ({ x, z }))
     routeSerial += 1
@@ -352,7 +354,10 @@ export function createPlayer({
       if (route.length === 1) arriveCap = Math.max(1.6, dist * 9)
       if (dist < (route.length === 1 ? 0.25 : 0.7)) {
         route.shift()
-        if (!route.length) hold = false
+        if (!route.length) {
+          hold = false
+          arrivals += 1
+        }
       } else {
         dx = vx / dist
         dz = vz / dist
@@ -495,6 +500,7 @@ export function createPlayer({
     }),
     airborne: () => jump.isAirborne(),
     routeSerial: () => routeSerial,
+    arrivals: () => arrivals,
     teleport(x, z) {
       controller.setPosition(new Vector3(x, heightAt(x, z) + capsule.height / 2 + 0.1, z))
       controller.setVelocity(new Vector3(0, 0, 0))
