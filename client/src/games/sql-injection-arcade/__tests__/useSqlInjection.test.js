@@ -126,6 +126,18 @@ describe('useSqlInjection clock', () => {
     expect(game.secondsLeft.value).toBe(left - 60)
   })
 
+  it('locks the case form at 0:00 so a late action is never sent', async () => {
+    writeAttempt.mockResolvedValue(snapshot({ status: 'completed' }))
+    const { game } = await loaded(snapshot())
+    expect(game.expired.value).toBe(false)
+    await vi.advanceTimersByTimeAsync(180_000)
+    expect(game.secondsLeft.value).toBe(0)
+    expect(game.expired.value).toBe(true)
+    const writes = writeAttempt.mock.calls.length
+    expect(await game.submitInputs(['x'])).toBe(false)
+    expect(writeAttempt.mock.calls).toHaveLength(writes)
+  })
+
   it('stops the clock when the run completes and clears its timer on unmount', async () => {
     const { game, wrapper } = await loaded(snapshot({ status: 'completed' }))
     await vi.advanceTimersByTimeAsync(300)

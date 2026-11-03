@@ -144,6 +144,7 @@ describe('BlindAnswer and RepairSelector', () => {
 describe('HintPanel', () => {
   it('asks for a hint and then shows it as assisted', async () => {
     const wrapper = mount(HintPanel, { props: { hint: null, assisted: false } })
+    expect(wrapper.text()).toContain('Costs the first-try bonus')
     await wrapper.get('button').trigger('click')
     expect(wrapper.emitted('hint')).toHaveLength(1)
     await wrapper.setProps({ hint: 'Close the string first.', assisted: true })

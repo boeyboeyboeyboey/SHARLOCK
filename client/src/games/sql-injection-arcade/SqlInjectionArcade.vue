@@ -29,7 +29,7 @@ const { snapshot, busy, error, retryable, state, current, last, timed, secondsLe
 const initializing = ref(true)
 const resultRegion = ref(null)
 const controls = ref(null)
-const blocked = computed(() => busy.value || retryable.value)
+const blocked = computed(() => busy.value || retryable.value || game.expired.value)
 const kind = computed(() => current.value?.kind)
 const isLogin = computed(() => kind.value?.startsWith('login') ?? false)
 const takesOneField = computed(() => ['login-numeric', 'union', 'blind'].includes(kind.value))

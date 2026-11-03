@@ -23,6 +23,8 @@ export function useSqlInjection() {
       acknowledged.value !== last.value.caseId,
   )
   const runOver = computed(() => snapshot.value?.status === 'active' && current.value === null)
+  // the server refuses actions after the deadline, so the case form locks at 0:00 until the auto finish
+  const expired = computed(() => timed.value && secondsLeft.value === 0)
 
   // server time minus device time, so a skewed device clock neither misstates the countdown nor
   // ends a run early
@@ -87,7 +89,7 @@ export function useSqlInjection() {
   })
 
   function send(type, payload = {}) {
-    if (!current.value) return false
+    if (!current.value || expired.value) return false
     return attempt.mutate(type, { caseId: current.value.caseId, ...payload })
   }
   const submitInputs = (inputs) => send('attempt', { inputs })
@@ -107,6 +109,7 @@ export function useSqlInjection() {
     last,
     timed,
     secondsLeft,
+    expired,
     finishStalled,
     finishNow: finishOnce,
     reviewing,
