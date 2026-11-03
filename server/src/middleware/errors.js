@@ -10,6 +10,8 @@ export function notFound(_request, response) {
 export function handleError(error, _request, response, _next) {
   const malformedJson = error.type === 'entity.parse.failed'
   const tooLarge = error.type === 'entity.too.large'
+  // body-parser and the router tag client faults (bad charset, bad url encoding) with a 4xx status
+  const clientFault = Number.isInteger(error.status) && error.status >= 400 && error.status < 500
   const publicError = {
     status: 500,
     code: 'INTERNAL_ERROR',
@@ -23,6 +25,10 @@ export function handleError(error, _request, response, _next) {
     publicError.status = 413
     publicError.code = 'BODY_TOO_LARGE'
     publicError.message = 'Request body is too large.'
+  } else if (clientFault) {
+    publicError.status = error.status
+    publicError.code = 'BAD_REQUEST'
+    publicError.message = 'Request could not be read.'
   }
   if (publicError.status === 500) {
     // log only the request id so internal errors cannot expose secrets

@@ -56,6 +56,35 @@ describe('safe error responses', () => {
     expect(log).not.toHaveBeenCalled()
   })
 
+  it.each([400, 415])('keeps a client status %i without logging', (status) => {
+    const response = createResponse()
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    handleError(
+      { status, type: 'charset.unsupported', message: 'private details' },
+      {},
+      response,
+      () => {},
+    )
+
+    expect(response.status).toHaveBeenCalledWith(status)
+    expect(response.json).toHaveBeenCalledWith({
+      error: { code: 'BAD_REQUEST', message: 'Request could not be read.' },
+      requestId,
+    })
+    expect(JSON.stringify(response.json.mock.calls)).not.toContain('private')
+    expect(log).not.toHaveBeenCalled()
+  })
+
+  it.each([502, '400'])('treats status %s as an internal error', (status) => {
+    const response = createResponse()
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    handleError({ status, message: 'private details' }, {}, response, () => {})
+
+    expect(response.status).toHaveBeenCalledWith(500)
+  })
+
   it.each(['database.failure', 'toString', 'constructor'])(
     'uses the generic contract for an unrecognized error type: %s',
     (type) => {
