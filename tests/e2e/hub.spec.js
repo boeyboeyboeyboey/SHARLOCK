@@ -266,6 +266,44 @@ test('announces picks, moves focus to Enter and restores it after a game', async
   await expect(dest).toBeFocused()
 })
 
+test('Return goes in after a click-to-walk stops on a door ring', async ({ page }) => {
+  await page.goto('/')
+  await hubReady(page)
+  const door = (await page.evaluate(() => window.__hub.debug.doors())).find(
+    (d) => d.id === 'sql-injection-arcade',
+  )
+  // walkTo is the same walk a ground click starts
+  await page.evaluate(([x, z]) => window.__hub.debug.walkTo(x, z), [door.x, door.z])
+  await expect
+    .poll(() => page.evaluate(() => window.__hub.state.selected), slow)
+    .toBe('sql-injection-arcade')
+  await page.evaluate(() => document.activeElement?.blur())
+  await page.keyboard.press('Enter')
+  await expect(page).toHaveURL(/\/games\/sql-injection-arcade$/, slow)
+})
+
+test('Return goes in at another door after coming back from a game', async ({ page }) => {
+  await page.goto('/')
+  await hubReady(page)
+  await pickDest(page, 'cli-cyber-defender')
+  await page.getByTestId('enter').click()
+  await expect(page).toHaveURL(/\/games\/cli-cyber-defender$/, slow)
+  await page.goBack()
+  await hubReady(page)
+  await expandDestinations(page)
+  await expect(page.getByTestId('dest-cli-cyber-defender')).toBeFocused()
+
+  // standing on another ring picks it the same way walking onto it by hand does
+  const door = (await page.evaluate(() => window.__hub.debug.doors())).find(
+    (d) => d.id === 'sql-injection-arcade',
+  )
+  await page.evaluate(([x, z]) => window.__hub.debug.teleport(x, z), [door.x, door.z])
+  await expect(page.getByTestId('enter')).toBeFocused(slow)
+  await expect(page.getByTestId('enter')).toContainText('SQL Injection Arcade')
+  await page.keyboard.press('Enter')
+  await expect(page).toHaveURL(/\/games\/sql-injection-arcade$/, slow)
+})
+
 test('Escape clears a pick even when focus is on the page body', async ({ page }) => {
   await page.goto('/')
   await hubReady(page)

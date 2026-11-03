@@ -75,7 +75,9 @@ test('talks to a game keeper, reads every line and goes in', async ({ page }) =>
   await expect(page).toHaveURL(/\/games\/cli-cyber-defender$/, slow)
 })
 
-test('Escape closes the talk panel first and returns focus to Talk', async ({ page }) => {
+test('Escape closes the talk panel first and hands focus to Enter at the keeper door', async ({
+  page,
+}) => {
   await page.goto('/')
   await hubReady(page)
   await pickDest(page, 'cli-cyber-defender')
@@ -84,11 +86,24 @@ test('Escape closes the talk panel first and returns focus to Talk', async ({ pa
   await expect(page.getByTestId('npc-dialogue')).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(page.getByTestId('npc-dialogue')).toHaveCount(0)
-  await expect(page.getByTestId('talk')).toBeFocused()
+  await expect(page.getByTestId('enter')).toBeFocused()
   // the pick survives the first Escape and goes on the second
   await expect(page.getByTestId('dest-cli-cyber-defender')).toHaveAttribute('aria-pressed', 'true')
   await page.keyboard.press('Escape')
   await expect(page.getByTestId('dest-cli-cyber-defender')).toHaveAttribute('aria-pressed', 'false')
+})
+
+test('Return goes in after closing the keeper chat', async ({ page }) => {
+  await page.goto('/')
+  await hubReady(page)
+  await pickDest(page, 'cli-cyber-defender')
+  await expect(page.getByTestId('talk')).toBeVisible(slow)
+  await page.keyboard.press('KeyE')
+  await expect(page.getByTestId('npc-dialogue')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('npc-dialogue')).toHaveCount(0)
+  await page.keyboard.press('Enter')
+  await expect(page).toHaveURL(/\/games\/cli-cyber-defender$/, slow)
 })
 
 test('E talks to the nearby keeper and E does nothing when nobody is near', async ({ page }) => {
@@ -190,7 +205,8 @@ for (const [width, height] of [
 
       await page.getByTestId('npc-close').click({ timeout: 5000 })
       await expect(page.getByTestId('npc-dialogue')).toHaveCount(0)
-      await expect(page.getByTestId('talk')).toBeFocused()
+      // the keeper of the picked door hands focus to Enter
+      await expect(page.getByTestId('enter')).toBeFocused()
       await page.getByTestId('talk').click({ timeout: 5000 })
       while (await next.isVisible()) await next.click({ timeout: 5000 })
       await page.getByTestId('npc-enter').click({ timeout: 5000 })

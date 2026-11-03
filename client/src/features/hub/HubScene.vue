@@ -192,6 +192,7 @@ const showFind = computed(
 )
 const talkBtn = ref(null)
 const findBtn = ref(null)
+const enterBtn = ref(null)
 const dialogue = ref(null)
 
 function say(text) {
@@ -256,9 +257,16 @@ function onEnterKey(event) {
 
 function closeTalk({ restoreFocus = true } = {}) {
   if (!talk.open.value) return
+  const gameId = talk.npc.value?.gameId
+  const keeperAtPick = Boolean(gameId) && gameId === view.selected
   talk.close()
   hub?.pauseInput(paused.value)
-  if (restoreFocus) nextTick(() => (findBtn.value ?? talkBtn.value)?.focus())
+  if (!restoreFocus) return
+  // the keeper of the picked door hands focus to Enter, so Return goes in rather than talking again
+  nextTick(() => {
+    const enter = keeperAtPick && canEnter.value ? enterBtn.value : null
+    ;(enter ?? findBtn.value ?? talkBtn.value)?.focus()
+  })
 }
 
 function goInFromTalk() {
@@ -334,9 +342,27 @@ async function moveFocusAfterPick(origin, next, id) {
   }
   if (!next || !fromPicker) return
   await nextTick()
-  const enter = stage.value?.parentElement?.querySelector('[data-testid="enter"]')
+  const enter = enterBtn.value
   if (enter && !enter.disabled && view.selected === next) enter.focus()
 }
+
+// a button or link outside a dialog keeps Return for its own click (see isEnterKey)
+function holdsReturn(element) {
+  if (!(element instanceof HTMLElement) || element === enterBtn.value) return false
+  if (!element.matches('button, a[href], summary, [role="button"]')) return false
+  return !element.closest('[role="dialog"], dialog, [aria-modal="true"]')
+}
+
+// walking onto a door moves focus to Enter when a button clicked earlier still holds it, so Return goes in
+watch(
+  () => view.selected,
+  async (selected) => {
+    if (!selected || !holdsReturn(document.activeElement)) return
+    await nextTick()
+    const enter = enterBtn.value
+    if (enter && !enter.disabled && view.selected === selected) enter.focus()
+  },
+)
 
 // the engine writes the player's spot into its shared state every frame; the map samples it at 10 Hz
 let mapTimer = null
@@ -694,6 +720,7 @@ defineExpose({
         </button>
         <button
           v-if="selectedGame"
+          ref="enterBtn"
           type="button"
           class="btn btn-primary hub-enter hub-glass-btn hub-glass-btn-primary"
           data-testid="enter"

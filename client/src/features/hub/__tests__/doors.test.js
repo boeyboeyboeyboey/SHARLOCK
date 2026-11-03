@@ -54,6 +54,7 @@ function makeControl() {
     held: false,
     stalled: false,
     serial: 0,
+    arrived: 0,
     routes: [],
     enabled: true,
     position: () => control.at,
@@ -61,6 +62,7 @@ function makeControl() {
     isHeld: () => control.held,
     wasStalled: () => control.stalled,
     routeSerial: () => control.serial,
+    arrivals: () => control.arrived,
     routeToDoor(id) {
       control.routes.push(id)
       control.serial += 1
@@ -152,6 +154,29 @@ describe('door selection', () => {
     expect(state.nearDoor).toBe('a')
     expect(state.selected).toBe('a')
     away()
+    frame()
+    expect(state.selected).toBeNull()
+  })
+
+  it('picks the door a click-to-walk stops on', () => {
+    control.walking = true
+    on('b')
+    frame()
+    expect(state.selected).toBeNull()
+    control.walking = false
+    control.arrived += 1
+    frame()
+    expect(state.selected).toBe('b')
+    away()
+    frame()
+    expect(state.selected).toBeNull()
+  })
+
+  it('does not pick a ring a walk only stopped on because it was steered or cancelled', () => {
+    control.walking = true
+    on('b')
+    frame()
+    control.walking = false
     frame()
     expect(state.selected).toBeNull()
   })

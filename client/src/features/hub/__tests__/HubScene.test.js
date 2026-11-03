@@ -176,6 +176,56 @@ describe('hub shell', () => {
     wrapper.unmount()
   })
 
+  it('moves focus to Enter when walking onto a door while a button holds it', async () => {
+    const wrapper = await mountScene()
+    await becomeReady()
+    wrapper.get('[data-testid="hub-sprint"]').element.focus()
+    await becomeReady({ selected: 'sql-injection-arcade', nearDoor: 'sql-injection-arcade' })
+    expect(document.activeElement).toBe(wrapper.get('[data-testid="enter"]').element)
+    wrapper.unmount()
+  })
+
+  it('leaves focus on the page when walking onto a door, and Return goes in', async () => {
+    const wrapper = await mountScene()
+    await becomeReady()
+    await becomeReady({ selected: 'sql-injection-arcade', nearDoor: 'sql-injection-arcade' })
+    expect(document.activeElement).toBe(document.body)
+    const event = new KeyboardEvent('keydown', { code: 'Enter', bubbles: true, cancelable: true })
+    document.body.dispatchEvent(event)
+    await flushPromises()
+    expect(event.defaultPrevented).toBe(true)
+    expect(hub().enter).toHaveBeenCalledWith('sql-injection-arcade')
+    wrapper.unmount()
+  })
+
+  it('hands focus to Enter after closing a chat with the keeper of the picked door', async () => {
+    const wrapper = await mountScene()
+    await becomeReady({
+      selected: 'sql-injection-arcade',
+      nearDoor: 'sql-injection-arcade',
+      nearNpc: 'customs-officer',
+    })
+    await wrapper.get('[data-testid="talk"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="npc-dialogue"]').exists()).toBe(true)
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }))
+    await flushPromises()
+    expect(wrapper.find('[data-testid="npc-dialogue"]').exists()).toBe(false)
+    expect(document.activeElement).toBe(wrapper.get('[data-testid="enter"]').element)
+    wrapper.unmount()
+  })
+
+  it('returns focus to Talk after a chat with a wanderer', async () => {
+    const wrapper = await mountScene()
+    await becomeReady({ nearNpc: 'fisherman' })
+    await wrapper.get('[data-testid="talk"]').trigger('click')
+    await flushPromises()
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }))
+    await flushPromises()
+    expect(document.activeElement).toBe(wrapper.get('[data-testid="talk"]').element)
+    wrapper.unmount()
+  })
+
   it('hides the frame counter unless the url asks for it', async () => {
     const wrapper = await mountScene()
     await becomeReady()
