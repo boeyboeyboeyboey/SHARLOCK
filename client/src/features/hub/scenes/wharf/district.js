@@ -464,17 +464,17 @@ export function buildDistrict({ world, signs }) {
     )
     // plinth and string course so the wash reads as a dressed stone storey
     fbox(b.stone, f, 0, 0.32, 0.08, W + 0.3, 0.64, 0.2, [0.78, 0.74, 0.68, 1])
-    fbox(b.stone, f, 0, gf - 0.12, 0.1, W + 0.4, 0.24, 0.24, [0.88, 0.84, 0.77, 1])
+    // string course stays behind the fascia board (front face 0.2)
+    fbox(b.stone, f, 0, gf - 0.12, 0.06, W + 0.4, 0.24, 0.18, [0.88, 0.84, 0.77, 1])
     // panelled double doors in a stone surround
     const doorTone = [0.12, 0.16, 0.18, 1]
     const panel = [0.2, 0.25, 0.27, 1]
     for (const side of [-1, 1]) {
-      fbox(b.stone, f, side * 0.86, 1.42, 0.12, 0.34, 2.84, 0.2, [0.86, 0.82, 0.76, 1])
+      fbox(b.stone, f, side * 0.86, 1.32, 0.12, 0.34, 2.64, 0.2, [0.86, 0.82, 0.76, 1])
       fbox(b.wash, f, side * 0.34, 1.85, 0.1, 0.46, 0.9, 0.03, panel)
       fbox(b.wash, f, side * 0.34, 0.75, 0.1, 0.46, 0.8, 0.03, panel)
     }
     fbox(b.wash, f, 0, 1.3, 0.1, 0.05, 2.6, 0.03, doorTone)
-    fbox(b.stone, f, 0, 3.0, 0.14, 2.3, 0.3, 0.26, [0.86, 0.82, 0.76, 1])
     B.chimney(f, W * 0.3, -D * 0.65, H + 1, H + rh + 6.5, 'brickRed')
     // flagpole on the front gable with a yellow quarantine flag
     const fu = -W / 2 + 1.2
