@@ -484,7 +484,10 @@
 }
 .botnet-tag-game .pz-title {
   margin: 0;
+  /* bootstrap's dark heading colour vanished on the dark glass */
+  color: var(--game-ink);
   font-size: 20px;
+  line-height: 1.25;
 }
 .botnet-tag-game .pz-time {
   font-variant-numeric: tabular-nums;

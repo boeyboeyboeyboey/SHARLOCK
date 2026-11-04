@@ -15,12 +15,37 @@ const props = defineProps({
 const emit = defineEmits(['submit', 'close'])
 
 const KINDS = {
-  firewall: { title: 'Firewall', icon: '▦', body: FirewallBody, action: 'Apply' },
-  patch: { title: 'Patch', icon: '⬆', body: PatchBody, action: 'Install' },
-  process: { title: 'Processes', icon: '⚙', body: ProcessBody, action: 'End process' },
-  hash: { title: 'Checksum', icon: '#', body: HashBody, action: 'Verify' },
-  spoof: { title: 'Sender', icon: '✉', body: SpoofBody, action: 'Block sender' },
-  account: { title: 'Passwords', icon: '⚿', body: AccountBody, action: 'Secure' },
+  firewall: {
+    title: 'Allow only what this server needs',
+    icon: '▦',
+    body: FirewallBody,
+    action: 'Apply',
+  },
+  patch: {
+    title: 'Match each program to its patch',
+    icon: '⬆',
+    body: PatchBody,
+    action: 'Install',
+  },
+  process: {
+    title: 'End the suspicious task',
+    icon: '⚙',
+    body: ProcessBody,
+    action: 'End process',
+  },
+  hash: {
+    title: 'Pick the file that matches the checksum',
+    icon: '#',
+    body: HashBody,
+    action: 'Verify',
+  },
+  spoof: { title: 'Block the fake sender', icon: '✉', body: SpoofBody, action: 'Block sender' },
+  account: {
+    title: 'Pick the most secure password',
+    icon: '⚿',
+    body: AccountBody,
+    action: 'Secure',
+  },
 }
 const meta = computed(() => KINDS[props.kind] ?? KINDS.firewall)
 

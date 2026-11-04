@@ -114,7 +114,7 @@ describe('puzzle panel', () => {
   it('shows the title, seconds left and a disabled submit until complete', async () => {
     const wrapper = mount(PuzzlePanel, { props: props() })
     expect(wrapper.get('[role="dialog"]').attributes('aria-labelledby')).toBe('pz-title')
-    expect(wrapper.get('#pz-title').text()).toContain('Sender')
+    expect(wrapper.get('#pz-title').text()).toContain('Block the fake sender')
     expect(wrapper.get('[data-testid="puzzle-time"]').text()).toBe('12s')
     expect(wrapper.get('[role="progressbar"]').attributes('aria-valuenow')).toBe('100')
     expect(wrapper.get('[data-testid="puzzle-submit"]').attributes('disabled')).toBeDefined()
