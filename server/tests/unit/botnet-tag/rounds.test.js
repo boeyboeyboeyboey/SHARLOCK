@@ -91,6 +91,8 @@ describe('lobby', () => {
     const bots = round.players().filter((p) => p.isBot)
     expect(bots.map((b) => b.sid)).toEqual(['bot-1', 'bot-2'])
     expect(bots[0].username).toMatch(/^Bot /)
+    // names are drawn at random but never repeat within a lobby
+    expect(new Set(bots.map((bot) => bot.username)).size).toBe(bots.length)
     expect(round.setReady('nobody', true, 0)).toBe(false)
     expect(round.setReady('s1', 'yes', 0)).toBe(false)
     expect(round.move('nobody', { x: 0, z: 0 }, 0).ok).toBe(false)

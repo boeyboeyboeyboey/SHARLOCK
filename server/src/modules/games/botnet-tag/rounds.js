@@ -130,7 +130,11 @@ export function createRound({
 
   function fillBots() {
     while (counted().length + bots().length < MIN_PLAYERS && players.size < MAX_PLAYERS) {
-      const name = BOT_NAMES[botSeq % BOT_NAMES.length]
+      // a random name not already in this lobby, so each run draws a different set
+      const taken = new Set(bots().map((bot) => bot.username))
+      const free = BOT_NAMES.filter((name) => !taken.has(`Bot ${name}`))
+      const pool = free.length ? free : BOT_NAMES
+      const name = pool[Math.floor(rng() * pool.length)]
       botSeq += 1
       const sid = `bot-${botSeq}`
       players.set(sid, makePlayer({ sid, username: `Bot ${name}`, avatarId: 'bot' }, true))
