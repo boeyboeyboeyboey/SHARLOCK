@@ -11,6 +11,8 @@ export function createAccountGuard(auth, { resolveDestination } = {}) {
       return to.meta.requiresAccount ? { path: '/login', query: { reason: 'unavailable' } } : true
     }
     if (to.meta.requiresAccount && !user) {
+      // a first-time visitor at the front door gets the welcome page; an ended session still says why
+      if (to.path === '/' && !previouslySignedIn && !auth.sessionEnd) return { name: 'welcome' }
       const fallback = previouslySignedIn ? 'expired' : 'required'
       return { path: '/login', query: { reason: auth.sessionEnd || fallback } }
     }

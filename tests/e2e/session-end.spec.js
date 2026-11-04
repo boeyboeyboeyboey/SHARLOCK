@@ -156,7 +156,9 @@ test('a signed-out visit logs no 401 on public pages and does not loop', async (
   await forceTown2d(page)
 
   await page.goto('/')
-  await expect(page).toHaveURL(/\/login\?reason=required$/)
+  await expect(page).toHaveURL(/\/welcome$/)
+  await expect(page.getByRole('heading', { name: 'Sharlock Hub', level: 1 })).toBeVisible()
+  await page.goto('/login')
   await expect(page.getByRole('heading', { name: 'Sign in to Sharlock' })).toBeVisible()
   await page.goto('/register')
   await expect(page.getByRole('heading', { name: 'Create a student account' })).toBeVisible()
@@ -172,10 +174,9 @@ test('a signed-out visitor to a guarded page is told why they are signing in', a
   await expect(
     page.getByRole('status').filter({ hasText: 'Sign in to open that page.' }),
   ).toBeVisible()
-  // the town is the front door, so arriving there needs no explaining
+  // the town is the front door, so a visitor there sees the welcome page with no notice
   await page.goto('/')
-  await expect(page).toHaveURL(/\/login\?reason=required$/)
-  await expect(page.getByRole('heading', { name: 'Sign in to Sharlock' })).toBeVisible()
+  await expect(page).toHaveURL(/\/welcome$/)
   await expect(page.getByText('Sign in to open that page.')).toHaveCount(0)
 })
 

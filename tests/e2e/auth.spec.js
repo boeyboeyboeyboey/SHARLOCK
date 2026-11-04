@@ -84,7 +84,7 @@ test('registers, restores, signs out, signs in, and stops a protected action aft
   const signedOutProgress = page.getByRole('region', { name: 'Sign in' })
   await expect(signedOutProgress.getByRole('link', { name: 'Sign in', exact: true })).toBeVisible()
   await page.goto('/')
-  await expect(page).toHaveURL(/\/login/)
+  await expect(page).toHaveURL(/\/welcome$/)
 
   await page.goto('/register')
   await page.getByLabel('Email address').fill(email)

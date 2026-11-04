@@ -116,6 +116,12 @@ export const routes = [
     redirect: (to) => ({ path: '/profile', query: { ...to.query, tab: 'progress' } }),
   },
   {
+    path: '/welcome',
+    name: 'welcome',
+    component: () => import('../features/welcome/WelcomePage.vue'),
+    meta: { title: 'Welcome', authPage: true, immersive: true },
+  },
+  {
     path: '/login',
     component: () => import('../features/auth/pages/LoginPage.vue'),
     meta: { title: 'Sign in', authPage: true },

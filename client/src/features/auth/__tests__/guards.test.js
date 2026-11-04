@@ -348,6 +348,31 @@ describe('account navigation', () => {
     }
   })
 
+  it('sends a signed-out visit to the front door to the welcome page, and everything else to sign-in', async () => {
+    const door = { path: '/', meta: { requiresAccount: true } }
+    await expect(createAccountGuard(account())(door)).resolves.toEqual({ name: 'welcome' })
+    await expect(
+      createAccountGuard(account())({ path: '/profile', meta: { requiresAccount: true } }),
+    ).resolves.toEqual({ path: '/login', query: { reason: 'required' } })
+    await expect(
+      createAccountGuard({ ...account(), sessionEnd: 'expired' })(door),
+    ).resolves.toEqual({ path: '/login', query: { reason: 'expired' } })
+    await expect(createAccountGuard(account('authenticated'))(door)).resolves.toEqual({
+      path: '/login',
+      query: { reason: 'expired' },
+    })
+  })
+
+  it('sends a signed-in visitor from the welcome page to the town', async () => {
+    const auth = account('authenticated')
+    auth.restoreSession.mockResolvedValue({ id: 'student' })
+    await expect(
+      createAccountGuard(auth)({ path: '/welcome', meta: { authPage: true } }),
+    ).resolves.toEqual({
+      name: 'town',
+    })
+  })
+
   it('fails closed for protected pages but keeps public account shells available on network errors', async () => {
     const auth = account('unknown')
     auth.restoreSession.mockRejectedValue(new Error('Connection unavailable'))
