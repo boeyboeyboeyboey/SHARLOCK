@@ -219,6 +219,11 @@ export function sectionOf(route) {
   }
 }
 
+// the town itself or an overlay drawn over it: moving between two of these keeps the town behind, so no wipe
+function overTown(route) {
+  return TOWN_ROUTES.has(route.name) || Boolean(route.meta?.overlay)
+}
+
 let watchdog = null
 let holdMs = WIPE_HOLD_MS
 
@@ -283,7 +288,14 @@ export function installPageWipes(router, { hold = WIPE_HOLD_MS } = {}) {
     const firstLoad = from.matched.length === 0
     // a wipe already playing means another navigation overlapped it: just let that one through
     const playing = wipe.phase !== 'idle'
-    if (playing || prefersReducedMotion() || firstLoad || !target || target === sectionOf(from)) {
+    if (
+      playing ||
+      prefersReducedMotion() ||
+      firstLoad ||
+      !target ||
+      target === sectionOf(from) ||
+      (overTown(to) && overTown(from))
+    ) {
       return true
     }
     wipe.section = target

@@ -254,6 +254,26 @@ test('opens the profile from the menu and handles focus and dismissal', async ({
   await expect(page.getByRole('heading', { name: 'Your trophy case' })).toBeVisible()
 })
 
+test('opens and closes an overlay over the town with no pixel wipe', async ({ page }) => {
+  await page.goto('/')
+  await expect(page.getByRole('button', { name: /^Menu/ })).toBeVisible()
+  // the wipe is only mounted while it plays, so watch for it appearing at any point
+  await page.evaluate(() => {
+    window.__wipeSeen = false
+    new MutationObserver(() => {
+      if (document.querySelector('[data-testid="pixel-wipe"]')) window.__wipeSeen = true
+    }).observe(document.body, { childList: true, subtree: true })
+  })
+  await page.getByRole('button', { name: /^Menu/ }).click()
+  await page.getByRole('link', { name: 'Profile & progress' }).click()
+  await expect(page.getByRole('heading', { name: 'Profile & progress' })).toBeFocused()
+  await page.getByRole('link', { name: 'Progress tab' }).click()
+  await expect(page.getByRole('heading', { name: 'Your trophy case' })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page).toHaveURL(/\/$/)
+  expect(await page.evaluate(() => window.__wipeSeen)).toBe(false)
+})
+
 test('uses pixel page artwork, keeps the 3D menu and navbar logo, and recovers from a missing page', async ({
   page,
 }) => {
@@ -356,7 +376,7 @@ test('zooms with controls and keyboard, resets the camera, and keeps buildings r
   for (let i = 0; i < 8; i++) await page.keyboard.press('-')
   await expect(zoomOut).toBeDisabled()
   expect(Number((await level.innerText()).replace('%', ''))).toBeLessThan(100)
-  await page.getByRole('button', { name: 'Reset view' }).click()
+  await page.getByRole('button', { name: 'Recentre on Sharlock' }).click()
   await expect(level).toHaveText('100%')
   for (let i = 0; i < 4; i++) await zoomIn.click()
   await expect(level).toHaveText('200%')
@@ -391,7 +411,7 @@ test('zooms with controls and keyboard, resets the camera, and keeps buildings r
   await expect(level).toHaveText('175%')
   await page.keyboard.press('0')
   await expect(level).toHaveText('100%')
-  await page.getByRole('button', { name: 'Reset view' }).click()
+  await page.getByRole('button', { name: 'Recentre on Sharlock' }).click()
   // reset view brings Sharlock (at the last door) back into view
   await expect
     .poll(() =>
@@ -481,7 +501,7 @@ test('supports pinch zoom and wheel panning while retaining camera bounds after 
   await session.detach()
   await expect.poll(() => page.getByLabel('Map zoom level').textContent()).not.toBe('100%')
   await expect(page.locator('.game-info-card')).toHaveCount(0)
-  await page.getByRole('button', { name: 'Reset view' }).click()
+  await page.getByRole('button', { name: 'Recentre on Sharlock' }).click()
   await expect(page.getByLabel('Map zoom level')).toHaveText('100%')
   // centre-left keeps the pointer clear of the Menu tab and the zoom stack
   await page.mouse.move(bounds.x + 20, bounds.y + bounds.height / 2)

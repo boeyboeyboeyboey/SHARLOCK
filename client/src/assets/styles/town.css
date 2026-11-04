@@ -228,6 +228,12 @@
     transform: none;
   }
 }
+/* touch phones: lift the talk box above the stick */
+@media (max-width: 575.98px) and (pointer: coarse) {
+  .town-talk {
+    bottom: 140px;
+  }
+}
 
 /* sharlock and the e prompt over a door */
 .town-hero {
@@ -477,6 +483,12 @@
   width: 44px;
   padding: 4px;
   font-size: 24px;
+}
+.zoom-step.reset-view {
+  width: auto;
+  min-width: 44px;
+  min-height: 44px;
+  font-size: 12px;
 }
 .map-zoom-controls button:disabled {
   cursor: default;

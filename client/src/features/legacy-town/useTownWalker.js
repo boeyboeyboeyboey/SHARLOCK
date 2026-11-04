@@ -33,6 +33,8 @@ export function useTownWalker({
   const tapped = new Set()
   const sprint = createSprint({ now })
   let target = null
+  let stickX = 0
+  let stickY = 0
   let raf = null
   let last = null
   let animTime = 0
@@ -54,12 +56,20 @@ export function useTownWalker({
     let vy = 0
     const dirs = new Set([...held, ...tapped])
     tapped.clear()
-    if (dirs.size) {
+    if (dirs.size || stickX || stickY) {
       target = null
       vx = Number(dirs.has('right')) - Number(dirs.has('left'))
       vy = Number(dirs.has('down')) - Number(dirs.has('up'))
+      const keyLength = Math.hypot(vx, vy)
+      if (keyLength) {
+        vx /= keyLength
+        vy /= keyLength
+      }
+      // the stick is analogue; the sum never exceeds full speed
+      vx += stickX
+      vy += stickY
       const length = Math.hypot(vx, vy)
-      if (length) {
+      if (length > 1) {
         vx /= length
         vy /= length
       }
@@ -99,7 +109,7 @@ export function useTownWalker({
     sprintState.value = sprint.state(t)
     refreshDoor()
     const cameraBusy = afterMove(dt, moved)
-    if (held.size || target || cameraBusy) raf = requestAnimationFrame(tick)
+    if (held.size || stickX || stickY || target || cameraBusy) raf = requestAnimationFrame(tick)
     else last = null
   }
 
@@ -119,6 +129,17 @@ export function useTownWalker({
   function clearKeys() {
     held.clear()
     tapped.clear()
+  }
+  // analogue move from the touch stick, each axis -1..1 and the length capped at 1
+  function setVector(px, py) {
+    const length = Math.hypot(px, py)
+    const scale = length > 1 ? 1 / length : 1
+    stickX = px * scale
+    stickY = py * scale
+    if (stickX || stickY) {
+      target = null
+      ensureLoop()
+    }
   }
   function startSprint() {
     if (sprint.start()) {
@@ -142,6 +163,8 @@ export function useTownWalker({
     held.clear()
     tapped.clear()
     target = null
+    stickX = 0
+    stickY = 0
   }
 
   return {
@@ -155,6 +178,7 @@ export function useTownWalker({
     keyDown,
     keyUp,
     clearKeys,
+    setVector,
     startSprint,
     walkTo,
     placeAt,

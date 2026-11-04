@@ -30,6 +30,7 @@ const labelDelay = computed(() =>
   <div
     v-if="wipe.phase !== 'idle'"
     class="pixel-wipe"
+    data-testid="pixel-wipe"
     :class="[`pixel-wipe--${wipe.phase}`, `pixel-wipe--${wipe.section}`]"
     :style="{
       '--wipe-columns': WIPE_COLUMNS,
