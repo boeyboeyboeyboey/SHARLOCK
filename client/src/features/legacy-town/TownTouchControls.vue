@@ -92,10 +92,10 @@ onBeforeUnmount(release)
   position: relative;
   width: 112px;
   height: 112px;
-  border: 3px solid var(--town-ink);
+  border: 3px solid rgb(27 34 48 / 55%);
   border-radius: 50%;
-  background: var(--town-paper);
-  box-shadow: 4px 4px 0 rgb(80 99 77 / 35%);
+  background: rgb(255 248 223 / 35%);
+  box-shadow: 0 0 0 2px rgb(255 248 223 / 45%);
   touch-action: none;
   user-select: none;
 }
@@ -106,19 +106,26 @@ onBeforeUnmount(release)
   width: 48px;
   height: 48px;
   margin: -24px 0 0 -24px;
-  border: 3px solid var(--town-ink);
+  border: 3px solid #fff8df;
   border-radius: 50%;
-  background: var(--town-edge);
+  background: rgb(47 58 79 / 75%);
   pointer-events: none;
 }
 .town-sprint {
   min-width: 72px;
   min-height: 48px;
   padding: 4px 10px;
+  border-color: #1b2230;
+  background: #2f3a4f;
+  color: #fff8df;
   font-size: 14px;
+  box-shadow:
+    0 0 0 2px #fff8df,
+    4px 4px 0 #1b2230;
 }
 .town-sprint[data-state='active'] {
-  background: var(--town-edge);
+  background: #ffc94a;
+  color: #1b2230;
 }
 .town-sprint[data-state='cooldown'] {
   opacity: 0.6;

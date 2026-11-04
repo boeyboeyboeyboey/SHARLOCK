@@ -205,6 +205,7 @@ function closeOverlay() {
       v-model:menu-open="menuOpen"
       :mode="townMode.mode.value"
       :skin="is3d ? 'glass' : 'pixel'"
+      :class="{ 'on-town': !is3d }"
       :locked="townMode.locked.value"
       :suppressed="escapeHeld"
       :user="auth.user"

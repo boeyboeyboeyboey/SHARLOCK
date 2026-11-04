@@ -470,7 +470,7 @@ function cameraChanged(event) {
   placeCard()
 }
 // the fit leaves room for the label under the lowest building
-const FIT_WORLD = { width: TOWN_SIZE.width, height: TOWN_SIZE.height + 24 }
+const FIT_WORLD = { width: TOWN_SIZE.width, height: TOWN_SIZE.height + 48 }
 function syncFloor() {
   if (!camera || !viewport.value) return
   const fit = fitScale(viewSize(), FIT_WORLD)

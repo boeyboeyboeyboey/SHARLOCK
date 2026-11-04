@@ -244,9 +244,38 @@
   pointer-events: none;
 }
 .town-hero-flip {
+  position: relative;
   display: block;
   width: 56px;
   height: 44px;
+  /* cream outline and a soft shadow so sharlock stands out from the cobbles and townsfolk */
+  filter: drop-shadow(2px 0 0 #fff8df) drop-shadow(-2px 0 0 #fff8df) drop-shadow(0 2px 0 #fff8df)
+    drop-shadow(0 -2px 0 #fff8df) drop-shadow(0 3px 2px rgb(0 0 0 / 40%));
+}
+/* gold ring at his feet */
+.town-hero::before {
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  width: 52px;
+  height: 16px;
+  margin-left: -26px;
+  border: 3px solid #ffc94a;
+  border-radius: 50%;
+  background: rgb(255 201 74 / 25%);
+  content: '';
+  animation: town-hero-ring 1.2s steps(4) infinite alternate;
+}
+@keyframes town-hero-ring {
+  to {
+    transform: scale(1.15);
+    opacity: 0.6;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .town-hero::before {
+    animation: none;
+  }
 }
 .town-hero-flip.is-left {
   transform: scaleX(-1);
@@ -612,4 +641,47 @@
     transform: translate(3px, -9px);
     opacity: 0;
   }
+}
+
+/* 2D town floating controls: dark slate with a cream ring so they read against the bright scene */
+.immersive-controls.on-town {
+  --hub-glass-bg: #2f3a4f;
+  --hub-glass-solid: #2f3a4f;
+  --hub-glass-ink: #fff8df;
+  --hub-glass-muted: #fff8df;
+  --hub-glass-edge: #1b2230;
+  --hub-glass-shadow: 0 0 0 2px #fff8df, 4px 4px 0 #1b2230;
+  --hub-glass-focus: #ffc94a;
+  --hub-glass-btn-hover: #44526d;
+}
+.immersive-controls.on-town .glass-button,
+.immersive-controls.on-town .mode-switch button {
+  color: #fff8df;
+}
+.immersive-controls.on-town .glass-button:hover,
+.immersive-controls.on-town .mode-switch button:not([aria-pressed='true']):hover:not(:disabled) {
+  background: #44526d;
+}
+.immersive-controls.on-town .mode-switch button[aria-pressed='true'],
+.immersive-controls.on-town .sound-button[aria-pressed='true'] {
+  background: #ffc94a;
+  color: #1b2230;
+}
+.immersive-controls.on-town .menu-hint {
+  background: #fff8df;
+  color: #1b2230;
+}
+.immersive-controls.on-town .sound-button,
+.map-zoom-controls .pixel-button,
+.map-zoom-controls output {
+  border-color: #1b2230;
+  background: #2f3a4f;
+  color: #fff8df;
+  box-shadow:
+    0 0 0 2px #fff8df,
+    4px 4px 0 #1b2230;
+}
+.immersive-controls.on-town .sound-button:hover,
+.map-zoom-controls .pixel-button:hover:not(:disabled) {
+  background: #44526d;
 }

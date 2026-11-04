@@ -172,6 +172,8 @@ Approved by Boey on 20 October 2026 (record in [TASKS.md](TASKS.md)); implemente
 
 ## Town interaction and responsiveness
 
+- **Contrast on the 2D town (Boey, 4 Nov 2026).** Sharlock has a cream outline and a gold ring at his feet (still under reduced motion). The floating controls over the town (Menu, Sound, 3D/2D, the zoom stack, Recentre, Sprint) are dark slate `#2f3a4f` with cream `#fff8df` text, a cream ring and a dark offset shadow; a pressed or active state is gold `#ffc94a`. Set by `.immersive-controls.on-town` in `town.css`, so shared pages keep the plain pixel skin. The touch joystick is translucent so the town shows through.
+
 The rules in this section describe the 2D pixel town, which is the 2D mode on `/` and the no-WebGL fallback. These are the 2D mode controls; the 3D hub controls are in [README "Using the app"](README.md#using-the-app) and [client/src/features/hub/README.md](client/src/features/hub/README.md).
 
 **Every game is available from the start.** There are no linear locks, unlock messages, grayscale unavailable nodes, or completion requirements. Difficulty and background knowledge help learners choose; neither gates access. Future server authentication and cohort permissions still apply independently of this learning sequence.

@@ -469,7 +469,8 @@ test('drags without opening a building and still selects with a fresh tap or cli
   // the camera opens on sharlock near the bottom edge of the town, so the drag shows on the x axis
   await expect.poll(async () => (await building.boundingBox()).x).toBeLessThan(before.x - 40)
   await expect(page.locator('.game-info-card')).toHaveCount(0)
-  if (mobile) await building.tap()
+  // tap the left of the building, clear of the zoom stack over its right side
+  if (mobile) await building.tap({ position: { x: 24, y: before.height / 2 } })
   else await building.click()
   await expect(page.getByRole('heading', { name: 'Botnet Tag', exact: true })).toBeFocused()
 })
