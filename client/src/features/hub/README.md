@@ -14,7 +14,7 @@ Players' controls and settings are described in the root README under "Using the
 
 ## File map
 
-- `HubScene.vue`, `HubMinimap.vue`, `minimap.js`: the Vue shell, destination list, notices, status line and minimap.
+- `HubScene.vue`, `HubMinimap.vue`, `minimap.js`: the Vue shell, destination list, notices, status line and minimap. Pins past 85% of the map width hang their labels leftwards (`is-east`), so the frame does not clip them.
 - `NpcDialogue.vue`, `useNpcDialogue.js`: the talk panel and its state (the 2D town uses them too). `ControlsHint.vue`, `controls.js`: the first-visits hint and the key list. `HubAmbience.vue`: the ambience loop. `announce.js`, `discoveries.js`, `glass.js`: live-region text, the finds list and the solid HUD rule. `intro/`: the lore intro. `presence/`: classmates on the wharf.
 - `engine.js`: engine and physics start-up (WebGPU else WebGL2, Havok wasm via `?url`), dispose, dev `window.__hub`. It owns the list of cleanup steps the scene adds as it builds, so a build that throws or is left halfway still undoes what it made, and each teardown step runs even if an earlier one throws.
 - `deviceCheck.js`, `perfWatch.js`, `graphics.js`: device verdict, runtime fps watch, Graphics setting.

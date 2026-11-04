@@ -419,7 +419,12 @@ test('drags without opening a building and still selects with a fresh tap or cli
   // the camera opens on sharlock, so this building is the one beside him at every size
   const building = page.getByRole('button', { name: 'Explore Botnet Tag', exact: true })
   const before = await building.boundingBox()
-  const start = { x: before.x + 30, y: before.y + before.height / 2 }
+  // start inside the visible part of the building, clear of the zoom controls on the right edge
+  const viewport = page.viewportSize()
+  const start = {
+    x: Math.min(before.x + 30, viewport.width - 80),
+    y: before.y + before.height / 2,
+  }
   const mobile = testInfo.project.name === 'mobile-chromium'
   if (mobile) {
     const session = await page.context().newCDPSession(page)

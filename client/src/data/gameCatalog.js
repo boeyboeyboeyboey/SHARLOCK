@@ -7,7 +7,7 @@ export const BUILDING_TYPES = [
   'hut',
   'shed',
   'newsstand',
-  'warehouse',
+  'sanitary',
 ]
 
 export function defineGameCatalog(entries) {
@@ -162,8 +162,8 @@ export const gameCatalog = defineGameCatalog([
     route: '/games/botnet-tag',
     isPreview: false,
     needs3d: true,
-    duration: '3 min round',
+    duration: '2 min round',
     icon: 'people',
-    building: { type: 'warehouse', x: 600, y: 580 },
+    building: { type: 'sanitary', x: 664, y: 580 },
   },
 ])

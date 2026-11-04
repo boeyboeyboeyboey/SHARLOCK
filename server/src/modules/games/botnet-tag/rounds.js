@@ -12,6 +12,7 @@ import {
   COUNTDOWN_MS,
   GRACE_MS,
   IMMUNITY_MS,
+  INFECTED_CAN_SPRINT,
   LOBBY_IDLE_MS,
   MAX_PLAYERS,
   MAX_SCORE,
@@ -388,6 +389,7 @@ export function createRound({
       const t = timeOf(at)
       const player = getPlayer(sid)
       if (!player || phase !== 'playing') return { ok: false, reason: 'not_playing' }
+      if (player.infected && !INFECTED_CAN_SPRINT) return { ok: false, reason: 'infected' }
       if (!canStartSprint(player, t)) return { ok: false, reason: 'cooldown' }
       player.sprintStartedAt = t
       return { ok: true, cooldownEndsAt: sprintCooldownEnd(player) }
@@ -402,6 +404,7 @@ export function createRound({
       if (!canTag(tagger, target, t)) return { ok: false, reason: 'no_tag' }
       target.infected = true
       target.infectedAt = t
+      target.sprintStartedAt = null
       spread = true
       puzzles.delete(targetSid)
       bump(tagger, 'tags')

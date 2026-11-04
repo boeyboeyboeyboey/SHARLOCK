@@ -91,18 +91,20 @@ const parts = {
     s += B(51, 24, 5, 6, '#ae7750') + R(51, 26, 5, 1, INK)
     return { w: 56, h: 40, vy: 0, body: s }
   },
-  yard() {
-    let s = shadow(3, 37, 46) + B(4, 15, 40, 22, '#8fb39b')
-    for (let x = 6; x < 43; x += 4) s += R(x, 16, 1, 20, '#79a086')
-    s += B(2, 10, 44, 6, '#4f6a5a') + R(3, 11, 42, 1, '#7a9a86')
-    s += B(18, 22, 12, 15, '#3f5547')
-    for (let y = 24; y < 36; y += 3) s += R(19, y, 10, 1, '#2f4337')
-    for (const x of [7, 35])
-      s += B(x, 20, 6, 5, '#1d2b24') + R(x + 1, 21, 4, 1, '#7bd88f') + R(x + 1, 23, 4, 1, '#7bd88f')
-    s += B(20, 14, 8, 3, '#1d2b24') + R(21, 15, 6, 1, '#7bd88f')
-    s += R(38, 2, 1, 8, INK) + B(35, 1, 7, 3, '#cbb99b') + R(36, 2, 5, 1, '#e7d5a8')
-    s += B(1, 31, 5, 6, '#ae7750') + R(1, 34, 5, 1, INK)
-    return { w: 48, h: 40, vy: 0, body: s }
+  sanitary() {
+    let s = shadow(3, 43, 46)
+    s += B(6, 31, 40, 13, '#f2ecdc') + R(7, 41, 38, 3, '#cbb99b') + R(7, 31, 38, 1, '#fff8df')
+    s += B(8, 21, 36, 10, '#b5654f')
+    for (let y = 23; y < 30; y += 3) s += R(9, y, 34, 1, '#9c523e')
+    s += step(4, 21, 44, 3, 3, 2, '#5f6f82', '#8796a8')
+    s += win(13, 23, 6, 6) + win(33, 23, 6, 6) + win(9, 35, 6, 6) + win(37, 35, 6, 6)
+    s += B(16, 32, 20, 4, '#2f3a33') + R(18, 34, 16, 1, '#e5c877')
+    s += B(22, 36, 8, 8, '#7b513d') + R(23, 37, 6, 2, '#f4cf74') + R(28, 41, 1, 1, '#e5c877')
+    s += B(37, 8, 6, 13, '#a9553f') + R(37, 12, 6, 1, '#8a4632') + R(37, 16, 6, 1, '#8a4632')
+    s += B(36, 6, 8, 2, '#7b513d')
+    s += R(10, 5, 1, 12, INK) + B(11, 5, 7, 4, '#f4cf74') + R(13, 6, 2, 1, '#5b4a3a')
+    s += puff('s1', 39, 3) + puff('s2', 40, 3) + puff('s3', 38, 3)
+    return { w: 52, h: 48, vy: 0, body: s }
   },
   post() {
     let s = shadow(4, 38, 48) + B(8, 18, 36, 20, '#c9715c')
@@ -150,7 +152,7 @@ const TYPE_ART = {
   newsstand: 'news',
   office: 'pub',
   shed: 'clear',
-  warehouse: 'yard',
+  sanitary: 'sanitary',
 }
 
 export function buildingArt(type) {
@@ -213,7 +215,7 @@ export function propsMarkup() {
   return [
     smallSvg(20, 330, 36, 28, house, 340),
     smallSvg(36, 560, 38, 24, stall, 590),
-    smallSvg(724, 676, 30, 18, cart, 700),
+    smallSvg(344, 628, 30, 18, cart, 700),
     smallSvg(168, 676, 16, 10, bench, 690),
     smallSvg(936, 440, 18, 16, crates, 450),
   ].join('')
@@ -460,7 +462,7 @@ export const townBushes = [
   { x: 1000, y: 530 },
   { x: 900, y: 335 },
   { x: 200, y: 750 },
-  { x: 700, y: 640 },
+  { x: 592, y: 744 },
   { x: 1056, y: 770 },
 ]
 

@@ -22,6 +22,7 @@ import {
 } from '../../../features/hub/perfWatch.js'
 import { ARENA } from './arenaData.js'
 import { labelScale, nudgeLabels } from './arenaRules.js'
+import { canSprint, speedMultFor } from '../tagRules.js'
 import { KIND_LABEL, buildArenaWorld } from './arenaWorld.js'
 import { createPlayers } from './arenaPlayers.js'
 import { createLabelLayer } from './labelLayer.js'
@@ -143,6 +144,14 @@ export function createArena({
         camera,
         reduced,
         onSprint: () => send.sprint?.(),
+        canSprint: () => {
+          const st = getState()
+          return canSprint(st.players.find((p) => p.sid === st.sid))
+        },
+        speedMult: () => {
+          const st = getState()
+          return speedMultFor(st.players.find((p) => p.sid === st.sid))
+        },
         input,
       })
     // a tier rebuild replaces the player in the same tick, so no key release can fall in a gap

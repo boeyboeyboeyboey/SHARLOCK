@@ -15,8 +15,8 @@ export const selectionViews = {
     focusY: 4.4,
     shift: 0,
   },
-  // warehouse front on the east lane, seen from slightly south
-  'botnet-tag': { alphaOffset: 0.5, beta: 1.3, radius: 18, focusY: 5, shift: 0 },
+  // sanitary station front on the main street, seen from slightly south
+  'botnet-tag': { alphaOffset: 0.5, beta: 1.25, radius: 24, focusY: 8, shift: 0 },
   // looks up the street from the south: straight on, the houses opposite pull the camera in and crop the tower
   'clearance-tower': { alphaOffset: -1.0, beta: 1.34, radius: 34, focusY: 13, shift: -0.8 },
 }

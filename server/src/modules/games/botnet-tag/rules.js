@@ -4,23 +4,26 @@ export const BASE_SPEED = 7.2
 export const SPRINT_MULT = 1.6
 export const SPRINT_MS = 2500
 export const SPRINT_COOLDOWN_MS = 6000
-export const TAG_REACH = 1.4
+export const INFECTED_CAN_SPRINT = false
+export const TAG_REACH = 1.2
+// infected players move at this share of the base speed
+export const INFECTED_SPEED_MULT = 0.8
 export const LATENCY_SLACK = 0.6
 export const IMMUNITY_MS = 15000
 export const STATION_COOLDOWN_MS = 20000
 export const STATION_LOCKOUT_MS = 5000
 export const STATION_REACH = 1.8
-export const ROUND_MS = 180000
+export const ROUND_MS = 120000
 export const COUNTDOWN_MS = 10000
 export const RESULTS_MS = 15000
 export const MIN_PLAYERS = 3
 export const MAX_PLAYERS = 8
-export const GRACE_MS = 5000
+export const GRACE_MS = 10000
 export const MIN_SAVED_ROUND_MS = 20000
 export const LOBBY_IDLE_MS = 45000
 // a steady solver patches about once every 17 s; a survivor tagged late can still catch the
 // other survivors, which is everyone but themselves and the two patient zeros of a full round
-export const PAR_PATCHES = 10
+export const PAR_PATCHES = 6
 export const PAR_TAGS = 5
 
 const MOVE_TOLERANCE = 1.25
@@ -38,7 +41,9 @@ export function sprintActive(player, now) {
   return isTime(start) && now >= start && now < start + SPRINT_MS
 }
 
+// an infected player never gets a sprint, so the cooldown end is pushed out of reach
 export function sprintCooldownEnd(player) {
+  if (player?.infected && !INFECTED_CAN_SPRINT) return Number.MAX_SAFE_INTEGER
   const start = player?.sprintStartedAt
   return isTime(start) ? start + SPRINT_MS + SPRINT_COOLDOWN_MS : 0
 }
@@ -82,8 +87,9 @@ export function validateMove(player, pos, now) {
   const last = isTime(player.lastMoveAt) ? player.lastMoveAt : now - FIRST_MOVE_MS
   const elapsed = Math.min(Math.max(now - last, 0), MAX_ELAPSED_MS)
   const boost = Math.min(sprintOverlapMs(player, now - elapsed, now), elapsed)
-  const walked = (BASE_SPEED * MOVE_TOLERANCE * elapsed) / 1000
-  const sprinted = (BASE_SPEED * MOVE_TOLERANCE * boost * (SPRINT_MULT - 1)) / 1000
+  const speed = BASE_SPEED * (player.infected ? INFECTED_SPEED_MULT : 1)
+  const walked = (speed * MOVE_TOLERANCE * elapsed) / 1000
+  const sprinted = (speed * MOVE_TOLERANCE * boost * (SPRINT_MULT - 1)) / 1000
   const credit = isTime(player.moveCredit) ? player.moveCredit : MOVE_SLACK
   const allowed = Math.min(MOVE_CREDIT_CAP, credit + walked) + sprinted
   const distance = Math.hypot(pos.x - player.x, pos.z - player.z)

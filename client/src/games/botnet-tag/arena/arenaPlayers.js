@@ -17,8 +17,8 @@ import { BASE_SPEED } from './arenaRules.js'
 
 const SIZE = 1.25
 export const LABEL_HEIGHT = 2.3
-const INFECTED = new Color3(0.55, 1, 0.5)
-const INFECTED_GLOW = new Color3(0.08, 0.34, 0.06)
+const INFECTED = new Color3(0.6, 0.66, 0.23)
+const INFECTED_GLOW = new Color3(0.2, 0.22, 0.05)
 
 const additive = (scene, name, color, alpha) => {
   const m = new StandardMaterial(name, scene)
@@ -37,7 +37,7 @@ export function createPlayers({ scene, tier, reduced, shadow }) {
   const entries = new Map()
   const toon = (m) => applyToon(m, { rimGain: 1.1 })
 
-  const auraMat = additive(scene, 'tag-aura', new Color3(0.4, 1, 0.3), 0.07)
+  const auraMat = additive(scene, 'tag-aura', new Color3(0.5, 0.55, 0.18), 0.07)
   const immMat = additive(scene, 'tag-immune', Color3.White(), 0.7)
   immMat.emissiveFresnelParameters = new FresnelParameters({
     bias: 0,

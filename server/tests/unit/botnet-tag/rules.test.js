@@ -80,6 +80,31 @@ describe('movement validation', () => {
     expect(canStartSprint(p, 1000 + SPRINT_MS + SPRINT_COOLDOWN_MS - 1)).toBe(false)
     expect(canStartSprint(p, 1000 + SPRINT_MS + SPRINT_COOLDOWN_MS)).toBe(true)
   })
+
+  it('never lets an infected player start a sprint', () => {
+    expect(rules.INFECTED_CAN_SPRINT).toBe(false)
+    expect(canStartSprint(mover({ infected: false }), 0)).toBe(true)
+    expect(canStartSprint(mover({ infected: true }), 0)).toBe(false)
+    expect(canStartSprint(mover({ infected: true }), 1e9)).toBe(false)
+  })
+
+  it('runs a 120 s round with a 10 s grace and a 1.2 m tag reach', () => {
+    expect(rules.ROUND_MS).toBe(120000)
+    expect(rules.GRACE_MS).toBe(10000)
+    expect(TAG_REACH).toBe(1.2)
+  })
+
+  it('moves infected players slower than survivors', () => {
+    expect(rules.INFECTED_SPEED_MULT).toBe(0.8)
+    // a step a survivor may take in a second is too far for an infected player
+    const step = { x: 3 + BASE_SPEED * 1.1, z: 0 }
+    const start = { x: 3, z: 0, lastMoveAt: 0, moveCredit: 0, sprintStartedAt: null }
+    expect(validateMove({ ...start, infected: false }, step, 1000).ok).toBe(true)
+    expect(validateMove({ ...start, infected: true }, step, 1000)).toMatchObject({
+      ok: false,
+      reason: 'too_fast',
+    })
+  })
 })
 
 describe('tagging and scoring', () => {
@@ -129,10 +154,14 @@ describe('tagging and scoring', () => {
   })
 
   it('has a reachable ceiling, worked out with the real scoring', () => {
-    expect(rules.MAX_SCORE).toBe(930)
+    expect(rules.MAX_SCORE).toBe(670)
     expect(rules.MAX_SCORE).toBe(
       scoreFor(
-        { survivalSeconds: 180, patches: rules.PAR_PATCHES, tags: rules.PAR_TAGS },
+        {
+          survivalSeconds: rules.ROUND_MS / 1000,
+          patches: rules.PAR_PATCHES,
+          tags: rules.PAR_TAGS,
+        },
         { sideWon: true },
       ),
     )

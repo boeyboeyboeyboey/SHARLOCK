@@ -112,7 +112,7 @@ test('a survivor patches a station, wins the round, saves it and plays again', a
     await expect(results.getByRole('heading')).toContainText('Survivors win')
     await expect(results.getByRole('row', { name: student.username })).toContainText('✓ Survived')
     // 180 s clean, one patch and the winning side
-    await expect(page.getByTestId('tag-saved')).toHaveText('✓ Saved 330/930')
+    await expect(page.getByTestId('tag-saved')).toHaveText('✓ Saved 270/670')
     await expectResultsFit(page)
 
     await page.getByTestId('tag-again').click()
@@ -170,6 +170,9 @@ test('patient zero cannot use stations, infects everyone, saves the win and leav
   try {
     await control('zero')
     await expect(page.getByTestId('tag-status')).toHaveText('Infected')
+    // the round-start CLEAN banner may still be leaving, so match the infected one
+    const banner = page.getByTestId('tag-banner').filter({ hasText: 'INFECTED' })
+    await expect(banner).toContainText('Tag everyone!')
     await expect(page.getByTestId('tag-use')).toHaveCount(0)
 
     // past the grace period and the shortest round that saves; the page tags what it touches
@@ -180,7 +183,7 @@ test('patient zero cannot use stations, infects everyone, saves the win and leav
     await expect(results.getByRole('heading')).toContainText('Botnet wins')
     await expect(results.getByRole('row', { name: student.username })).toContainText('✕ Infected')
     // two tags and the winning side
-    await expect(page.getByTestId('tag-saved')).toHaveText('✓ Saved 160/930')
+    await expect(page.getByTestId('tag-saved')).toHaveText('✓ Saved 160/670')
     await expectResultsFit(page)
 
     await page.getByTestId('tag-leave').click()

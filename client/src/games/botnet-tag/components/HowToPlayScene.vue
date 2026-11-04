@@ -8,7 +8,7 @@ const CAPTIONS = [
   'The infected chase, you run',
   'Station reached: a shield appears',
   'Close enough: the survivor turns red',
-  'The timer runs down to 3:00',
+  'The 2:00 timer runs out',
 ]
 </script>
 

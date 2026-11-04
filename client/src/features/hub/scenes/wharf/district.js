@@ -377,9 +377,9 @@ export function buildDistrict({ world, signs }) {
   }
   house({
     x: 10,
-    z: 7.75,
+    z: 8.75,
     yaw: W_,
-    W: 4.5,
+    W: 2.5,
     D: 12,
     floors: 3,
     wall: 'brickYellow',
@@ -387,7 +387,7 @@ export function buildDistrict({ world, signs }) {
   })
   const post = house({
     x: 10,
-    z: -2,
+    z: 0,
     yaw: W_,
     W: 15,
     D: 12,
@@ -427,32 +427,66 @@ export function buildDistrict({ world, signs }) {
     fbox(b.wash, f, 2.6, 1.3, 1.7, 0.5, 0.08, 0.06, [0.05, 0.03, 0.03, 1])
     fbox(b.wash, f, 2.6, 0.12, 1.2, 1.1, 0.24, 1.1, [0.3, 0.3, 0.34, 1])
   }
+  // port sanitary station: two storey inspection house, lime washed ground floor, tall fumigation chimney and a yellow quarantine flag
+  {
+    const s = house({
+      x: 10,
+      z: -21.25,
+      yaw: W_,
+      W: 17,
+      D: 12,
+      floors: 2,
+      gf: 4.1,
+      fh: 3.3,
+      wall: 'brickRed',
+      color: [0.94, 0.84, 0.8, 1],
+      roof: 'along',
+      rise: 0.3,
+      nChimney: 0,
+      shopFronts: false,
+      litBias: -0.2,
+      fascia: 'sanitary',
+      doorColor: [0.14, 0.17, 0.2, 1],
+    })
+    const { f, W, D, H, gf } = s
+    const rh = D * 0.3
+    // lime wash skin on the ground floor, thinner than the window quads so they stay in front
+    fbox(
+      b.wash,
+      f,
+      0,
+      0.6 + (gf - 0.8) / 2,
+      -D / 2,
+      W + 0.06,
+      gf - 0.8,
+      D + 0.06,
+      [1.12, 1.08, 1.0, 1],
+    )
+    B.chimney(f, W * 0.3, -D * 0.65, H + 1, H + rh + 6.5, 'brickRed')
+    // flagpole on the front gable with a yellow quarantine flag
+    const fu = -W / 2 + 1.2
+    const fw = -1
+    const top = H + rh + 3.2
+    b.wash.bar(f.point(fu, H + 0.3, fw), f.point(fu, top, fw), 0.12, { color: IRON })
+    b.cloth.quad(
+      [
+        f.point(fu, top - 1.5, fw),
+        f.point(fu + 2.1, top - 1.5, fw),
+        f.point(fu + 2.1, top - 0.1, fw),
+        f.point(fu, top - 0.1, fw),
+      ],
+      { color: [1.25, 1.05, 0.2, 1], normal: f.dir(0, 0, 1) },
+    )
+  }
   house({
     x: 10,
-    z: -16,
+    z: -10.125,
     yaw: W_,
-    W: 13,
-    D: 12,
-    floors: 3,
-    wall: 'brickYellow',
-    color: [1, 0.94, 0.88, 1],
-    nChimney: 2,
-    fascia: 'chemist',
-    litBias: 0.2,
-    awn: stripes([0.2, 0.4, 0.34, 1], cream),
-  })
-  house({
-    x: 10,
-    z: -27.25,
-    yaw: W_,
-    W: 9.5,
+    W: 5.25,
     D: 12,
     floors: 3,
     wall: 'brickRed',
-    color: [0.95, 0.88, 0.84, 1],
-    fascia: 'bakery',
-    litBias: 0.2,
-    awn: stripes([0.62, 0.22, 0.3, 1], cream),
+    color: [0.98, 0.92, 0.88, 1],
   })
 
   // ---- second tier facing the east lane, and west of the street ----
@@ -544,16 +578,19 @@ export function buildDistrict({ world, signs }) {
     },
     -5,
   )
-  warehouse({
+  house({
     x: 41.5,
     z: 20.5,
     yaw: W_,
     W: 13,
-    D: 14,
+    D: 12,
+    floors: 3,
     wall: 'brickYellow',
-    color: [0.92, 0.82, 0.76, 1],
-    fascia: 'server-fascia',
-    doorColor: [0.12, 0.3, 0.2, 1],
+    color: [1, 0.94, 0.88, 1],
+    nChimney: 2,
+    fascia: 'chemist',
+    litBias: 0.2,
+    awn: stripes([0.2, 0.4, 0.34, 1], cream),
   })
   // quayside warehouses with the hoist over the water side
   warehouse(

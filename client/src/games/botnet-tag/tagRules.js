@@ -39,13 +39,22 @@ export function isUrgent(ms) {
   return ms > 0 && ms <= URGENT_MS
 }
 
-export const AUTO_TAG_REACH = 1.7
+export const AUTO_TAG_REACH = 1.5
 export const STATION_REACH = 1.8
 export const TAG_GAP_MS = 350
 export const USE_GAP_MS = 400
 export const TOAST_MS = 3000
 export const SPRINT_MS = 2500
 export const SPRINT_COOLDOWN_MS = 6000
+// mirrors the server: the botnet cannot sprint
+export const INFECTED_CAN_SPRINT = false
+
+// mirrors the server: infected players move at this share of the base speed
+export const INFECTED_SPEED_MULT = 0.8
+
+export const speedMultFor = (me) => (me?.infected ? INFECTED_SPEED_MULT : 1)
+
+export const canSprint = (me) => !me?.infected || INFECTED_CAN_SPRINT
 
 const gap = (a, b) => Math.hypot(a.x - b.x, a.z - b.z)
 

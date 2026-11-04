@@ -35,6 +35,7 @@ import {
   nearestStation,
   nearestTarget,
   sprintPhase,
+  canSprint,
 } from './tagRules.js'
 import { useTagSocket } from './useTagSocket.js'
 import './tag.css'
@@ -617,6 +618,7 @@ const blockedTitle = computed(() => {
         v-if="touchOn"
         :sprint-phase="sprintNow"
         :sprint-at="sprintAt"
+        :can-sprint="canSprint(me)"
         @joystick="(x, y) => arena?.setJoystick(x, y)"
         @jump="arena?.jump()"
         @sprint="arena?.sprint()"

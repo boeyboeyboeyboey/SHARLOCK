@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import TagBanner from './TagBanner.vue'
 import { IMMUNITY_MS, formatClock, isUrgent } from '../tagRules.js'
 
 const props = defineProps({
@@ -47,6 +48,7 @@ const status = computed(() => {
         /></span>
       </div>
     </div>
+    <TagBanner :self-infected="selfInfected" :watching="watching" />
     <div class="tag-status tag-glass" data-testid="tag-status">{{ status }}</div>
     <p v-if="graceMs > 0" class="tag-grace tag-glass" role="status" data-testid="tag-grace">
       Get ready: tagging starts in {{ Math.ceil(graceMs / 1000) }}s

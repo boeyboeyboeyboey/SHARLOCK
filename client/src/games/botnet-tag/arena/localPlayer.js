@@ -26,7 +26,15 @@ const typing = (target) =>
 // the hub player is welded to the wharf (havok capsule, lane graph, ground picking), so the arena gets a slim kinematic one:
 // same keys, same sprint and jump modules, movement checked against the server's own walkable test
 // input: what the previous player was holding when the arena rebuilt
-export function createLocalPlayer({ spawn, camera, reduced, onSprint = () => {}, input = null }) {
+export function createLocalPlayer({
+  spawn,
+  camera,
+  reduced,
+  onSprint = () => {},
+  canSprint = () => true,
+  speedMult = () => 1,
+  input = null,
+}) {
   const keys = new Set(input?.keys)
   const pos = { x: spawn.x, z: spawn.z }
   const pad = { x: input?.pad.x ?? 0, y: input?.pad.y ?? 0 }
@@ -43,7 +51,7 @@ export function createLocalPlayer({ spawn, camera, reduced, onSprint = () => {},
   let synced = input?.synced ?? false
 
   const startSprint = () => {
-    if (!enabled || !sprint.start()) return false
+    if (!enabled || !canSprint() || !sprint.start()) return false
     onSprint()
     return true
   }
@@ -78,7 +86,7 @@ export function createLocalPlayer({ spawn, camera, reduced, onSprint = () => {},
   window.addEventListener('blur', blur)
 
   function update(dt, server) {
-    const top = BASE_SPEED * sprint.multiplier()
+    const top = BASE_SPEED * speedMult() * sprint.multiplier()
     const ix = (keys.has('r') ? 1 : 0) - (keys.has('l') ? 1 : 0) + pad.x
     const iy = (keys.has('f') ? 1 : 0) - (keys.has('b') ? 1 : 0) + pad.y
     const manual = enabled && (Math.abs(ix) > 0.05 || Math.abs(iy) > 0.05)
