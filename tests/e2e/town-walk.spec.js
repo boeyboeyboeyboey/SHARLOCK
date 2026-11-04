@@ -215,3 +215,31 @@ test('finds a discovery with E and the Menu count goes up', async ({ page }, tes
   await page.getByTestId('menu-button').click()
   await expect(page.getByTestId('menu-discoveries')).toContainText('1/6')
 })
+
+test('walks with the touch joystick and stops on release', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile-chromium', 'needs a touch screen')
+  await page.goto('/dashboard')
+  const pad = page.getByTestId('town-joystick')
+  await expect(pad).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Sprint' })).toBeVisible()
+  const start = await feet(page)
+  const box = await pad.boundingBox()
+  const cx = box.x + box.width / 2
+  const cy = box.y + box.height / 2
+  const fire = (type, x, y) =>
+    pad.dispatchEvent(type, {
+      pointerId: 7,
+      pointerType: 'touch',
+      isPrimary: true,
+      clientX: x,
+      clientY: y,
+      bubbles: true,
+    })
+  await fire('pointerdown', cx, cy)
+  await fire('pointermove', cx + box.width / 2, cy)
+  await expect
+    .poll(async () => (await feet(page)).x - start.x, { intervals: [50] })
+    .toBeGreaterThan(30)
+  await fire('pointerup', cx + box.width / 2, cy)
+  await expect(page.getByTestId('town-player')).toHaveAttribute('data-moving', 'false')
+})

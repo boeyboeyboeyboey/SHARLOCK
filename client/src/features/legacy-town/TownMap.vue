@@ -14,10 +14,10 @@ import NpcDialogue from '../hub/NpcDialogue.vue'
 import { advanceTalk, useNpcDialogue } from '../hub/useNpcDialogue.js'
 import { useDiscoveries } from '../hub/discoveries.js'
 import { isEnterKey, isInteractKey, isSprintKey } from '../hub/controls.js'
-import PixelIcon from '../../components/town/PixelIcon.vue'
 import TownScenery from './TownScenery.vue'
 import TownBuildingArt from './TownBuildingArt.vue'
 import GameInfoCard from './GameInfoCard.vue'
+import TownTouchControls from './TownTouchControls.vue'
 import { useTownControls } from '../menu/townControls.js'
 
 const emit = defineEmits(['activate'])
@@ -32,6 +32,10 @@ const viewport = ref(null)
 const world = ref(null)
 const scale = ref(1)
 const dragging = ref(false)
+// touch screens get the stick and sprint button
+const coarsePointer = ref(false)
+let coarseQuery = null
+const syncCoarse = () => (coarsePointer.value = coarseQuery.matches)
 // the floor is the scale at which the whole town fits the viewport
 const minScale = ref(1)
 const maxScale = MAX_ZOOM
@@ -330,6 +334,18 @@ function walkingKey(event) {
     if (!pinned) dismiss()
   }
 }
+// touch stick: a move re-centres the follow camera and drops any pending tap-to-walk
+function stickMove(x, y) {
+  walker.setVector(x, y)
+  if ((x || y) && !following) {
+    following = true
+    camCenter = null
+  }
+  if ((x || y) && !pinned) dismiss()
+}
+function touchSprint() {
+  walker.startSprint()
+}
 function walkingKeyUp(event) {
   walker.keyUp(event)
 }
@@ -483,6 +499,11 @@ function resizeCamera() {
   })
 }
 onMounted(() => {
+  if (typeof matchMedia === 'function') {
+    coarseQuery = matchMedia('(pointer: coarse)')
+    syncCoarse()
+    coarseQuery.addEventListener?.('change', syncCoarse)
+  }
   // panzoom owns drag, pinch, focal zoom and boundary math for the town canvas
   const view = viewSize()
   const firstScale = Math.max(1, fitScale(view, FIT_WORLD))
@@ -521,6 +542,7 @@ onMounted(() => {
   if (controls?.jumpTo) controls.jumpTo.value = jumpTo
 })
 onBeforeUnmount(() => {
+  coarseQuery?.removeEventListener?.('change', syncCoarse)
   if (controls?.jumpTo?.value === jumpTo) controls.jumpTo.value = null
   cancelClose()
   cancelAnimationFrame(resizeFrame)
@@ -569,12 +591,18 @@ onBeforeUnmount(() => {
       <button
         class="pixel-button zoom-step reset-view"
         type="button"
-        aria-label="Reset view"
+        aria-label="Recentre on Sharlock"
         @click="resetCamera"
       >
-        <PixelIcon name="map" :size="20" />
+        Recentre
       </button>
     </div>
+    <TownTouchControls
+      v-if="coarsePointer && !props.paused && !selectedGame && !talk.open.value"
+      :sprint-state="walker.sprintState.value"
+      @move="stickMove"
+      @sprint="touchSprint"
+    />
     <div
       ref="frame"
       class="map-frame"

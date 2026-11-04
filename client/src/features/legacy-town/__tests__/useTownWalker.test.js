@@ -48,6 +48,44 @@ describe('town walker', () => {
     walker.dispose()
   })
 
+  it('walks with the analogue stick, combines with keys and stops on zero', () => {
+    const walker = useTownWalker({ walk, now: () => clock })
+    walker.setVector(0.5, 0)
+    run(1)
+    const half = walker.x.value - SPAWN.x
+    expect(half).toBeGreaterThan(50)
+    expect(half).toBeLessThan(70)
+    // stick right plus key right never exceeds full speed
+    press(walker, 'KeyD')
+    const before = walker.x.value
+    run(1)
+    expect(walker.x.value - before).toBeLessThan(130)
+    walker.keyUp({ code: 'KeyD' })
+    // an oversized diagonal is normalised
+    walker.setVector(1, 1)
+    const from = { x: walker.x.value, y: walker.y.value }
+    run(1)
+    const dist = Math.hypot(walker.x.value - from.x, walker.y.value - from.y)
+    expect(dist).toBeLessThan(130)
+    walker.setVector(0, 0)
+    run(0.1)
+    expect(walker.moving.value).toBe(false)
+    walker.dispose()
+  })
+
+  it('cancels a tap-to-walk target when the stick moves', () => {
+    const walker = useTownWalker({ walk, now: () => clock })
+    walker.walkTo(SPAWN.x + 300, SPAWN.y)
+    walker.setVector(0, 1)
+    run(0.5)
+    expect(walker.x.value).toBeCloseTo(SPAWN.x, 0)
+    expect(walker.y.value).toBeGreaterThan(SPAWN.y)
+    walker.setVector(0, 0)
+    run(0.2)
+    expect(walker.moving.value).toBe(false)
+    walker.dispose()
+  })
+
   it('sprints at 1.6x for a burst and ignores a second burst while cooling', () => {
     const walker = useTownWalker({ walk, now: () => clock })
     walker.startSprint()

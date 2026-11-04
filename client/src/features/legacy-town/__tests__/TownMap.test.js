@@ -50,7 +50,7 @@ describe('town map controls', () => {
     expect(zoom.findAll('button').map((node) => node.attributes('aria-label'))).toEqual([
       'Zoom in',
       'Zoom out',
-      'Reset view',
+      'Recentre on Sharlock',
     ])
     expect(zoom.get('output').attributes('aria-label')).toBe('Map zoom level')
     expect(wrapper.find('select').exists()).toBe(false)

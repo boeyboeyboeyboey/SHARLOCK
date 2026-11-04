@@ -376,7 +376,7 @@ test('zooms with controls and keyboard, resets the camera, and keeps buildings r
   for (let i = 0; i < 8; i++) await page.keyboard.press('-')
   await expect(zoomOut).toBeDisabled()
   expect(Number((await level.innerText()).replace('%', ''))).toBeLessThan(100)
-  await page.getByRole('button', { name: 'Reset view' }).click()
+  await page.getByRole('button', { name: 'Recentre on Sharlock' }).click()
   await expect(level).toHaveText('100%')
   for (let i = 0; i < 4; i++) await zoomIn.click()
   await expect(level).toHaveText('200%')
@@ -411,7 +411,7 @@ test('zooms with controls and keyboard, resets the camera, and keeps buildings r
   await expect(level).toHaveText('175%')
   await page.keyboard.press('0')
   await expect(level).toHaveText('100%')
-  await page.getByRole('button', { name: 'Reset view' }).click()
+  await page.getByRole('button', { name: 'Recentre on Sharlock' }).click()
   // reset view brings Sharlock (at the last door) back into view
   await expect
     .poll(() =>
@@ -496,7 +496,7 @@ test('supports pinch zoom and wheel panning while retaining camera bounds after 
   await session.detach()
   await expect.poll(() => page.getByLabel('Map zoom level').textContent()).not.toBe('100%')
   await expect(page.locator('.game-info-card')).toHaveCount(0)
-  await page.getByRole('button', { name: 'Reset view' }).click()
+  await page.getByRole('button', { name: 'Recentre on Sharlock' }).click()
   await expect(page.getByLabel('Map zoom level')).toHaveText('100%')
   // centre-left keeps the pointer clear of the Menu tab and the zoom stack
   await page.mouse.move(bounds.x + 20, bounds.y + bounds.height / 2)
