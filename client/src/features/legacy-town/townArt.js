@@ -54,8 +54,9 @@ const parts = {
     s += R(20, 30, 2, 5, INK) + R(26, 30, 2, 5, INK)
     s += B(19, 36, 10, 10, INK) + R(20, 38, 8, 8, '#7b513d') + R(24, 38, 1, 8, '#5b4a3a')
     s += R(20, 37, 8, 1, '#a9b9cc')
-    s += R(13, -2, 1, 10, INK) + R(14, -2, 6, 3, '#c9715c') + R(14, -2, 6, 1, '#e08a72')
-    s += B(28, -1, 7, 5, '#6f7f93') + R(35, 0, 2, 3, '#fff3b0') + '</g>'
+    // flag and signal lamp sit on the wing roofs so nothing pokes up into the label above
+    s += R(42, 19, 1, 10, INK) + R(43, 19, 5, 3, '#c9715c') + R(43, 19, 5, 1, '#e08a72')
+    s += B(4, 24, 7, 5, '#6f7f93') + R(11, 25, 2, 3, '#fff3b0') + '</g>'
     return { w: 56, h: 56, vy: 0, body: s }
   },
   pub() {
