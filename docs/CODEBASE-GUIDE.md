@@ -264,7 +264,7 @@ pnpm test:e2e
 
 **Safety guard.** [assertSafeTestDatabaseUri](../server/src/config/database-uri.js) refuses any test URI whose database name does not end in `_test`, and refuses a name equal to the development database. Tests never fall back to the development database.
 
-Test counts and the latest full run are in [SUBMISSION-README.md](SUBMISSION-README.md). Course alignment for testing is in [course-alignment.md](course-alignment.md).
+Test counts and the latest full run are in the README for markers in the submission zip. Course alignment for testing is in [course-alignment.md](course-alignment.md).
 
 ## 12. Where to read next
 
