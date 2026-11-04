@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { nearestStation, nearestTarget, sprintPhase } from '../tagRules.js'
+import { canSprint, speedMultFor, nearestStation, nearestTarget, sprintPhase } from '../tagRules.js'
 
 const me = { sid: 'me', x: 0, z: 0 }
 
@@ -37,5 +37,20 @@ describe('sprintPhase', () => {
     expect(sprintPhase(1000, 2000)).toBe('active')
     expect(sprintPhase(1000, 5000)).toBe('cooldown')
     expect(sprintPhase(1000, 20000)).toBe('ready')
+  })
+})
+
+describe('canSprint', () => {
+  it('lets survivors sprint and keeps the botnet on foot', () => {
+    expect(canSprint({ infected: false })).toBe(true)
+    expect(canSprint(undefined)).toBe(true)
+    expect(canSprint({ infected: true })).toBe(false)
+  })
+})
+
+describe('speedMultFor', () => {
+  it('slows only the infected, matching the server', () => {
+    expect(speedMultFor({ infected: false })).toBe(1)
+    expect(speedMultFor({ infected: true })).toBe(0.8)
   })
 })

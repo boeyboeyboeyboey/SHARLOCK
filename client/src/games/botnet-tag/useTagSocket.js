@@ -3,6 +3,7 @@ import {
   MAX_EVENTS,
   MAX_FAILED_CONNECTS,
   MOVE_GAP_MS,
+  canSprint,
   closeDecision,
   reconnectDelay,
   tagUrl,
@@ -188,7 +189,9 @@ export function createTagSocket({
     leave,
     handleMessage,
     ready: (ready) => send({ type: 'ready', ready: Boolean(ready) }),
-    sprint: () => send({ type: 'sprint' }),
+    sprint: () =>
+      canSprint(state.players.find((player) => player.sid === state.sid)) &&
+      send({ type: 'sprint' }),
     tag: (target) => send({ type: 'tag', target }),
     station: (id) => send({ type: 'station', id }),
     submit: (submission) => send({ type: 'submit', submission }),

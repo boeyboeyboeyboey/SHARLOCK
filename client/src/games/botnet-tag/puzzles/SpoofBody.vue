@@ -11,8 +11,9 @@ watch(index, (value) => emit('change', value >= 0 ? { index: value } : null), { 
 
 <template>
   <div data-testid="puzzle-spoof">
-    <p v-if="data.org" class="pz-meta">
-      <span class="tag-chip">{{ data.org }}</span>
+    <p v-if="data.org" class="pz-org" data-testid="spoof-org">
+      <span class="pz-org-label">Mail claiming to be from</span>
+      <strong class="pz-org-name">{{ data.org }}</strong>
     </p>
     <ChoiceList v-model="index" name="spoof" :items="data.senders">
       <template #default="{ item }"

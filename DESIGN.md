@@ -216,14 +216,14 @@ The six activities are already registered. Keep their identities and placements 
 
 | Feature                                   | Catalog ID / route suffix      | Building  | Position   | Readiness                  |
 | ----------------------------------------- | ------------------------------ | --------- | ---------- | -------------------------- |
-| CLI Cyber Defender                        | `cli-cyber-defender`           | cottage   | (234, 200) | Playable, saved (accepted) |
+| CLI Cyber Defender                        | `cli-cyber-defender`           | cottage   | (232, 180) | Playable, saved (accepted) |
 | The Phishing Post-Mortem                  | `phishing-post-mortem`         | library   | (664, 380) | Playable, saved (Done)     |
 | SQL Injection Arcade                      | `sql-injection-arcade`         | hut       | (694, 180) | Saved practice             |
 | Cyber News Central / The daily briefing   | `threat-briefing`              | newsstand | (424, 0)   | Accepted                   |
-| LLM Social Engineering Simulator          | `social-engineering-simulator` | office    | (234, 400) | Playable, saved (Done)     |
-| Clearance Tower (replaced Regex Defender) | `clearance-tower`              | shed      | (879, 565) | Playable, saved (Done)     |
+| LLM Social Engineering Simulator          | `social-engineering-simulator` | office    | (264, 580) | Playable, saved (Done)     |
+| Clearance Tower (replaced Regex Defender) | `clearance-tower`              | shed      | (264, 380) | Playable, saved (Done)     |
 
-A game that only works in 3D sets `needs3d: true` in its catalog entry: the 2D info card and the Places row then show a small "3D" badge (`aria-label` "Needs 3D"), and the game page shows a short "Needs 3D" state when WebGL2 is missing (the 2D town setting does not block it). Botnet Tag (`botnet-tag`, `warehouse` building at (600, 580), Server Yard on the east lane of the wharf) is the first.
+A game that only works in 3D sets `needs3d: true` in its catalog entry: the 2D info card and the Places row then show a small "3D" badge (`aria-label` "Needs 3D"), and the game page shows a short "Needs 3D" state when WebGL2 is missing (the 2D town setting does not block it). Botnet Tag (`botnet-tag`, `sanitary` building at (664, 580), the Port Sanitary Station below Phish on the wharf) is the first.
 
 Each `gameCatalog.js` entry also carries two optional row fields: `shortName` (one line, at most 18 characters, validated) and `accent` (a six digit hex colour for the destination row's left bar, taken from the game's own theme and at least 3:1 against the dark glass; validated). Set both for a new game.
 

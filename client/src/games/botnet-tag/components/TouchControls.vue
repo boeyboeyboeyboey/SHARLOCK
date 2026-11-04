@@ -5,6 +5,7 @@ import { SPRINT_COOLDOWN_MS, SPRINT_MS } from '../tagRules.js'
 const props = defineProps({
   sprintPhase: { type: String, default: 'ready' },
   sprintAt: { type: Number, default: 0 },
+  canSprint: { type: Boolean, default: true },
 })
 const emit = defineEmits(['joystick', 'jump', 'sprint'])
 
@@ -72,6 +73,7 @@ onBeforeUnmount(release)
       Jump
     </button>
     <button
+      v-if="props.canSprint"
       type="button"
       class="tag-sprint"
       data-testid="tag-sprint"

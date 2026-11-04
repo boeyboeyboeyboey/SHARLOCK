@@ -23,7 +23,7 @@ describe('botnet tag how to play', () => {
     expect(rules).toContain('class practice board')
     expect(rules).not.toContain('no leaderboard')
     expect(rules).toContain('under 20 seconds')
-    expect(rules).toContain('first 5 seconds')
+    expect(rules).toContain('first 10 seconds')
     expect(rules).toContain('45 seconds')
   })
 

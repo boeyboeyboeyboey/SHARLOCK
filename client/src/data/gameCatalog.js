@@ -7,7 +7,7 @@ export const BUILDING_TYPES = [
   'hut',
   'shed',
   'newsstand',
-  'warehouse',
+  'sanitary',
 ]
 
 export function defineGameCatalog(entries) {
@@ -67,7 +67,7 @@ export const gameCatalog = defineGameCatalog([
     isPreview: false,
     duration: '2 min + debrief',
     icon: 'shield',
-    building: { type: 'cottage', x: 234, y: 200 },
+    building: { type: 'cottage', x: 232, y: 180 },
   },
   {
     id: 'phishing-post-mortem',
@@ -129,7 +129,7 @@ export const gameCatalog = defineGameCatalog([
     isPreview: false,
     duration: '5 min',
     icon: 'people',
-    building: { type: 'office', x: 234, y: 400 },
+    building: { type: 'office', x: 264, y: 580 },
   },
   {
     id: 'clearance-tower',
@@ -148,7 +148,7 @@ export const gameCatalog = defineGameCatalog([
     isPreview: false,
     duration: '10 min',
     icon: 'lock',
-    building: { type: 'shed', x: 879, y: 565 },
+    building: { type: 'shed', x: 264, y: 380 },
   },
   {
     id: 'botnet-tag',
@@ -162,8 +162,8 @@ export const gameCatalog = defineGameCatalog([
     route: '/games/botnet-tag',
     isPreview: false,
     needs3d: true,
-    duration: '3 min round',
+    duration: '2 min round',
     icon: 'people',
-    building: { type: 'warehouse', x: 600, y: 580 },
+    building: { type: 'sanitary', x: 664, y: 580 },
   },
 ])

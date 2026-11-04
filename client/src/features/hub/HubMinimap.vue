@@ -202,7 +202,10 @@ function onKeydown(event) {
             :key="pin.id"
             type="button"
             class="hub-map-pin"
-            :class="{ 'is-selected': selected === pin.id }"
+            :class="{
+              'is-selected': selected === pin.id,
+              'is-east': pin.at.left > 85,
+            }"
             :data-testid="`hub-map-${pin.id}`"
             :aria-label="`Travel to ${pin.name}`"
             :aria-pressed="String(selected === pin.id)"
@@ -343,6 +346,12 @@ function onKeydown(event) {
   white-space: nowrap;
   transform: translateX(-50%);
   pointer-events: none;
+}
+/* a pin on the east edge hangs its label leftwards so the map frame does not clip it */
+.hub-map-pin.is-east .hub-map-label {
+  left: auto;
+  right: calc(50% - 6px);
+  transform: none;
 }
 .hub-map-pin.is-selected .hub-map-label {
   background: var(--accent-primary);

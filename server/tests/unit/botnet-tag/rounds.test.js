@@ -177,9 +177,13 @@ describe('starting a round', () => {
     expect(p.move('s1', { x: me.x + 15, z: me.z }, t + 100).ok).toBe(false)
   })
 
-  it('limits sprint by cooldown', () => {
+  it('limits sprint by cooldown, and refuses it to the infected', () => {
     const round = startPlay(3)
     const t = COUNTDOWN_MS
+    const zero = round.players().find((player) => player.infected)
+    expect(round.sprint(zero.sid, t)).toEqual({ ok: false, reason: 'infected' })
+    expect(zero.sprintStartedAt).toBeNull()
+    round.getPlayer('s1').infected = false
     expect(round.sprint('s1', t).ok).toBe(true)
     expect(round.sprint('s1', t + 3000).reason).toBe('cooldown')
     expect(round.sprint('s1', t + 8500).ok).toBe(true)
@@ -588,7 +592,7 @@ describe('the ceiling', () => {
   it('is reached by a fast solver, and the score stops there', () => {
     const row = fastSurvivorRound()
     expect(row.outcome).toBe('survived')
-    expect(row.patches).toBeGreaterThanOrEqual(13)
+    expect(row.patches).toBeGreaterThanOrEqual(9)
     expect(row.score).toBe(MAX_SCORE)
     const { score } = botnetTagRuleset.summarize({
       outcome: row.outcome,
@@ -636,8 +640,8 @@ describe('round end and results', () => {
     expect(clean).toMatchObject({
       outcome: 'survived',
       sideWon: true,
-      survivalSeconds: 180,
-      score: 280,
+      survivalSeconds: 120,
+      score: 220,
       startedInfected: false,
       cleanAtEnd: 2,
     })

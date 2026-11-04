@@ -1,7 +1,10 @@
 import { walkable } from './arena.js'
-import { BASE_SPEED, STATION_REACH, TAG_REACH } from './rules.js'
+import { BASE_SPEED, INFECTED_SPEED_MULT, STATION_REACH, TAG_REACH } from './rules.js'
 
 const BOT_SPEED = BASE_SPEED * 0.85
+// clean bots slow down while a human is patient zero, so a solo human patient zero can catch them
+const BOT_SPEED_VS_HUMAN = BASE_SPEED * 0.72
+const HUNTER_SPEED = BASE_SPEED * 0.85 * INFECTED_SPEED_MULT
 const MAX_STEP_MS = 250
 const FLEE_RANGE = 7
 const SOLVE_MIN_MS = 4000
@@ -28,12 +31,13 @@ function nearest(from, list) {
 }
 
 // walks one tick toward (or away from) a point through the same move validation as humans
-function walk(round, bot, goal, now, away = false) {
+function walk(round, bot, goal, now, away = false, speed = null) {
   const dt = Math.min(Math.max(now - (bot.lastMoveAt ?? now), 0), MAX_STEP_MS) / 1000
   if (dt === 0) return
   const sign = away ? -1 : 1
   const heading = Math.atan2(sign * (goal.x - bot.x), sign * (goal.z - bot.z))
-  const stride = BOT_SPEED * dt
+  const humanHunter = round.players().some((p) => p.startedInfected && !p.isBot)
+  const stride = (speed ?? (humanHunter ? BOT_SPEED_VS_HUMAN : BOT_SPEED)) * dt
   for (const turn of TURNS) {
     const angle = heading + turn
     const x = bot.x + Math.sin(angle) * stride
@@ -50,7 +54,7 @@ function hunt(round, bot, now) {
   const target = nearest(bot, prey.length ? prey : clean)
   if (!target) return
   if (prey.length && gap(bot, target) <= TAG_REACH) round.tag(bot.sid, target.sid, now)
-  else walk(round, bot, target, now)
+  else walk(round, bot, target, now, false, HUNTER_SPEED)
 }
 
 function patrol(round, bot, brain, now, rng) {

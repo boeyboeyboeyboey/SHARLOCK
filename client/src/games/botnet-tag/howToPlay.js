@@ -3,7 +3,7 @@ export const HOW_TO_PLAY = Object.freeze({
   steps: [
     {
       title: 'Stay clean',
-      text: 'Run from the infected. Hold Shift to sprint for a moment.',
+      text: 'Run from the infected. Hold Shift to sprint for a moment; the infected cannot sprint.',
     },
     {
       title: 'Patch a station',
@@ -15,14 +15,14 @@ export const HOW_TO_PLAY = Object.freeze({
     },
     {
       title: 'Beat the clock',
-      text: 'Survivors win if anyone is still clean at 3:00. The botnet wins by infecting everyone.',
+      text: 'Survivors win if anyone is still clean when the 2:00 clock runs out. The botnet wins by infecting everyone.',
     },
   ],
   learn:
     'how worms and botnets spread and how patching and filtering stop them (CS440 software security and network security topics). Everything is a game; nothing real is touched.',
   rules: [
     'Three to eight players. Bots fill the room to three.',
-    'One player starts infected, far from the others. Nobody can tag for the first 5 seconds.',
+    'One player starts infected, far from the others. Nobody can tag for the first 10 seconds, and the infected run 20% slower than you.',
     'Immune players cannot be infected.',
     'A wrong answer locks the station for you for a few seconds.',
     'Press Ready within 45 seconds or you leave the lobby.',

@@ -9,7 +9,7 @@
   --game-bad: #ff5a4d;
   --game-good: #6fe39a;
   --game-warn: #ffc65a;
-  --game-bot: #8bff5a;
+  --game-bot: #9aa83a;
   --game-radius: 10px;
   position: fixed;
   inset: 0;
@@ -333,9 +333,54 @@
   position: absolute;
   top: 60px;
   left: 12px;
-  padding: 6px 12px;
-  font-size: 13px;
+  padding: 8px 14px;
+  font-size: 15px;
   font-weight: 700;
+}
+.botnet-tag-game .tag-banner {
+  position: absolute;
+  top: 28%;
+  left: 50%;
+  display: grid;
+  gap: 4px;
+  max-width: calc(100vw - 32px);
+  text-align: center;
+  pointer-events: none;
+  transform: translateX(-50%);
+  text-shadow: 0 2px 12px rgb(0 0 0 / 80%);
+}
+.botnet-tag-game .tag-banner b {
+  font-size: clamp(40px, 9vw, 84px);
+  line-height: 1;
+  letter-spacing: 0.06em;
+}
+.botnet-tag-game .tag-banner span {
+  font-size: clamp(15px, 2.4vw, 22px);
+  font-weight: 600;
+}
+.botnet-tag-game .tag-banner.is-infected b {
+  color: var(--game-bot);
+}
+.botnet-tag-game .tag-banner.is-clean b {
+  color: var(--game-good);
+}
+.botnet-tag-game .tag-banner-enter-active,
+.botnet-tag-game .tag-banner-leave-active {
+  transition:
+    opacity 0.5s ease,
+    transform 0.5s ease;
+}
+.botnet-tag-game .tag-banner-enter-from {
+  opacity: 0;
+  transform: translateX(-50%) scale(1.3);
+}
+.botnet-tag-game .tag-banner-leave-to {
+  opacity: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .botnet-tag-game .tag-banner-enter-from {
+    transform: translateX(-50%);
+  }
 }
 .botnet-tag-game .tag-immunity {
   position: absolute;
@@ -492,6 +537,23 @@
   flex: 1;
   min-width: 0;
   overflow-wrap: anywhere;
+}
+.botnet-tag-game .pz-org {
+  display: grid;
+  gap: 2px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-left: 4px solid var(--game-warn);
+  border-radius: 6px;
+  background: rgb(255 255 255 / 8%);
+}
+.botnet-tag-game .pz-org-label {
+  color: var(--game-muted);
+  font-size: 13px;
+}
+.botnet-tag-game .pz-org-name {
+  font-size: 22px;
+  line-height: 1.2;
 }
 .botnet-tag-game .pz-mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;

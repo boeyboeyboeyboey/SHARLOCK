@@ -1,5 +1,5 @@
 import { Schema } from 'mongoose'
-import { MAX_SCORE, ROUND_MS, scoreFor } from './rules.js'
+import { MAX_SCORE, scoreFor } from './rules.js'
 
 export const GAME_ID = 'botnet-tag'
 export const RULESET_VERSION = '2'
@@ -8,7 +8,8 @@ export const LEGACY_RULESET_VERSION = '1'
 const OUTCOMES = ['infected', 'survived']
 const MAX_PATCHES = 60
 const MAX_TAGS = 8
-const ROUND_SECONDS = ROUND_MS / 1000
+// the longest round ever played under @2 was 180 s; shortening rounds must not invalidate saved ones
+const ROUND_SECONDS = 180
 const LEGACY_MAX_SCORE = ROUND_SECONDS + 50 * MAX_PATCHES + 30 * MAX_TAGS + 100
 
 const createStateSchema = () =>

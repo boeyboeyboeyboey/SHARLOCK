@@ -415,7 +415,7 @@ All commands manipulate fictional game state. Never invoke a shell, firewall, op
 **Architectural blueprint**
 
 - Route/ID: `/games/cli-cyber-defender` / `cli-cyber-defender`.
-- Town entry: `cottage` at `{ x: 234, y: 200 }` in the shared catalog, reused by the implementation recorded below; no second building or route.
+- Town entry: `cottage` at `{ x: 232, y: 180 }` in the shared catalog, reused by the implementation recorded below; no second building or route.
 - `CliDefenderGame.vue`: owns the attempt and composes the following components.
 - `TerminalPanel.vue`: props `{ lines, disabled }`; emits `submit-command(command)`.
 - `IncidentBanner.vue`: props `{ incident, remainingMs }`.
