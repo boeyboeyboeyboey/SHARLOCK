@@ -40,7 +40,7 @@ const MAX_COUNTER = 999
 const MAX_NAME = 32
 const NOTICE_MS = 4000
 const STATION_TAKEN = 'Someone patched this station first'
-const BOT_NAMES = ['Ada', 'Grace', 'Linus', 'Alan', 'Ken', 'Dennis', 'Hedy', 'Tim']
+const BOT_NAMES = ['Qing Rui', 'Huxley', 'Denzel', 'Shar', 'Lay Foo', 'Cass', 'Altman', 'Dario']
 
 const isTime = (value) => typeof value === 'number' && Number.isFinite(value)
 const round2 = (value) => Math.round(value * 100) / 100
