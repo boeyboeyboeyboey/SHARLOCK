@@ -538,6 +538,23 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
+.botnet-tag-game .pz-org {
+  display: grid;
+  gap: 2px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-left: 4px solid var(--game-warn);
+  border-radius: 6px;
+  background: rgb(255 255 255 / 8%);
+}
+.botnet-tag-game .pz-org-label {
+  color: var(--game-muted);
+  font-size: 13px;
+}
+.botnet-tag-game .pz-org-name {
+  font-size: 22px;
+  line-height: 1.2;
+}
 .botnet-tag-game .pz-mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 14px;

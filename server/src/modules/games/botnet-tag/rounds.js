@@ -36,7 +36,7 @@ import { stepBot } from './bots.js'
 
 const MAX_EVENTS = 50
 const MAX_COUNTER = 999
-const MAX_NAME = 24
+const MAX_NAME = 32
 const NOTICE_MS = 4000
 const STATION_TAKEN = 'Someone patched this station first'
 const BOT_NAMES = ['Ada', 'Grace', 'Linus', 'Alan', 'Ken', 'Dennis', 'Hedy', 'Tim']
