@@ -571,6 +571,12 @@ All records in this section were Review until 1 November 2026, when Boey accepte
 
 ## Review
 
+**MENU-03 — No pixel wipe for overlays over the town** · Status: **Review** · Contributor: **Boey** (plan approved by Boey, 4 November 2026) · Branch: `menu-03-overlay-themes` (cut from `origin/main` at `57c153f`).
+- **Rule:** no wipe while the town stays behind: town → overlay, overlay → town and overlay → overlay (Profile, Leaderboard, Classes, About, Settings, Discoveries, the Times). Game doors, sign-in/register, join-class, instructor, admin and an overlay opened from a non-town page (for example a game) keep their wipe.
+- **Supersedes:** the Profile, Classes, Leaderboard and About tab wipes from town recorded in Eric's route-transition fixes (accepted 1 November 2026); tell Eric.
+- **Changes:** `client/src/features/auth/pixel-wipe.js` (`overTown` guard in `installPageWipes`), `components/PixelWipe.vue` (`data-testid="pixel-wipe"` for the E2E), `__tests__/pixel-wipe.test.js` (test router mirrors the real `meta.overlay`; overlay open/close, overlay → overlay and game → overlay cases), `tests/e2e/portal.spec.js` (opens Profile and its Progress tab from the 2D town and closes it with no wipe).
+- **Docs:** auth README wipe rules. DESIGN.md has no wipe rule, so no change.
+
 All records in this section were Review until 1 November 2026, when Boey accepted every Review record at once, teammates' work included as team lead (DOC-20). They are Done and stay here so existing links keep working.
 
 **QA-04 — Lint and test-suite stability fixes** · Status: **Done** (accepted by Boey, 1 November 2026) · Contributor: **Xin Lei** · Branch: `qa-04-test-and-lint-fixes` (cut from `origin/main` at `1fc72c7`, 30 October 2026).
