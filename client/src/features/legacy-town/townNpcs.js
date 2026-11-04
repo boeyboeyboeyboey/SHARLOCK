@@ -9,10 +9,10 @@ export const NEAR_PAUSE = 80
 // feet positions in world px; wanderer routes start at their post and loop
 const NPC_PLACES = {
   'customs-officer': { x: 890, y: 386, facing: 'left' },
-  'telegraph-clerk': { x: 226, y: 404, facing: 'right' },
+  'telegraph-clerk': { x: 226, y: 386, facing: 'right' },
   postmaster: { x: 860, y: 586, facing: 'left' },
-  'police-constable': { x: 875, y: 770, facing: 'right' },
-  publican: { x: 225, y: 606, facing: 'right' },
+  'police-constable': { x: 256, y: 596, facing: 'right' },
+  publican: { x: 256, y: 786, facing: 'right' },
   'server-keeper': { x: 826, y: 786, facing: 'left' },
   'news-vendor': { x: 620, y: 206, facing: 'left' },
   fisherman: {
@@ -50,9 +50,9 @@ const NPC_PLACES = {
   },
   'flower-seller': {
     route: [
-      [460, 700],
-      [460, 770],
-      [490, 770],
+      [492, 700],
+      [492, 770],
+      [512, 770],
     ],
   },
 }
@@ -62,7 +62,7 @@ const FIND_PLACES = {
   tailgater: { x: 50, y: 458, facing: 'right' },
   'usb-stick': { x: 1085, y: 600 },
   'shoulder-surfer': { x: 1080, y: 690, facing: 'left' },
-  'open-telegraph': { x: 400, y: 770 },
+  'open-telegraph': { x: 452, y: 240 },
   handbill: { x: 140, y: 775 },
 }
 

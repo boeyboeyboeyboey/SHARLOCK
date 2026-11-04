@@ -215,8 +215,9 @@ export function propsMarkup() {
   return [
     smallSvg(20, 330, 36, 28, house, 340),
     smallSvg(36, 560, 38, 24, stall, 590),
-    smallSvg(344, 628, 30, 18, cart, 700),
+    smallSvg(920, 610, 30, 18, cart, 700),
     smallSvg(168, 676, 16, 10, bench, 690),
+    smallSvg(900, 720, 16, 10, bench, 730),
     smallSvg(936, 440, 18, 16, crates, 450),
   ].join('')
 }
@@ -284,7 +285,8 @@ export function groundMarkup() {
     path(52, 145, 67, 7) +
     path(160, 90, 68, 7) +
     path(160, 140, 59, 7) +
-    path(160, 186, 111, 7)
+    path(52, 191, 67, 7) +
+    path(160, 191, 59, 7)
   g += path(108, 164, 64, 34, 'url(#tw-cob)')
   // fountain
   g += R(131, 172, 18, 14, INK) + R(132, 173, 16, 12, '#cbb99b') + R(134, 175, 12, 8, '#8fc4cc')
@@ -449,7 +451,6 @@ export const townTrees = [
   { x: 0, y: 650 },
   { x: 0, y: 725 },
   { x: 80, y: 735 },
-  { x: 300, y: 735 },
   { x: 1056, y: 250 },
   { x: 1056, y: 420 },
   { x: 1056, y: 500 },
@@ -461,7 +462,8 @@ export const townBushes = [
   { x: 960, y: 395 },
   { x: 1000, y: 530 },
   { x: 900, y: 335 },
-  { x: 200, y: 750 },
+  { x: 140, y: 750 },
+  { x: 980, y: 745 },
   { x: 592, y: 744 },
   { x: 1056, y: 770 },
 ]

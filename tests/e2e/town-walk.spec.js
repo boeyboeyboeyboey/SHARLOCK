@@ -87,8 +87,8 @@ test('walks with the keys to a door and opens the building with E', async ({ pag
   await expect(player).toHaveAttribute('data-facing', 'down')
   const start = await feet(page)
 
-  // the office door is at (330, 600), level with the start on open ground to the left
-  const game = gameCatalog.find((item) => item.id === 'social-engineering-simulator')
+  // the tower door is at (360, 580), level with the start on open ground to the left
+  const game = gameCatalog.find((item) => item.id === 'clearance-tower')
   const door = { x: game.building.x + 96, y: game.building.y + 200 }
   // hold until just short of the door, then tap one step at a time until its prompt shows
   await hold(page, 'KeyA', 'x', -1, door.x + 50)
@@ -186,13 +186,13 @@ test('talks to a keeper with E and steps through the dialogue', async ({ page },
   test.skip(testInfo.project.name !== 'desktop-chromium', 'needs a physical keyboard')
   test.setTimeout(60_000)
   await page.goto('/dashboard')
-  // the publican stands left of the office door on the start row
+  // the constable stands left of the tower door on the start row
   await walkToTalk(page, 'KeyA', 'x', -1, 300)
-  await expect(page.getByTestId('talk-prompt')).toHaveAccessibleName('Talk to Publican')
+  await expect(page.getByTestId('talk-prompt')).toHaveAccessibleName('Talk to Police constable')
   await page.keyboard.press('KeyE')
   const dialogue = page.getByTestId('npc-dialogue')
   await expect(dialogue).toBeVisible()
-  await expect(dialogue.getByRole('heading', { name: 'Publican' })).toBeVisible()
+  await expect(dialogue.getByRole('heading', { name: 'Police constable' })).toBeVisible()
   const first = await page.getByTestId('npc-line').innerText()
   await page.keyboard.press('KeyE')
   await expect(page.getByTestId('npc-line')).not.toHaveText(first)

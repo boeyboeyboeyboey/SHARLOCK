@@ -161,12 +161,12 @@ describe('walking Sharlock', () => {
     key('keyup', 'KeyA')
     await frames(3)
     expect(wrapper.get('[data-testid="talk-prompt"]').attributes('aria-label')).toBe(
-      'Talk to Publican',
+      'Talk to Police constable',
     )
     key('keydown', 'KeyE')
     await flushPromises()
     const first = wrapper.get('[data-testid="npc-line"]').text()
-    expect(wrapper.get('[data-testid="npc-dialogue"]').text()).toContain('Publican')
+    expect(wrapper.get('[data-testid="npc-dialogue"]').text()).toContain('Police constable')
     key('keydown', 'KeyE')
     await flushPromises()
     expect(wrapper.get('[data-testid="npc-line"]').text()).not.toBe(first)
@@ -176,7 +176,7 @@ describe('walking Sharlock', () => {
     }
     await wrapper.get('[data-testid="npc-enter"]').trigger('click')
     expect(wrapper.find('[data-testid="npc-dialogue"]').exists()).toBe(false)
-    expect(wrapper.get('[id^="game-card-"]').text()).toContain('LLM Social Engineering Simulator')
+    expect(wrapper.get('[id^="game-card-"]').text()).toContain('Clearance Tower')
     wrapper.unmount()
   })
 
