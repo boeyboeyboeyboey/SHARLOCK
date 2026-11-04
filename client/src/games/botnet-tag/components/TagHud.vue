@@ -1,13 +1,14 @@
 <script setup>
 import { computed } from 'vue'
 import TagBanner from './TagBanner.vue'
-import { IMMUNITY_MS, formatClock, isUrgent } from '../tagRules.js'
+import { IMMUNITY_MS, TAG_COOLDOWN_MS, formatClock, isUrgent } from '../tagRules.js'
 
 const props = defineProps({
   msLeft: { type: Number, default: 0 },
   infected: { type: Number, default: 0 },
   total: { type: Number, default: 0 },
   immunityMs: { type: Number, default: 0 },
+  tagCooldownMs: { type: Number, default: 0 },
   selfInfected: { type: Boolean, default: false },
   watching: { type: Boolean, default: false },
   graceMs: { type: Number, default: 0 },
@@ -18,6 +19,11 @@ const props = defineProps({
 const urgent = computed(() => isUrgent(props.msLeft))
 const immune = computed(() => props.immunityMs > 0)
 const immunePct = computed(() => Math.min(100, (props.immunityMs / IMMUNITY_MS) * 100))
+const tagReady = computed(() => props.tagCooldownMs <= 0)
+// the bar fills back up while the next tag recharges
+const tagPct = computed(() =>
+  tagReady.value ? 100 : Math.max(0, 100 - (props.tagCooldownMs / TAG_COOLDOWN_MS) * 100),
+)
 const status = computed(() => {
   if (props.watching) return 'Watching'
   if (props.selfInfected) return 'Infected'
@@ -58,6 +64,18 @@ const status = computed(() => {
         <span>Immune</span><span>{{ Math.ceil(immunityMs / 1000) }}s</span>
       </b>
       <div class="tag-bar"><i :style="{ width: `${immunePct}%` }" /></div>
+    </div>
+    <div
+      v-if="selfInfected && !watching && graceMs <= 0"
+      class="tag-recharge tag-glass"
+      :class="{ 'is-ready': tagReady }"
+      data-testid="tag-recharge"
+    >
+      <b>
+        <span role="status">{{ tagReady ? 'Tag ready' : 'Recharging' }}</span
+        ><span v-if="!tagReady" aria-hidden="true">{{ (tagCooldownMs / 1000).toFixed(1) }}s</span>
+      </b>
+      <div class="tag-bar"><i :style="{ width: `${tagPct}%` }" /></div>
     </div>
     <p
       v-if="toast"

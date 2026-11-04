@@ -6,6 +6,8 @@ export const SPRINT_MS = 2500
 export const SPRINT_COOLDOWN_MS = 6000
 export const INFECTED_CAN_SPRINT = false
 export const TAG_REACH = 1.2
+// one tag at a time: a tagger waits this long before the next tag lands
+export const TAG_COOLDOWN_MS = 2000
 // infected players move at this share of the base speed
 export const INFECTED_SPEED_MULT = 0.8
 export const LATENCY_SLACK = 0.6

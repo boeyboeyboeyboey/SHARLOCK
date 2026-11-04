@@ -469,6 +469,7 @@ describe('botnet tag play rules', () => {
         'ready',
         'sid',
         'sprinting',
+        'tagReadyAt',
         'username',
         'x',
         'yaw',

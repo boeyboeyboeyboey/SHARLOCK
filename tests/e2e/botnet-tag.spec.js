@@ -177,9 +177,19 @@ test('patient zero cannot use stations, infects everyone, saves the win and leav
 
     // past the grace period and the shortest round that saves; the page tags what it touches
     await control('elapse', { ms: 21000 })
-    await control('gather')
+    // tags land one at a time with a 2 s cooldown on the server clock, which elapse has pushed
+    // ahead of real time, so step it past each cooldown and pull the survivors back into reach
     const results = page.getByTestId('tag-results')
-    await expect(results).toBeVisible()
+    let elapsed = 21000
+    await expect(async () => {
+      // the round may already be over, and elapse is refused once it is
+      if (!(await results.isVisible())) {
+        elapsed += 2500
+        await control('elapse', { ms: elapsed })
+        await control('gather')
+      }
+      await expect(results).toBeVisible({ timeout: 1000 })
+    }).toPass({ timeout: 30_000 })
     await expect(results.getByRole('heading')).toContainText('Botnet wins')
     await expect(results.getByRole('row', { name: student.username })).toContainText('✕ Infected')
     // two tags and the winning side

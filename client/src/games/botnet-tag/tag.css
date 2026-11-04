@@ -395,6 +395,26 @@
   margin-bottom: 6px;
   font-size: 13px;
 }
+.botnet-tag-game .tag-recharge {
+  position: absolute;
+  bottom: 14px;
+  left: 12px;
+  width: min(260px, 52vw);
+  padding: 10px 12px;
+}
+.botnet-tag-game .tag-recharge b {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-size: 15px;
+}
+.botnet-tag-game .tag-recharge .tag-bar i {
+  background: var(--game-bot);
+}
+.botnet-tag-game .tag-recharge.is-ready {
+  border-color: var(--game-bot);
+  box-shadow: 0 0 0 2px var(--game-bot);
+}
 .botnet-tag-game .tag-bar {
   height: 12px;
   overflow: hidden;
@@ -426,7 +446,8 @@
   .botnet-tag-game .is-optional {
     display: none;
   }
-  .botnet-tag-game .tag-immunity {
+  .botnet-tag-game .tag-immunity,
+  .botnet-tag-game .tag-recharge {
     bottom: 100px;
   }
   .botnet-tag-game .tag-sub {

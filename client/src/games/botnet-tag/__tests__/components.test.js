@@ -176,6 +176,20 @@ describe('hud', () => {
     expect(wrapper.find('[data-testid="tag-toast"]').exists()).toBe(false)
   })
 
+  it('shows the infected player when their next tag is ready', () => {
+    const recharging = mount(TagHud, {
+      props: { msLeft: 60_000, infected: 1, total: 3, selfInfected: true, tagCooldownMs: 1_400 },
+    })
+    expect(recharging.get('[data-testid="tag-recharge"]').text()).toContain('Recharging')
+    expect(recharging.get('[data-testid="tag-recharge"]').text()).toContain('1.4s')
+    const ready = mount(TagHud, {
+      props: { msLeft: 60_000, infected: 1, total: 3, selfInfected: true },
+    })
+    expect(ready.get('[data-testid="tag-recharge"]').text()).toBe('Tag ready')
+    const clean = mount(TagHud, { props: { msLeft: 60_000, infected: 1, total: 3 } })
+    expect(clean.find('[data-testid="tag-recharge"]').exists()).toBe(false)
+  })
+
   it('warns in the final 30 seconds', () => {
     const wrapper = mount(TagHud, { props: { msLeft: 29_000, infected: 1, total: 3 } })
     expect(wrapper.get('[data-testid="tag-urgent"]').attributes('aria-label')).toBe(

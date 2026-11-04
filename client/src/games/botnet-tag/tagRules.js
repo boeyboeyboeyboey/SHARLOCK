@@ -95,3 +95,6 @@ export function sprintPhase(startedAt, clockNow) {
   if (age < SPRINT_MS) return 'active'
   return age < SPRINT_MS + SPRINT_COOLDOWN_MS ? 'cooldown' : 'ready'
 }
+
+// mirrors the server: one tag at a time, then this wait before the next
+export const TAG_COOLDOWN_MS = 2000

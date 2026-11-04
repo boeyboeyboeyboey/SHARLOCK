@@ -87,6 +87,9 @@ const infectedCount = computed(() => state.players.filter((player) => player.inf
 const immunityMs = computed(() =>
   me.value?.immuneUntil ? msUntil(me.value.immuneUntil, clock.value, state.offset) : 0,
 )
+const tagCooldownMs = computed(() =>
+  me.value?.tagReadyAt ? msUntil(me.value.tagReadyAt, clock.value, state.offset) : 0,
+)
 const graceMs = computed(() =>
   state.phase === 'playing' && state.graceEndsAt
     ? msUntil(state.graceEndsAt, clock.value, state.offset)
@@ -161,6 +164,7 @@ const tagTimer = setInterval(() => {
   if (state.phase !== 'playing' || state.blocked || !me.value?.infected || graceMs.value > 0) return
   const t = Date.now()
   if (t - lastTagAt < TAG_GAP_MS) return
+  if ((me.value.tagReadyAt ?? 0) > t + state.offset) return
   const target = nearestTarget(me.value, state.players, t + state.offset)
   if (target) {
     lastTagAt = t
@@ -587,6 +591,7 @@ const blockedTitle = computed(() => {
         :infected="infectedCount"
         :total="state.players.length"
         :immunity-ms="immunityMs"
+        :tag-cooldown-ms="tagCooldownMs"
         :self-infected="Boolean(me?.infected)"
         :watching="state.watching"
         :grace-ms="graceMs"

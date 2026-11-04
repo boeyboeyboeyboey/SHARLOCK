@@ -20,6 +20,7 @@ import {
   STATION_LOCKOUT_MS,
   STATION_REACH,
   BASE_SPEED,
+  TAG_COOLDOWN_MS,
 } from '../../../src/modules/games/botnet-tag/rules.js'
 import { botnetTagRuleset } from '../../../src/modules/games/botnet-tag/ruleset.js'
 import { createRng } from './rng.js'
@@ -214,6 +215,22 @@ describe('tag flow', () => {
     expect(a.tags).toBe(1)
     expect(round.tag('s1', 's2', PLAY + 1).ok).toBe(false)
     expect(round.drainEvents().some((e) => e.type === 'tag')).toBe(true)
+  })
+
+  it('tags one player at a time, then waits out the cooldown', () => {
+    const { round, b, c } = setup()
+    place(round, 's1', 8, 0)
+    place(round, 's2', 9, 0)
+    place(round, 's3', 8, 1)
+    expect(round.tag('s1', 's2', PLAY).ok).toBe(true)
+    expect(round.snapshot('s1', PLAY).players.find((p) => p.sid === 's1').tagReadyAt).toBe(
+      PLAY + TAG_COOLDOWN_MS,
+    )
+    expect(round.tag('s1', 's3', PLAY + 1)).toEqual({ ok: false, reason: 'cooldown' })
+    expect(round.tag('s1', 's3', PLAY + TAG_COOLDOWN_MS - 1).reason).toBe('cooldown')
+    expect(c.infected).toBe(false)
+    expect(b.infected).toBe(true)
+    expect(round.tag('s1', 's3', PLAY + TAG_COOLDOWN_MS).ok).toBe(true)
   })
 
   it('refuses a far or immune target', () => {
@@ -462,7 +479,7 @@ describe('rounds that are not saved', () => {
     place(quick.round, 's2', 9, 0)
     place(quick.round, 's3', 8, 1)
     const early = COUNTDOWN_MS + MIN_SAVED_ROUND_MS - 1
-    quick.round.tag('s1', 's2', early)
+    quick.round.tag('s1', 's2', early - TAG_COOLDOWN_MS)
     quick.round.tag('s1', 's3', early)
     expect(quick.round.sideWon).toBe('botnet')
     expect(quick.round.unsavedReason).toBe('short')
@@ -472,7 +489,7 @@ describe('rounds that are not saved', () => {
     place(fair.round, 's2', 9, 0)
     place(fair.round, 's3', 8, 1)
     const enough = COUNTDOWN_MS + MIN_SAVED_ROUND_MS
-    fair.round.tag('s1', 's2', enough)
+    fair.round.tag('s1', 's2', enough - TAG_COOLDOWN_MS)
     fair.round.tag('s1', 's3', enough)
     expect(fair.round.sideWon).toBe('botnet')
     expect(fair.round.unsavedReason).toBeNull()
@@ -615,7 +632,7 @@ describe('round end and results', () => {
     const t = COUNTDOWN_MS + 30500
     round.tag('s1', 's2', t)
     expect(round.phase).toBe('playing')
-    round.tag('s1', 's3', t + 10)
+    round.tag('s1', 's3', t + TAG_COOLDOWN_MS)
     expect(round.phase).toBe('results')
     expect(round.sideWon).toBe('botnet')
     const results = round.results()
@@ -707,6 +724,7 @@ describe('round end and results', () => {
         'ready',
         'sid',
         'sprinting',
+        'tagReadyAt',
         'username',
         'x',
         'yaw',

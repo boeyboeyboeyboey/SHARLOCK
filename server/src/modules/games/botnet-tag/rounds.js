@@ -23,6 +23,7 @@ import {
   STATION_COOLDOWN_MS,
   STATION_LOCKOUT_MS,
   STATION_REACH,
+  TAG_COOLDOWN_MS,
   canStartSprint,
   canTag,
   patientZeroCount,
@@ -105,6 +106,7 @@ export function createRound({
       yaw: 0,
       infected: false,
       immuneUntil: 0,
+      tagReadyAt: 0,
       lockedUntil: 0,
       failReason: null,
       notice: null,
@@ -161,6 +163,7 @@ export function createRound({
     Object.assign(player, {
       infected: false,
       immuneUntil: 0,
+      tagReadyAt: 0,
       lockedUntil: 0,
       failReason: null,
       notice: null,
@@ -401,6 +404,7 @@ export function createRound({
       const target = getPlayer(targetSid)
       if (!tagger || !target || phase !== 'playing') return { ok: false, reason: 'invalid' }
       if (t < graceEndsAt) return { ok: false, reason: 'grace' }
+      if (t < tagger.tagReadyAt) return { ok: false, reason: 'cooldown' }
       if (!canTag(tagger, target, t)) return { ok: false, reason: 'no_tag' }
       target.infected = true
       target.infectedAt = t
@@ -408,6 +412,7 @@ export function createRound({
       spread = true
       puzzles.delete(targetSid)
       bump(tagger, 'tags')
+      tagger.tagReadyAt = t + TAG_COOLDOWN_MS
       pushEvent({ type: 'tag', at: t, from: sid, to: targetSid })
       checkEnd(t)
       return { ok: true }
@@ -528,6 +533,7 @@ export function createRound({
           yaw: player.yaw,
           infected: player.infected,
           immuneUntil: player.immuneUntil,
+          tagReadyAt: player.tagReadyAt,
           sprinting: sprintActive(player, t),
           ready: player.ready,
           isBot: player.isBot,
