@@ -168,7 +168,7 @@ watch(() => props.open, sync)
           </li>
           <li>
             <RouterLink to="/about" class="menu-link" @click="emit('navigate')"
-              >About Sharlock</RouterLink
+              >About Sharlock Hub</RouterLink
             >
           </li>
           <li v-if="user && (isInstructor || isAdmin)"><hr /></li>

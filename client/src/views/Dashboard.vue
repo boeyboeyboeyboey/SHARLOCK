@@ -123,7 +123,7 @@ function closeOverlay() {
 <template>
   <div class="town-dashboard" :class="{ 'is-hub': is3d }">
     <h1 v-if="is3d" class="visually-hidden" tabindex="-1">3D town</h1>
-    <h1 v-else class="visually-hidden" tabindex="-1">Welcome to Sharlock Town.</h1>
+    <h1 v-else class="visually-hidden" tabindex="-1">Welcome to Sharlock Hub.</h1>
     <div v-if="!is3d" class="town-notices">
       <p v-if="route.query.classRequest === 'pending'" class="alert alert-success" role="status">
         {{ classPendingText }}

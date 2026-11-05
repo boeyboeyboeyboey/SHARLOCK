@@ -71,10 +71,10 @@ test('registers, restores, signs out, signs in, and stops a protected action aft
   await expect(page.getByTestId('menu-overlay').getByRole('heading', { level: 1 })).toBeVisible()
   await page.goto('/games/threat-briefing')
   await expect(page).toHaveURL(/\/login/)
-  await expect(page.getByRole('heading', { name: 'Sign in to Sharlock' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Sign in to Sharlock Hub' })).toBeVisible()
   await page.goto('/games/phishing-post-mortem')
   await expect(page).toHaveURL(/\/login/)
-  await expect(page.getByRole('heading', { name: 'Sign in to Sharlock' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Sign in to Sharlock Hub' })).toBeVisible()
 
   await page.goto('/profile')
   await expect(page.getByRole('heading', { name: 'Your profile', exact: true })).toBeVisible()
@@ -138,7 +138,7 @@ test('registers, restores, signs out, signs in, and stops a protected action aft
   await page.goto('/')
   await signOutFromMenu(page)
   await expect(page).toHaveURL(/\/login/)
-  await expect(page.getByRole('heading', { name: 'Sign in to Sharlock' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Sign in to Sharlock Hub' })).toBeVisible()
 
   await page.goto('/about')
   await expect(page.getByTestId('menu-overlay').getByRole('heading', { level: 1 })).toBeVisible()
@@ -174,7 +174,7 @@ test('registers, restores, signs out, signs in, and stops a protected action aft
   await page.getByRole('button', { name: 'Start the run' }).click()
   await page.getByRole('button', { name: /Practice \(no timer\)/ }).click()
   await expect(page).toHaveURL(/\/login/)
-  await expect(page.getByRole('heading', { name: 'Sign in to Sharlock' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Sign in to Sharlock Hub' })).toBeVisible()
   expect(protectedRunPosts).toBe(0)
 })
 
@@ -206,7 +206,7 @@ test('signing out with a lapsed session cookie still lands on the sign-in page',
   await context.clearCookies({ name: 'sharlock.sid' })
   await menu.getByRole('button', { name: 'Sign out' }).click()
   await expect(page).toHaveURL(/\/login/)
-  await expect(page.getByRole('heading', { name: 'Sign in to Sharlock' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Sign in to Sharlock Hub' })).toBeVisible()
   await expect(page.getByText('Your security check expired')).toHaveCount(0)
 })
 

@@ -66,7 +66,7 @@ describe('site menu', () => {
       'Leaderboard',
       'Your classes',
       'Settings',
-      'About Sharlock',
+      'About Sharlock Hub',
       'Sign out',
     ])
     const instructorMenu = mountMenu({ user: instructor })
@@ -108,7 +108,7 @@ describe('site menu', () => {
 
   it('offers sign in and create account when signed out', () => {
     const wrapper = mountMenu({ user: null })
-    expect(labels(wrapper)).toEqual(['About Sharlock', 'Sign in', 'Create account'])
+    expect(labels(wrapper)).toEqual(['About Sharlock Hub', 'Sign in', 'Create account'])
     wrapper.unmount()
   })
 

@@ -70,7 +70,7 @@ watch(
         <RouterView />
       </main>
       <footer v-if="!route.meta.interior" class="portal-footer">
-        <span>SHARLOCK · WAD2</span>
+        <span>SHARLOCK HUB · WAD2</span>
       </footer>
     </div>
   </div>

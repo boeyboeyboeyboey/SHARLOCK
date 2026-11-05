@@ -9,7 +9,7 @@ test('a signed-out visitor lands on the welcome page and can reach sign-in and s
 
   await page.getByRole('link', { name: 'Sign in' }).click()
   await expect(page).toHaveURL(/\/login$/)
-  await expect(page.getByRole('heading', { name: 'Sign in to Sharlock' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Sign in to Sharlock Hub' })).toBeVisible()
 
   await page.goBack()
   await expect(page).toHaveURL(/\/welcome$/)

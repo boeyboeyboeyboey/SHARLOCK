@@ -46,7 +46,7 @@ describe('sign-in page', () => {
 
   it('links a first-time visitor to the about page', async () => {
     const wrapper = await mountAt({ reason: 'required' })
-    expect(wrapper.get('a[href="/about"]').text()).toContain('What is Sharlock?')
+    expect(wrapper.get('a[href="/about"]').text()).toContain('What is Sharlock Hub?')
   })
 
   it('offers a next step for a forgotten password', async () => {

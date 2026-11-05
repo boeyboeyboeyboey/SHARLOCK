@@ -58,7 +58,7 @@ export const routes = [
     path: '/',
     name: 'town',
     component: Dashboard,
-    meta: { title: 'Sharlock Town', theme: 'town', requiresAccount: true, immersive: true },
+    meta: { title: 'Town', theme: 'town', requiresAccount: true, immersive: true },
     children: [
       {
         path: '/games/threat-briefing',
@@ -106,7 +106,7 @@ export const routes = [
         path: '/about',
         name: 'about',
         component: () => import('../features/menu/overlays/AboutOverlay.vue'),
-        meta: { title: 'About Sharlock', overlay: true, requiresAccount: false },
+        meta: { title: 'About Sharlock Hub', overlay: true, requiresAccount: false },
       },
     ],
   },
@@ -268,6 +268,6 @@ router.beforeEach((to, from) => {
   return true
 })
 router.afterEach((to) => {
-  document.title = `${to.meta.title || 'Explore'} · Sharlock`
+  document.title = `${to.meta.title || 'Explore'} · Sharlock Hub`
 })
 export default router

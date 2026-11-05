@@ -35,11 +35,11 @@ Blocks on a 16 × 10 grid switch on in hard one-millisecond steps (never a fade)
 
 | Destination        | Pattern                                                                     | Colour         | Emoji and label                 |
 | ------------------ | --------------------------------------------------------------------------- | -------------- | ------------------------------- |
-| Town map           | diagonal staircase from the top-left                                        | dark green     | 🗺️ Entering Sharlock Town…      |
+| Town map           | diagonal staircase from the top-left                                        | dark green     | 🗺️ Entering Sharlock Hub…       |
 | Detective profile  | interlaced shutters (even rows sweep left to right, odd rows right to left) | slate          | 🔍 Opening your detective desk… |
 | Your classes       | checkerboard, dark squares first                                            | gold           | 🎒 Finding your classes…        |
 | Cohort leaderboard | checkerboard                                                                | gold           | 🏆 Checking the rankings…       |
-| About Sharlock     | rings spreading outward from the centre                                     | capybara brown | 🐹 Meeting Sharlock…            |
+| About Sharlock Hub | rings spreading outward from the centre                                     | capybara brown | 🐹 Meeting Sharlock…            |
 | Sign in            | bars rising from the bottom                                                 | blue           | 🔑 Heading to the sign-in desk… |
 | Create account     | diagonal staircase from the top-left                                        | blue           | 📝 Opening the sign-up desk…    |
 | Join a class       | rings spreading outward from the centre                                     | green          | 🔖 Finding your class…          |

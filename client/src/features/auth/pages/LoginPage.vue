@@ -129,7 +129,7 @@ async function cancelCode() {
     </div>
     <section class="auth-card">
       <h1 id="login-title" tabindex="-1">
-        {{ verifying ? 'Confirm your email' : 'Sign in to Sharlock' }}
+        {{ verifying ? 'Confirm your email' : 'Sign in to Sharlock Hub' }}
       </h1>
       <p v-if="passwordResetNotice" class="auth-field-hint" role="status">
         Your password was updated. Sign in with your new password.
@@ -159,7 +159,7 @@ async function cancelCode() {
           :disabled="pending || continuing"
           @click="continueAfterSignIn"
         >
-          {{ continuing ? 'Opening Sharlock Town…' : 'Continue' }}
+          {{ continuing ? 'Opening Sharlock Hub…' : 'Continue' }}
         </button>
       </div>
 
@@ -190,7 +190,7 @@ async function cancelCode() {
         Forgot your password? Ask your instructor or school administrator to send you a reset link.
       </p>
       <p v-if="!signedIn && !verifying" class="auth-switch">
-        New to Sharlock?
+        New to Sharlock Hub?
         <RouterLink to="/register">Create a student account</RouterLink>
       </p>
       <p v-if="!signedIn && !verifying" class="auth-field-hint">
@@ -200,7 +200,7 @@ async function cancelCode() {
     <aside class="auth-aside">
       <PixelIcon name="lock" :size="30" aria-hidden="true" />
       <RouterLink to="/about" class="auth-aside__link">
-        What is Sharlock? <PixelIcon name="arrow" :size="16" aria-hidden="true" />
+        What is Sharlock Hub? <PixelIcon name="arrow" :size="16" aria-hidden="true" />
       </RouterLink>
     </aside>
   </section>

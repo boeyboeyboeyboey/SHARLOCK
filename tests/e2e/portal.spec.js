@@ -281,7 +281,7 @@ test('uses pixel page artwork, keeps the 3D menu and navbar logo, and recovers f
   await page.getByRole('button', { name: /^Menu/ }).click()
   const menu = page.getByTestId('site-menu')
   await expect(menu.getByRole('img', { name: /3D-style capybara/ })).toBeVisible()
-  await menu.getByRole('link', { name: 'About Sharlock', exact: true }).click()
+  await menu.getByRole('link', { name: 'About Sharlock Hub', exact: true }).click()
   await expect(page).toHaveURL('/about')
   await expect(page.locator('.hero-mascot')).toHaveAttribute(
     'alt',

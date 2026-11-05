@@ -863,7 +863,7 @@ describe('auth forms and account summary', () => {
     })
     await loginRouter.push('/login')
     const login = mount(LoginPage, { global: { plugins: [createPinia(), loginRouter] } })
-    expect(login.get('h1').text()).toBe('Sign in to Sharlock')
+    expect(login.get('h1').text()).toBe('Sign in to Sharlock Hub')
     expect(login.get('form').exists()).toBe(true)
     expect(login.text()).toContain('Instructor? Ask your administrator for an activation link.')
     login.unmount()

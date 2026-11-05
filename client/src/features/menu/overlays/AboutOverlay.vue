@@ -6,7 +6,7 @@ defineEmits(['request-close'])
 </script>
 
 <template>
-  <OverlayPanel title="About Sharlock" @request-close="$emit('request-close')">
+  <OverlayPanel title="About Sharlock Hub" @request-close="$emit('request-close')">
     <AboutStory />
   </OverlayPanel>
 </template>

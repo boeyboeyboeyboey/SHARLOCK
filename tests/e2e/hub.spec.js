@@ -359,7 +359,7 @@ test('fills the window below the navbar without sideways scroll', async ({ page 
   expect(metrics.hub).toBeGreaterThanOrEqual(metrics.viewport - metrics.navbar - 2)
   expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth)
   await expect(page.getByRole('heading', { level: 1, name: '3D town' })).toHaveCount(1)
-  await expect(page.getByText('Welcome to Sharlock Town')).toHaveCount(0)
+  await expect(page.getByText('Welcome to Sharlock Hub')).toHaveCount(0)
 })
 
 test('leaving before the hub is ready stops the build and frees it', async ({ page }) => {

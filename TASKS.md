@@ -597,6 +597,8 @@ All records in this section were Review until 1 November 2026, when Boey accepte
 
 ## Review
 
+**NAME-01 — Site name reads "Sharlock Hub"** · Status: **Review** · Contributor: **Boey** (asked 5 November 2026). The browser tab (`index.html` title and meta description, router suffix " · Sharlock Hub", home tab "Town"), footer, sign-in and register copy, About menu link/panel/tab, the hidden 2D home heading and the town wipe label now say "Sharlock Hub" instead of "SHARLOCK", "Sharlock" or "Sharlock Town". Left as is: in-world names (the 2D map's "Sharlock Town" label, The Sharlock Times masthead, "Meeting Sharlock…"), the short "Sharlock" in API error messages, and the SQL game's "Sharlock password" hint (owner's module). Tests and docs (README, DESIGN, auth and about READMEs) updated with the strings.
+
 **DOC-27 — Submission README kept out of the repo** · Status: **Done** (Boey, 4 November 2026) · Contributor: **Boey**. `docs/SUBMISSION-README.md` removed; the README for markers is submitted only in the zip, with the demo passwords, from Boey's local copy. README pointer lines and the codebase guide's test-count link updated. Earlier records that name the file are history.
 
 **MENU-03 — No pixel wipe for overlays over the town** · Status: **Review** · Contributor: **Boey** (plan approved by Boey, 4 November 2026) · Branch: `menu-03-overlay-themes` (cut from `origin/main` at `57c153f`).

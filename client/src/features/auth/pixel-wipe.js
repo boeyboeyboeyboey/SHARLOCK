@@ -64,7 +64,7 @@ export const WIPE_SECTIONS = Object.freeze({
     pattern: 'diagonal',
     color: 'var(--border-strong)',
     emoji: '🗺️',
-    label: 'Entering Sharlock Town…',
+    label: 'Entering Sharlock Hub…',
   },
   profile: {
     kind: 'blocks',

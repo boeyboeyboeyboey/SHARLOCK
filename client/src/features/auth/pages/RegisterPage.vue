@@ -123,7 +123,7 @@ async function cancelCode() {
           :disabled="pending || continuing"
           @click="continueAfterSignIn"
         >
-          {{ continuing ? 'Opening Sharlock Town…' : 'Continue' }}
+          {{ continuing ? 'Opening Sharlock Hub…' : 'Continue' }}
         </button>
       </div>
 
@@ -161,7 +161,7 @@ async function cancelCode() {
     <aside class="auth-aside">
       <PixelIcon name="shield" :size="30" aria-hidden="true" />
       <RouterLink to="/about" class="auth-aside__link">
-        About Sharlock <PixelIcon name="arrow" :size="16" aria-hidden="true" />
+        About Sharlock Hub <PixelIcon name="arrow" :size="16" aria-hidden="true" />
       </RouterLink>
     </aside>
   </section>
