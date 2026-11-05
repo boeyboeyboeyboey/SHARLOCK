@@ -643,8 +643,8 @@
   }
 }
 
-/* 2D town floating controls: dark slate with a cream ring so they read against the bright scene */
-.immersive-controls.on-town {
+/* 2d town floating controls: dark slate with a cream ring; skin-pixel in the selector so these beat menu.css, which loads later */
+.immersive-controls.skin-pixel.on-town {
   --hub-glass-bg: #2f3a4f;
   --hub-glass-solid: #2f3a4f;
   --hub-glass-ink: #fff8df;
@@ -654,24 +654,26 @@
   --hub-glass-focus: #ffc94a;
   --hub-glass-btn-hover: #44526d;
 }
-.immersive-controls.on-town .glass-button,
-.immersive-controls.on-town .mode-switch button {
+.immersive-controls.skin-pixel.on-town .glass-button,
+.immersive-controls.skin-pixel.on-town .mode-switch button {
   color: #fff8df;
 }
-.immersive-controls.on-town .glass-button:hover,
-.immersive-controls.on-town .mode-switch button:not([aria-pressed='true']):hover:not(:disabled) {
+.immersive-controls.skin-pixel.on-town .glass-button:hover,
+.immersive-controls.skin-pixel.on-town
+  .mode-switch
+  button:not([aria-pressed='true']):hover:not(:disabled) {
   background: #44526d;
 }
-.immersive-controls.on-town .mode-switch button[aria-pressed='true'],
-.immersive-controls.on-town .sound-button[aria-pressed='true'] {
+.immersive-controls.skin-pixel.on-town .mode-switch button[aria-pressed='true'],
+.immersive-controls.skin-pixel.on-town .sound-button[aria-pressed='true'] {
   background: #ffc94a;
   color: #1b2230;
 }
-.immersive-controls.on-town .menu-hint {
+.immersive-controls.skin-pixel.on-town .menu-hint {
   background: #fff8df;
   color: #1b2230;
 }
-.immersive-controls.on-town .sound-button,
+.immersive-controls.skin-pixel.on-town .sound-button,
 .map-zoom-controls .pixel-button,
 .map-zoom-controls output {
   border-color: #1b2230;
@@ -681,7 +683,7 @@
     0 0 0 2px #fff8df,
     4px 4px 0 #1b2230;
 }
-.immersive-controls.on-town .sound-button:hover,
+.immersive-controls.skin-pixel.on-town .sound-button:hover,
 .map-zoom-controls .pixel-button:hover:not(:disabled) {
   background: #44526d;
 }
