@@ -11,7 +11,7 @@ const rooms = [
   ['cli-cyber-defender', /CLI Cyber Defender/i],
   ['phishing-post-mortem', /phishing/i],
   ['sql-injection-arcade', /sql/i],
-  ['social-engineering-simulator', /help desk/i],
+  ['social-engineering-simulator', /LLM Social Engineering Simulator/i],
   ['clearance-tower', /clearance/i],
 ]
 test.describe('game rooms', () => {

@@ -561,7 +561,16 @@ describe('botnet tag saving', () => {
     humanOf(ws).patches = 3
     advance(ROUND_MS + 10)
     await until(() => ws.messages.filter((m) => m.type === 'saved').length === 2, 'second notice')
-    expect(last(ws, 'saved').score).toBe(first.score + 150)
+    // compare with this play's own result: who starts infected depends on the seeded rng
+    const mine = liveRound()
+      .results()
+      .find((entry) => entry.sid === lastSnapshot(ws).sid)
+    const bonus = mine.sideWon ? 100 : 0
+    expect(mine.patches).toBe(3)
+    expect(mine.score).toBe(
+      Math.min(MAX_SCORE, mine.survivalSeconds + 3 * 50 + mine.tags * 30 + bonus),
+    )
+    expect(last(ws, 'saved').score).toBe(mine.score)
 
     const attempts = await database.db.collection('game_attempts').find({}).toArray()
     expect(attempts).toHaveLength(2)
