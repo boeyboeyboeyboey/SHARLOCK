@@ -13,3 +13,6 @@ test-results/
 .idea/
 .vscode/*
 /.local-handover/
+
+# course material: kept locally, not published
+/documentation/
